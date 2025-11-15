@@ -1,0 +1,261 @@
+# mise configuration for claude-skills marketplace
+
+[tools]
+"ubi:nushell/nushell" = { version = "latest", exe = "nu" }
+act = "latest"  # Local GitHub Actions testing
+
+# Note: Lima and Colima are macOS-only tools for local act testing
+# Install manually on Mac: mise install lima colima
+
+[tasks.test]
+description = "Run all validation tests (marketplace + plugins)"
+depends = ["test:marketplace", "test:plugins"]
+
+[tasks."test:all"]
+description = "Run all validation tests (marketplace + plugins)"
+depends = ["test:marketplace", "test:plugins"]
+
+[tasks."test:marketplace"]
+description = "Validate marketplace.json only"
+run = """
+#!/usr/bin/env bash
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+echo "📦 Validating marketplace.json..."
+
+# Use the validation function from validate-all.nu
+nu -c '
+def validate-marketplace [repo_root: string] {
+    let marketplace_path = ($repo_root | path join ".claude-plugin" "marketplace.json")
+
+    try {
+        let marketplace = (open $marketplace_path)
+
+        if ($marketplace | get -o name) == null {
+            print "❌ Error: Missing required field: name"
+            exit 1
+        }
+
+        if ($marketplace | get -o owner) == null {
+            print "❌ Error: Missing required field: owner"
+            exit 1
+        }
+
+        if ($marketplace | get -o plugins) == null {
+            print "❌ Error: Missing required field: plugins"
+            exit 1
+        }
+
+        let plugins_type = ($marketplace.plugins | describe)
+        if not ($plugins_type | str contains "list") {
+            print "❌ Error: Field \"plugins\" must be an array"
+            exit 1
+        }
+
+        for plugin in $marketplace.plugins {
+            if ($plugin | get -o name) == null {
+                print "❌ Error: Plugin entry missing required field: name"
+                exit 1
+            }
+
+            if ($plugin | get -o source) == null {
+                print $"❌ Error: Plugin \"($plugin.name)\" missing required field: source"
+                exit 1
+            }
+        }
+
+        print "✅ marketplace.json is valid!"
+        exit 0
+    } catch {
+        print "❌ Error: Failed to parse JSON or validation error"
+        exit 1
+    }
+}
+
+validate-marketplace "."
+'
+"""
+
+[tasks."test:plugins"]
+description = "Validate all plugin.json files"
+run = """
+#!/usr/bin/env bash
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+echo "🔍 Validating all plugins..."
+echo ""
+
+# Get plugin names from marketplace
+PLUGINS=$(nu -c 'open .claude-plugin/marketplace.json | get plugins | get name | str join " "')
+
+ALL_PASSED=true
+for plugin in $PLUGINS; do
+    if nu test/validate-plugin.nu "$plugin" > /dev/null 2>&1; then
+        echo "✅ plugin: $plugin"
+    else
+        echo "❌ plugin: $plugin"
+        ALL_PASSED=false
+    fi
+done
+
+echo ""
+if [ "$ALL_PASSED" = true ]; then
+    echo "✨ All plugins are valid!"
+    exit 0
+else
+    echo "❌ Some plugin validations failed"
+    exit 1
+fi
+"""
+
+[tasks."test:plugin"]
+description = "Validate a specific plugin (usage: mise test:plugin <plugin-name>)"
+run = """
+#!/usr/bin/env bash
+set -e
+
+if [ -z "$1" ]; then
+    echo "❌ Error: Plugin name required"
+    echo "Usage: mise test:plugin <plugin-name>"
+    exit 1
+fi
+
+cd "$(git rev-parse --show-toplevel)"
+nu test/validate-plugin.nu "$1"
+"""
+
+[tasks."update-claudio"]
+description = "Update claudio plugin.json with all skills from all plugins"
+run = """
+#!/usr/bin/env bash
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+# Check for flags
+DRY_RUN=""
+VERBOSE=""
+
+for arg in "$@"; do
+    case $arg in
+        --dry-run|-d)
+            DRY_RUN="--dry-run"
+            ;;
+        --verbose|-v)
+            VERBOSE="--verbose"
+            ;;
+    esac
+done
+
+nu .claude-plugin/scripts/update-claudio.nu $DRY_RUN $VERBOSE
+"""
+
+[tasks.list-plugins]
+description = "List all plugins in the marketplace"
+run = """
+#!/usr/bin/env bash
+cd "$(git rev-parse --show-toplevel)"
+nu -c 'open .claude-plugin/marketplace.json | get plugins | select name version description category'
+"""
+
+[tasks."colima:start"]
+description = "Start colima with Docker runtime (macOS only)"
+run = """
+#!/usr/bin/env nu
+
+# Only run on macOS
+if $nu.os-info.name != "macos" {
+    print "⚠️  Colima is only available on macOS. Ubuntu/Linux has native Docker."
+    exit 0
+}
+
+# Use mise exec to run colima with temporary tool activation (like nix-shell)
+print "📦 Checking colima status..."
+let status = (mise exec lima@latest colima@latest -- colima status --profile default | complete)
+if $status.exit_code != 0 {
+    print "🚀 Starting colima..."
+    mise exec lima@latest colima@latest -- colima start --vm-type vz --vz-rosetta --runtime docker
+} else {
+    print "✅ Colima is already running"
+}
+"""
+
+[tasks."colima:stop"]
+description = "Stop colima"
+run = """
+#!/usr/bin/env nu
+
+# Only run on macOS
+if $nu.os-info.name != "macos" {
+    print "⚠️  Colima is only available on macOS."
+    exit 0
+}
+
+# Use mise exec with both lima and colima
+mise exec lima@latest colima@latest -- colima stop
+"""
+
+[tasks."test:action"]
+description = "Test GitHub action locally using act (tests pull_request workflow)"
+run = """
+#!/usr/bin/env nu
+
+# Detect OS and set flags for Mac (using medium image - micro lacks curl/bash tools)
+let act_flags = if $nu.os-info.name == "macos" {
+    [
+        "--container-architecture" "linux/amd64"
+        "--container-daemon-socket" "-"
+        "-P" "ubuntu-latest=catthehacker/ubuntu:act-latest"
+    ]
+} else {
+    [
+        "-P" "ubuntu-latest=catthehacker/ubuntu:act-latest"
+    ]
+}
+
+act pull_request ...$act_flags
+"""
+
+[tasks."test:action:pr"]
+description = "Test GitHub action for pull_request workflow"
+run = """
+#!/usr/bin/env nu
+
+# Detect OS and set flags for Mac (using medium image - micro lacks curl/bash tools)
+let act_flags = if $nu.os-info.name == "macos" {
+    [
+        "--container-architecture" "linux/amd64"
+        "--container-daemon-socket" "-"
+        "-P" "ubuntu-latest=catthehacker/ubuntu:act-latest"
+    ]
+} else {
+    [
+        "-P" "ubuntu-latest=catthehacker/ubuntu:act-latest"
+    ]
+}
+
+act pull_request ...$act_flags
+"""
+
+[tasks."test:action:push"]
+description = "Test GitHub action for push to main workflow"
+run = """
+#!/usr/bin/env nu
+
+# Detect OS and set flags for Mac (using medium image - micro lacks curl/bash tools)
+let act_flags = if $nu.os-info.name == "macos" {
+    [
+        "--container-architecture" "linux/amd64"
+        "--container-daemon-socket" "-"
+        "-P" "ubuntu-latest=catthehacker/ubuntu:act-latest"
+    ]
+} else {
+    [
+        "-P" "ubuntu-latest=catthehacker/ubuntu:act-latest"
+    ]
+}
+
+act push ...$act_flags
+"""

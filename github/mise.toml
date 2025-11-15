@@ -1,0 +1,13 @@
+# GitHub plugin mise configuration
+# Installs act for local GitHub Actions testing
+
+[tools]
+act = "latest"
+
+[tasks.install-act]
+description = "Install act using Nushell script"
+run = "nu skills/act/scripts/install-act.nu"
+
+[tasks.verify-act]
+description = "Verify act installation"
+run = "act --version"

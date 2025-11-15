@@ -1,5 +1,5 @@
 ---
-name: twelve-factor-app
+name: twelve-factor
 description: Guide for building cloud-native applications following the 12-Factor App methodology with Kubernetes, containers, and modern deployment practices
 license: MIT
 ---
