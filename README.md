@@ -358,6 +358,44 @@ nu .claude-plugin/scripts/update-claudio.nu
 
 See [test/README.md](test/README.md) for complete testing documentation.
 
+### GitHub Actions CI/CD
+
+The repository includes automated CI/CD via GitHub Actions that runs on:
+- Pull requests (all branches)
+- Pushes to main branch
+
+**What gets tested:**
+- Validates marketplace.json schema
+- Validates all plugin.json files (8 plugins)
+- Checks skill paths exist
+- Verifies naming conventions
+
+The workflow uses a custom action (`.github/actions/validate-marketplace`) with caching for fast execution.
+
+### Local GitHub Actions Testing
+
+Test the GitHub Actions workflow locally before pushing:
+
+```bash
+# Start colima (provides Docker for act on macOS)
+mise colima:start
+
+# Test pull request workflow
+mise test:action:pr
+
+# Test push to main workflow
+mise test:action:push
+
+# When done, stop colima
+mise colima:stop
+```
+
+**Requirements (macOS only):**
+- Lima and Colima (installed automatically via `mise colima:start`)
+- Docker-compatible runtime for running act
+
+**Note:** Ubuntu/Linux uses native Docker and doesn't need colima.
+
 ## Sources and Attribution
 
 Each plugin maintains its own `sources.md` file documenting the official documentation, guides, and resources used to create the skills.

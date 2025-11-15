@@ -348,6 +348,47 @@ Always run `mise test` after updating to validate changes.
 
 Requires: [Nushell](https://www.nushell.sh/). See `test/README.md` for details.
 
+### GitHub Actions CI/CD
+
+The repository includes automated validation via GitHub Actions:
+
+**Triggers:**
+- Pull requests to any branch
+- Pushes to main branch
+
+**Validation:**
+- Marketplace.json schema and structure
+- All plugin.json files (8 plugins including claudio)
+- Skill path verification
+- Naming convention compliance (kebab-case)
+
+**Infrastructure:**
+- Custom action: `.github/actions/validate-marketplace`
+- Workflow: `.github/workflows/validate.yml`
+- Caching: mise and tools cached for fast execution
+- Image: `catthehacker/ubuntu:act-latest` (medium size, compatible)
+
+### Local GitHub Actions Testing
+
+Test the GitHub Actions workflow locally before pushing:
+
+```bash
+# On macOS
+mise colima:start        # Start Docker runtime (installs lima + colima via mise exec)
+mise test:action:pr      # Test pull_request workflow
+mise test:action:push    # Test push workflow
+mise colima:stop         # Stop Docker runtime when done
+
+# On Ubuntu/Linux
+mise test:action:pr      # Uses native Docker
+```
+
+**How it works:**
+- `mise exec lima@latest colima@latest` provides temporary tool activation (like nix-shell)
+- Lima and Colima only installed on macOS (via mise exec, not in mise.toml)
+- act tests workflows using Docker containers
+- Ubuntu/Linux has native Docker, doesn't need colima
+
 ## Skill Architecture Principles
 
 ### Atomic and Focused
