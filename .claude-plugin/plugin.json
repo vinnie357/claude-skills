@@ -1,0 +1,35 @@
+{
+  "name": "claude-skills",
+  "displayName": "Claude Skills Collection",
+  "version": "0.1.0",
+  "description": "A comprehensive collection of Claude skills for Elixir, Rust, development tools (Git, mise, Nushell), workflow orchestration (Dagu), documentation, and code review",
+  "author": "vinnie",
+  "repository": "https://github.com/vinnie/claude-skills",
+  "skills": [
+    "skills/elixir/anti-patterns",
+    "skills/elixir/phoenix",
+    "skills/elixir/otp",
+    "skills/elixir/testing",
+    "skills/elixir/config",
+    "skills/rust",
+    "skills/git",
+    "skills/mise",
+    "skills/nushell",
+    "skills/dagu/workflows",
+    "skills/dagu/webui",
+    "skills/dagu/rest-api",
+    "skills/daisyui",
+    "skills/accessibility",
+    "skills/material-design",
+    "skills/twelve-factor-app",
+    "skills/documentation",
+    "skills/code-review",
+    "skills/anti-fabrication"
+  ],
+  "commands": [
+    "commands/configure-skills.md",
+    "commands/gcms.md",
+    "commands/research.md",
+    "commands/research-skill.md"
+  ]
+}
