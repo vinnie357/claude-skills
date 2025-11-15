@@ -1,0 +1,14 @@
+{
+  "name": "vinnie357",
+  "displayName": "Vinnie357's Skills Marketplace",
+  "description": "A curated collection of Claude skills for development workflows",
+  "owner": {
+    "name": "vinnie357"
+  },
+  "plugins": [
+    {
+      "source": "./",
+      "name": "claudio"
+    }
+  ]
+}
