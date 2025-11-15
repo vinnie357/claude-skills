@@ -12,6 +12,35 @@ This plugin equips Claude with specialized knowledge across:
 - **UI Development & Design**: daisyUI, Web Accessibility, Material Design 3
 - **Development Practices**: Technical documentation, code review
 
+## Installation
+
+Add this repository as a marketplace source and install:
+
+```
+/plugin marketplace add vinnie357/claude-skills
+/plugin install claude-skills
+```
+
+Verify the installation:
+
+```
+/plugin list
+```
+
+### Manual Installation (Alternative)
+
+If you prefer to install manually or use a local version:
+
+```bash
+git clone https://github.com/vinnie357/claude-skills.git ~/.claude/plugins/claude-skills
+```
+
+Then restart Claude Code or reload the window.
+
+## Usage
+
+Skills are automatically available once the plugin is installed. Claude will activate relevant skills based on your task context.
+
 ## Available Skills
 
 ### Elixir Development
@@ -59,35 +88,6 @@ This plugin includes slash commands for common workflows:
 - **/gcms** - Generate conventional commit message suggestions based on current git changes
 - **/research** - Research topics and create comprehensive planning documentation in `research/` directory
 - **/research-skill** - Research topics and create Agent Skills following the Agent Skills Specification
-
-## Installation
-
-Add this repository as a marketplace source and install:
-
-```
-/plugin marketplace add vinnie357/claude-skills
-/plugin install claude-skills
-```
-
-Verify the installation:
-
-```
-/plugin list
-```
-
-### Manual Installation (Alternative)
-
-If you prefer to install manually or use a local version:
-
-```bash
-git clone https://github.com/vinnie357/claude-skills.git ~/.claude/plugins/claude-skills
-```
-
-Then restart Claude Code or reload the window.
-
-## Usage
-
-Skills are automatically available once the plugin is installed. Claude will activate relevant skills based on your task context.
 
 ### Examples
 
