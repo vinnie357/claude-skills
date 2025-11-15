@@ -17,8 +17,10 @@ This plugin equips Claude with specialized knowledge across:
 Add this repository as a marketplace source and install:
 
 ```
+# adds the claudio marketplace
 /plugin marketplace add vinnie357/claude-skills
-/plugin install claude-skills
+# install the claudio skills
+/plugin install claudio@vinnie357
 ```
 
 Verify the installation:
