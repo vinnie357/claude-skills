@@ -1,14 +1,85 @@
 {
   "name": "vinnie357",
-  "displayName": "Vinnie357's Skills Marketplace",
-  "description": "A curated collection of Claude skills for development workflows",
   "owner": {
-    "name": "vinnie357"
+    "name": "vinnie357",
+    "email": "vinnie@example.com"
+  },
+  "metadata": {
+    "description": "A curated collection of Claude skills for development workflows",
+    "version": "1.0.0"
   },
   "plugins": [
     {
+      "name": "claudio",
       "source": "./",
-      "name": "claudio"
+      "description": "Meta-plugin that installs all available skills",
+      "version": "0.2.0",
+      "category": "meta",
+      "keywords": ["all", "complete", "bundle"],
+      "license": "MIT"
+    },
+    {
+      "name": "claude-code",
+      "source": "./claude-code",
+      "strict": true,
+      "description": "Claude Code-specific skills: plugin marketplace management and validation",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["claude-code", "marketplace", "validation"]
+    },
+    {
+      "name": "core",
+      "source": "./core",
+      "strict": true,
+      "description": "Essential development skills: Git, documentation, code review, accessibility",
+      "version": "0.1.0",
+      "category": "development",
+      "keywords": ["git", "documentation", "code-review", "tools"]
+    },
+    {
+      "name": "dagu",
+      "source": "./dagu",
+      "strict": true,
+      "description": "Dagu workflow orchestration: workflows, web UI, REST API",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["dagu", "workflow", "orchestration"]
+    },
+    {
+      "name": "elixir",
+      "source": "./elixir",
+      "strict": true,
+      "description": "Elixir development skills: Phoenix, OTP, testing, configuration",
+      "version": "0.1.0",
+      "category": "language",
+      "keywords": ["elixir", "phoenix", "otp", "beam"]
+    },
+    {
+      "name": "github",
+      "source": "./github",
+      "strict": true,
+      "description": "GitHub Actions, Workflows, and act local testing tool",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing"]
+    },
+    {
+      "name": "rust",
+      "source": "./rust",
+      "strict": true,
+      "description": "Rust programming skills: ownership, borrowing, async, best practices",
+      "version": "0.1.0",
+      "category": "language",
+      "keywords": ["rust", "systems-programming", "memory-safety"]
+    },
+    {
+      "name": "ui",
+      "source": "./ui",
+      "strict": true,
+      "description": "UI framework skills: daisyUI components and theming",
+      "version": "0.1.0",
+      "category": "frontend",
+      "keywords": ["ui", "daisyui", "tailwind"]
     }
   ]
 }

@@ -32,6 +32,27 @@ Additional bundled files (like references, forms, or documentation) load only wh
 
 This tiered approach maintains efficient context windows while supporting potentially unbounded skill complexity.
 
+## Development Standards
+
+### Scripting Language
+
+**Nushell is the preferred scripting language** for this project. Use Nushell for:
+- Validation scripts (test suite)
+- mise task definitions
+- Automation and tooling scripts
+- Any new scripting needs
+
+**Why Nushell:**
+- Cross-platform compatibility (macOS, Linux, Windows)
+- Structured data pipelines for working with JSON, TOML, and other formats
+- Built-in commands for common operations
+- Consistent syntax across all project scripts
+- Modern error handling and type safety
+
+**When to use other languages:**
+- Only use bash/shell scripts when absolutely necessary for compatibility
+- Document the reason when deviating from Nushell
+
 ## Skill Structure
 
 ### Minimal Requirements
@@ -123,13 +144,13 @@ Use imperative/infinitive form rather than second-person instruction for clarity
 
 ### 5. Documentation
 
-**Document all sources in `promptlog/sources.md`**. For each skill created, record:
+**Document all sources in the plugin's `sources.md` file**. For each skill created, record:
 - URLs of documentation, guides, and references used
 - Purpose of each source
 - Key topics and concepts extracted
 - Date accessed (if relevant)
 
-This maintains traceability and helps others understand the skill's foundation. Follow the existing format in `sources.md` with clear section headers and bullet points.
+This maintains traceability and helps others understand the skill's foundation. Each plugin maintains its own `sources.md` file (e.g., `elixir/sources.md`, `core/sources.md`) with clear section headers and bullet points.
 
 ### 6. Validation
 
@@ -219,29 +240,113 @@ All skills MUST adhere to strict anti-fabrication requirements to ensure factual
 
 ## Skills in This Repository
 
-All skills are located in the `skills/` directory. Each skill follows the Agent Skills Specification with a `SKILL.md` file containing the skill definition and optional `references/` directories for detailed documentation.
+This repository is organized as a **tiered marketplace** with root-level plugins. Each plugin is independently installable and contains its own set of skills.
 
-**Current skill count**: 19 skills covering:
-- Elixir development (anti-patterns, Phoenix, OTP, testing, config)
-- Rust programming
-- Development tools (Git, mise, Nushell)
-- Workflow orchestration (Dagu)
-- UI development (daisyUI, accessibility, Material Design)
-- Development practices (documentation, code review, twelve-factor app, anti-fabrication)
+**Available Plugins:**
+- **claudio** - Meta-plugin at root that installs all 25 skills from all other plugins
+- **claude-code** - Plugin marketplace management and validation tools (6 skills)
+- **core** - Essential development skills: Git, documentation, code review, accessibility (9 skills)
+- **elixir** - Elixir and Phoenix development (5 skills)
+- **rust** - Rust programming language (1 comprehensive skill)
+- **dagu** - Workflow orchestration (3 skills)
+- **ui** - UI frameworks and design (1 skill)
 
-See `README.md` for the complete catalog of available skills and their descriptions.
+**Total**: 7 plugins with 25 skills covering multiple programming languages, development tools, and best practices.
+
+**Note**: The `claudio` meta-plugin is maintained via `mise update-claudio` and automatically includes all skills from all other plugins.
+
+Each plugin follows the Agent Skills Specification with `SKILL.md` files containing skill definitions and optional `references/` directories for detailed documentation.
+
+See `README.md` for the complete catalog of plugins, skills, and installation instructions.
+
+## Using the Marketplace
+
+This repository is designed as a Claude Code plugin marketplace. Users can selectively install plugins based on their needs.
+
+### Installation
+
+```bash
+# Add the vinnie357 marketplace
+/plugin marketplace add vinnie357/claude-skills
+
+# Install all skills (meta-plugin)
+/plugin install claudio@vinnie357
+
+# Or install individual plugins selectively
+/plugin install core@vinnie357        # Essential development skills
+/plugin install elixir@vinnie357      # Elixir development
+/plugin install rust@vinnie357        # Rust programming
+/plugin install dagu@vinnie357        # Workflow orchestration
+/plugin install ui@vinnie357          # UI frameworks
+/plugin install claude-code@vinnie357 # Plugin development tools
+```
+
+### Marketplace Architecture
+
+The repository uses a tiered architecture with root-level plugins:
+
+```
+claude-skills/
+├── .claude-plugin/
+│   └── marketplace.json     # Marketplace definition
+├── claude-code/             # Plugin development tools
+├── core/                    # Essential development skills
+├── dagu/                    # Workflow orchestration
+├── elixir/                  # Elixir development
+├── rust/                    # Rust programming
+└── ui/                      # UI frameworks
+```
+
+Each plugin is independently installable and maintains its own:
+- `plugin.json` - Plugin manifest
+- `skills/` - Skill definitions
+- `sources.md` - Source attribution
 
 ## Contributing Skills
 
 When adding new skills to this repository:
 
-1. **Choose a clear name**: Use hyphen-case that reflects the domain
-2. **Write a precise description**: Help Claude understand when to activate the skill
-3. **Follow the structure**: Use the standard directory layout and `SKILL.md` format
-4. **Include examples**: Concrete examples are more valuable than abstract guidelines
-5. **Test thoroughly**: Verify Claude activates and uses the skill appropriately
-6. **Document dependencies**: Note any required tools or external resources
-7. **Consider scope**: Each skill should have a focused, well-defined purpose
+1. **Choose the right plugin**: Add skills to the appropriate plugin (elixir, rust, core, etc.)
+2. **Choose a clear name**: Use hyphen-case that reflects the domain
+3. **Write a precise description**: Help Claude understand when to activate the skill
+4. **Follow the structure**: Use the standard directory layout and `SKILL.md` format
+5. **Include examples**: Concrete examples are more valuable than abstract guidelines
+6. **Test thoroughly**: Verify Claude activates and uses the skill appropriately
+7. **Document sources**: Add source attribution to the plugin's `sources.md` file
+8. **Update plugin.json**: Add the skill path to the plugin's manifest
+9. **Update claudio**: Run `mise update-claudio` to sync the meta-plugin
+10. **Validate changes**: Run `mise test` to validate marketplace and all plugin schemas
+11. **Consider scope**: Each skill should have a focused, well-defined purpose
+
+## Testing and Validation
+
+Before committing changes, validate the marketplace and all plugins:
+
+```bash
+mise test                    # Validate all (marketplace + 7 plugins including claudio)
+mise test:plugin <name>      # Validate specific plugin
+mise test:marketplace        # Validate marketplace.json only
+mise test:plugins            # Validate all plugin.json files
+```
+
+Tests validate all 7 plugins (claude-code, core, dagu, elixir, rust, ui, claudio):
+- Required fields and JSON structure
+- Plugin names match directories (kebab-case)
+- No invalid marketplace-only fields in plugin.json
+- Skill paths exist (claudio has special handling as meta-plugin)
+
+### Maintaining the Claudio Meta-Plugin
+
+The `claudio` meta-plugin at `.claude-plugin/plugin.json` aggregates all skills from all other plugins. After adding/removing skills:
+
+```bash
+mise update-claudio          # Update claudio with all current skills
+mise update-claudio --dry-run  # Preview changes first
+```
+
+Always run `mise test` after updating to validate changes.
+
+Requires: [Nushell](https://www.nushell.sh/). See `test/README.md` for details.
 
 ## Skill Architecture Principles
 
@@ -257,13 +362,6 @@ Skills should be independently usable without requiring other skills:
 - Include all necessary context in the skill itself
 - Reference external resources explicitly
 - Don't assume other skills are loaded
-
-### Progressively Disclosed
-
-Organize information by likelihood of use:
-- Core information in `SKILL.md`
-- Detailed references in separate files
-- Load expensive context only when needed
 
 ### Iteratively Refined
 
@@ -409,6 +507,35 @@ custom_skill/
 
 This structure aligns with the Agent Skills Specification while adding cookbook-specific patterns for business applications.
 
+## Plugin Development
+
+The `claude-code` plugin provides comprehensive tools for building your own Claude Code plugins and marketplaces:
+
+### Skills
+- **plugin-marketplace** - Marketplace.json schema, validation, and management
+- **plugin** - Plugin.json schema, validation, and creation
+- **commands** - Creating custom slash commands
+- **agents** - Creating specialized agents
+- **skills** - Creating Agent Skills (complete guide)
+- **hooks** - Event-driven hooks and automations
+
+### Validation Tools
+
+The plugin includes Nushell scripts for automated validation:
+- `validate-marketplace.nu` - Complete marketplace schema validation
+- `validate-plugin.nu` - Plugin.json schema validation
+- `validate-dependencies.nu` - Dependency graph analysis
+- `init-marketplace.nu` - Interactive marketplace template generation
+- `init-plugin.nu` - Interactive plugin.json generation
+- `format-marketplace.nu` - JSON formatting and plugin sorting
+- `format-plugin.nu` - Plugin.json formatting
+
+Install the plugin to build your own plugins:
+
+```bash
+/plugin install claude-code@vinnie357
+```
+
 ## Additional Resources
 
 - **Official Anthropic Skills Repository**: https://github.com/anthropics/skills
@@ -416,6 +543,8 @@ This structure aligns with the Agent Skills Specification while adding cookbook-
 - **Skill-Creator Skill**: https://github.com/anthropics/skills/tree/main/skill-creator
 - **Agent Skills Blog Post**: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
 - **Agent Skills Specification**: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
+- **Claude Code Plugins**: https://code.claude.com/docs/en/plugins
+- **Plugin Marketplaces**: https://code.claude.com/docs/en/plugin-marketplaces
 
 ## License
 

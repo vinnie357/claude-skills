@@ -45,16 +45,54 @@ echo 'mise activate fish | source' >> ~/.config/fish/config.fish  # fish
 
 ## Managing Tools
 
+### Tool Backends
+
+mise uses different backends (package managers) to install tools. Understanding backends helps you install tools correctly.
+
+#### Available Backends
+
+- **asdf** - Traditional asdf plugins (default for many tools)
+- **ubi** - Universal Binary Installer (GitHub/GitLab releases)
+- **cargo** - Rust packages (requires Rust installed)
+- **npm** - Node.js packages (requires Node installed)
+- **go** - Go packages (requires Go installed)
+- **aqua** - Package manager
+- **pipx** - Python packages (requires Python installed)
+- **gem** - Ruby packages (requires Ruby installed)
+- **github/gitlab** - Direct from repositories
+- **http** - Direct HTTP downloads
+
+#### Verifying Tool Names
+
+Always verify tool names using `mise ls-remote` before adding to configuration:
+
+```bash
+# Check if tool exists in registry
+mise ls-remote node
+
+# Check tool with specific backend
+mise ls-remote cargo:ripgrep
+mise ls-remote ubi:sharkdp/fd
+
+# Search the registry
+mise registry | grep <tool-name>
+```
+
 ### Installing Tools
 
 ```bash
-# List available tools
-mise list-all
+# List available tools in registry
+mise registry
 
-# Install specific version
+# Install from default backend
 mise install node@20.10.0
 mise install python@3.12
 mise install ruby@3.3
+
+# Install with specific backend
+mise install cargo:ripgrep        # From Rust crates
+mise install ubi:sharkdp/fd       # From GitHub releases
+mise install npm:typescript       # From npm
 
 # Install latest version
 mise install node@latest
@@ -63,25 +101,94 @@ mise install node@latest
 mise install
 ```
 
+### Using Tools with `mise use`
+
+The `mise use` command is the primary way to add tools to projects. It combines two operations:
+1. **Installs** the tool (if not already installed)
+2. **Adds** the tool to your configuration file
+
+**Key Difference**: `mise install` only installs tools, while `mise use` installs AND configures them.
+
+#### Basic Usage
+
+```bash
+# Interactive selection
+mise use
+
+# Add tool with fuzzy version (default)
+mise use node@20              # Saves as "20" in mise.toml
+
+# Add tool with exact version
+mise use --pin node@20.10.0   # Saves as "20.10.0"
+
+# Add latest version
+mise use node@latest          # Saves as "latest"
+
+# Add with specific backend
+mise use cargo:ripgrep@latest
+mise use ubi:sharkdp/fd
+```
+
+#### Configuration File Selection
+
+`mise use` writes to configuration files in this priority order:
+
+1. **`--global` flag**: `~/.config/mise/config.toml`
+2. **`--path <file>` flag**: Specified file path
+3. **`--env <env>` flag**: `.mise.<env>.toml`
+4. **Default**: `mise.toml` in current directory
+
+```bash
+# Global (all projects)
+mise use --global node@20
+
+# Local (current project)
+mise use node@20              # Creates/updates ./mise.toml
+
+# Environment-specific
+mise use --env local node@20  # Creates .mise.local.toml
+
+# Specific file
+mise use --path ~/.config/mise/custom.toml node@20
+```
+
+#### Important Flags
+
+```bash
+# Pin exact version
+mise use --pin node@20.10.0        # Saves "20.10.0"
+
+# Fuzzy version (default)
+mise use --fuzzy node@20           # Saves "20"
+
+# Force reinstall
+mise use --force node@20
+
+# Dry run (preview changes)
+mise use --dry-run node@20
+
+# Remove tool from config
+mise use --remove node
+```
+
+#### Version Pinning
+
+```bash
+# Fuzzy (recommended) - auto-updates within major version
+mise use node@20                   # Uses latest 20.x.x
+
+# Exact - locks to specific version
+mise use --pin node@20.10.0        # Always uses 20.10.0
+
+# Latest - always uses newest version
+mise use node@latest               # Always updates to latest
+```
+
+**Best Practice**: Use fuzzy versions for flexibility, `mise.lock` for reproducibility.
+
 ### Setting Tool Versions
 
-#### Global versions (all projects)
-
-```bash
-# Set global default
-mise use --global node@20
-mise use --global python@3.12
-```
-
-#### Local versions (current project)
-
-```bash
-# Set for current directory
-mise use node@20.10.0
-mise use python@3.12
-
-# Creates .mise.toml or .tool-versions file
-```
+The `mise use` command automatically sets tool versions by updating configuration files.
 
 #### .mise.toml Configuration
 
@@ -95,8 +202,121 @@ go = "1.21"
 # Use latest version
 terraform = "latest"
 
+# Backends - use quotes for namespaced tools
+"cargo:ripgrep" = "latest"        # Requires rust installed
+"ubi:sharkdp/fd" = "latest"       # GitHub releases
+"npm:typescript" = "latest"       # Requires node installed
+
 # Version from file
 node = { version = "lts", resolve = "latest-lts" }
+```
+
+### UBI Backend (Universal Binary Installer)
+
+The **ubi** backend installs tools directly from GitHub/GitLab releases without requiring plugins. It's built into mise and works cross-platform including Windows.
+
+#### Basic UBI Usage
+
+```bash
+# Install from GitHub releases
+mise use -g ubi:goreleaser/goreleaser
+mise use -g ubi:sharkdp/fd
+mise use -g ubi:BurntSushi/ripgrep
+
+# Specific version
+mise use -g ubi:goreleaser/goreleaser@1.25.1
+
+# In .mise.toml
+[tools]
+"ubi:goreleaser/goreleaser" = "latest"
+"ubi:sharkdp/fd" = "2.0.0"
+```
+
+#### UBI Advanced Options
+
+Configure tool-specific options when binary names differ or filtering is needed:
+
+```toml
+[tools]
+# When executable name differs from repo name
+"ubi:BurntSushi/ripgrep" = { version = "latest", exe = "rg" }
+
+# Filter releases with matching pattern
+"ubi:some/tool" = { version = "latest", matching = "linux-gnu" }
+
+# Use regex for complex filtering
+"ubi:some/tool" = { version = "latest", matching_regex = ".*-linux-.*\\.tar\\.gz$" }
+
+# Extract entire tarball
+"ubi:some/tool" = { version = "latest", extract_all = true }
+
+# Rename extracted executable
+"ubi:some/tool" = { version = "latest", rename_exe = "my-tool" }
+```
+
+#### UBI Supported Syntax
+
+Three installation formats:
+- **GitHub shorthand (latest)**: `ubi:owner/repo`
+- **GitHub shorthand (version)**: `ubi:owner/repo@1.2.3`
+- **Direct URL**: `ubi:https://github.com/owner/repo/releases/download/v1.2.3/...`
+
+### Cargo Backend
+
+The **cargo** backend installs Rust packages from crates.io. **Requires Rust to be installed first.**
+
+#### Cargo Prerequisites
+
+Install Rust before using cargo backend:
+
+```bash
+# Option 1: Install Rust via mise
+mise use -g rust
+
+# Option 2: Install Rust directly
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+#### Cargo Usage
+
+```bash
+# Install from crates.io
+mise use -g cargo:ripgrep
+mise use -g cargo:eza
+mise use -g cargo:bat
+
+# In .mise.toml - requires rust installed first
+[tools]
+rust = "latest"              # Install rust first
+"cargo:ripgrep" = "latest"   # Then cargo tools
+"cargo:eza" = "latest"
+"cargo:bat" = "latest"
+```
+
+#### Cargo from Git Repositories
+
+```bash
+# Specific tag
+mise use cargo:https://github.com/username/demo@tag:v1.0.0
+
+# Branch
+mise use cargo:https://github.com/username/demo@branch:main
+
+# Commit hash
+mise use cargo:https://github.com/username/demo@rev:abc123
+```
+
+#### Cargo Settings
+
+Configure cargo behavior globally:
+
+```toml
+[settings]
+# Use cargo-binstall for faster installs (default: true)
+cargo.binstall = true
+
+# Use alternative cargo registry
+cargo.registry_name = "my-registry"
 ```
 
 ### Managing Installed Tools

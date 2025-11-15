@@ -1,0 +1,37 @@
+name: 'Validate Claude Skills Marketplace'
+description: 'Validates marketplace.json and all plugin.json files using mise and Nushell'
+runs:
+  using: 'composite'
+  steps:
+    - name: Cache mise and tools
+      uses: actions/cache@v4
+      id: cache-mise
+      with:
+        path: |
+          ~/.local/bin/mise
+          ~/.local/share/mise
+        key: mise-${{ runner.os }}-${{ hashFiles('mise.toml') }}
+        restore-keys: |
+          mise-${{ runner.os }}-
+
+    - name: Install mise
+      if: steps.cache-mise.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        curl https://mise.run | sh
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Add mise to PATH
+      shell: bash
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Install tools via mise
+      shell: bash
+      run: |
+        mise trust
+        mise install
+
+    - name: Run marketplace validation
+      shell: bash
+      run: |
+        mise test
