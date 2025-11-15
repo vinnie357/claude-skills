@@ -1,0 +1,16 @@
+{
+  "name": "github",
+  "version": "0.1.0",
+  "description": "GitHub Actions, Workflows, and act local testing tool",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing"],
+  "skills": [
+    "./skills/actions",
+    "./skills/workflows",
+    "./skills/act"
+  ]
+}
