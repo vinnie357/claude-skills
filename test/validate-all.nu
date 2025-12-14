@@ -137,8 +137,8 @@ def validate-marketplace [repo_root: string] {
 
 # Validate a specific plugin
 def validate-plugin [repo_root: string, plugin_name: string] {
-    # Handle claudio (root plugin) differently
-    let plugin_path = if $plugin_name == "claudio" {
+    # Handle all-skills (root plugin) differently
+    let plugin_path = if $plugin_name == "all-skills" {
         ($repo_root | path join ".claude-plugin" "plugin.json")
     } else {
         ($repo_root | path join $plugin_name ".claude-plugin" "plugin.json")
