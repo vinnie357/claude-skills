@@ -31,6 +31,11 @@ runs:
         mise trust
         mise install
 
+    - name: Install Claude CLI
+      shell: bash
+      run: |
+        npm install -g @anthropic-ai/claude-code
+
     - name: Run marketplace validation
       shell: bash
       run: |

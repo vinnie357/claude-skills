@@ -120,20 +120,25 @@ def main [
       if ($plugin | get -o source) == null {
         $errors = ($errors | append $"Plugin '($plugin_name)' missing required field: 'source'")
       } else {
-        # Validate source path if it's a string (relative path)
+        # Validate source - can be string (local path) or object (external source)
         if ($plugin.source | describe) == "string" {
-          let source_path = if ($plugin_root | is-empty) {
-            $plugin.source
+          # Local source must start with "./"
+          if not ($plugin.source | str starts-with "./") {
+            $errors = ($errors | append $"Plugin '($plugin_name)' local source must start with './': ($plugin.source)")
           } else {
-            $"($plugin_root)/($plugin.source)"
-          }
+            let source_path = if ($plugin_root | is-empty) {
+              $plugin.source
+            } else {
+              $"($plugin_root)/($plugin.source)"
+            }
 
-          # Plugin source paths are relative to the repository root, not .claude-plugin dir
-          let full_path = $"($repo_root)/($source_path)" | path expand
-          if not ($full_path | path exists) {
-            $warnings = ($warnings | append $"Plugin '($plugin_name)' source path not found: ($full_path)")
-          } else if $verbose {
-            print $"    ✓ source path exists: ($source_path)"
+            # Plugin source paths are relative to the repository root, not .claude-plugin dir
+            let full_path = $"($repo_root)/($source_path)" | path expand
+            if not ($full_path | path exists) {
+              $warnings = ($warnings | append $"Plugin '($plugin_name)' source path not found: ($full_path)")
+            } else if $verbose {
+              print $"    ✓ source path exists: ($source_path)"
+            }
           }
         } else if ($plugin.source | describe) == "record" {
           # Validate source object
