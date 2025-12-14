@@ -1,5 +1,5 @@
 #!/usr/bin/env nu
-# Update the claudio (root) plugin.json with all skills from all plugins
+# Update the all-skills (root) plugin.json with all skills from all plugins
 
 def main [
     --dry-run (-d)     # Preview changes without writing
@@ -18,7 +18,7 @@ def main [
 
     # Read marketplace to get all plugins
     let marketplace = (open $marketplace_path)
-    let plugins = ($marketplace.plugins | where name != "claudio")
+    let plugins = ($marketplace.plugins | where name != "all-skills")
 
     if $verbose {
         print "📋 Found plugins:"
@@ -79,10 +79,15 @@ def main [
     let current_plugin = (open $plugin_json_path)
 
     # Create updated plugin.json
-    let updated_plugin = ($current_plugin
-        | upsert skills $all_skills
-        | upsert commands (if ($all_commands | length) > 0 { $all_commands } else { null })
-    )
+    mut updated_plugin = ($current_plugin | upsert skills $all_skills)
+
+    # Only include commands if there are any (omit field entirely otherwise)
+    if ($all_commands | length) > 0 {
+        $updated_plugin = ($updated_plugin | upsert commands $all_commands)
+    } else {
+        # Remove commands field if it exists and there are no commands
+        $updated_plugin = ($updated_plugin | reject --optional commands)
+    }
 
     # Show changes
     print "📊 Summary of changes:"

@@ -1,5 +1,5 @@
 ---
-name: skills
+name: claude-skills
 description: Guide for creating Agent Skills with progressive disclosure, SKILL.md structure, and best practices
 license: MIT
 allowed-tools:

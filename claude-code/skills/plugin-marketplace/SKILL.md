@@ -250,8 +250,8 @@ nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-dependencies.nu .claude-plugin/marketp
 
 - Always declare `dependencies` for plugins that require other plugins
 - Keep dependency chains shallow (avoid deep nesting)
-- Consider creating a meta-plugin (like `claudio`) that bundles related plugins
-- Use namespace prefixes for dependencies (e.g., `claudio:core`)
+- Consider creating a meta-plugin (like `all-skills`) that bundles related plugins
+- Use namespace prefixes for dependencies (e.g., `all-skills:core`)
 
 ### Strict Mode Decision
 

@@ -13,7 +13,7 @@ Add the marketplace and install plugins:
 /plugin marketplace add vinnie357/claude-skills
 
 # Install all skills (meta-plugin)
-/plugin install claudio@vinnie357
+/plugin install all-skills@vinnie357
 
 # Or install individual plugins selectively:
 /plugin install core@vinnie357        # Git, documentation, code review, accessibility
@@ -32,7 +32,7 @@ Verify installation:
 
 ## Available Plugins
 
-### `claudio` - Complete Bundle
+### `all-skills` - Complete Bundle
 
 Meta-plugin that installs all available skills from all other plugins. Install this for the full experience.
 
@@ -179,13 +179,13 @@ Each plugin contains:
 plugin-name/
 ├── .claude-plugin/
 │   └── plugin.json        # Plugin manifest
-├── skills/                # Skill definitions
-│   ├── skill-1/
-│   │   ├── SKILL.md
-│   │   ├── references/    # Detailed docs (optional)
-│   │   └── scripts/       # Executable scripts (optional)
-│   └── skill-2/
-└── sources.md             # Source attribution
+└── skills/                # Skill definitions
+    ├── skill-1/
+    │   ├── SKILL.md
+    │   ├── references/    # Detailed docs (optional)
+    │   └── scripts/       # Executable scripts (optional)
+    ├── skill-2/
+    └── sources.md         # Source attribution
 ```
 
 ## Selective Installation
@@ -267,7 +267,7 @@ You can contribute skills to existing plugins or create new ones:
    }
    ```
 
-4. Document sources in the plugin's `sources.md`
+4. Document sources in the plugin's `skills/sources.md`
 
 See the [Agent Skills Specification](https://github.com/anthropics/skills/blob/main/agent_skills_spec.md) for complete guidelines.
 
@@ -288,7 +288,7 @@ Install it to build your own Claude Code plugins:
 
 ## Testing
 
-The repository includes automated validation tests for the marketplace and all 7 plugins (including the claudio meta-plugin).
+The repository includes automated validation tests for the marketplace and all 8 plugins (including the all-skills meta-plugin).
 
 ### Requirements
 
@@ -306,7 +306,7 @@ mise test
 
 # Test specific plugin
 mise test:plugin elixir
-mise test:plugin claudio  # Test the meta-plugin
+mise test:plugin all-skills  # Test the meta-plugin
 
 # Test marketplace only
 mise test:marketplace
@@ -318,25 +318,25 @@ mise test:plugins
 ### What Gets Tested
 
 - **Marketplace validation**: Required fields, plugin entries, JSON structure
-- **Plugin validation** (all 7 plugins including claudio):
-  - Name matches directory (or root for claudio)
+- **Plugin validation** (all 8 plugins including all-skills):
+  - Name matches directory (or root for all-skills)
   - No invalid marketplace-only fields
   - Kebab-case naming
   - Skill paths exist
 
 ### Maintaining the Meta-Plugin
 
-The `claudio` meta-plugin aggregates all skills from all other plugins. When you add or remove skills:
+The `all-skills` meta-plugin aggregates all skills from all other plugins. When you add or remove skills:
 
 ```bash
-# Update claudio plugin.json with all current skills
-mise update-claudio
+# Update all-skills plugin.json with all current skills
+mise update-all-skills
 
 # Preview changes first
-mise update-claudio --dry-run
+mise update-all-skills --dry-run
 
 # See detailed output
-mise update-claudio --verbose
+mise update-all-skills --verbose
 ```
 
 This automatically collects all skills from all plugins and updates `.claude-plugin/plugin.json`.
@@ -352,8 +352,8 @@ nu test/validate-all.nu
 # Specific plugin
 nu test/validate-plugin.nu elixir
 
-# Update claudio
-nu .claude-plugin/scripts/update-claudio.nu
+# Update all-skills
+nu .claude-plugin/scripts/update-all-skills.nu
 ```
 
 See [test/README.md](test/README.md) for complete testing documentation.
@@ -398,7 +398,7 @@ mise colima:stop
 
 ## Sources and Attribution
 
-Each plugin maintains its own `sources.md` file documenting the official documentation, guides, and resources used to create the skills.
+Each plugin maintains its own `skills/sources.md` file documenting the official documentation, guides, and resources used to create the skills.
 
 Primary sources include:
 - **Elixir**: [HexDocs](https://hexdocs.pm/elixir/), [Phoenix Framework](https://www.phoenixframework.org/)
@@ -415,7 +415,7 @@ Contributions are welcome! To contribute:
 1. Fork the repository
 2. Create a feature branch
 3. Add or improve skills following the Agent Skills Specification
-4. Document sources in the appropriate plugin's `sources.md`
+4. Document sources in the appropriate plugin's `skills/sources.md`
 5. Submit a pull request
 
 ### Contribution Guidelines
@@ -448,6 +448,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 1.0.0 (Current)
 - Tiered marketplace architecture with selective plugin installation
-- 7 plugins: claudio (meta), claude-code, core, elixir, rust, dagu, ui
+- 8 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui
 - 25+ skills covering multiple programming languages and development tools
 - Comprehensive plugin development tools with Nushell validation scripts

@@ -103,7 +103,7 @@ Complete JSON schema for Claude Code plugin marketplaces.
 
 ### dependencies
 - **Format**: Array of strings in format `namespace:plugin-name`
-- **Example**: `["claudio:core", "claudio:elixir"]`
+- **Example**: `["all-skills:core", "all-skills:elixir"]`
 
 ### Environment Variables
 - `${CLAUDE_PLUGIN_ROOT}`: Resolves to plugin's installation directory

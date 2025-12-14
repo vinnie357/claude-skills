@@ -1,5 +1,5 @@
 ---
-name: hooks
+name: claude-hooks
 description: Guide for creating hooks that trigger actions in response to Claude Code events
 license: MIT
 allowed-tools:

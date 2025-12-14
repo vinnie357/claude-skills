@@ -10,10 +10,10 @@
   },
   "plugins": [
     {
-      "name": "claudio",
+      "name": "all-skills",
       "source": "./",
-      "description": "Meta-plugin that installs all available skills",
-      "version": "0.2.0",
+      "description": "Meta-plugin that installs all available skills from all plugins",
+      "version": "0.3.0",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -80,6 +80,15 @@
       "version": "0.1.0",
       "category": "frontend",
       "keywords": ["ui", "daisyui", "tailwind"]
+    },
+    {
+      "name": "claudio",
+      "source": "github:vinnie357/claudio",
+      "description": "Comprehensive project analysis and planning system with parallel discovery agents",
+      "version": "1.0.0",
+      "category": "tools",
+      "keywords": ["project-analysis", "planning", "discovery", "prd", "implementation"],
+      "license": "MIT"
     }
   ]
 }

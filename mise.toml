@@ -87,7 +87,7 @@ cd "$(git rev-parse --show-toplevel)"
 echo "🔍 Validating all plugins..."
 echo ""
 
-# Get plugin names from marketplace
+# Get all plugin names from marketplace
 PLUGINS=$(nu -c 'open .claude-plugin/marketplace.json | get plugins | get name | str join " "')
 
 ALL_PASSED=true
@@ -126,8 +126,8 @@ cd "$(git rev-parse --show-toplevel)"
 nu test/validate-plugin.nu "$1"
 """
 
-[tasks."update-claudio"]
-description = "Update claudio plugin.json with all skills from all plugins"
+[tasks."update-all-skills"]
+description = "Update all-skills plugin.json with all skills from all plugins"
 run = """
 #!/usr/bin/env bash
 set -e
@@ -149,7 +149,7 @@ for arg in "$@"; do
     esac
 done
 
-nu .claude-plugin/scripts/update-claudio.nu $DRY_RUN $VERBOSE
+nu .claude-plugin/scripts/update-all-skills.nu $DRY_RUN $VERBOSE
 """
 
 [tasks.list-plugins]
