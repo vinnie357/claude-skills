@@ -116,11 +116,11 @@ if ($errors | length) > 0 {
 """
 
 [tasks."test:plugins"]
-description = "Validate all local plugin.json files"
+description = "Validate all plugin.json files (local and external)"
 run = """
 #!/usr/bin/env nu
 
-print "🔍 Validating all local plugins..."
+print "🔍 Validating all plugins..."
 print ""
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
@@ -133,10 +133,43 @@ mut external_count = 0
 for plugin in $marketplace.plugins {
     let source_type = ($plugin.source | describe)
 
-    # Skip external plugins (source is an object, not string)
+    # Handle external plugins (source is an object)
     if ($source_type | str starts-with "record") {
-        print $"⏭️  plugin: ($plugin.name) [external - skipped]"
         $external_count = $external_count + 1
+
+        # Only clone GitHub sources
+        if ($plugin.source | get -o source) == "github" {
+            let repo = ($plugin.source | get -o repo)
+            let github_url = $"https://github.com/($repo).git"
+            let temp_dir = (mktemp -d)
+
+            print $"📥 plugin: ($plugin.name) [cloning from ($repo)]..."
+
+            let clone_result = (do { git clone --depth 1 --quiet $github_url $temp_dir } | complete)
+            if $clone_result.exit_code != 0 {
+                print $"❌ plugin: ($plugin.name) - failed to clone"
+                $all_passed = false
+                rm -rf $temp_dir
+            } else {
+                # Validate the cloned plugin
+                let plugin_json = ($temp_dir | path join ".claude-plugin" "plugin.json")
+                if ($plugin_json | path exists) {
+                    let ext_plugin = (open $plugin_json)
+                    if ($ext_plugin | get -o name) == $plugin.name {
+                        print $"✅ plugin: ($plugin.name) [external]"
+                    } else {
+                        print $"❌ plugin: ($plugin.name) - name mismatch in plugin.json"
+                        $all_passed = false
+                    }
+                } else {
+                    print $"❌ plugin: ($plugin.name) - no .claude-plugin/plugin.json found"
+                    $all_passed = false
+                }
+                rm -rf $temp_dir
+            }
+        } else {
+            print $"⏭️  plugin: ($plugin.name) [non-github external - skipped]"
+        }
     } else {
         $local_count = $local_count + 1
         let result = (do { nu ($repo_root | path join "test" "validate-plugin.nu") $plugin.name } | complete)
@@ -154,7 +187,7 @@ print $"📊 Local: ($local_count), External: ($external_count)"
 print ""
 
 if $all_passed {
-    print "✨ All local plugins are valid!"
+    print "✨ All plugins are valid!"
 } else {
     print "❌ Some plugin validations failed"
     exit 1
