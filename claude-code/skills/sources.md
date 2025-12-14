@@ -9,13 +9,13 @@ This file documents the sources used to create the claude-code plugin skills.
 - **Purpose**: Understanding what Claude skills are, how they work, and best practices for creating them
 - **Date Accessed**: 2025-11-15
 - **Key Concepts**: Progressive disclosure, skill structure, modular expertise packages
-- **Used In**: skills/skills/SKILL.md
+- **Used In**: skills/claude-skills/SKILL.md
 
 ### Example Skills Repository
 - **URL**: https://github.com/anthropics/skills/tree/main
 - **Purpose**: Reference implementations and examples of various Claude skills
 - **Categories**: Creative & Design, Development & Technical, Enterprise & Communication, Meta Skills, Document Skills
-- **Used In**: skills/skills/SKILL.md
+- **Used In**: skills/claude-skills/SKILL.md
 
 ### Skill Creator Guide
 - **URL**: https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md
@@ -25,7 +25,7 @@ This file documents the sources used to create the claude-code plugin skills.
   - Progressive disclosure architecture
   - Imperative/infinitive form for instructions
   - Resource organization strategies
-- **Used In**: skills/skills/SKILL.md
+- **Used In**: skills/claude-skills/SKILL.md
 
 ### Skills Cookbook
 - **URL**: https://github.com/anthropics/claude-cookbooks/tree/main/skills
@@ -37,13 +37,13 @@ This file documents the sources used to create the claude-code plugin skills.
   - Custom skill development
   - API configuration and file handling
   - Production-ready Jupyter notebooks
-- **Used In**: skills/skills/SKILL.md
+- **Used In**: skills/claude-skills/SKILL.md
 
 ### Agent Skills Specification
 - **URL**: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
 - **Purpose**: Official specification for Agent Skills format and structure
 - **Date Accessed**: 2025-11-15
-- **Used In**: skills/skills/SKILL.md
+- **Used In**: skills/claude-skills/SKILL.md
 
 ## Claude Code Plugin Development
 
@@ -56,7 +56,7 @@ This file documents the sources used to create the claude-code plugin skills.
   - Commands, agents, skills, hooks structure
   - Plugin manifest (plugin.json) format
   - Installation and distribution
-- **Used In**: skills/plugin/SKILL.md
+- **Used In**: skills/claude-plugins/SKILL.md
 
 ### Claude Code Commands Documentation
 - **URL**: https://code.claude.com/docs/en/commands
@@ -66,7 +66,7 @@ This file documents the sources used to create the claude-code plugin skills.
   - Command file structure
   - Argument handling
   - Command workflows
-- **Used In**: skills/commands/SKILL.md
+- **Used In**: skills/claude-commands/SKILL.md
 
 ### Claude Code Agents Documentation
 - **URL**: https://code.claude.com/docs/en/agents
@@ -77,7 +77,7 @@ This file documents the sources used to create the claude-code plugin skills.
   - Tool restrictions
   - Model selection
   - Task delegation
-- **Used In**: skills/agents/SKILL.md
+- **Used In**: skills/claude-agents/SKILL.md
 
 ### Claude Code Hooks Documentation
 - **URL**: https://code.claude.com/docs/en/hooks
@@ -88,7 +88,7 @@ This file documents the sources used to create the claude-code plugin skills.
   - Tool call hooks
   - Lifecycle hooks
   - Variable substitution
-- **Used In**: skills/hooks/SKILL.md
+- **Used In**: skills/claude-hooks/SKILL.md
 
 ## Plugin Marketplace Skill
 
@@ -132,7 +132,7 @@ This file documents the sources used to create the claude-code plugin skills.
   - Optional: `author`, `homepage`, `repository`, `keywords`
   - Component paths: `skills`, `commands`, `agents`, `hooks`, `mcpServers`
   - Invalid in plugin.json: `dependencies`, `category`, `strict`, `source`, `tags` (marketplace-only)
-- **Used In**: skills/plugin/SKILL.md
+- **Used In**: skills/claude-plugins/SKILL.md
 
 ## Validation Scripts
 
@@ -177,11 +177,11 @@ Create a modular Claude Code plugin marketplace that:
 - **Description**: Claude Code-specific skills for plugin marketplace management, validation, and component creation
 - **Skills**: 6 skills covering all aspects of Claude Code plugin development
   - plugin-marketplace: Marketplace.json validation and management
-  - plugin: Plugin.json validation and management
-  - commands: Creating custom slash commands
-  - agents: Creating specialized agents
-  - skills: Creating Agent Skills (general guide)
-  - hooks: Creating event-driven hooks
+  - claude-plugins: Plugin.json validation and management
+  - claude-commands: Creating custom slash commands
+  - claude-agents: Creating specialized agents
+  - claude-skills: Creating Agent Skills (general guide)
+  - claude-hooks: Creating event-driven hooks
 - **Created**: 2025-11-15
 - **Key Capabilities**:
   - Complete Claude Code plugin development guide
