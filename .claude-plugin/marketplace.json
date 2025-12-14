@@ -83,7 +83,10 @@
     },
     {
       "name": "claudio",
-      "source": "github:vinnie357/claudio",
+      "source": {
+        "source": "github",
+        "repo": "vinnie357/claudio"
+      },
       "description": "Comprehensive project analysis and planning system with parallel discovery agents",
       "version": "1.0.0",
       "category": "tools",

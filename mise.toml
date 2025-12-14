@@ -8,106 +8,190 @@ act = "latest"  # Local GitHub Actions testing
 # Install manually on Mac: mise install lima colima
 
 [tasks.test]
-description = "Run all validation tests (marketplace + plugins)"
-depends = ["test:marketplace", "test:plugins"]
+description = "Run all validation tests (Claude native + custom)"
+depends = ["test:claude", "test:marketplace", "test:plugins"]
 
 [tasks."test:all"]
-description = "Run all validation tests (marketplace + plugins)"
-depends = ["test:marketplace", "test:plugins"]
+description = "Run all validation tests (Claude native + custom)"
+depends = ["test:claude", "test:marketplace", "test:plugins"]
+
+[tasks."test:claude"]
+description = "Run Claude's native plugin validation"
+run = """
+#!/usr/bin/env nu
+
+print "🔍 Running Claude native validation..."
+print ""
+
+# Check if claude CLI is available
+let claude_check = (which claude | is-not-empty)
+if not $claude_check {
+    print "⚠️  Claude CLI not found - skipping native validation"
+    print "   Install Claude Code to enable: https://claude.ai/download"
+    exit 0
+}
+
+# Run Claude's native validator
+let result = (do { claude plugin validate . } | complete)
+
+if $result.exit_code == 0 {
+    print $result.stdout
+    print ""
+    print "✅ Claude native validation passed!"
+} else {
+    print $result.stdout
+    print $result.stderr
+    print ""
+    print "❌ Claude native validation failed!"
+    exit 1
+}
+"""
 
 [tasks."test:marketplace"]
-description = "Validate marketplace.json only"
+description = "Validate marketplace.json with custom checks (source paths, etc.)"
 run = """
-#!/usr/bin/env bash
-set -e
+#!/usr/bin/env nu
 
-cd "$(git rev-parse --show-toplevel)"
-echo "📦 Validating marketplace.json..."
+print "📦 Validating marketplace.json (custom checks)..."
 
-# Use the validation function from validate-all.nu
-nu -c '
-def validate-marketplace [repo_root: string] {
-    let marketplace_path = ($repo_root | path join ".claude-plugin" "marketplace.json")
+let repo_root = (git rev-parse --show-toplevel | str trim)
+let marketplace_path = ($repo_root | path join ".claude-plugin" "marketplace.json")
 
-    try {
-        let marketplace = (open $marketplace_path)
+let marketplace = (open $marketplace_path)
+mut errors = []
 
-        if ($marketplace | get -o name) == null {
-            print "❌ Error: Missing required field: name"
-            exit 1
-        }
+# Check required fields
+if ($marketplace | get -o name) == null {
+    $errors = ($errors | append "Missing required field: name")
+}
 
-        if ($marketplace | get -o owner) == null {
-            print "❌ Error: Missing required field: owner"
-            exit 1
-        }
+if ($marketplace | get -o owner) == null {
+    $errors = ($errors | append "Missing required field: owner")
+}
 
-        if ($marketplace | get -o plugins) == null {
-            print "❌ Error: Missing required field: plugins"
-            exit 1
-        }
+if ($marketplace | get -o plugins) == null {
+    $errors = ($errors | append "Missing required field: plugins")
+}
 
-        let plugins_type = ($marketplace.plugins | describe)
-        if not ($plugins_type | str contains "list") {
-            print "❌ Error: Field \"plugins\" must be an array"
-            exit 1
-        }
+# Validate plugin entries
+for plugin in $marketplace.plugins {
+    let name = ($plugin | get -o name | default "<unnamed>")
 
-        for plugin in $marketplace.plugins {
-            if ($plugin | get -o name) == null {
-                print "❌ Error: Plugin entry missing required field: name"
-                exit 1
+    if ($plugin | get -o source) == null {
+        $errors = ($errors | append $"Plugin '($name)' missing required field: source")
+    } else {
+        let source_type = ($plugin.source | describe)
+        if $source_type == "string" {
+            # Local source must start with "./"
+            if not ($plugin.source | str starts-with "./") {
+                $errors = ($errors | append $"Plugin '($name)' local source must start with './': ($plugin.source)")
             }
-
-            if ($plugin | get -o source) == null {
-                print $"❌ Error: Plugin \"($plugin.name)\" missing required field: source"
-                exit 1
+        } else if ($source_type | str starts-with "record") {
+            # External source - validate required fields
+            if ($plugin.source | get -o source) == null {
+                $errors = ($errors | append $"Plugin '($name)' source object missing 'source' field")
+            } else if ($plugin.source.source not-in ["github", "url"]) {
+                $errors = ($errors | append $"Plugin '($name)' invalid source type: ($plugin.source.source)")
             }
+            if ($plugin.source | get -o repo) == null and ($plugin.source | get -o url) == null {
+                $errors = ($errors | append $"Plugin '($name)' source object missing 'repo' or 'url' field")
+            }
+        } else {
+            $errors = ($errors | append $"Plugin '($name)' source must be string or object")
         }
-
-        print "✅ marketplace.json is valid!"
-        exit 0
-    } catch {
-        print "❌ Error: Failed to parse JSON or validation error"
-        exit 1
     }
 }
 
-validate-marketplace "."
-'
+if ($errors | length) > 0 {
+    print ""
+    for error in $errors {
+        print $"❌ ($error)"
+    }
+    print ""
+    print "❌ marketplace.json validation failed!"
+    exit 1
+} else {
+    print "✅ marketplace.json is valid!"
+}
 """
 
 [tasks."test:plugins"]
-description = "Validate all plugin.json files"
+description = "Validate all plugin.json files (local and external)"
 run = """
-#!/usr/bin/env bash
-set -e
+#!/usr/bin/env nu
 
-cd "$(git rev-parse --show-toplevel)"
-echo "🔍 Validating all plugins..."
-echo ""
+print "🔍 Validating all plugins..."
+print ""
 
-# Get all plugin names from marketplace
-PLUGINS=$(nu -c 'open .claude-plugin/marketplace.json | get plugins | get name | str join " "')
+let repo_root = (git rev-parse --show-toplevel | str trim)
+let marketplace = (open ($repo_root | path join ".claude-plugin" "marketplace.json"))
 
-ALL_PASSED=true
-for plugin in $PLUGINS; do
-    if nu test/validate-plugin.nu "$plugin" > /dev/null 2>&1; then
-        echo "✅ plugin: $plugin"
-    else
-        echo "❌ plugin: $plugin"
-        ALL_PASSED=false
-    fi
-done
+mut all_passed = true
+mut local_count = 0
+mut external_count = 0
 
-echo ""
-if [ "$ALL_PASSED" = true ]; then
-    echo "✨ All plugins are valid!"
-    exit 0
-else
-    echo "❌ Some plugin validations failed"
+for plugin in $marketplace.plugins {
+    let source_type = ($plugin.source | describe)
+
+    # Handle external plugins (source is an object)
+    if ($source_type | str starts-with "record") {
+        $external_count = $external_count + 1
+
+        # Only clone GitHub sources
+        if ($plugin.source | get -o source) == "github" {
+            let repo = ($plugin.source | get -o repo)
+            let github_url = $"https://github.com/($repo).git"
+            let temp_dir = (mktemp -d)
+
+            print $"📥 plugin: ($plugin.name) [cloning from ($repo)]..."
+
+            let clone_result = (do { git clone --depth 1 --quiet $github_url $temp_dir } | complete)
+            if $clone_result.exit_code != 0 {
+                print $"❌ plugin: ($plugin.name) - failed to clone"
+                $all_passed = false
+                rm -rf $temp_dir
+            } else {
+                # Validate the cloned plugin
+                let plugin_json = ($temp_dir | path join ".claude-plugin" "plugin.json")
+                if ($plugin_json | path exists) {
+                    let ext_plugin = (open $plugin_json)
+                    if ($ext_plugin | get -o name) == $plugin.name {
+                        print $"✅ plugin: ($plugin.name) [external]"
+                    } else {
+                        print $"❌ plugin: ($plugin.name) - name mismatch in plugin.json"
+                        $all_passed = false
+                    }
+                } else {
+                    print $"❌ plugin: ($plugin.name) - no .claude-plugin/plugin.json found"
+                    $all_passed = false
+                }
+                rm -rf $temp_dir
+            }
+        } else {
+            print $"⏭️  plugin: ($plugin.name) [non-github external - skipped]"
+        }
+    } else {
+        $local_count = $local_count + 1
+        let result = (do { nu ($repo_root | path join "test" "validate-plugin.nu") $plugin.name } | complete)
+        if $result.exit_code == 0 {
+            print $"✅ plugin: ($plugin.name)"
+        } else {
+            print $"❌ plugin: ($plugin.name)"
+            $all_passed = false
+        }
+    }
+}
+
+print ""
+print $"📊 Local: ($local_count), External: ($external_count)"
+print ""
+
+if $all_passed {
+    print "✨ All plugins are valid!"
+} else {
+    print "❌ Some plugin validations failed"
     exit 1
-fi
+}
 """
 
 [tasks."test:plugin"]
