@@ -144,13 +144,13 @@ Use imperative/infinitive form rather than second-person instruction for clarity
 
 ### 5. Documentation
 
-**Document all sources in the plugin's `sources.md` file**. For each skill created, record:
+**Document all sources in the plugin's `skills/sources.md` file**. For each skill created, record:
 - URLs of documentation, guides, and references used
 - Purpose of each source
 - Key topics and concepts extracted
 - Date accessed (if relevant)
 
-This maintains traceability and helps others understand the skill's foundation. Each plugin maintains its own `sources.md` file (e.g., `elixir/sources.md`, `core/sources.md`) with clear section headers and bullet points.
+This maintains traceability and helps others understand the skill's foundation. Each plugin maintains its own `skills/sources.md` file (e.g., `elixir/skills/sources.md`, `core/skills/sources.md`) with clear section headers and bullet points.
 
 ### 6. Validation
 
@@ -243,7 +243,7 @@ All skills MUST adhere to strict anti-fabrication requirements to ensure factual
 This repository is organized as a **tiered marketplace** with root-level plugins. Each plugin is independently installable and contains its own set of skills.
 
 **Available Plugins:**
-- **claudio** - Meta-plugin at root that installs all 25 skills from all other plugins
+- **all-skills** - Meta-plugin at root that installs all skills from all other plugins
 - **claude-code** - Plugin marketplace management and validation tools (6 skills)
 - **core** - Essential development skills: Git, documentation, code review, accessibility (9 skills)
 - **elixir** - Elixir and Phoenix development (5 skills)
@@ -253,7 +253,7 @@ This repository is organized as a **tiered marketplace** with root-level plugins
 
 **Total**: 7 plugins with 25 skills covering multiple programming languages, development tools, and best practices.
 
-**Note**: The `claudio` meta-plugin is maintained via `mise update-claudio` and automatically includes all skills from all other plugins.
+**Note**: The `all-skills` meta-plugin is maintained via `mise update-all-skills` and automatically includes all skills from all other plugins.
 
 Each plugin follows the Agent Skills Specification with `SKILL.md` files containing skill definitions and optional `references/` directories for detailed documentation.
 
@@ -270,7 +270,7 @@ This repository is designed as a Claude Code plugin marketplace. Users can selec
 /plugin marketplace add vinnie357/claude-skills
 
 # Install all skills (meta-plugin)
-/plugin install claudio@vinnie357
+/plugin install all-skills@vinnie357
 
 # Or install individual plugins selectively
 /plugin install core@vinnie357        # Essential development skills
@@ -300,7 +300,7 @@ claude-skills/
 Each plugin is independently installable and maintains its own:
 - `plugin.json` - Plugin manifest
 - `skills/` - Skill definitions
-- `sources.md` - Source attribution
+- `skills/sources.md` - Source attribution
 
 ## Contributing Skills
 
@@ -312,9 +312,9 @@ When adding new skills to this repository:
 4. **Follow the structure**: Use the standard directory layout and `SKILL.md` format
 5. **Include examples**: Concrete examples are more valuable than abstract guidelines
 6. **Test thoroughly**: Verify Claude activates and uses the skill appropriately
-7. **Document sources**: Add source attribution to the plugin's `sources.md` file
+7. **Document sources**: Add source attribution to the plugin's `skills/sources.md` file
 8. **Update plugin.json**: Add the skill path to the plugin's manifest
-9. **Update claudio**: Run `mise update-claudio` to sync the meta-plugin
+9. **Update all-skills**: Run `mise update-all-skills` to sync the meta-plugin
 10. **Validate changes**: Run `mise test` to validate marketplace and all plugin schemas
 11. **Consider scope**: Each skill should have a focused, well-defined purpose
 
@@ -323,25 +323,25 @@ When adding new skills to this repository:
 Before committing changes, validate the marketplace and all plugins:
 
 ```bash
-mise test                    # Validate all (marketplace + 7 plugins including claudio)
+mise test                    # Validate all (marketplace + 8 plugins including all-skills)
 mise test:plugin <name>      # Validate specific plugin
 mise test:marketplace        # Validate marketplace.json only
 mise test:plugins            # Validate all plugin.json files
 ```
 
-Tests validate all 7 plugins (claude-code, core, dagu, elixir, rust, ui, claudio):
+Tests validate all 8 plugins (all-skills, claude-code, core, dagu, elixir, github, rust, ui):
 - Required fields and JSON structure
 - Plugin names match directories (kebab-case)
 - No invalid marketplace-only fields in plugin.json
-- Skill paths exist (claudio has special handling as meta-plugin)
+- Skill paths exist (all-skills has special handling as meta-plugin)
 
-### Maintaining the Claudio Meta-Plugin
+### Maintaining the All-Skills Meta-Plugin
 
-The `claudio` meta-plugin at `.claude-plugin/plugin.json` aggregates all skills from all other plugins. After adding/removing skills:
+The `all-skills` meta-plugin at `.claude-plugin/plugin.json` aggregates all skills from all other plugins. After adding/removing skills:
 
 ```bash
-mise update-claudio          # Update claudio with all current skills
-mise update-claudio --dry-run  # Preview changes first
+mise update-all-skills          # Update all-skills with all current skills
+mise update-all-skills --dry-run  # Preview changes first
 ```
 
 Always run `mise test` after updating to validate changes.
@@ -358,7 +358,7 @@ The repository includes automated validation via GitHub Actions:
 
 **Validation:**
 - Marketplace.json schema and structure
-- All plugin.json files (8 plugins including claudio)
+- All plugin.json files (8 plugins including all-skills)
 - Skill path verification
 - Naming convention compliance (kebab-case)
 
