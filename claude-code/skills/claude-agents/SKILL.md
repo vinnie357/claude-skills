@@ -1,5 +1,5 @@
 ---
-name: agents
+name: claude-agents
 description: Guide for creating custom agents for Claude Code with specialized behaviors and tools
 license: MIT
 allowed-tools:

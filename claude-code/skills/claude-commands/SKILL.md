@@ -1,5 +1,5 @@
 ---
-name: commands
+name: claude-commands
 description: Guide for creating custom slash commands for Claude Code
 license: MIT
 allowed-tools:

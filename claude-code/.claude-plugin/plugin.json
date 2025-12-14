@@ -10,10 +10,10 @@
   "keywords": ["claude-code", "marketplace", "validation", "plugin-management", "commands", "agents", "skills", "hooks"],
   "skills": [
     "./skills/plugin-marketplace",
-    "./skills/plugins",
-    "./skills/commands",
-    "./skills/agents",
-    "./skills/skills",
-    "./skills/hooks"
+    "./skills/claude-plugins",
+    "./skills/claude-commands",
+    "./skills/claude-agents",
+    "./skills/claude-skills",
+    "./skills/claude-hooks"
   ]
 }

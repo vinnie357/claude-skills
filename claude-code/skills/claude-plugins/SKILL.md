@@ -1,5 +1,5 @@
 ---
-name: plugin
+name: claude-plugins
 description: Guide for creating and validating Claude Code plugin.json files with schema validation tools
 license: MIT
 allowed-tools:
