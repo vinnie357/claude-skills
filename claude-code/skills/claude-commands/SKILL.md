@@ -1,13 +1,6 @@
 ---
 name: claude-commands
-description: Guide for creating custom slash commands for Claude Code
-license: MIT
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
+description: Guide for creating custom slash commands for Claude Code. Use when adding new commands, defining command arguments, or implementing command workflows.
 ---
 
 # Claude Code Commands
