@@ -1,6 +1,6 @@
 {
   "name": "github",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "GitHub Actions, Workflows, and act local testing tool",
   "author": {
     "name": "vinnie357"

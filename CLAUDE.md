@@ -314,9 +314,10 @@ When adding new skills to this repository:
 6. **Test thoroughly**: Verify Claude activates and uses the skill appropriately
 7. **Document sources**: Add source attribution to the plugin's `skills/sources.md` file
 8. **Update plugin.json**: Add the skill path to the plugin's manifest
-9. **Update all-skills**: Run `mise update-all-skills` to sync the meta-plugin
-10. **Validate changes**: Run `mise test` to validate marketplace and all plugin schemas
-11. **Consider scope**: Each skill should have a focused, well-defined purpose
+9. **Bump versions**: Increment the patch version (e.g., 0.1.0 → 0.1.1) in both the plugin's `plugin.json` and the corresponding entry in `marketplace.json`
+10. **Update all-skills**: Run `mise update-all-skills` to sync the meta-plugin
+11. **Validate changes**: Run `mise test` to validate marketplace and all plugin schemas
+12. **Consider scope**: Each skill should have a focused, well-defined purpose
 
 ## Testing and Validation
 
@@ -347,6 +348,28 @@ mise update-all-skills --dry-run  # Preview changes first
 Always run `mise test` after updating to validate changes.
 
 Requires: [Nushell](https://www.nushell.sh/). See `test/README.md` for details.
+
+### Version Synchronization
+
+Plugin versions must be kept in sync between two locations:
+
+1. **Plugin manifest**: `<plugin>/.claude-plugin/plugin.json` - the individual plugin's version
+2. **Marketplace registry**: `.claude-plugin/marketplace.json` - the marketplace entry for that plugin
+
+**When to bump versions:**
+- When modifying, adding, or removing skills within a plugin
+- When updating plugin metadata or configuration
+
+**Synchronization process:**
+1. Update the `version` field in the plugin's `plugin.json` (e.g., `0.1.0` → `0.1.1`)
+2. Update the matching `version` field in `marketplace.json` for that plugin's entry
+3. If modifying multiple plugins, bump versions for each affected plugin
+4. The `all-skills` meta-plugin version should also be bumped since it aggregates all skills
+
+**Why synchronization matters:**
+- Marketplace clients use versions to detect updates
+- Version mismatches can cause installation or update failures
+- Consistent versioning helps users track changes across plugins
 
 ### GitHub Actions CI/CD
 
