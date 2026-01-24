@@ -1,6 +1,6 @@
 {
   "name": "elixir",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Elixir development skills: Phoenix, OTP, testing, configuration, and anti-patterns",
   "author": {
     "name": "vinnie357"
