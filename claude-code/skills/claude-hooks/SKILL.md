@@ -581,6 +581,31 @@ echo $?
 - Verify variable is available for that tool
 - Quote variables in bash: `"{{file_path}}"`
 
+## Templates
+
+Reference templates for common hook configurations:
+
+```
+claude-hooks/
+└── templates/
+    ├── plugin-hook.md    # Plugin hook configuration example
+    └── skill-hook.md     # Skill/subagent frontmatter hooks example
+```
+
+### Plugin Hook Template
+
+Example configuration for defining hooks in a plugin's `hooks/hooks.json`:
+- PostToolUse hook with `Write|Edit` matcher
+- Uses `${CLAUDE_PLUGIN_ROOT}` for script references
+- Includes timeout configuration
+
+### Skill Hook Template
+
+Example frontmatter for embedding hooks directly in skills:
+- Supported events: PreToolUse, PostToolUse, Stop
+- Hooks scoped to component lifecycle
+- Runs only when skill/subagent is active
+
 ## References
 
 For more information:

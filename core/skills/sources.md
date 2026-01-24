@@ -109,10 +109,28 @@ This file documents the sources used to create the core plugin skills.
   - CI/CD integration
   - Configuration management
 
+## Security Skill
+
+### Gitleaks
+- **URL**: https://github.com/gitleaks/gitleaks
+- **Purpose**: Secret detection tool for scanning git repositories
+- **Date Accessed**: 2026-01-24
+- **Key Topics**: Secret scanning, credential detection, pre-commit hooks, CI/CD integration
+
+### Gitleaks Docker Image
+- **URL**: https://hub.docker.com/r/zricethezav/gitleaks
+- **Purpose**: Official container image for running gitleaks
+- **Key Topics**: Container-based scanning, CI/CD integration
+
+### Apple Container CLI (macOS 26+)
+- **Documentation**: Built-in macOS 26 container runtime
+- **Purpose**: Native container support for macOS
+- **Key Topics**: Container runtime, Docker-compatible CLI
+
 ## Plugin Information
 
 - **Name**: core
-- **Version**: 0.1.0
-- **Description**: Essential development skills: Git, documentation, code review, accessibility
-- **Skills**: 9 skills covering fundamental development tools and best practices
+- **Version**: 0.1.2
+- **Description**: Essential development skills: Git, documentation, code review, accessibility, security
+- **Skills**: 10 skills covering fundamental development tools and best practices
 - **Created**: 2025-11-15
