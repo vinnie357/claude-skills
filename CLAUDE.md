@@ -314,9 +314,10 @@ When adding new skills to this repository:
 6. **Test thoroughly**: Verify Claude activates and uses the skill appropriately
 7. **Document sources**: Add source attribution to the plugin's `skills/sources.md` file
 8. **Update plugin.json**: Add the skill path to the plugin's manifest
-9. **Update all-skills**: Run `mise update-all-skills` to sync the meta-plugin
-10. **Validate changes**: Run `mise test` to validate marketplace and all plugin schemas
-11. **Consider scope**: Each skill should have a focused, well-defined purpose
+9. **Bump plugin version**: Increment the patch version (e.g., 0.1.0 → 0.1.1) when modifying skills
+10. **Update all-skills**: Run `mise update-all-skills` to sync the meta-plugin
+11. **Validate changes**: Run `mise test` to validate marketplace and all plugin schemas
+12. **Consider scope**: Each skill should have a focused, well-defined purpose
 
 ## Testing and Validation
 
