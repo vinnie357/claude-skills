@@ -1,6 +1,6 @@
 ---
 name: rust-language
-description: Guide for writing Rust code covering ownership, borrowing, lifetimes, error handling, async programming, and Rust best practices
+description: Guide for writing Rust code. Use when working with ownership and borrowing, implementing error handling, writing async code, or following Rust best practices.
 ---
 
 # Rust Programming Language

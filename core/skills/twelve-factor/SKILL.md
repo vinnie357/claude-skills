@@ -1,6 +1,6 @@
 ---
 name: twelve-factor
-description: Guide for building cloud-native applications following the 12-Factor App methodology with Kubernetes, containers, and modern deployment practices
+description: Guide for 12-Factor cloud-native applications. Use when designing microservices, configuring containers, deploying to Kubernetes, or following cloud-native patterns.
 license: MIT
 ---
 

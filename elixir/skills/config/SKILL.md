@@ -1,6 +1,6 @@
 ---
 name: elixir-config
-description: Guide for Elixir application configuration focusing on runtime vs compile-time config, config.exs, runtime.exs, Application.compile_env, and Application.get_env best practices
+description: Guide for Elixir application configuration. Use when configuring runtime vs compile-time settings, managing config.exs/runtime.exs, or using Application.get_env.
 license: MIT
 ---
 

@@ -281,8 +281,11 @@ def validate-plugin-content [
           let skill_md = ($skill_path | path join "SKILL.md")
           if not ($skill_md | path exists) {
             $errors = ($errors | append $"Skill directory '($skill)' missing SKILL.md file")
-          } else if $verbose {
-            print $"  ✓ ($skill)"
+          } else {
+            # Validate SKILL.md content
+            let validation = (validate-skill-md $skill_md $skill $verbose)
+            $errors = ($errors | append $validation.errors)
+            $warnings = ($warnings | append $validation.warnings)
           }
         }
       }
@@ -387,6 +390,70 @@ def validate-plugin-content [
   } else {
     { success: true }
   }
+}
+
+# Validate SKILL.md content (frontmatter)
+def validate-skill-md [skill_md_path: string, skill_name: string, verbose: bool] {
+  # Read file content (file existence already checked by caller)
+  let content = (open $skill_md_path --raw)
+
+  # Parse YAML frontmatter (between first two ---)
+  let lines = ($content | lines)
+  if ($lines | length) < 3 or ($lines | first) != "---" {
+    return { errors: [$"SKILL.md missing YAML frontmatter: ($skill_name)"], warnings: [] }
+  }
+
+  # Find closing ---
+  let end_idx = ($lines | skip 1 | enumerate | where item == "---" | first | get -o index)
+  if $end_idx == null {
+    return { errors: [$"SKILL.md missing closing --- in frontmatter: ($skill_name)"], warnings: [] }
+  }
+
+  # Extract frontmatter YAML
+  let yaml_lines = ($lines | skip 1 | take $end_idx | str join "\n")
+  let frontmatter = ($yaml_lines | from yaml)
+
+  mut errors = []
+  mut warnings = []
+
+  # Validate name field
+  let name = ($frontmatter | get -o name)
+  if $name == null {
+    $errors = ($errors | append $"SKILL.md missing 'name' field: ($skill_name)")
+  } else {
+    let name_len = ($name | str length)
+    if $name_len > 64 {
+      $errors = ($errors | append $"SKILL.md 'name' exceeds 64 characters: ($skill_name) - ($name_len) chars")
+    }
+    if not ($name =~ '^[a-z0-9]+(-[a-z0-9]+)*$') {
+      $errors = ($errors | append $"SKILL.md 'name' must be kebab-case: ($skill_name)")
+    }
+  }
+
+  # Validate description field
+  let description = ($frontmatter | get -o description)
+  if $description == null {
+    $errors = ($errors | append $"SKILL.md missing 'description' field: ($skill_name)")
+  } else {
+    let desc_len = ($description | str length)
+
+    # Check length (max 1024 chars per Anthropic spec)
+    if $desc_len > 1024 {
+      $errors = ($errors | append $"SKILL.md 'description' exceeds 1024 characters: ($skill_name) - ($desc_len) chars")
+    }
+
+    # Check for "Use when" or "Activate when" pattern
+    let has_trigger = ($description | str contains "Use when") or ($description | str contains "Activate when")
+    if not $has_trigger {
+      $warnings = ($warnings | append $"SKILL.md 'description' missing 'Use when' trigger: ($skill_name)")
+    }
+
+    if $verbose {
+      print $"  ✓ ($skill_name) - ($desc_len) chars"
+    }
+  }
+
+  { errors: $errors, warnings: $warnings }
 }
 
 # Check if string is kebab-case

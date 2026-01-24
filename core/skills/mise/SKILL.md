@@ -1,6 +1,6 @@
 ---
 name: mise
-description: Guide for using mise (mise-en-place) to manage development tools, runtime versions, environment variables, and tasks across projects
+description: Guide for using mise to manage development tools and runtime versions. Use when configuring project tooling, managing environment variables, or defining project tasks.
 ---
 
 # mise - Development Environment Management

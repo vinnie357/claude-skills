@@ -1,6 +1,6 @@
 ---
 name: accessibility
-description: Guide for implementing web accessibility following W3C WAI principles (WCAG) when designing, developing, or reviewing web interfaces
+description: Guide for implementing web accessibility (WCAG). Use when designing UI components, reviewing interfaces for accessibility, or ensuring compliance with W3C WAI standards.
 ---
 
 # Web Accessibility

@@ -1,6 +1,6 @@
 ---
 name: material-design
-description: Guide for implementing Material Design 3 (Material You) principles for Android, web, and cross-platform applications with dynamic theming
+description: Guide for implementing Material Design 3 (Material You). Use when designing Android apps, implementing dynamic theming, or following Material component patterns.
 ---
 
 # Material Design 3 (Material You)

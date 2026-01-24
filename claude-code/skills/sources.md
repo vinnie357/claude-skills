@@ -45,6 +45,25 @@ This file documents the sources used to create the claude-code plugin skills.
 - **Date Accessed**: 2025-11-15
 - **Used In**: skills/claude-skills/SKILL.md
 
+### Agent Skills Overview (Platform Documentation)
+- **URL**: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
+- **Purpose**: Official skill description patterns and discovery mechanism documentation
+- **Date Accessed**: 2025-01-23
+- **Key Finding**: Description field must contain "Use when [trigger conditions]" pattern since it's the ONLY metadata Claude sees during skill discovery (Level 1). Body content only loads after activation.
+- **Used In**: skills/claude-skills/SKILL.md
+
+### Agent Skills Best Practices (Platform Documentation)
+- **URL**: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+- **Purpose**: Skill authoring guidelines including description constraints
+- **Date Accessed**: 2025-01-23
+- **Key Constraints**:
+  - Description max 1024 chars
+  - Name max 64 chars
+  - Third person only (not "I can help you" or "You can use this")
+  - Include both what it does AND when to use it
+  - Pattern: `[What it does]. Use when [trigger conditions].`
+- **Used In**: skills/claude-skills/SKILL.md, scripts/validate-plugin.nu
+
 ## Claude Code Plugin Development
 
 ### Claude Code Plugins Documentation

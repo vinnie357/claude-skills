@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Guide for conducting thorough code reviews focusing on correctness, security, performance, maintainability, and best practices
+description: Guide for conducting code reviews. Use when reviewing pull requests, auditing code quality, identifying security issues, or providing code feedback.
 ---
 
 # Code Review Best Practices

@@ -1,6 +1,6 @@
 ---
 name: elixir-testing
-description: Guide for writing comprehensive tests in Elixir using ExUnit, property-based testing, mocks, and test organization best practices
+description: Guide for Elixir testing with ExUnit. Use when writing unit tests, implementing property-based tests, setting up mocks, or organizing test suites.
 ---
 
 # Elixir Testing with ExUnit

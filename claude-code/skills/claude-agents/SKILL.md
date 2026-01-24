@@ -1,13 +1,6 @@
 ---
 name: claude-agents
-description: Guide for creating custom agents for Claude Code with specialized behaviors and tools
-license: MIT
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
+description: Guide for creating custom agents for Claude Code. Use when creating specialized agents, configuring agent tools.
 ---
 
 # Claude Code Agents
@@ -122,15 +115,21 @@ timeout: 300                       # Optional: Timeout in seconds
 
 Restrict agent to specific tools:
 
+- Can read files
+- Can search code
+- Can find files
+- Cannot use Write, Edit, Bash, etc.
+
+Example:
+
 ```markdown
 ---
-tools:
-  - Read      # Can read files
-  - Grep      # Can search code
-  - Glob      # Can find files
-  # Cannot use Write, Edit, Bash, etc.
+tools: Read, Grep, Glob     
 ---
 ```
+
+
+
 
 **No tool restrictions** (access to all tools):
 
@@ -160,10 +159,7 @@ model: haiku        # Fast, cost-effective for simple tasks
 ---
 name: security-analyzer
 description: Analyzes code for security vulnerabilities
-tools:
-  - Read
-  - Grep
-  - Glob
+tools: Read, Grep, Glob
 model: sonnet
 ---
 
@@ -193,10 +189,7 @@ I perform security analysis on codebases.
 ---
 name: test-generator
 description: Generates comprehensive test suites
-tools:
-  - Read
-  - Write
-  - Glob
+tools: Read, Write, Glob
 model: sonnet
 ---
 
@@ -226,11 +219,7 @@ I create comprehensive test suites for your code.
 ---
 name: docs-generator
 description: Creates and updates project documentation
-tools:
-  - Read
-  - Write
-  - Glob
-  - Grep
+tools: Read, Write, Glob, Grep
 model: sonnet
 ---
 
@@ -260,12 +249,7 @@ I create and maintain project documentation.
 ---
 name: refactorer
 description: Safely refactors code while maintaining functionality
-tools:
-  - Read
-  - Write
-  - Edit
-  - Grep
-  - Glob
+tools: Read, Write, Edit, Grep, Glob
 model: sonnet
 max_iterations: 20
 ---
@@ -371,22 +355,14 @@ Only grant necessary tools:
 ```markdown
 ---
 # Analysis agent - read-only
-tools:
-  - Read
-  - Grep
-  - Glob
+tools: Read, Grep, Glob
 ---
 ```
 
 ```markdown
 ---
 # Implementation agent - can modify
-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
+tools: Read, Write, Edit, Glob, Grep
 ---
 ```
 
@@ -475,10 +451,7 @@ Never hardcode:
 ---
 name: pr-reviewer
 description: Reviews pull requests for quality and completeness
-tools:
-  - Read
-  - Grep
-  - Glob
+tools: Read, Grep, Glob
 model: sonnet
 ---
 
@@ -510,12 +483,7 @@ Conducting thorough PR review...
 ---
 name: code-migrator
 description: Migrates code from one framework/version to another
-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
+tools: Read, Write, Edit, Glob, Grep
 model: opus
 max_iterations: 30
 ---
@@ -563,6 +531,10 @@ Performing framework migration...
 - Test with verbose output
 
 ## References
+
+claude-agents/
+└── templates/
+    └── basic-agent.md (example basic agent)
 
 For more information:
 - Claude Code Agents Documentation: https://code.claude.com/docs/en/agents

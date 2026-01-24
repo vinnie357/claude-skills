@@ -1,27 +1,11 @@
 ---
 name: claude-skills
-description: Guide for creating Agent Skills with progressive disclosure, SKILL.md structure, and best practices
-license: MIT
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
+description: Guide for creating Agent Skills with progressive disclosure and best practices. Use when creating new skills, understanding skill structure, or implementing progressive disclosure.
 ---
 
 # Agent Skills
 
 Comprehensive guide for creating modular, self-contained Agent Skills that extend Claude's capabilities with specialized knowledge.
-
-## When to Use This Skill
-
-Activate this skill when:
-- Creating new Agent Skills
-- Understanding skill structure and organization
-- Implementing progressive disclosure
-- Organizing skill resources (scripts, references, assets)
-- Following Agent Skills best practices
 
 ## What Are Agent Skills?
 
@@ -90,8 +74,31 @@ Main instructional content goes here...
 
 ### Required YAML Properties
 
-- `name`: Hyphen-case identifier matching directory name (lowercase alphanumeric and hyphens only)
-- `description`: Explains the skill's purpose and when Claude should utilize it
+- `name`:
+   Hyphen-case identifier matching directory name (lowercase alphanumeric and hyphens only, max 64 characters)
+   Maximum 64 characters
+   Must contain only lowercase letters, numbers, and hyphens
+   Cannot contain XML tags
+   Cannot contain reserved words: "anthropic", "claude"
+- `description`: 
+   Explains the skill's purpose and when Claude should utilize it
+   Must be non-empty
+   Maximum 1024 characters
+   Cannot contain XML tags
+   The description should include both what the Skill does and when Claude should use it. For complete authoring guidance, see the best practices guide.
+
+
+
+**Description Constraints** (from Anthropic best-practices):
+- Maximum 1024 characters
+- Must use third person (not "I can help you" or "You can use this")
+- Must include both **what it does** AND **when to use it**
+- Use pattern: `[What it does]. Use when [trigger conditions].`
+
+> **Critical**: The `description` is the ONLY text Claude sees during skill discovery (Level 1).
+> The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it.
+> All activation triggers must be in the description.
+
 
 ### Optional YAML Properties
 
@@ -216,16 +223,25 @@ The skill name and description heavily influence when Claude activates it. Pay p
 - **Name**: Should be clear and reflect the domain (e.g., `git-operations`, `elixir-phoenix`)
 - **Description**: Should specify both what the skill does and when to use it
 
+> **Critical**: The `description` is the ONLY text Claude sees during skill discovery (Level 1).
+> The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it.
+> All activation triggers must be in the description using patterns like "Use when [scenarios]".
+
 **Examples:**
 
 ✅ Good Description:
 ```yaml
-description: Guide for Git operations including commits, branches, rebasing, and conflict resolution
+description: Guide for Git operations including commits, branches, rebasing, and conflict resolution. Use when working with version control or the user mentions git, commits, or branches.
 ```
 
 ❌ Too Vague:
 ```yaml
 description: Helps with Git
+```
+
+❌ Missing "Use when" triggers:
+```yaml
+description: Guide for Git operations including commits, branches, rebasing, and conflict resolution
 ```
 
 Monitor real usage patterns and iterate based on actual behavior.
@@ -432,6 +448,13 @@ Activate when:
 ```
 
 ## References
+
+claude-skills/
+└── templates/
+    └── level1.md (example skill metadata)
+    └── level2.md (example skill body)
+    └── level3.md (example skill folder structure)
+    └── skill.md (example basic skill)
 
 For more information:
 - **Agent Skills Blog**: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills

@@ -1,6 +1,6 @@
 ---
 name: dagu-webui
-description: Guide for using the Dagu Web UI to manage, monitor, and execute workflows through the browser interface
+description: Guide for using the Dagu Web UI. Use when monitoring workflow executions, managing DAGs through the browser, or troubleshooting workflow issues.
 ---
 
 # Dagu Web UI

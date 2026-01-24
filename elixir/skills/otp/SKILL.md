@@ -1,6 +1,6 @@
 ---
 name: elixir-otp-concurrency
-description: Guide for building concurrent, fault-tolerant systems using OTP (GenServer, Supervisor, Task, Agent) and Elixir concurrency primitives
+description: Guide for OTP and Elixir concurrency. Use when implementing GenServers, designing supervision trees, or building fault-tolerant concurrent systems.
 ---
 
 # Elixir OTP and Concurrency

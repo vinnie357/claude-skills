@@ -1,6 +1,6 @@
 ---
 name: dagu-rest-api
-description: Guide for using the Dagu REST API to programmatically manage and execute workflows, query status, and integrate with external systems
+description: Guide for using the Dagu REST API. Use when programmatically managing workflows, querying execution status, or integrating Dagu with external systems.
 ---
 
 # Dagu REST API

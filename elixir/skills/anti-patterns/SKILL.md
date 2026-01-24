@@ -1,6 +1,6 @@
 ---
 name: elixir-anti-patterns
-description: Identifies and helps refactor Elixir anti-patterns including code smells, design issues, and bad practices
+description: Identify and refactor Elixir anti-patterns. Use when reviewing Elixir code for smells, refactoring problematic patterns, or improving code quality.
 ---
 
 # Elixir Anti-Patterns Detection and Refactoring
