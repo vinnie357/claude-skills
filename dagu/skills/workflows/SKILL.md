@@ -1,6 +1,6 @@
 ---
 name: dagu-workflows
-description: Guide for authoring Dagu workflows including YAML syntax, steps, executors, scheduling, dependencies, and workflow composition
+description: Guide for authoring Dagu workflows with YAML syntax. Use when creating workflow definitions, configuring steps and executors, or setting up scheduling and dependencies.
 ---
 
 # Dagu Workflow Authoring

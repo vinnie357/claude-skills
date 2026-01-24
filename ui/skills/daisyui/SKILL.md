@@ -1,6 +1,6 @@
 ---
 name: daisyui
-description: Guide for using daisyUI component library with Tailwind CSS for building UI components, theming, and responsive design
+description: Guide for daisyUI component library with Tailwind CSS. Use when building UI components, implementing themes, or creating responsive designs with daisyUI.
 ---
 
 # daisyUI Component Library

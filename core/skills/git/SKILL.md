@@ -1,6 +1,6 @@
 ---
 name: git-operations
-description: Guide for Git operations including commits, branches, rebasing, conflict resolution, and following Git best practices and conventional commits
+description: Guide for Git operations including commits, branches, rebasing, and conflict resolution. Use when working with version control, creating commits, managing branches, or resolving merge conflicts.
 ---
 
 # Git Operations and Best Practices

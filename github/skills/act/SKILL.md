@@ -1,6 +1,6 @@
 ---
 name: act
-description: Test GitHub Actions workflows locally using act, including installation, configuration, debugging, and troubleshooting local workflow execution
+description: Test GitHub Actions locally using act. Use when debugging workflows locally, testing workflow changes before pushing, or troubleshooting action failures.
 ---
 
 # act - Local GitHub Actions Testing

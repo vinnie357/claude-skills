@@ -1,6 +1,6 @@
 ---
 name: nushell
-description: Guide for using Nushell (Nu), a modern shell with structured data pipelines, cross-platform compatibility, and programming language features
+description: Guide for using Nushell for structured data pipelines and scripting. Use when writing shell scripts, processing structured data, or working with cross-platform automation.
 ---
 
 # Nushell - Modern Structured Shell

@@ -1,6 +1,6 @@
 ---
 name: github-actions
-description: Create, configure, and optimize GitHub Actions including action types, triggers, runners, security practices, and marketplace integration
+description: Create and configure GitHub Actions. Use when building custom actions, setting up runners, implementing security practices, or publishing to the marketplace.
 ---
 
 # GitHub Actions

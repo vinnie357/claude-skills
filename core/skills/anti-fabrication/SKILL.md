@@ -1,6 +1,6 @@
 ---
 name: anti-fabrication
-description: Ensure factual accuracy by validating claims through tool execution, avoiding superlatives and unsubstantiated metrics, and marking uncertain information appropriately
+description: Validate claims through tool execution, avoid superlatives and unsubstantiated metrics. Use when reviewing codebases, analyzing systems, reporting test results, or making any factual claims about code or capabilities.
 license: MIT
 ---
 

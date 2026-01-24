@@ -1,6 +1,6 @@
 ---
 name: documentation-writing
-description: Guide for writing clear, comprehensive technical documentation including README files, API docs, guides, and inline documentation
+description: Guide for writing technical documentation. Use when creating README files, API documentation, guides, or inline code documentation.
 ---
 
 # Technical Documentation Writing

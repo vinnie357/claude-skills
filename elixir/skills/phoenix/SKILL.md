@@ -1,6 +1,6 @@
 ---
 name: phoenix-framework
-description: Guide for building Phoenix web applications with LiveView, contexts, channels, and following Phoenix best practices
+description: Guide for Phoenix web applications. Use when building Phoenix apps, implementing LiveView, designing contexts, or setting up channels.
 ---
 
 # Phoenix Framework Development

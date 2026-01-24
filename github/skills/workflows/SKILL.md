@@ -1,6 +1,6 @@
 ---
 name: github-workflows
-description: Write, configure, and optimize GitHub Actions workflows including syntax, triggers, jobs, contexts, expressions, artifacts, and CI/CD patterns
+description: Write and optimize GitHub Actions workflows. Use when creating CI/CD pipelines, configuring workflow triggers, managing artifacts, or debugging workflow runs.
 ---
 
 # GitHub Workflows
