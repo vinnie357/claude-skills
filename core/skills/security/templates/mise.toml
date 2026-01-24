@@ -46,7 +46,8 @@ if $status.exit_code != 0 {
 }
 
 print $"🔍 Scanning: ($repo_root)"
-let result = (do { ^container run --rm -v $"($repo_root):/code" $image ...$args } | complete)
+let final_args = $args
+let result = (do { ^container run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
 print $result.stdout
 
 if $result.exit_code == 0 {
@@ -107,7 +108,8 @@ if $status.exit_code != 0 {
 }
 
 print $"🔍 Scanning: ($repo_root)"
-let result = (do { ^docker run --rm -v $"($repo_root):/code" $image ...$args } | complete)
+let final_args = $args
+let result = (do { ^docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
 print $result.stdout
 
 if $result.exit_code == 0 {
@@ -151,7 +153,8 @@ if $status.exit_code != 0 {
 }
 
 print $"🔍 Scanning: ($repo_root)"
-let result = (do { ^mise exec lima@latest colima@latest -- docker run --rm -v $"($repo_root):/code" $image ...$args } | complete)
+let final_args = $args
+let result = (do { ^mise exec lima@latest colima@latest -- docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
 print $result.stdout
 
 if $result.exit_code == 0 {
