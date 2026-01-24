@@ -23,7 +23,7 @@
       "source": "./claude-code",
       "strict": true,
       "description": "Claude Code-specific skills: plugin marketplace management and validation",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "category": "tools",
       "keywords": ["claude-code", "marketplace", "validation"]
     },
