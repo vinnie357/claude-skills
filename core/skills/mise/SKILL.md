@@ -261,6 +261,43 @@ Three installation formats:
 - **GitHub shorthand (version)**: `ubi:owner/repo@1.2.3`
 - **Direct URL**: `ubi:https://github.com/owner/repo/releases/download/v1.2.3/...`
 
+## Templates
+
+The `templates/` directory contains reusable configuration snippets for common mise patterns.
+
+### Multi-Architecture Tool Installation
+
+When installing tools from GitHub releases that provide separate binaries for different platforms/architectures, use platform-specific asset patterns.
+
+See `templates/multi-arch.md` for the pattern:
+
+```toml
+[tools."github:owner/repo"]
+version = "latest"
+
+[tools."github:owner/repo".platforms]
+linux-x64 = { asset_pattern = "tool_*_linux_amd64.tar.gz" }
+macos-arm64 = { asset_pattern = "tool_*_darwin_arm64.tar.gz" }
+```
+
+#### Platform Keys
+
+Common platform keys for mise:
+- `linux-x64` - Linux on x86_64/amd64
+- `linux-arm64` - Linux on ARM64/aarch64
+- `macos-x64` - macOS on Intel (x86_64)
+- `macos-arm64` - macOS on Apple Silicon (M1/M2/M3)
+- `windows-x64` - Windows on x86_64
+
+#### Asset Pattern Wildcards
+
+Use `*` as a wildcard in asset patterns to match version numbers or other variable parts of release asset names.
+
+Example for a tool with releases like `beads_1.0.0_darwin_arm64.tar.gz`:
+```toml
+asset_pattern = "beads_*_darwin_arm64.tar.gz"
+```
+
 ### Cargo Backend
 
 The **cargo** backend installs Rust packages from crates.io. **Requires Rust to be installed first.**
