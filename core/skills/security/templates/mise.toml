@@ -1,0 +1,278 @@
+# Gitleaks Secret Scanner Tasks
+# Copy these tasks to your project's mise.toml
+#
+# Prerequisites:
+# - One of: Apple Container (macOS 26+), Docker, or Colima
+# - mise (https://mise.jdx.dev) for Colima runtime management
+#
+# Usage:
+#   mise gitleaks              # Scan with Apple Container (default)
+#   mise gitleaks:docker       # Scan with Docker
+#   mise gitleaks:colima       # Scan with Colima
+#   mise gitleaks:stop         # Stop all runtimes
+#   mise gitleaks:stop:container
+#   mise gitleaks:stop:docker
+#   mise gitleaks:stop:colima
+
+[tasks.gitleaks]
+description = "Run gitleaks secret scanner (Apple Container runtime)"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+let image = "zricethezav/gitleaks"
+
+# Build gitleaks arguments
+mut args = ["detect" "--source=/code" "-v"]
+
+# Auto-detect baseline file
+let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
+if ($baseline_path | path exists) {
+    let baseline_name = ($baseline_path | path basename)
+    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
+    print $"📋 Using baseline: ($baseline_name)"
+}
+
+# Ensure Apple Container is running
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found. Use mise gitleaks:docker or mise gitleaks:colima"
+    exit 1
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code != 0 {
+    print "🚀 Starting Apple Container..."
+    do { ^container system start } | complete
+}
+
+print $"🔍 Scanning: ($repo_root)"
+let result = (do { ^container run --rm -v $"($repo_root):/code" $image ...$args } | complete)
+print $result.stdout
+
+if $result.exit_code == 0 {
+    print "✅ No secrets detected"
+} else if $result.exit_code == 1 {
+    print "❌ Secrets detected!"
+    print $result.stderr
+} else {
+    print $"❌ Error: ($result.stderr)"
+}
+
+exit $result.exit_code
+"""
+
+[tasks."gitleaks:docker"]
+description = "Run gitleaks secret scanner (Docker runtime)"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+let image = "zricethezav/gitleaks"
+
+mut args = ["detect" "--source=/code" "-v"]
+
+let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
+if ($baseline_path | path exists) {
+    let baseline_name = ($baseline_path | path basename)
+    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
+    print $"📋 Using baseline: ($baseline_name)"
+}
+
+if (which docker | is-empty) {
+    print "❌ Docker CLI not found"
+    exit 1
+}
+
+let status = (do { ^docker info } | complete)
+if $status.exit_code != 0 {
+    print "🚀 Starting Docker..."
+    if $nu.os-info.name == "macos" {
+        do { ^open -a Docker } | complete
+        print "Waiting for Docker to start..."
+        mut attempts = 0
+        loop {
+            sleep 2sec
+            $attempts = $attempts + 1
+            let check = (do { ^docker info } | complete)
+            if $check.exit_code == 0 { break }
+            if $attempts >= 30 {
+                print "❌ Docker failed to start"
+                exit 1
+            }
+        }
+    } else {
+        print "❌ Docker is not running. Start it manually."
+        exit 1
+    }
+}
+
+print $"🔍 Scanning: ($repo_root)"
+let result = (do { ^docker run --rm -v $"($repo_root):/code" $image ...$args } | complete)
+print $result.stdout
+
+if $result.exit_code == 0 {
+    print "✅ No secrets detected"
+} else if $result.exit_code == 1 {
+    print "❌ Secrets detected!"
+    print $result.stderr
+} else {
+    print $"❌ Error: ($result.stderr)"
+}
+
+exit $result.exit_code
+"""
+
+[tasks."gitleaks:colima"]
+description = "Run gitleaks secret scanner (Colima runtime)"
+run = """
+#!/usr/bin/env nu
+
+if $nu.os-info.name != "macos" {
+    print "⚠️  Colima is only available on macOS"
+    exit 1
+}
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+let image = "zricethezav/gitleaks"
+
+mut args = ["detect" "--source=/code" "-v"]
+
+let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
+if ($baseline_path | path exists) {
+    let baseline_name = ($baseline_path | path basename)
+    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
+    print $"📋 Using baseline: ($baseline_name)"
+}
+
+let status = (do { ^mise exec lima@latest colima@latest -- colima status } | complete)
+if $status.exit_code != 0 {
+    print "🚀 Starting Colima..."
+    do { ^mise exec lima@latest colima@latest -- colima start } | complete
+}
+
+print $"🔍 Scanning: ($repo_root)"
+let result = (do { ^mise exec lima@latest colima@latest -- docker run --rm -v $"($repo_root):/code" $image ...$args } | complete)
+print $result.stdout
+
+if $result.exit_code == 0 {
+    print "✅ No secrets detected"
+} else if $result.exit_code == 1 {
+    print "❌ Secrets detected!"
+    print $result.stderr
+} else {
+    print $"❌ Error: ($result.stderr)"
+}
+
+exit $result.exit_code
+"""
+
+[tasks."gitleaks:stop"]
+description = "Stop all container runtimes"
+run = """
+#!/usr/bin/env nu
+
+print "🛑 Stopping container runtimes..."
+
+# Stop Apple Container
+if (which container | is-not-empty) {
+    let status = (do { ^container system status } | complete)
+    if $status.exit_code == 0 {
+        print "  Stopping Apple Container..."
+        do { ^container system stop } | complete
+        print "  ✅ Apple Container stopped"
+    }
+}
+
+# Stop Docker
+if (which docker | is-not-empty) {
+    let status = (do { ^docker info } | complete)
+    if $status.exit_code == 0 {
+        print "  Stopping Docker..."
+        if $nu.os-info.name == "macos" {
+            do { ^osascript -e 'quit app "Docker"' } | complete
+            print "  ✅ Docker stopped"
+        } else {
+            print "  ⚠️  Stop Docker manually (systemctl stop docker)"
+        }
+    }
+}
+
+# Stop Colima
+if $nu.os-info.name == "macos" and (which mise | is-not-empty) {
+    let status = (do { ^mise exec lima@latest colima@latest -- colima status } | complete)
+    if $status.exit_code == 0 {
+        print "  Stopping Colima..."
+        do { ^mise exec lima@latest colima@latest -- colima stop } | complete
+        print "  ✅ Colima stopped"
+    }
+}
+
+print "✨ Done"
+"""
+
+[tasks."gitleaks:stop:container"]
+description = "Stop Apple Container runtime"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "⚠️  Apple Container CLI not found"
+    exit 0
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code != 0 {
+    print "✅ Apple Container is not running"
+    exit 0
+}
+
+print "🛑 Stopping Apple Container..."
+do { ^container system stop } | complete
+print "✅ Apple Container stopped"
+"""
+
+[tasks."gitleaks:stop:docker"]
+description = "Stop Docker runtime"
+run = """
+#!/usr/bin/env nu
+
+if (which docker | is-empty) {
+    print "⚠️  Docker CLI not found"
+    exit 0
+}
+
+let status = (do { ^docker info } | complete)
+if $status.exit_code != 0 {
+    print "✅ Docker is not running"
+    exit 0
+}
+
+print "🛑 Stopping Docker..."
+if $nu.os-info.name == "macos" {
+    do { ^osascript -e 'quit app "Docker"' } | complete
+    print "✅ Docker stopped"
+} else {
+    print "⚠️  On Linux, stop Docker manually: sudo systemctl stop docker"
+}
+"""
+
+[tasks."gitleaks:stop:colima"]
+description = "Stop Colima runtime"
+run = """
+#!/usr/bin/env nu
+
+if $nu.os-info.name != "macos" {
+    print "⚠️  Colima is only available on macOS"
+    exit 0
+}
+
+let status = (do { ^mise exec lima@latest colima@latest -- colima status } | complete)
+if $status.exit_code != 0 {
+    print "✅ Colima is not running"
+    exit 0
+}
+
+print "🛑 Stopping Colima..."
+do { ^mise exec lima@latest colima@latest -- colima stop } | complete
+print "✅ Colima stopped"
+"""
