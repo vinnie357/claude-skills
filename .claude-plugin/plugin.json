@@ -32,6 +32,7 @@
     "./core/skills/twelve-factor",
     "./core/skills/anti-fabrication",
     "./core/skills/security",
+    "./core/skills/beads",
     "./dagu/skills/workflows",
     "./dagu/skills/webui",
     "./dagu/skills/rest-api",
