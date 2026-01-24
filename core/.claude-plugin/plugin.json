@@ -1,13 +1,13 @@
 {
   "name": "core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Essential development skills: Git, documentation, code review, accessibility",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["git", "documentation", "code-review", "tools", "accessibility", "material-design", "twelve-factor-app"],
+  "keywords": ["git", "documentation", "code-review", "tools", "accessibility", "material-design", "twelve-factor-app", "security", "gitleaks"],
   "skills": [
     "./skills/git",
     "./skills/mise",
@@ -17,6 +17,7 @@
     "./skills/accessibility",
     "./skills/material-design",
     "./skills/twelve-factor",
-    "./skills/anti-fabrication"
+    "./skills/anti-fabrication",
+    "./skills/security"
   ]
 }

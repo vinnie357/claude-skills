@@ -31,6 +31,7 @@
     "./core/skills/material-design",
     "./core/skills/twelve-factor",
     "./core/skills/anti-fabrication",
+    "./core/skills/security",
     "./dagu/skills/workflows",
     "./dagu/skills/webui",
     "./dagu/skills/rest-api",

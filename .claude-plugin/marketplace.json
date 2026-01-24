@@ -31,8 +31,8 @@
       "name": "core",
       "source": "./core",
       "strict": true,
-      "description": "Essential development skills: Git, documentation, code review, accessibility",
-      "version": "0.1.1",
+      "description": "Essential development skills: Git, documentation, code review, accessibility, security",
+      "version": "0.1.2",
       "category": "development",
       "keywords": ["git", "documentation", "code-review", "tools"]
     },
