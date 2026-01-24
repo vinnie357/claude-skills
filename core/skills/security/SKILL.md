@@ -2,6 +2,13 @@
 name: security
 description: Secret detection and credential scanning using gitleaks. Use when scanning repositories for leaked secrets, API keys, passwords, tokens, or implementing pre-commit security checks.
 license: MIT
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "./hooks/check-secrets-before-commit.sh"
+          timeout: 120
 ---
 
 # Security: Secret Detection
@@ -17,6 +24,56 @@ Activate when:
 - Implementing CI/CD security pipelines
 - Checking git history for accidentally committed secrets
 - Validating that .gitignore excludes sensitive files
+
+## Pre-Commit Hook (Automatic)
+
+When this skill is loaded, a pre-commit hook automatically scans staged files for secrets before every `git commit` command. This provides defense-in-depth by catching secrets before they enter git history.
+
+### Hook Behavior
+
+```
+git commit -m "message"
+         ↓
+PreToolUse hook fires
+         ↓
+Extract staged files
+         ↓
+Run gitleaks --no-git
+         ↓
+    ┌─ Clean ─┴─ Secrets ─┐
+    ↓                     ↓
+  Allow               Block commit
+  commit              (exit code 2)
+```
+
+### What Gets Scanned
+
+- Only **staged files** are scanned (not the entire working tree)
+- Uses `.gitleaks-baseline.json` if present to ignore known false positives
+- Uses `.gitleaks.toml` if present for custom detection rules
+
+### When Secrets Are Detected
+
+If the hook detects secrets, the commit is blocked with guidance:
+
+```
+[gitleaks] SECRETS DETECTED in staged files!
+[gitleaks] Commit blocked. Remove secrets before committing.
+[gitleaks]
+[gitleaks] Options:
+[gitleaks]   1. Remove the secret from the file
+[gitleaks]   2. Use environment variables instead
+[gitleaks]   3. Add to .gitleaks-baseline.json if false positive
+```
+
+### Container Runtime Requirements
+
+The hook requires a container runtime to run gitleaks. It auto-detects:
+1. **Apple Container** (macOS 26+)
+2. **Docker** (Docker Desktop or Engine)
+3. **Colima** via mise
+
+If no runtime is available, the hook logs a warning and allows the commit.
 
 ## When to Use security-review Instead
 
