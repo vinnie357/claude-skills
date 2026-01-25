@@ -18,6 +18,67 @@ Activate when:
 - Following Git workflows (Git Flow, GitHub Flow, trunk-based)
 - Troubleshooting Git issues
 
+## Minimal Workflow (Preferred)
+
+For most projects, prefer this minimal workflow over verbose conventional commits.
+
+### Minimal Commit Format
+
+Single-line only, no body or footer:
+
+```
+type(scope): description
+```
+
+**Rules:**
+- Single line only, no body or footer
+- No attribution (no `Co-Authored-By` or similar)
+- Lowercase type, scope in parentheses, colon, space, lowercase description
+- Use present tense imperative ("add" not "added" or "adds")
+
+**Types:** `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+
+**Examples:**
+```bash
+feat(auth): add JWT authentication
+fix(api): handle null values in user response
+docs(readme): add installation instructions
+chore(deps): bump plugin versions
+```
+
+### Minimal PR Format
+
+Title matches commit format, body is bullet list only:
+
+```bash
+gh pr create --title "feat(auth): add JWT authentication" --body "- Add JWT generation and validation
+- Implement refresh token rotation
+- Add authentication middleware"
+```
+
+**Rules:**
+- No PR templates or boilerplate sections
+- No "Summary", "Test Plan", or other headers
+- Just the changes as bullet points
+- Keep it minimal and scannable
+
+### PR Workflow
+
+1. **Push changes**: `git push -u origin <branch>`
+2. **Create PR**: Use `gh pr create` with minimal format
+3. **Wait for user**: Inform user the PR is ready and wait for approval
+4. **Check status**: After user confirms, verify with `gh pr view <number>`
+5. **Cleanup**: Delete local branch: `git checkout main && git pull && git branch -d <branch>`
+6. **Continue work**: Check for next task with `bd ready` (if using beads)
+
+### Key Rules
+
+- **Single-line commits only**: No body, no footer, no attribution
+- **Minimal PRs**: Title + bullet list, no templates
+- **Always wait**: Never merge PRs without user approval
+- **Clean up after merge**: Delete branches locally and remotely
+- **Use gcms**: Generate commit messages with `/core:gcms` skill
+
 ## Commit Message Conventions
 
 ### Conventional Commits

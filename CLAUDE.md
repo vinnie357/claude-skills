@@ -115,6 +115,25 @@ gh pr create --title "feat(beads): integrate task management with mise automatio
 - Just the changes as bullet points
 - Keep it minimal and scannable
 
+### Pull Request Workflow
+
+Follow this workflow when creating PRs:
+
+1. **Push changes**: `git push -u origin <branch>`
+2. **Create PR**: Use `gh pr create` with minimal format
+3. **Wait for user**: Inform user the PR is ready and wait for their approval
+4. **Check status**: After user confirms merge, verify with `gh pr view <number>`
+5. **Cleanup**: Delete local branch after merge: `git checkout main && git pull && git branch -d <branch>`
+6. **Continue work**: Check for next task with `bd ready` (if using beads)
+
+### Key Rules
+
+- **Single-line commits only**: No body, no footer, no attribution
+- **Minimal PRs**: Title + bullet list, no templates
+- **Always wait**: Never merge PRs without user approval
+- **Clean up after merge**: Delete branches locally and remotely
+- **Use gcms**: Generate commit messages with `/core:gcms` skill
+
 ## Skill Structure
 
 ### Minimal Requirements
