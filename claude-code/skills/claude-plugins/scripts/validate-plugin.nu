@@ -345,8 +345,11 @@ def validate-plugin-content [
 
         if not ($agent_path | path exists) {
           $warnings = ($warnings | append $"Agent path not found: ($agent)")
-        } else if $verbose {
-          print $"  ✓ ($agent)"
+        } else {
+          # Validate agent file content
+          let validation = (validate-agent-md $agent_path $agent $verbose)
+          $errors = ($errors | append $validation.errors)
+          $warnings = ($warnings | append $validation.warnings)
         }
       }
     }
@@ -451,6 +454,73 @@ def validate-skill-md [skill_md_path: string, skill_name: string, verbose: bool]
     if $verbose {
       print $"  ✓ ($skill_name) - ($desc_len) chars"
     }
+  }
+
+  { errors: $errors, warnings: $warnings }
+}
+
+# Validate agent .md file content (frontmatter)
+def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
+  # Read file content
+  let content = (open $agent_path --raw)
+
+  # Parse YAML frontmatter (between first two ---)
+  let lines = ($content | lines)
+  if ($lines | length) < 3 or ($lines | first) != "---" {
+    return { errors: [$"Agent missing YAML frontmatter: ($agent_name)"], warnings: [] }
+  }
+
+  # Find closing ---
+  let end_idx = ($lines | skip 1 | enumerate | where item == "---" | first | get -o index)
+  if $end_idx == null {
+    return { errors: [$"Agent missing closing --- in frontmatter: ($agent_name)"], warnings: [] }
+  }
+
+  # Extract frontmatter YAML
+  let yaml_lines = ($lines | skip 1 | take $end_idx | str join "\n")
+  let frontmatter = ($yaml_lines | from yaml)
+
+  mut errors = []
+  mut warnings = []
+
+  # Validate name field
+  let name = ($frontmatter | get -o name)
+  if $name == null {
+    $errors = ($errors | append $"Agent missing 'name' field: ($agent_name)")
+  } else {
+    if not ($name =~ '^[a-z0-9]+(-[a-z0-9]+)*$') {
+      $errors = ($errors | append $"Agent 'name' must be kebab-case: ($agent_name)")
+    }
+  }
+
+  # Validate description field
+  let description = ($frontmatter | get -o description)
+  if $description == null {
+    $errors = ($errors | append $"Agent missing 'description' field: ($agent_name)")
+  }
+
+  # Validate tools field format (must be string, not array)
+  let tools = ($frontmatter | get -o tools)
+  if $tools != null {
+    let tools_type = ($tools | describe)
+    if ($tools_type | str starts-with "list") {
+      $errors = ($errors | append $"Agent 'tools' must be comma-separated string, not YAML array: ($agent_name)")
+    } else if $tools_type != "string" {
+      $errors = ($errors | append $"Agent 'tools' must be a string: ($agent_name)")
+    }
+  }
+
+  # Validate model field if present
+  let model = ($frontmatter | get -o model)
+  if $model != null {
+    let valid_models = ["haiku", "sonnet", "opus"]
+    if not ($model in $valid_models) {
+      $warnings = ($warnings | append $"Agent 'model' should be one of: haiku, sonnet, opus - got: ($model)")
+    }
+  }
+
+  if $verbose and ($errors | length) == 0 {
+    print $"  ✓ ($agent_name)"
   }
 
   { errors: $errors, warnings: $warnings }
