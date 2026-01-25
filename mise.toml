@@ -510,6 +510,20 @@ if $nu.os-info.name == "macos" {
 }
 """
 
+[tasks."test:version-bumps"]
+description = "Check that modified plugins have version bumps (for CI)"
+run = """
+#!/usr/bin/env bash
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+# Default to main if no base specified
+BASE="${1:-main}"
+
+nu test/check-version-bumps.nu --base "$BASE"
+"""
+
 [tasks."gitleaks:stop:colima"]
 description = "Stop Colima runtime"
 run = """
