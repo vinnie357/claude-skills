@@ -53,6 +53,68 @@ This tiered approach maintains efficient context windows while supporting potent
 - Only use bash/shell scripts when absolutely necessary for compatibility
 - Document the reason when deviating from Nushell
 
+### Git Commit Format
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) with a single-line message:
+
+```
+type(scope): description
+```
+
+**Rules:**
+- Single line only, no body or footer
+- No attribution (no `Co-Authored-By` or similar)
+- Lowercase type, scope in parentheses, colon, space, lowercase description
+- Use present tense imperative ("add" not "added" or "adds")
+
+**Types:**
+- `feat` - New feature or capability
+- `fix` - Bug fix
+- `docs` - Documentation only
+- `refactor` - Code change that neither fixes a bug nor adds a feature
+- `test` - Adding or updating tests
+- `chore` - Maintenance tasks, dependencies, tooling
+
+**Examples:**
+```bash
+feat(beads): integrate task management with mise automation
+fix(security): resolve variable closure bug in gitleaks tasks
+docs(readme): add installation instructions
+chore(deps): bump plugin versions
+```
+
+**Commit Message Generation:**
+Use the `/core:gcms` skill to generate commit message suggestions based on staged changes.
+
+### Pull Request Format
+
+PRs use a minimal format with title and bullet points:
+
+**Title:** Same format as commit message
+```
+type(scope): description
+```
+
+**Body:** Bullet list of changes only
+```markdown
+- Change one
+- Change two
+- Change three
+```
+
+**Example:**
+```bash
+gh pr create --title "feat(beads): integrate task management with mise automation" --body "- Add beads tool to mise.toml with multi-arch support
+- Add 20 mise tasks for beads CLI operations
+- Initialize beads with repository configuration"
+```
+
+**Rules:**
+- No PR templates or boilerplate sections
+- No "Summary", "Test Plan", or other headers
+- Just the changes as bullet points
+- Keep it minimal and scannable
+
 ## Skill Structure
 
 ### Minimal Requirements

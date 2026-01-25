@@ -7,6 +7,14 @@ act = "latest"  # Local GitHub Actions testing
 # Note: Lima and Colima are macOS-only tools for local act testing
 # Install manually on Mac: mise install lima colima
 
+# Multi-arch beads install
+[tools."github:steveyegge/beads"]
+version = "latest"
+
+[tools."github:steveyegge/beads".platforms]
+linux-x64 = { asset_pattern = "beads_*_linux_amd64.tar.gz" }
+macos-arm64 = { asset_pattern = "beads_*_darwin_arm64.tar.gz" }
+
 [tasks.test]
 description = "Run all validation tests (Claude native + custom)"
 depends = ["test:claude", "test:marketplace", "test:plugins"]
@@ -549,3 +557,216 @@ if $result.exit_code == 0 {
     exit 1
 }
 """
+
+# =============================================================================
+# Beads (bd) - Distributed Git-Backed Issue Tracker
+# =============================================================================
+
+[tasks."beads:init"]
+description = "Initialize beads in the repository (full mode - syncs to remote)"
+run = "bd init"
+
+[tasks."beads:init:stealth"]
+description = "Initialize beads in stealth mode (local only, no commits)"
+run = "bd init --stealth"
+
+[tasks."beads:init:contributor"]
+description = "Initialize beads in contributor mode (pull only, no push)"
+run = "bd init --contributor"
+
+[tasks."beads:ready"]
+description = "List unblocked tasks ready for work"
+run = '''
+#!/usr/bin/env nu
+let tasks = (bd ready --json | from json)
+if ($tasks | is-empty) {
+    print "No ready tasks"
+} else {
+    $tasks | select id title labels? | table
+}
+'''
+
+[tasks."beads:list"]
+description = "List all tasks with formatted output"
+run = '''
+#!/usr/bin/env nu
+let tasks = (bd list --json | from json)
+if ($tasks | is-empty) {
+    print "No tasks found"
+} else {
+    $tasks | select id title status labels? assignee? | table
+}
+'''
+
+[tasks."beads:show"]
+description = "Show task details by ID"
+run = '''
+#!/usr/bin/env nu
+def main [task_id: string] {
+    let task = (bd show $task_id --json | from json)
+    print $"(ansi green_bold)Task: ($task.id)(ansi reset)"
+    print $"Title: ($task.title)"
+    print $"Status: ($task.status)"
+    if ($task.description? | is-not-empty) {
+        print $"Description: ($task.description)"
+    }
+    if ($task.labels? | is-not-empty) {
+        print $"Labels: ($task.labels | str join ', ')"
+    }
+    if ($task.assignee? | is-not-empty) {
+        print $"Assignee: ($task.assignee)"
+    }
+    if ($task.dependencies? | is-not-empty) {
+        print $"Depends on: ($task.dependencies | str join ', ')"
+    }
+    if ($task.blocking? | is-not-empty) {
+        print $"Blocking: ($task.blocking | str join ', ')"
+    }
+}
+'''
+
+[tasks."beads:create"]
+description = "Create a new task"
+run = '''
+#!/usr/bin/env nu
+def main [
+    title: string
+    --description (-d): string  # Task description
+    --labels (-l): string       # Comma-separated labels
+    --assignee (-a): string     # Assignee name
+    --parent (-p): string       # Parent task ID
+] {
+    mut args = ["create", $title]
+    if ($description | is-not-empty) {
+        $args = ($args | append ["--description", $description])
+    }
+    if ($labels | is-not-empty) {
+        $args = ($args | append ["--labels", $labels])
+    }
+    if ($assignee | is-not-empty) {
+        $args = ($args | append ["--assignee", $assignee])
+    }
+    if ($parent | is-not-empty) {
+        $args = ($args | append ["--parent", $parent])
+    }
+    ^bd ...$args
+}
+'''
+
+[tasks."beads:close"]
+description = "Close a task by ID"
+run = '''
+#!/usr/bin/env nu
+def main [task_id: string] {
+    bd close $task_id
+    print $"(ansi green)Closed task: ($task_id)(ansi reset)"
+}
+'''
+
+[tasks."beads:reopen"]
+description = "Reopen a closed task by ID"
+run = '''
+#!/usr/bin/env nu
+def main [task_id: string] {
+    bd reopen $task_id
+    print $"(ansi yellow)Reopened task: ($task_id)(ansi reset)"
+}
+'''
+
+[tasks."beads:sync"]
+description = "Sync beads changes to git remote"
+run = "bd sync"
+
+[tasks."beads:pull"]
+description = "Pull beads changes from git remote"
+run = "bd pull"
+
+[tasks."beads:status"]
+description = "Show beads sync status"
+run = "bd status"
+
+[tasks."beads:dep:add"]
+description = "Add a dependency (task depends on blocker)"
+run = '''
+#!/usr/bin/env nu
+def main [
+    task_id: string    # Task that will be blocked
+    blocker_id: string # Task that blocks
+] {
+    bd dep add $task_id $blocker_id
+    print $"(ansi cyan)Added dependency: ($task_id) depends on ($blocker_id)(ansi reset)"
+}
+'''
+
+[tasks."beads:dep:remove"]
+description = "Remove a dependency"
+run = '''
+#!/usr/bin/env nu
+def main [
+    task_id: string    # Task to unblock
+    blocker_id: string # Blocker to remove
+] {
+    bd dep remove $task_id $blocker_id
+    print $"(ansi yellow)Removed dependency: ($task_id) no longer depends on ($blocker_id)(ansi reset)"
+}
+'''
+
+[tasks."beads:dep:graph"]
+description = "Show dependency graph"
+run = "bd dep graph"
+
+[tasks."beads:comment"]
+description = "Add a comment to a task"
+run = '''
+#!/usr/bin/env nu
+def main [
+    task_id: string # Task ID
+    body: string    # Comment body
+] {
+    bd comment $task_id $body
+    print $"(ansi green)Added comment to: ($task_id)(ansi reset)"
+}
+'''
+
+[tasks."beads:assign"]
+description = "Assign a task to someone"
+run = '''
+#!/usr/bin/env nu
+def main [
+    task_id: string  # Task ID
+    assignee: string # Assignee name
+] {
+    bd assign $task_id $assignee
+    print $"(ansi cyan)Assigned ($task_id) to ($assignee)(ansi reset)"
+}
+'''
+
+[tasks."beads:label"]
+description = "Add labels to a task"
+run = '''
+#!/usr/bin/env nu
+def main [
+    task_id: string # Task ID
+    labels: string  # Comma-separated labels to add
+] {
+    bd label $task_id --add $labels
+    print $"(ansi cyan)Added labels to ($task_id): ($labels)(ansi reset)"
+}
+'''
+
+[tasks."beads:tree"]
+description = "Show task hierarchy tree"
+run = '''
+#!/usr/bin/env nu
+def main [task_id?: string] {
+    if ($task_id | is-empty) {
+        bd tree
+    } else {
+        bd tree $task_id
+    }
+}
+'''
+
+[tasks."beads:rebuild"]
+description = "Rebuild SQLite cache from JSONL files"
+run = "bd rebuild"
