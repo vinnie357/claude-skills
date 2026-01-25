@@ -383,7 +383,6 @@ bd update <id> --status in_progress  # Claim task
 # - Implement following TDD (tests first when practical)
 # - Run quality gates (tests, linters, formatters)
 
-bd close <id>                    # Complete task
 git add <files>                  # Stage changes
 git commit -m "type(scope): description"  # Commit
 ```
@@ -398,20 +397,27 @@ gh pr create --title "type(scope): description" --body "- Change one
 # Notify user: "PR created: <url>"
 ```
 
-#### Wait for Merge
+#### Watch CI & Close Tasks
 
-User reviews, CI runs, user merges. Check status when user returns:
+Watch CI until it passes, then close tasks:
 
 ```bash
-gh pr view --json state -q '.state'  # Returns "MERGED" when done
+gh pr checks --watch             # Wait for CI to complete
+bd close <id>                    # Close completed task
+git add .beads/ && git commit -m "chore(beads): close <id>"
+git push                         # Push closure to branch
 ```
+
+Notify user: "CI passed, tasks closed. Ready for merge review."
 
 #### Cleanup & Continue
 
+After user merges:
+
 ```bash
-git checkout main && git pull && git branch -d <branch>
+git checkout main && git pull    # Sync with merged changes
+git branch -d <branch>           # Delete feature branch
 bd ready                         # Find next task
-# Repeat from "Task Execution"
 ```
 
 #### Key Principles
