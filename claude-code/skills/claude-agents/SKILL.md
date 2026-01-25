@@ -53,43 +53,45 @@ Agents are defined in markdown files located in:
 ```markdown
 ---
 name: code-reviewer
-description: Specialized agent for conducting thorough code reviews
-tools:
-  - Read
-  - Grep
-  - Glob
+description: Reviews code for quality and best practices
+tools: Read, Grep, Glob
 model: sonnet
 ---
 
-# Code Review Agent
+You are a code reviewer. Analyze code for quality, security, and best practices.
 
-I am a specialized code review agent focused on:
+## Workflow
 
-## Responsibilities
-
-- Analyzing code for correctness and style
-- Identifying security vulnerabilities
-- Checking test coverage
-- Ensuring documentation quality
-- Suggesting improvements
-
-## Review Process
-
-When reviewing code, I will:
-
-1. Read the changed files
-2. Check for common anti-patterns
-3. Verify error handling
-4. Assess test coverage
-5. Provide actionable feedback
+1. **Find files**: Glob to locate target files
+2. **Read code**: Examine contents
+3. **Check patterns**: Grep for anti-patterns
+4. **Report**: Provide prioritized feedback
 
 ## Guidelines
 
-- Focus on significant issues
-- Provide specific examples
-- Suggest concrete improvements
-- Consider project context
+- **Specific**: Reference file:line locations
+- **Actionable**: Suggest concrete fixes
+- **Prioritized**: Critical issues first
 ```
+
+## Agent Writing Style
+
+Effective agents use direct, imperative language:
+
+### Opening Statement
+
+- **Do**: "You are a [role]. Your role is to [primary function]."
+- **Don't**: "I am a specialized [role] focused on..."
+
+### Workflow Steps
+
+- **Do**: Numbered steps with specific commands
+- **Don't**: Bullet lists describing capabilities
+
+### Guidelines Section
+
+- **Do**: Single-word bold labels with brief explanations
+- **Don't**: Verbose explanations of best practices
 
 ## Agent Configuration
 
@@ -155,124 +157,27 @@ model: haiku        # Fast, cost-effective for simple tasks
 
 ### Read-Only Analysis Agent
 
-```markdown
----
-name: security-analyzer
-description: Analyzes code for security vulnerabilities
-tools: Read, Grep, Glob
-model: sonnet
----
+For security scans, code reviews, or audits. Restricted to Read, Grep, Glob.
 
-# Security Analysis Agent
+See: `templates/read-only-analyzer.md`
 
-I perform security analysis on codebases.
+### Write-Capable Agent
 
-## Analysis Areas
+For generating tests, documentation, or code. Includes Write tool.
 
-- SQL injection vulnerabilities
-- XSS attack vectors
-- Authentication/authorization issues
-- Sensitive data exposure
-- Insecure dependencies
+See: `templates/write-capable-agent.md`
 
-## Process
+### Full-Access Agent
 
-1. Scan for common vulnerability patterns
-2. Check security best practices
-3. Identify potential risks
-4. Provide remediation guidance
-```
+For refactoring, migrations, or complex modifications. Omit tools field entirely for no restrictions.
 
-### Test Generation Agent
+See: `templates/full-access-agent.md`
 
-```markdown
----
-name: test-generator
-description: Generates comprehensive test suites
-tools: Read, Write, Glob
-model: sonnet
----
+### MCP-Enabled Agent
 
-# Test Generation Agent
+For browser automation, external APIs, or specialized MCP server tools. Mix core tools with MCP tools.
 
-I create comprehensive test suites for your code.
-
-## Test Types
-
-- Unit tests
-- Integration tests
-- Edge case coverage
-- Error scenario tests
-
-## Approach
-
-1. Analyze source code structure
-2. Identify testable units
-3. Generate test cases
-4. Create test files with proper naming
-5. Include setup and teardown logic
-```
-
-### Documentation Agent
-
-```markdown
----
-name: docs-generator
-description: Creates and updates project documentation
-tools: Read, Write, Glob, Grep
-model: sonnet
----
-
-# Documentation Agent
-
-I create and maintain project documentation.
-
-## Documentation Types
-
-- README files
-- API documentation
-- Code comments
-- Architecture docs
-- User guides
-
-## Standards
-
-- Clear, concise language
-- Practical examples
-- Up-to-date with codebase
-- Proper formatting (Markdown, JSDoc, etc.)
-```
-
-### Refactoring Agent
-
-```markdown
----
-name: refactorer
-description: Safely refactors code while maintaining functionality
-tools: Read, Write, Edit, Grep, Glob
-model: sonnet
-max_iterations: 20
----
-
-# Code Refactoring Agent
-
-I refactor code to improve quality while preserving behavior.
-
-## Refactoring Goals
-
-- Improve readability
-- Reduce complexity
-- Eliminate duplication
-- Enhance maintainability
-- Follow best practices
-
-## Safety Measures
-
-- Preserve existing functionality
-- Maintain test coverage
-- Document changes
-- Use safe transformations
-```
+See: `templates/mcp-agent.md`
 
 ## Agent Plugin Configuration
 
@@ -445,69 +350,13 @@ Never hardcode:
 
 ## Agent Examples
 
-### PR Review Agent
+For complete, production-ready agent templates:
 
-```markdown
----
-name: pr-reviewer
-description: Reviews pull requests for quality and completeness
-tools: Read, Grep, Glob
-model: sonnet
----
-
-# Pull Request Review Agent
-
-Conducting thorough PR review...
-
-## Checklist
-
-- [ ] Code quality and style
-- [ ] Test coverage
-- [ ] Documentation updates
-- [ ] Breaking changes noted
-- [ ] Security considerations
-- [ ] Performance implications
-
-## Review Process
-
-1. Analyze changed files
-2. Check for common issues
-3. Verify tests exist
-4. Review documentation
-5. Provide constructive feedback
-```
-
-### Migration Agent
-
-```markdown
----
-name: code-migrator
-description: Migrates code from one framework/version to another
-tools: Read, Write, Edit, Glob, Grep
-model: opus
-max_iterations: 30
----
-
-# Code Migration Agent
-
-Performing framework migration...
-
-## Migration Steps
-
-1. Analyze current codebase
-2. Identify migration patterns
-3. Apply transformations
-4. Update dependencies
-5. Verify compatibility
-6. Document changes
-
-## Safety Checks
-
-- Backup original code
-- Incremental changes
-- Validate each step
-- Maintain git history
-```
+- `templates/basic-agent.md` - Official minimal example
+- `templates/read-only-analyzer.md` - Security analyzer pattern
+- `templates/write-capable-agent.md` - Test generator pattern
+- `templates/full-access-agent.md` - Refactoring pattern (no tool restrictions)
+- `templates/mcp-agent.md` - Browser testing with MCP tools
 
 ## Troubleshooting
 
@@ -532,10 +381,13 @@ Performing framework migration...
 
 ## References
 
-claude-agents/
-└── templates/
-    └── basic-agent.md (example basic agent)
+Templates directory:
+- `templates/basic-agent.md` - Official minimal example
+- `templates/read-only-analyzer.md` - Security analysis pattern
+- `templates/write-capable-agent.md` - Test generation pattern
+- `templates/full-access-agent.md` - Refactoring pattern (no tool restrictions)
+- `templates/mcp-agent.md` - MCP tools pattern (browser automation)
 
-For more information:
-- Claude Code Agents Documentation: https://code.claude.com/docs/en/agents
-- Task Tool Documentation: https://code.claude.com/docs/en/tools/task
+Documentation:
+- Claude Code Agents: https://code.claude.com/docs/en/agents
+- Task Tool: https://code.claude.com/docs/en/tools/task

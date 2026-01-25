@@ -16,6 +16,28 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version comparison
 
       - name: Validate marketplace
         uses: ./.github/actions/validate-marketplace
+
+  check-version-bumps:
+    name: Check version bumps
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version comparison
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Setup mise
+        uses: jdx/mise-action@v2
+
+      - name: Check version bumps
+        run: mise run test:version-bumps origin/${{ github.base_ref }}
