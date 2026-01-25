@@ -360,7 +360,72 @@ bd rebuild
 
 ## Workflow Examples
 
-### AI Agent Task Loop
+### PR-Based Development Workflow
+
+The recommended workflow for git repositories integrates beads with feature branches and pull requests:
+
+#### Session Start
+
+```bash
+git checkout main && git pull    # Start fresh
+bd ready                         # Find available tasks
+bd show <id>                     # Read task requirements
+```
+
+#### Task Execution
+
+```bash
+git checkout -b feature/<name>   # Create feature branch
+bd update <id> --status in_progress  # Claim task
+
+# Do the work:
+# - Read existing code to understand patterns
+# - Implement following TDD (tests first when practical)
+# - Run quality gates (tests, linters, formatters)
+
+bd close <id>                    # Complete task
+git add <files>                  # Stage changes
+git commit -m "type(scope): description"  # Commit
+```
+
+#### PR Creation
+
+```bash
+git push -u origin <branch>
+gh pr create --title "type(scope): description" --body "- Change one
+- Change two"
+
+# Notify user: "PR created: <url>"
+```
+
+#### Wait for Merge
+
+User reviews, CI runs, user merges. Check status when user returns:
+
+```bash
+gh pr view --json state -q '.state'  # Returns "MERGED" when done
+```
+
+#### Cleanup & Continue
+
+```bash
+git checkout main && git pull && git branch -d <branch>
+bd ready                         # Find next task
+# Repeat from "Task Execution"
+```
+
+#### Key Principles
+
+1. **One task = one branch = one PR** - Keep changes atomic
+2. **Claim before working** - `bd update --status in_progress`
+3. **Close with completion** - Document what was done
+4. **Minimal PRs** - Title + bullets only, no templates
+5. **Wait for user** - Never auto-merge or assume approval
+6. **Clean up** - Delete local branch after merge
+
+### AI Agent Task Loop (Automated)
+
+For automated processing without PRs:
 
 ```bash
 #!/bin/bash
