@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Essential development skills: Git, documentation, code review, accessibility",
   "author": {
     "name": "vinnie357"
@@ -20,5 +20,8 @@
     "./skills/anti-fabrication",
     "./skills/security",
     "./skills/beads"
+  ],
+  "agents": [
+    "./skills/beads/agents/beads-worker.md"
   ]
 }
