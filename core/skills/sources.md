@@ -155,10 +155,29 @@ This file documents the sources used to create the core plugin skills.
 - Three sync modes: full, stealth (local-only), contributor (pull-only)
 - VS Code extensions for visual task management and IDE integration
 
+## Container Skill
+
+### Apple Container CLI
+- **URL**: https://github.com/apple/container
+- **Purpose**: macOS-native tool for running Linux containers as lightweight VMs on Apple silicon
+- **Date Accessed**: 2026-02-08
+- **Key Topics**: OCI containers, Virtualization.framework, Apple silicon, container lifecycle, image management, networking, volumes
+
+### Apple Container Command Reference
+- **URL**: https://github.com/apple/container/blob/main/docs/command-reference.md
+- **Purpose**: CLI command documentation for all container subcommands and flags
+- **Key Topics**: Container run/stop/exec, image pull/push/build, network/volume management, system service
+
+### Apple Container Releases
+- **URL**: https://github.com/apple/container/releases
+- **Purpose**: Version tracking, breaking changes between releases, installation packages
+- **Date Accessed**: 2026-02-08
+- **Key Topics**: Version 0.4.1 to 0.5.0 migration, breaking changes, new features, CVE fixes
+
 ## Plugin Information
 
 - **Name**: core
-- **Version**: 0.1.4
+- **Version**: 0.1.9
 - **Description**: Essential development skills: Git, documentation, code review, accessibility, security
-- **Skills**: 11 skills covering fundamental development tools and best practices
+- **Skills**: 12 skills covering fundamental development tools and best practices
 - **Created**: 2025-11-15
