@@ -1,0 +1,313 @@
+# Apple Container CLI Tasks
+# Copy these tasks to your project's mise.toml
+#
+# Prerequisites:
+# - macOS 26+ on Apple silicon
+# - Apple Container CLI installed from GitHub releases
+#
+# Usage:
+#   mise container:start     # Start system service
+#   mise container:stop      # Stop system service
+#   mise container:status    # Show formatted status
+#   mise container:run       # Run container (accepts image arg)
+#   mise container:ps        # List running containers
+#   mise container:images    # List images
+#   mise container:build     # Build from Dockerfile/Containerfile
+#   mise container:prune     # Clean up unused resources
+#   mise container:health    # System status + disk + container count
+#   mise container:df        # Disk usage
+#   mise container:version   # CLI version
+
+[tasks."container:start"]
+description = "Start Apple Container system service"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found"
+    exit 1
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code == 0 {
+    print "✅ Apple Container is already running"
+    exit 0
+}
+
+print "🚀 Starting Apple Container..."
+let result = (do { ^container system start } | complete)
+if $result.exit_code != 0 {
+    print $"❌ Failed to start: ($result.stderr)"
+    exit 1
+}
+print "✅ Apple Container started"
+"""
+
+[tasks."container:stop"]
+description = "Stop Apple Container system service"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "⚠️  Apple Container CLI not found"
+    exit 0
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code != 0 {
+    print "✅ Apple Container is not running"
+    exit 0
+}
+
+print "🛑 Stopping Apple Container..."
+let result = (do { ^container system stop } | complete)
+if $result.exit_code != 0 {
+    print $"❌ Failed to stop: ($result.stderr)"
+    exit 1
+}
+print "✅ Apple Container stopped"
+"""
+
+[tasks."container:status"]
+description = "Show Apple Container system status"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found"
+    exit 1
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code == 0 {
+    print "✅ Apple Container is running"
+    print $status.stdout
+} else {
+    print "🔴 Apple Container is not running"
+}
+"""
+
+[tasks."container:run"]
+description = "Run a container (pass image and flags as arguments)"
+run = """
+#!/usr/bin/env nu
+
+def main [...args: string] {
+    if ($args | is-empty) {
+        print "Usage: mise container:run <image> [flags...]"
+        print "Example: mise container:run -- -it --rm ubuntu:latest /bin/bash"
+        exit 1
+    }
+
+    if (which container | is-empty) {
+        print "❌ Apple Container CLI not found"
+        exit 1
+    }
+
+    # Ensure system is running
+    let status = (do { ^container system status } | complete)
+    if $status.exit_code != 0 {
+        print "🚀 Starting Apple Container..."
+        do { ^container system start } | complete
+    }
+
+    let result = (do { ^container run ...$args } | complete)
+    print $result.stdout
+    if $result.exit_code != 0 {
+        print $result.stderr
+        exit $result.exit_code
+    }
+}
+"""
+
+[tasks."container:ps"]
+description = "List running containers"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found"
+    exit 1
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code != 0 {
+    print "🔴 Apple Container is not running"
+    exit 1
+}
+
+print "📋 Running containers:"
+let result = (do { ^container list } | complete)
+print $result.stdout
+"""
+
+[tasks."container:images"]
+description = "List container images"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found"
+    exit 1
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code != 0 {
+    print "🔴 Apple Container is not running. Run: mise container:start"
+    exit 1
+}
+
+print "📋 Images:"
+let result = (do { ^container image list } | complete)
+print $result.stdout
+"""
+
+[tasks."container:build"]
+description = "Build image from Dockerfile/Containerfile (pass flags as arguments)"
+run = """
+#!/usr/bin/env nu
+
+def main [...args: string] {
+    if ($args | is-empty) {
+        print "Usage: mise container:build -- -t <tag> [path]"
+        print "Example: mise container:build -- -t myapp:latest ."
+        exit 1
+    }
+
+    if (which container | is-empty) {
+        print "❌ Apple Container CLI not found"
+        exit 1
+    }
+
+    # Ensure system is running
+    let status = (do { ^container system status } | complete)
+    if $status.exit_code != 0 {
+        print "🚀 Starting Apple Container..."
+        do { ^container system start } | complete
+    }
+
+    print "🔨 Building image..."
+    let result = (do { ^container build ...$args } | complete)
+    print $result.stdout
+    if $result.exit_code != 0 {
+        print $"❌ Build failed: ($result.stderr)"
+        exit 1
+    }
+    print "✅ Build complete"
+}
+"""
+
+[tasks."container:prune"]
+description = "Clean up all unused container resources"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found"
+    exit 1
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code != 0 {
+    print "🔴 Apple Container is not running"
+    exit 1
+}
+
+print "🧹 Pruning unused resources..."
+
+print "  Pruning stopped containers..."
+do { ^container prune } | complete
+
+print "  Pruning unused images..."
+do { ^container image prune } | complete
+
+print "  Pruning unused volumes..."
+do { ^container volume prune } | complete
+
+print "  Pruning unused networks..."
+do { ^container network prune } | complete
+
+print "✅ Cleanup complete"
+
+print ""
+print "📊 Disk usage:"
+let df = (do { ^container system df } | complete)
+print $df.stdout
+"""
+
+[tasks."container:health"]
+description = "Apple Container health check (status + disk + containers)"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found"
+    exit 1
+}
+
+print "🏥 Apple Container Health Check"
+print ""
+
+# System status
+let status = (do { ^container system status } | complete)
+if $status.exit_code == 0 {
+    print "  System:     ✅ Running"
+} else {
+    print "  System:     🔴 Not running"
+    exit 0
+}
+
+# Version
+let version = (do { ^container system version } | complete)
+print $"  Version:    ($version.stdout | str trim)"
+
+# Disk usage
+let df = (do { ^container system df } | complete)
+if $df.exit_code == 0 {
+    print "  Disk usage:"
+    print $df.stdout
+}
+
+# Running containers
+let containers = (do { ^container list } | complete)
+if $containers.exit_code == 0 {
+    let lines = ($containers.stdout | str trim | lines)
+    let count = if ($lines | length) > 1 { ($lines | length) - 1 } else { 0 }
+    print $"  Containers: ($count) running"
+}
+"""
+
+[tasks."container:df"]
+description = "Show Apple Container disk usage"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found"
+    exit 1
+}
+
+let status = (do { ^container system status } | complete)
+if $status.exit_code != 0 {
+    print "🔴 Apple Container is not running"
+    exit 1
+}
+
+print "📊 Disk usage:"
+let result = (do { ^container system df } | complete)
+print $result.stdout
+"""
+
+[tasks."container:version"]
+description = "Show Apple Container CLI version"
+run = """
+#!/usr/bin/env nu
+
+if (which container | is-empty) {
+    print "❌ Apple Container CLI not found"
+    exit 1
+}
+
+let result = (do { ^container system version } | complete)
+print $result.stdout
+"""
