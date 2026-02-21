@@ -522,6 +522,7 @@ type:bug, type:feature, type:chore
 priority:high, priority:medium, priority:low
 status:wip, status:blocked, status:review
 sprint:42, epic:auth
+skill:git, skill:security, skill:rust    # Suggested skills for task execution
 ```
 
 ### Dependency Best Practices
@@ -537,6 +538,36 @@ sprint:42, epic:auth
 - Poll `bd ready` for task queue
 - Close tasks atomically after completion
 - Sync frequently in multi-agent scenarios
+
+### Skills-Aware Task Creation
+
+When creating tasks, analyze the task domain and suggest relevant marketplace skills using `skill:` labels. This helps the beads-worker agent (and humans) know which skills to activate during execution.
+
+**How to suggest skills:**
+
+1. Identify the task domain from its title, description, and labels
+2. Consult `references/skill-catalog.md` for the keyword-to-skill mapping (Tier 1: static catalog)
+3. Check available skills in the current session for additional matches beyond the catalog (Tier 2: runtime discovery)
+4. Add 1-3 `skill:` labels for the most relevant skills from either tier
+
+**Matching priority:** explicit `skill:` labels > static catalog keyword match > runtime skill description match.
+
+**Note:** `skill:` labels work with any installed skill, not just those in the static catalog. If a user has third-party skills loaded, those can be suggested and activated by the worker.
+
+**Example with skill suggestions:**
+
+```bash
+bd create "Add pre-commit gitleaks scanning" \
+  --labels "type:feature,skill:security,skill:git" \
+  --description "## Task
+Integrate gitleaks pre-commit hook for secret detection.
+
+## Suggested Skills
+- security: gitleaks configuration and scanning patterns
+- git: pre-commit hook setup and git workflow integration"
+```
+
+Include a `## Suggested Skills` block in the description when skills need context beyond the label name. This tells the worker *why* each skill is relevant.
 
 ## IDE Integration
 
@@ -621,6 +652,10 @@ bd show abc1234  # Instead of abc1
 # Full IDs are always unique
 bd show abc12345678
 ```
+
+## References
+
+- `references/skill-catalog.md`: Skill catalog with keyword triggers for task matching
 
 ## Key Principles
 

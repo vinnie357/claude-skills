@@ -84,6 +84,22 @@ bd show <task_id> --json
 
 Extract: `title`, `description`, `labels`, `comments`.
 
+#### 2b. Extract Skill Suggestions
+
+From the task JSON, extract any `skill:*` labels:
+
+```bash
+bd show <task_id> --json | jq -r '.labels[] | select(startswith("skill:")) | ltrimstr("skill:")'
+```
+
+Note the suggested skills for activation during execution. When resolving skills:
+
+1. **Explicit `skill:` labels** - Use directly (highest priority). These may reference any installed skill, not just those in the static catalog.
+2. **Static catalog** - If no `skill:` labels are present, consult `references/skill-catalog.md` to match task keywords to relevant skills.
+3. **Runtime discovery** - Also check available skills in the current session. Any loaded skill whose name or description matches the task domain is a valid candidate, even if it does not appear in the static catalog.
+
+Activate any valid skill from the available skills list during execution, regardless of whether it appears in the static catalog.
+
 #### 3. Execute Work
 
 (Same as below)
@@ -111,6 +127,8 @@ Continue until `bd ready --json` returns empty.
 ---
 
 ## Execute Work
+
+Before dispatching work, activate any suggested skills from the `skill:` labels. Load the corresponding skill context so domain-specific knowledge is available during execution.
 
 Match task pattern to action:
 
@@ -154,7 +172,7 @@ Continue to next task.
 ```
 ## Beads Worker Summary
 
-Completed: [id] title - summary
+Completed: [id] title - summary (skills: skill1, skill2)
 Failed: [id] title - reason
 Remaining: N tasks
 ```
