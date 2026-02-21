@@ -1,0 +1,49 @@
+# Zig development environment with mise
+# Copy these definitions to your project's mise.toml
+
+[tools]
+zig = "0.14"
+
+[tasks.build]
+description = "Build the project"
+run = "zig build"
+
+[tasks."build:release"]
+description = "Build with release optimizations and safety checks"
+run = "zig build -Doptimize=ReleaseSafe"
+
+[tasks."build:fast"]
+description = "Build with maximum performance optimizations"
+run = "zig build -Doptimize=ReleaseFast"
+
+[tasks."build:small"]
+description = "Build with size optimizations"
+run = "zig build -Doptimize=ReleaseSmall"
+
+[tasks.run]
+description = "Build and run the application"
+run = "zig build run"
+
+[tasks.test]
+description = "Run all tests"
+run = "zig build test"
+
+[tasks.fmt]
+description = "Format all Zig source files"
+run = "zig fmt src/"
+
+[tasks."fmt:check"]
+description = "Check formatting without modifying files"
+run = "zig fmt --check src/"
+
+[tasks.clean]
+description = "Remove build artifacts"
+run = """
+#!/usr/bin/env nu
+rm -rf .zig-cache zig-out
+print "Cleaned .zig-cache/ and zig-out/"
+"""
+
+[tasks.ci]
+description = "Run full CI pipeline (format check + tests)"
+depends = ["fmt:check", "test"]

@@ -592,9 +592,20 @@ zig build -Dtarget=x86_64-windows
 
 ### mise Integration
 
+Install Zig with mise and define project tasks for build, test, format, and CI workflows. See `templates/mise.toml` for a complete reusable configuration.
+
+```bash
+# Install Zig via mise
+mise use zig@0.14
+
+# Verify installation
+mise exec -- zig version
+```
+
 ```toml
+# Project mise.toml
 [tools]
-zig = "latest"
+zig = "0.14"
 
 [tasks.build]
 run = "zig build"
@@ -609,8 +620,11 @@ run = "zig fmt src/"
 run = "zig fmt --check src/"
 
 [tasks.ci]
+description = "Run full CI pipeline (format check + tests)"
 depends = ["fmt:check", "test"]
 ```
+
+For build mode variants and the full task set, copy from `templates/mise.toml`.
 
 ## Key Principles
 
