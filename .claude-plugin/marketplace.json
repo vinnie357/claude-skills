@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.10",
+      "version": "0.3.11",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -68,7 +68,7 @@
       "source": "./plugins/languages/rust",
       "strict": true,
       "description": "Rust programming skills: ownership, borrowing, async, best practices",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "category": "language",
       "keywords": ["rust", "systems-programming", "memory-safety"]
     },
