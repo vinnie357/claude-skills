@@ -1,0 +1,53 @@
+# Rust development environment with mise
+# Copy these definitions to your project's mise.toml
+
+[tools]
+rust = "latest"
+
+[tasks.build]
+description = "Build the project"
+run = "cargo build"
+
+[tasks."build:release"]
+description = "Build with release optimizations"
+run = "cargo build --release"
+
+[tasks.run]
+description = "Build and run the application"
+run = "cargo run"
+
+[tasks."run:release"]
+description = "Run with release optimizations"
+run = "cargo run --release"
+
+[tasks.test]
+description = "Run all tests"
+run = "cargo test"
+
+[tasks."test:verbose"]
+description = "Run tests with output"
+run = "cargo test -- --nocapture"
+
+[tasks.check]
+description = "Check for compilation errors (faster than build)"
+run = "cargo check"
+
+[tasks.fmt]
+description = "Format all Rust source files"
+run = "cargo fmt"
+
+[tasks."fmt:check"]
+description = "Check formatting without modifying files"
+run = "cargo fmt -- --check"
+
+[tasks.lint]
+description = "Run clippy linter"
+run = "cargo clippy -- -D warnings"
+
+[tasks.clean]
+description = "Remove build artifacts"
+run = "cargo clean"
+
+[tasks.ci]
+description = "Run full CI pipeline (format check + lint + tests)"
+depends = ["fmt:check", "lint", "test"]

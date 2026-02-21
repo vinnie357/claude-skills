@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -47,7 +47,12 @@
     "./plugins/tools/github/skills/actions",
     "./plugins/tools/github/skills/workflows",
     "./plugins/tools/github/skills/act",
-    "./plugins/languages/rust/skills",
+    "./plugins/languages/rust/skills/rust",
+    "./plugins/languages/rust/skills/ownership",
+    "./plugins/languages/rust/skills/error-handling",
+    "./plugins/languages/rust/skills/async",
+    "./plugins/languages/rust/skills/testing",
+    "./plugins/languages/rust/skills/troubleshooting",
     "./plugins/tools/slidev/skills/slidev",
     "./plugins/tools/slidev/skills/syntax",
     "./plugins/tools/slidev/skills/code",
