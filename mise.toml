@@ -358,7 +358,7 @@ run = """
 #!/usr/bin/env nu
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
-let script_path = ($repo_root | path join "core" "skills" "security" "scripts" "gitleaks.nu")
+let script_path = ($repo_root | path join "plugins" "core" "skills" "security" "scripts" "gitleaks.nu")
 
 # Build default arguments
 mut args = [
@@ -382,7 +382,7 @@ run = """
 #!/usr/bin/env nu
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
-let script_path = ($repo_root | path join "core" "skills" "security" "scripts" "gitleaks.nu")
+let script_path = ($repo_root | path join "plugins" "core" "skills" "security" "scripts" "gitleaks.nu")
 
 mut args = [
     "--path" $repo_root
@@ -403,7 +403,7 @@ run = """
 #!/usr/bin/env nu
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
-let script_path = ($repo_root | path join "core" "skills" "security" "scripts" "gitleaks.nu")
+let script_path = ($repo_root | path join "plugins" "core" "skills" "security" "scripts" "gitleaks.nu")
 
 mut args = [
     "--path" $repo_root

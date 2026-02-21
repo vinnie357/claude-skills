@@ -44,7 +44,8 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
   }
 
   let source = ($plugin_entry | get -o source | default "./")
-  let is_external = not (($source | str starts-with "./") or ($source == "./"))
+  let source_type = ($source | describe)
+  let is_external = ($source_type | str starts-with "record")
 
   # Set up validation context
   let validation_context = if $is_external {
@@ -57,13 +58,20 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
   let temp_dir = $validation_context.temp_dir
   let is_ext = $validation_context.is_external
 
+  # Derive source_dir from source field (strip leading ./)
+  let source_dir = if $is_ext {
+    $plugin_name
+  } else {
+    ($source | str replace --regex '^\./' '')
+  }
+
   # Determine plugin.json path
   let plugin_path = if $plugin_name == "all-skills" {
     ($plugin_root | path join ".claude-plugin" "plugin.json")
   } else if $is_ext {
     ($plugin_root | path join ".claude-plugin" "plugin.json")
   } else {
-    ($plugin_root | path join $plugin_name ".claude-plugin" "plugin.json")
+    ($plugin_root | path join $source_dir ".claude-plugin" "plugin.json")
   }
 
   # Check if plugin.json exists
@@ -74,7 +82,7 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
   }
 
   # Run validation
-  let result = validate-plugin-content $plugin_path $plugin_root $plugin_name $is_ext $verbose
+  let result = validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose
 
   # Cleanup temp directory
   cleanup-temp $temp_dir $is_ext
@@ -110,7 +118,7 @@ def validate-plugin-file [plugin_path: string, verbose: bool] {
 
   let plugin_name = ($plugin | get -o name | default "unknown")
 
-  let result = validate-plugin-content $plugin_path $plugin_root $plugin_name false $verbose
+  let result = validate-plugin-content $plugin_path $plugin_root $plugin_name $plugin_name false $verbose
 
   if $result.success {
     print $"\n(ansi green_bold)✓ Plugin is valid!(ansi reset)"
@@ -121,9 +129,21 @@ def validate-plugin-file [plugin_path: string, verbose: bool] {
 }
 
 # Set up external plugin (clone from GitHub)
-def setup-external-plugin [source: string, plugin_name: string] {
-  if ($source | str starts-with "github:") {
-    let repo_path = ($source | str replace "github:" "")
+def setup-external-plugin [source: any, plugin_name: string] {
+  # Handle object-style source (e.g., {source: "github", repo: "owner/repo"})
+  let source_kind = ($source | describe)
+  let is_github = if ($source_kind | str starts-with "record") {
+    ($source | get -o source) == "github"
+  } else {
+    ($source | str starts-with "github:")
+  }
+  let repo_path = if ($source_kind | str starts-with "record") {
+    ($source | get -o repo | default "")
+  } else {
+    ($source | str replace "github:" "")
+  }
+
+  if $is_github and ($repo_path | str length) > 0 {
     let github_url = $"https://github.com/($repo_path).git"
 
     let temp_clone_dir = (mktemp -d)
@@ -158,6 +178,7 @@ def validate-plugin-content [
   plugin_path: string
   plugin_root: string
   plugin_name: string
+  source_dir: string
   is_external: bool
   verbose: bool
 ] {
@@ -247,7 +268,7 @@ def validate-plugin-content [
     let sources_path = if $plugin_name == "all-skills" {
       ($plugin_root | path join "skills" "sources.md")
     } else {
-      ($plugin_root | path join $plugin_name "skills" "sources.md")
+      ($plugin_root | path join $source_dir "skills" "sources.md")
     }
     if not ($sources_path | path exists) {
       $warnings = ($warnings | append "Missing recommended file: skills/sources.md")
@@ -272,7 +293,7 @@ def validate-plugin-content [
         } else if $is_external {
           ($plugin_root | path join $skill)
         } else {
-          ($plugin_root | path join $plugin_name $skill)
+          ($plugin_root | path join $source_dir $skill)
         }
 
         if not ($skill_path | path exists) {
@@ -312,7 +333,7 @@ def validate-plugin-content [
         } else if $is_external {
           ($plugin_root | path join $command)
         } else {
-          ($plugin_root | path join $plugin_name $command)
+          ($plugin_root | path join $source_dir $command)
         }
 
         if not ($command_path | path exists) {
@@ -340,7 +361,7 @@ def validate-plugin-content [
         } else if $is_external {
           ($plugin_root | path join $agent)
         } else {
-          ($plugin_root | path join $plugin_name $agent)
+          ($plugin_root | path join $source_dir $agent)
         }
 
         if not ($agent_path | path exists) {

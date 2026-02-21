@@ -177,19 +177,23 @@ Skills are automatically activated by Claude based on task context once plugins 
 
 ## Plugin Architecture
 
-The marketplace uses a tiered architecture with root-level plugins:
+The marketplace uses a categorized architecture with plugins organized under `plugins/`:
 
 ```
 claude-skills/
 ├── .claude-plugin/
-│   └── marketplace.json    # Marketplace definition
-├── claude-code/            # Plugin development tools
-├── core/                   # Essential development skills
-├── dagu/                   # Workflow orchestration
-├── elixir/                 # Elixir development
-├── rust/                   # Rust programming
-├── ui/                     # UI frameworks
-└── wasm/                   # WebAssembly development
+│   └── marketplace.json          # Marketplace definition
+└── plugins/
+    ├── core/                     # Essential development skills
+    ├── languages/
+    │   ├── elixir/               # Elixir development
+    │   └── rust/                 # Rust programming
+    ├── tools/
+    │   ├── claude-code/          # Plugin development tools
+    │   ├── dagu/                 # Workflow orchestration
+    │   └── github/               # GitHub Actions and workflows
+    ├── ui/                       # UI frameworks
+    └── wasm/                     # WebAssembly development
 ```
 
 Each plugin contains:
@@ -311,7 +315,7 @@ Install it to build your own Claude Code plugins:
 
 ## Testing
 
-The repository includes automated validation tests for the marketplace and all 9 plugins (including the all-skills meta-plugin).
+The repository includes automated validation tests for the marketplace and all 10 plugins (including the all-skills meta-plugin).
 
 ### Requirements
 
@@ -341,7 +345,7 @@ mise test:plugins
 ### What Gets Tested
 
 - **Marketplace validation**: Required fields, plugin entries, JSON structure
-- **Plugin validation** (all 9 plugins including all-skills):
+- **Plugin validation** (all 10 plugins including all-skills):
   - Name matches directory (or root for all-skills)
   - No invalid marketplace-only fields
   - Kebab-case naming
@@ -389,7 +393,7 @@ The repository includes automated CI/CD via GitHub Actions that runs on:
 
 **What gets tested:**
 - Validates marketplace.json schema
-- Validates all plugin.json files (9 plugins)
+- Validates all plugin.json files (10 plugins)
 - Checks skill paths exist
 - Verifies naming conventions
 
@@ -472,6 +476,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 1.0.0 (Current)
 - Tiered marketplace architecture with selective plugin installation
-- 9 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui, wasm
+- 10 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui, wasm, claudio
 - 25+ skills covering multiple programming languages and development tools
 - Comprehensive plugin development tools with Nushell validation scripts

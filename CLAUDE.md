@@ -327,18 +327,20 @@ All skills MUST adhere to strict anti-fabrication requirements to ensure factual
 
 ## Skills in This Repository
 
-This repository is organized as a **tiered marketplace** with root-level plugins. Each plugin is independently installable and contains its own set of skills.
+This repository is organized as a **tiered marketplace** with categorized plugins. Each plugin is independently installable and contains its own set of skills.
 
 **Available Plugins:**
 - **all-skills** - Meta-plugin at root that installs all skills from all other plugins
-- **claude-code** - Plugin marketplace management and validation tools (6 skills)
-- **core** - Essential development skills: Git, documentation, code review, accessibility (9 skills)
-- **elixir** - Elixir and Phoenix development (5 skills)
-- **rust** - Rust programming language (1 comprehensive skill)
-- **dagu** - Workflow orchestration (3 skills)
+- **core** - Essential development skills: Git, documentation, code review, accessibility (12 skills)
+- **languages/elixir** - Elixir and Phoenix development (5 skills)
+- **languages/rust** - Rust programming language (1 comprehensive skill)
+- **tools/claude-code** - Plugin marketplace management and validation tools (6 skills)
+- **tools/dagu** - Workflow orchestration (3 skills)
+- **tools/github** - GitHub Actions, Workflows, and act (3 skills)
 - **ui** - UI frameworks and design (1 skill)
+- **wasm** - WebAssembly and Wasmtime (1 skill + 1 agent)
 
-**Total**: 7 plugins with 25 skills covering multiple programming languages, development tools, and best practices.
+**Total**: 10 plugins with 32 skills covering multiple programming languages, development tools, and best practices.
 
 **Note**: The `all-skills` meta-plugin is maintained via `mise update-all-skills` and automatically includes all skills from all other plugins.
 
@@ -370,18 +372,23 @@ This repository is designed as a Claude Code plugin marketplace. Users can selec
 
 ### Marketplace Architecture
 
-The repository uses a tiered architecture with root-level plugins:
+The repository uses a categorized architecture with plugins organized under `plugins/`:
 
 ```
 claude-skills/
 ├── .claude-plugin/
-│   └── marketplace.json     # Marketplace definition
-├── claude-code/             # Plugin development tools
-├── core/                    # Essential development skills
-├── dagu/                    # Workflow orchestration
-├── elixir/                  # Elixir development
-├── rust/                    # Rust programming
-└── ui/                      # UI frameworks
+│   └── marketplace.json          # Marketplace definition
+└── plugins/
+    ├── core/                     # Essential development skills
+    ├── languages/
+    │   ├── elixir/               # Elixir development
+    │   └── rust/                 # Rust programming
+    ├── tools/
+    │   ├── claude-code/          # Plugin development tools
+    │   ├── dagu/                 # Workflow orchestration
+    │   └── github/               # GitHub Actions and workflows
+    ├── ui/                       # UI frameworks
+    └── wasm/                     # WebAssembly development
 ```
 
 Each plugin is independently installable and maintains its own:

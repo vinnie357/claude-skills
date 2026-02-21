@@ -34,7 +34,20 @@ def main [
 
     for plugin in $plugins {
         let plugin_name = $plugin.name
-        let plugin_dir = ($repo_root | path join $plugin_name)
+        let source = ($plugin | get -o source | default "./")
+
+        # Skip external plugins (source is an object, not a string)
+        let source_type = ($source | describe)
+        if ($source_type | str starts-with "record") {
+            if $verbose {
+                print $"⚠️  Skipping ($plugin_name): external plugin"
+            }
+            continue
+        }
+
+        # Derive directory from source field (strip leading ./)
+        let source_dir = ($source | str replace --regex '^\./' '')
+        let plugin_dir = ($repo_root | path join $source_dir)
         let plugin_manifest_path = ($plugin_dir | path join ".claude-plugin" "plugin.json")
 
         if not ($plugin_manifest_path | path exists) {
@@ -49,9 +62,9 @@ def main [
         # Collect skills
         if ($plugin_manifest | get -o skills) != null {
             for skill in $plugin_manifest.skills {
-                # Remove leading "./" and build proper path
+                # Remove leading "./" and build proper path using source_dir
                 let clean_skill = ($skill | str replace --regex '^\./' '')
-                let skill_path = $"./($plugin_name)/($clean_skill)"
+                let skill_path = $"./($source_dir)/($clean_skill)"
                 $all_skills = ($all_skills | append $skill_path)
             }
         }
@@ -59,9 +72,9 @@ def main [
         # Collect commands
         if ($plugin_manifest | get -o commands) != null {
             for command in $plugin_manifest.commands {
-                # Remove leading "./" and build proper path
+                # Remove leading "./" and build proper path using source_dir
                 let clean_command = ($command | str replace --regex '^\./' '')
-                let command_path = $"./($plugin_name)/($clean_command)"
+                let command_path = $"./($source_dir)/($clean_command)"
                 $all_commands = ($all_commands | append $command_path)
             }
         }
