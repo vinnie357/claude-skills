@@ -1,13 +1,16 @@
 {
   "name": "elixir",
-  "version": "0.1.1",
-  "description": "Elixir development skills: Phoenix, OTP, testing, configuration, and anti-patterns",
+  "version": "0.1.2",
+  "description": "Elixir development skills: Phoenix, OTP, Tidewave MCP, testing, configuration, and anti-patterns",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
   "keywords": ["elixir", "phoenix", "otp", "beam", "erlang"],
+  "agents": [
+    "./agents/tidewave.md"
+  ],
   "skills": [
     "./skills/anti-patterns",
     "./skills/phoenix",

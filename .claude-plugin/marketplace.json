@@ -49,8 +49,8 @@
       "name": "elixir",
       "source": "./elixir",
       "strict": true,
-      "description": "Elixir development skills: Phoenix, OTP, testing, configuration",
-      "version": "0.1.1",
+      "description": "Elixir development skills: Phoenix, OTP, Tidewave MCP, testing, configuration",
+      "version": "0.1.2",
       "category": "language",
       "keywords": ["elixir", "phoenix", "otp", "beam"]
     },
