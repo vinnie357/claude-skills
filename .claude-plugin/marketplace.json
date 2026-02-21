@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.6",
+      "version": "0.3.7",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -89,6 +89,16 @@
       "version": "0.1.2",
       "category": "language",
       "keywords": ["wasm", "webassembly", "wasmtime", "wasi", "component-model"],
+      "license": "MIT"
+    },
+    {
+      "name": "zig",
+      "source": "./plugins/languages/zig",
+      "strict": true,
+      "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, and best practices",
+      "version": "0.1.0",
+      "category": "language",
+      "keywords": ["zig", "systems-programming", "comptime", "allocators"],
       "license": "MIT"
     },
     {
