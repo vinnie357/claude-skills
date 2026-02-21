@@ -32,7 +32,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.1.12",
+      "version": "0.1.13",
       "category": "development",
       "keywords": ["git", "documentation", "code-review", "tools", "beads", "container"]
     },
