@@ -171,13 +171,33 @@ This file documents the sources used to create the core plugin skills.
 ### Apple Container Releases
 - **URL**: https://github.com/apple/container/releases
 - **Purpose**: Version tracking, breaking changes between releases, installation packages
-- **Date Accessed**: 2026-02-08
-- **Key Topics**: Version 0.4.1 to 0.5.0 migration, breaking changes, new features, CVE fixes
+- **Date Accessed**: 2026-02-21
+- **Key Topics**: Version migration (0.4.1 through 0.9.0), breaking changes, new features, CVE fixes
+
+### Apple Container Release 0.6.0
+- **URL**: https://github.com/apple/container/releases/tag/0.6.0
+- **Purpose**: Version 0.6.0 release notes
+- **Key Topics**: Image store directory change, multiple --tag on build, --network none, subnet support, anonymous volumes, volume prune, Containerfile fallback, DNS list flags
+
+### Apple Container Release 0.7.0
+- **URL**: https://github.com/apple/container/releases/tag/0.7.0
+- **Purpose**: Version 0.7.0 release notes
+- **Key Topics**: Rosetta flag, progress flag change, stdio save/load, stdin Dockerfile, container stats, port range publishing, mac-address, system df, image prune -a, exec -d, network creationDate
+
+### Apple Container Release 0.8.0
+- **URL**: https://github.com/apple/container/releases/tag/0.8.0
+- **Purpose**: Version 0.8.0 release notes
+- **Key Topics**: Read-only rootfs, architecture aliases, network prune, IPv6, volume relative paths, named pipe env vars, CVE-2026-20613, client API reorganization
+
+### Apple Container Release 0.9.0
+- **URL**: https://github.com/apple/container/releases/tag/0.9.0
+- **Purpose**: Version 0.9.0 release notes
+- **Key Topics**: Resource limits (--cpus/--memory), host.docker.internal, host-only/isolated networks, --dns on build, --force on image delete, zstd compression, Kata 3.26.0
 
 ## Plugin Information
 
 - **Name**: core
-- **Version**: 0.1.9
+- **Version**: 0.1.10
 - **Description**: Essential development skills: Git, documentation, code review, accessibility, security
 - **Skills**: 12 skills covering fundamental development tools and best practices
 - **Created**: 2025-11-15

@@ -17,7 +17,7 @@ Activate when:
 - Managing container images (pull, push, tag, save, load)
 - Configuring container networks and volumes
 - Managing the container system service
-- Migrating between Apple Container versions (0.4.x to 0.5.x)
+- Migrating between Apple Container versions (0.5.x to 0.9.x)
 
 ## What is Apple Container?
 
@@ -26,7 +26,7 @@ Apple Container is a macOS-native tool for running Linux containers as lightweig
 - **Swift-based**: Built on Apple's Virtualization.framework
 - **OCI-compatible**: Produces and runs standard OCI container images
 - **Apple silicon only**: Requires Apple silicon Mac (M1 or later)
-- **Pre-1.0**: Currently at version 0.5.0, breaking changes expected between minor versions
+- **Pre-1.0**: Currently at version 0.9.0, breaking changes expected between minor versions
 - **Lightweight VMs**: Each container runs as a lightweight Linux VM
 
 ## Prerequisites
@@ -129,6 +129,25 @@ container run --rm -it alpine:latest /bin/sh
 
 # Combined common flags
 container run -d --name web -p 8080:80 -v ./html:/usr/share/nginx/html -e ENV=prod nginx:latest
+
+# Run with resource limits (0.9.0+)
+container run -d --name app --cpus 2 --memory 4g myapp:latest
+
+# Run with read-only rootfs (0.8.0+)
+container run --read-only -v tmpdata:/tmp myapp:latest
+
+# Run with Rosetta x86_64 emulation (0.7.0+)
+container run --rosetta -it amd64-image:latest /bin/bash
+
+# Run with DNS configuration
+container run --dns 8.8.8.8 --dns-search example.com myapp:latest
+
+# Run with custom MAC address (0.7.0+)
+container run --mac-address 02:42:ac:11:00:02 --network mynet myapp:latest
+
+# Access host from container (0.9.0+)
+# Use host.docker.internal to reach host services
+container run -e API_URL=http://host.docker.internal:3000 myapp:latest
 ```
 
 ### Manage Running Containers
@@ -156,6 +175,9 @@ container rm <name-or-id>
 
 # Execute command in running container
 container exec -it <name-or-id> /bin/bash
+
+# Execute command detached (0.7.0+)
+container exec -d <name-or-id> /usr/bin/background-task
 
 # View container logs
 container logs <name-or-id>
@@ -210,11 +232,17 @@ container image load -i ubuntu.tar
 # Delete an image
 container image delete ubuntu:latest
 
-# Inspect image metadata
+# Force delete an image (0.9.0+, verify flag with --help)
+container image delete --force ubuntu:latest
+
+# Inspect image metadata (enhanced output in 0.9.0+)
 container image inspect ubuntu:latest
 
 # Remove unused images
 container image prune
+
+# Remove all unused images, not just dangling (0.7.0+)
+container image prune -a
 ```
 
 ### Platform Flags
@@ -227,6 +255,8 @@ When pulling or building images, specify the target platform:
 --os linux                   # OS only
 --scheme oci                 # Image scheme
 ```
+
+Architecture aliases (0.8.0+): `amd64`=`x86_64`, `arm64`=`aarch64`
 
 ## Build
 
@@ -253,7 +283,24 @@ container build -t myimage:latest --platform linux/arm64 .
 
 # Build with output
 container build -t myimage:latest -o type=local,dest=./output .
+
+# Build with multiple tags (0.6.0+)
+container build -t myimage:latest -t myimage:v1.0 .
+
+# Build with no network access (0.6.0+)
+container build -t myimage:latest --network none .
+
+# Build with DNS configuration (0.9.0+)
+container build -t myimage:latest --dns 8.8.8.8 .
+
+# Build from stdin (0.7.0+)
+container build -t myimage:latest -f - . <<EOF
+FROM alpine:latest
+RUN echo "hello"
+EOF
 ```
+
+**Note**: When no `Dockerfile` is found, the builder falls back to `Containerfile` (0.6.0+).
 
 ### Builder Management
 
@@ -299,6 +346,8 @@ container network delete mynetwork
 # Remove unused networks
 container network prune
 ```
+
+**Network capabilities (0.8.0+)**: Full IPv6 support. Host-only and isolated network modes available in 0.9.0+ (verify flag syntax with `container network create --help`).
 
 ### Multi-Container Networking
 
@@ -371,33 +420,46 @@ container registry logout <registry-url>
 
 **Note**: In 0.5.0, the keychain ID changed from `com.apple.container` to `com.apple.container.registry`. Re-login is required after upgrading from 0.4.x.
 
-## Version Differences (0.4.1 vs 0.5.0)
+## Version Differences (0.5.0 to 0.9.0)
 
-### Breaking Changes in 0.5.0
+### Breaking Changes
 
-| Change | 0.4.1 | 0.5.0 |
-|--------|-------|-------|
-| Image listing | `container images` alias available | `container images` removed, use `container image list` |
-| System properties | Scattered subcommands | Consolidated to `container system property` |
-| Registry keychain | `com.apple.container` | `com.apple.container.registry` (re-login required) |
+| Version | Change | Migration |
+|---------|--------|-----------|
+| 0.6.0 | Image store directory moved from `.build` to `builder` | Update paths referencing `.build` |
+| 0.7.0 | `--disable-progress-updates` removed | Use `--progress none\|ansi` instead |
+| 0.8.0 | Client API reorganization | Update API consumers |
+| 0.8.0 | Subnet allocation defaults changed | Review network configurations |
 
-### New Features in 0.5.0
+### New Features by Release
 
-- Multi-image save (`container image save img1 img2 -o archive.tar`)
-- Network labels (`container network create --labels key=val`)
-- Kernel force set (`container system kernel set --force`)
-- CVE-2026-20613 fix
-- Dependencies: Containerization 0.9.1, CZ 0.8.0, Builder shim 0.6.1
+**0.6.0**: Multiple `--tag` on build, `--network none`, `network create --subnet`, anonymous volumes, `volume prune`, Containerfile fallback, DNS list `--format`/`--quiet`
 
-### Migration Checklist (0.4.x to 0.5.0)
+**0.7.0**: `--rosetta` flag, image download progress, stdio save/load, Dockerfile from stdin, `container stats`, port range publishing, `--mac-address`, `system df`, `image prune -a`, `exec -d` (detached), network creationDate
 
-1. Replace `container images` with `container image list` in scripts
-2. Update system property commands to use `container system property`
-3. Re-login to registries (keychain ID changed)
-4. Review scripts for removed aliases
-5. Test build workflows (builder shim updated to 0.6.1)
+**0.8.0**: `--read-only` for run/create, architecture aliases (amd64/arm64/x86_64/aarch64), `network prune`, full IPv6, volume relative paths, env vars from named pipes, CVE-2026-20613 fix
 
-See `templates/0.4.1/commands.md` and `templates/0.5.0/commands.md` for version-specific details.
+**0.9.0**: Resource limits (`--cpus`/`--memory`), `host.docker.internal`, host-only/isolated networks, `--dns` on build, `--force` on image delete, zstd compression, container prune improvements, enhanced image inspection, Kata 3.26.0 kernel
+
+### Migration Checklist (0.5.x to 0.9.0)
+
+1. Replace `--disable-progress-updates` with `--progress none` in scripts
+2. Update any paths referencing `.build` directory to `builder`
+3. Review subnet configurations (allocation defaults changed in 0.8.0)
+4. Update API consumers for client API reorganization (0.8.0)
+5. Test build workflows with updated dependencies
+
+### Dependencies
+
+| Version | Containerization | Other |
+|---------|-----------------|-------|
+| 0.5.0 | 0.9.1 | Builder shim 0.6.1 |
+| 0.6.0 | 0.12.1 | |
+| 0.7.0 | 0.16.0 | Builder shim 0.7.0 |
+| 0.8.0 | 0.21.1 | |
+| 0.9.0 | 0.24.0 | Kata 3.26.0 |
+
+See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0).
 
 ## Scripts
 

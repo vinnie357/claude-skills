@@ -29,6 +29,28 @@ container run [FLAGS] IMAGE [COMMAND] [ARGS...]
 | `--entrypoint` | | Override default entrypoint |
 | `--hostname` | `-h` | Container hostname |
 | `--restart` | | Restart policy (`no`, `always`, `on-failure`) |
+| `--cpus` | | CPU limit (0.9.0+) |
+| `--memory` | | Memory limit, e.g., `4g` (0.9.0+) |
+| `--read-only` | | Read-only rootfs (0.8.0+) |
+| `--rosetta` | | Enable Rosetta x86_64 emulation (0.7.0+) |
+| `--mac-address` | | Custom MAC address (0.7.0+) |
+| `--dns` | | DNS server address |
+| `--dns-domain` | | DNS domain |
+| `--dns-option` | | DNS option |
+| `--dns-search` | | DNS search domain |
+| `--no-dns` | | Disable DNS |
+| `--mount` | | Mount specification |
+| `--tmpfs` | | Mount a tmpfs filesystem |
+| `--cidfile` | | Write container ID to file |
+| `--publish-socket` | | Publish a socket |
+| `--init-image` | | Init image for VM |
+| `--kernel` | | Custom kernel for VM |
+| `--virtualization` | | Virtualization backend |
+| `--runtime` | | Container runtime |
+| `--scheme` | | Image scheme |
+| `--progress` | | Progress output (`none`, `ansi`) (0.7.0+) |
+| `--gid` | | Group ID |
+| `--uid` | | User ID |
 
 Common combinations:
 - `-it` - Interactive terminal session
@@ -43,7 +65,7 @@ Create a container without starting it.
 container create [FLAGS] IMAGE [COMMAND] [ARGS...]
 ```
 
-Accepts all the same flags as `container run` except `--detach`.
+Accepts all the same flags as `container run` except `--detach`. Includes `--read-only` (0.8.0+), `--cpus`/`--memory` (0.9.0+), and all DNS flags.
 
 ### `container start`
 
@@ -98,6 +120,7 @@ container exec [FLAGS] CONTAINER COMMAND [ARGS...]
 |------|-------|-------------|
 | `--interactive` | `-i` | Keep STDIN open |
 | `--tty` | `-t` | Allocate a pseudo-TTY |
+| `--detach` | `-d` | Run in background (0.7.0+) |
 | `--env` | `-e` | Set environment variable |
 | `--workdir` | `-w` | Working directory |
 | `--user` | `-u` | Run as user |
@@ -196,7 +219,7 @@ container image save [FLAGS] IMAGE [IMAGE...]
 |------|-------|-------------|
 | `--output` | `-o` | Output file path |
 
-**Note**: Multi-image save added in 0.5.0.
+**Notes**: Multi-image save added in 0.5.0. Stdio support added in 0.7.0+ (pipe to/from stdout/stdin).
 
 ### `container image load`
 
@@ -226,9 +249,11 @@ Remove one or more images.
 container image delete IMAGE [IMAGE...]
 ```
 
+**Note**: `--force` flag available in 0.9.0+ (verify syntax with `container image delete --help`).
+
 ### `container image inspect`
 
-Show detailed information about an image.
+Show detailed information about an image. Enhanced output in 0.9.0+.
 
 ```
 container image inspect IMAGE
@@ -244,11 +269,12 @@ container image prune
 
 | Flag | Short | Description |
 |------|-------|-------------|
+| `--all` | `-a` | Remove all unused images, not just dangling (0.7.0+) |
 | `--force` | `-f` | Skip confirmation |
 
 ### `container image list` / `container image ls`
 
-List images.
+List images. Full size included in JSON output (0.9.0+).
 
 ```
 container image list [FLAGS]
@@ -279,7 +305,14 @@ container build [FLAGS] PATH
 | `--target` | | Set target build stage |
 | `--platform` | | Target platform |
 | `--output` | `-o` | Output destination (`type=local,dest=path`) |
-| `--progress` | | Progress output type (`auto`, `plain`, `tty`) |
+| `--progress` | | Progress output (`none`, `ansi`) (0.7.0+, replaces `--disable-progress-updates`) |
+| `--network` | | Network mode, e.g., `none` (0.6.0+) |
+| `--pull` | | Pull policy |
+| `--quiet` | `-q` | Suppress build output |
+| `--cpus` | | CPU limit for build |
+| `--memory` | | Memory limit for build |
+| `--vsock-port` | | Vsock port for builder |
+| `--dns` | | DNS server for build (0.9.0+) |
 
 ### `container builder start`
 
@@ -325,8 +358,10 @@ container network create [FLAGS] NAME
 
 | Flag | Description |
 |------|-------------|
-| `--subnet` | Subnet in CIDR format (e.g., `10.0.0.0/24`) |
+| `--subnet` | Subnet in CIDR format (e.g., `10.0.0.0/24`) (0.6.0+) |
 | `--labels` | Labels for the network (0.5.0+) |
+
+**Note**: Full IPv6 support in 0.8.0+. Host-only and isolated network capabilities in 0.9.0+ (verify flag syntax with `container network create --help`).
 
 ### `container network delete`
 
