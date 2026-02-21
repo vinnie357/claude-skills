@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
