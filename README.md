@@ -21,7 +21,8 @@ Add the marketplace and install plugins:
 /plugin install rust@vinnie357        # Rust language features
 /plugin install wasm@vinnie357        # WebAssembly and Wasmtime
 /plugin install dagu@vinnie357        # Workflow orchestration
-/plugin install ui@vinnie357          # daisyUI, accessibility, Material Design
+/plugin install github@vinnie357      # GitHub Actions, workflows, act
+/plugin install ui@vinnie357          # daisyUI, Tailwind CSS theming
 /plugin install claude-code@vinnie357 # Plugin marketplace management tools
 ```
 
@@ -51,10 +52,13 @@ Fundamental development tools and best practices.
 - **code-review** - Code review best practices for security and maintainability
 - **accessibility** - Web accessibility standards (WCAG, ARIA)
 - **material-design** - Material Design 3 design system
-- **twelve-factor-app** - Cloud-native application design principles
+- **twelve-factor** - Cloud-native application design principles
 - **anti-fabrication** - Ensure factual accuracy through tool validation
+- **security** - Secret detection and credential scanning with gitleaks
+- **beads** - Distributed git-backed graph issue tracker
+- **container** - Apple Container CLI for Linux containers on macOS
 
-**Keywords**: git, documentation, code-review, tools
+**Keywords**: git, documentation, code-review, tools, beads, container
 
 ### `elixir` - Elixir Development
 
@@ -106,6 +110,17 @@ UI framework and component library skills.
 - **daisyui** - daisyUI component library with Tailwind CSS theming
 
 **Keywords**: ui, daisyui, tailwind
+
+### `github` - GitHub Development Tools
+
+GitHub Actions, workflows, and local testing.
+
+**Skills:**
+- **actions** - Creating and configuring GitHub Actions
+- **workflows** - Writing and optimizing GitHub Actions workflows
+- **act** - Testing GitHub Actions locally using act
+
+**Keywords**: github, actions, workflows, ci-cd, act, testing
 
 ### `claude-code` - Plugin Development Tools
 
@@ -269,7 +284,7 @@ You can contribute skills to existing plugins or create new ones:
 
 1. Create a new skill directory:
    ```bash
-   mkdir -p elixir/skills/my-skill
+   mkdir -p plugins/languages/elixir/skills/my-skill
    ```
 
 2. Create `SKILL.md` with YAML frontmatter:
@@ -328,7 +343,7 @@ The repository includes automated validation tests for the marketplace and all 1
 # Install mise (if not already installed)
 curl https://mise.run | sh
 
-# Run all tests (validates marketplace + all 8 plugins)
+# Run all tests (validates marketplace + all 10 plugins)
 mise test
 
 # Test specific plugin
@@ -476,6 +491,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 1.0.0 (Current)
 - Tiered marketplace architecture with selective plugin installation
-- 10 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui, wasm, claudio
-- 25+ skills covering multiple programming languages and development tools
+- 10 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui, wasm, claudio (external)
+- 32 skills covering multiple programming languages and development tools
 - Comprehensive plugin development tools with Nushell validation scripts
