@@ -19,6 +19,7 @@ Add the marketplace and install plugins:
 /plugin install core@vinnie357        # Git, documentation, code review, accessibility
 /plugin install elixir@vinnie357      # Elixir, Phoenix, OTP, testing
 /plugin install rust@vinnie357        # Rust language features
+/plugin install wasm@vinnie357        # WebAssembly and Wasmtime
 /plugin install dagu@vinnie357        # Workflow orchestration
 /plugin install ui@vinnie357          # daisyUI, accessibility, Material Design
 /plugin install claude-code@vinnie357 # Plugin marketplace management tools
@@ -76,6 +77,15 @@ Rust language features and best practices.
 - **rust** - Ownership, borrowing, lifetimes, error handling, async programming
 
 **Keywords**: rust, systems-programming, memory-safety
+
+### `wasm` - WebAssembly Development
+
+WebAssembly runtime, compilation, and embedding skills.
+
+**Skills:**
+- **wasmtime** - Wasmtime runtime, Component Model, WIT, WASI, guest compilation (Rust, Zig), host embedding (Rust, Elixir)
+
+**Keywords**: wasm, webassembly, wasmtime, wasi, component-model
 
 ### `dagu` - Workflow Orchestration
 
@@ -144,6 +154,13 @@ Skills are automatically activated by Claude based on task context once plugins 
 "Review this code for Rust best practices"
 ```
 
+**WebAssembly Development:**
+```
+"Help me compile this Rust library to wasm"
+"Embed a wasm plugin system using Wasmtime in Rust"
+"Set up Wasmex to run wasm modules in Elixir"
+```
+
 **Workflow Orchestration:**
 ```
 "Create a Dagu workflow for this ETL pipeline"
@@ -171,7 +188,8 @@ claude-skills/
 ├── dagu/                   # Workflow orchestration
 ├── elixir/                 # Elixir development
 ├── rust/                   # Rust programming
-└── ui/                     # UI frameworks
+├── ui/                     # UI frameworks
+└── wasm/                   # WebAssembly development
 ```
 
 Each plugin contains:
@@ -203,6 +221,11 @@ Install only the plugins you need:
 
 # Rust developer
 /plugin install core@vinnie357
+/plugin install rust@vinnie357
+
+# WebAssembly developer
+/plugin install core@vinnie357
+/plugin install wasm@vinnie357
 /plugin install rust@vinnie357
 
 # DevOps/Platform engineer
@@ -288,7 +311,7 @@ Install it to build your own Claude Code plugins:
 
 ## Testing
 
-The repository includes automated validation tests for the marketplace and all 8 plugins (including the all-skills meta-plugin).
+The repository includes automated validation tests for the marketplace and all 9 plugins (including the all-skills meta-plugin).
 
 ### Requirements
 
@@ -301,7 +324,7 @@ The repository includes automated validation tests for the marketplace and all 8
 # Install mise (if not already installed)
 curl https://mise.run | sh
 
-# Run all tests (validates marketplace + all 7 plugins)
+# Run all tests (validates marketplace + all 8 plugins)
 mise test
 
 # Test specific plugin
@@ -318,7 +341,7 @@ mise test:plugins
 ### What Gets Tested
 
 - **Marketplace validation**: Required fields, plugin entries, JSON structure
-- **Plugin validation** (all 8 plugins including all-skills):
+- **Plugin validation** (all 9 plugins including all-skills):
   - Name matches directory (or root for all-skills)
   - No invalid marketplace-only fields
   - Kebab-case naming
@@ -366,7 +389,7 @@ The repository includes automated CI/CD via GitHub Actions that runs on:
 
 **What gets tested:**
 - Validates marketplace.json schema
-- Validates all plugin.json files (8 plugins)
+- Validates all plugin.json files (9 plugins)
 - Checks skill paths exist
 - Verifies naming conventions
 
@@ -405,6 +428,7 @@ Primary sources include:
 - **Rust**: [The Rust Programming Language](https://doc.rust-lang.org/stable/)
 - **mise**: [mise Documentation](https://mise.jdx.dev/)
 - **Nushell**: [Nushell Book](https://www.nushell.sh/book/)
+- **Wasmtime**: [Wasmtime Documentation](https://docs.wasmtime.dev/)
 - **Dagu**: [Dagu Documentation](https://docs.dagu.cloud/)
 - **Claude Code**: [Official Plugins Documentation](https://code.claude.com/docs/en/plugins)
 
@@ -448,6 +472,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 1.0.0 (Current)
 - Tiered marketplace architecture with selective plugin installation
-- 8 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui
+- 9 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui, wasm
 - 25+ skills covering multiple programming languages and development tools
 - Comprehensive plugin development tools with Nushell validation scripts
