@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.4",
+      "version": "0.3.5",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -80,6 +80,16 @@
       "version": "0.1.1",
       "category": "frontend",
       "keywords": ["ui", "daisyui", "tailwind"]
+    },
+    {
+      "name": "wasm",
+      "source": "./wasm",
+      "strict": true,
+      "description": "WebAssembly skills: wasmtime runtime, component model, guest compilation, and host embedding",
+      "version": "0.1.1",
+      "category": "language",
+      "keywords": ["wasm", "webassembly", "wasmtime", "wasi", "component-model"],
+      "license": "MIT"
     },
     {
       "name": "claudio",

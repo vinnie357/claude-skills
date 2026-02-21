@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -13,6 +13,7 @@
     "development",
     "elixir",
     "rust",
+    "wasm",
     "complete"
   ],
   "skills": [
@@ -46,6 +47,7 @@
     "./github/skills/workflows",
     "./github/skills/act",
     "./rust/skills",
-    "./ui/skills/daisyui"
+    "./ui/skills/daisyui",
+    "./wasm/skills/wasmtime"
   ]
 }
