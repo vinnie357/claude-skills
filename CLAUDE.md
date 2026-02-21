@@ -337,10 +337,11 @@ This repository is organized as a **tiered marketplace** with categorized plugin
 - **tools/claude-code** - Plugin marketplace management and validation tools (6 skills)
 - **tools/dagu** - Workflow orchestration (3 skills)
 - **tools/github** - GitHub Actions, Workflows, and act (3 skills)
+- **tools/slidev** - Slidev presentation framework (5 skills)
 - **ui** - UI frameworks and design (1 skill)
 - **wasm** - WebAssembly and Wasmtime (1 skill + 1 agent)
 
-**Total**: 10 plugins with 32 skills covering multiple programming languages, development tools, and best practices.
+**Total**: 11 plugins with 37 skills covering multiple programming languages, development tools, and best practices.
 
 **Note**: The `all-skills` meta-plugin is maintained via `mise update-all-skills` and automatically includes all skills from all other plugins.
 

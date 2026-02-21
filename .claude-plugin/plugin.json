@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -48,6 +48,11 @@
     "./plugins/tools/github/skills/workflows",
     "./plugins/tools/github/skills/act",
     "./plugins/languages/rust/skills",
+    "./plugins/tools/slidev/skills/slidev",
+    "./plugins/tools/slidev/skills/syntax",
+    "./plugins/tools/slidev/skills/code",
+    "./plugins/tools/slidev/skills/export",
+    "./plugins/tools/slidev/skills/troubleshooting",
     "./plugins/ui/skills/daisyui",
     "./plugins/wasm/skills/wasmtime",
     "./plugins/languages/zig/skills/zig",
