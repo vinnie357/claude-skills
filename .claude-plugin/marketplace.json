@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.9",
+      "version": "0.3.10",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -32,7 +32,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.1.13",
+      "version": "0.1.14",
       "category": "development",
       "keywords": ["git", "documentation", "code-review", "tools", "beads", "container"]
     },
