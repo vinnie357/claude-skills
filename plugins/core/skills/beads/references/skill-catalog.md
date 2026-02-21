@@ -89,6 +89,16 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 |-------|-----------------|
 | `rust` | rust, ownership, borrowing, cargo, async rust, lifetime |
 
+### slidev Plugin
+
+| Skill | Trigger Keywords |
+|-------|-----------------|
+| `slidev` | slidev, sli.dev, presentation, slides, deck |
+| `slidev-syntax` | slide syntax, slide layout, frontmatter, markdown slides, presenter notes |
+| `slidev-code` | code block, syntax highlighting, monaco, magic move, twoslash, code group |
+| `slidev-export` | export PDF, export PPTX, slidev build, static SPA, slidev export |
+| `slidev-troubleshooting` | slidev error, export failure, font issue, slidev debug |
+
 ### ui Plugin
 
 | Skill | Trigger Keywords |

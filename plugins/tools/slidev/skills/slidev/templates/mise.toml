@@ -1,0 +1,49 @@
+# Slidev development environment with mise
+# Copy these definitions to your project's mise.toml
+
+[tools]
+node = "22"
+
+[tasks.dev]
+description = "Start Slidev dev server with hot reload"
+run = "npx slidev --open"
+
+[tasks."dev:remote"]
+description = "Start dev server accessible on network"
+run = "npx slidev --remote"
+
+[tasks.build]
+description = "Build static SPA for hosting"
+run = "npx slidev build"
+
+[tasks."export:pdf"]
+description = "Export slides to PDF"
+run = "npx slidev export"
+
+[tasks."export:pdf:dark"]
+description = "Export slides to PDF with dark theme"
+run = "npx slidev export --dark"
+
+[tasks."export:pptx"]
+description = "Export slides to PPTX"
+run = "npx slidev export --format pptx"
+
+[tasks."export:png"]
+description = "Export slides as PNG images"
+run = "npx slidev export --format png"
+
+[tasks."export:md"]
+description = "Export slides as single markdown file"
+run = "npx slidev export --format md"
+
+[tasks.format]
+description = "Format markdown slides"
+run = "npx prettier --write '**/*.md'"
+
+[tasks.install]
+description = "Install Slidev and dependencies"
+run = "npm install"
+
+[tasks."install:playwright"]
+description = "Install Playwright for PDF/PNG export"
+run = "npx playwright install chromium"
