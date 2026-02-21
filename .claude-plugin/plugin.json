@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.6",
+  "version": "0.3.8",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -14,6 +14,7 @@
     "elixir",
     "rust",
     "wasm",
+    "zig",
     "complete"
   ],
   "skills": [
@@ -48,6 +49,13 @@
     "./plugins/tools/github/skills/act",
     "./plugins/languages/rust/skills",
     "./plugins/ui/skills/daisyui",
-    "./plugins/wasm/skills/wasmtime"
+    "./plugins/wasm/skills/wasmtime",
+    "./plugins/languages/zig/skills/zig",
+    "./plugins/languages/zig/skills/language",
+    "./plugins/languages/zig/skills/build",
+    "./plugins/languages/zig/skills/allocators",
+    "./plugins/languages/zig/skills/testing",
+    "./plugins/languages/zig/skills/c-interop",
+    "./plugins/languages/zig/skills/troubleshooting"
   ]
 }

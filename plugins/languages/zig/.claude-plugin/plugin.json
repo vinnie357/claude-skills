@@ -1,0 +1,20 @@
+{
+  "name": "zig",
+  "version": "0.1.1",
+  "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, testing, and troubleshooting",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["zig", "systems-programming", "comptime", "allocators"],
+  "skills": [
+    "./skills/zig",
+    "./skills/language",
+    "./skills/build",
+    "./skills/allocators",
+    "./skills/testing",
+    "./skills/c-interop",
+    "./skills/troubleshooting"
+  ]
+}
