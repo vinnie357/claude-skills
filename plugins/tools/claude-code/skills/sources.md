@@ -170,6 +170,62 @@ This file documents the sources used to create the claude-code plugin skills.
 - **Language**: Nushell
 - **Location**: skills/plugin-marketplace/scripts/ and skills/plugin/scripts/
 
+## Claude Teams Skill
+
+### Agent Teams Documentation
+- **URL**: https://code.claude.com/docs/en/agent-teams
+- **Purpose**: Official documentation for the experimental Agent Teams feature
+- **Date Accessed**: 2026-02-21
+- **Key Concepts**: Team lead/teammate architecture, shared task list, peer-to-peer messaging, plan approval, display modes, hooks (TeammateIdle, TaskCompleted)
+- **Used In**: skills/claude-teams/SKILL.md, skills/claude-teams/references/agent-teams.md
+
+### Subagents Documentation
+- **URL**: https://code.claude.com/docs/en/sub-agents
+- **Purpose**: Official documentation for custom subagents and the Task tool delegation pattern
+- **Date Accessed**: 2026-02-21
+- **Key Concepts**: Built-in subagents (Explore, Plan, General-purpose), custom agent creation, worktree isolation, persistent memory, skills injection, hook support
+- **Used In**: skills/claude-teams/references/subagents.md
+
+### Agent SDK Documentation
+- **URL**: https://platform.claude.com/docs/en/agent-sdk/overview
+- **Purpose**: Programmatic multi-agent orchestration in Python and TypeScript
+- **Date Accessed**: 2026-02-21
+- **Key Concepts**: AgentDefinition, session management, dynamic agent configuration, subagent detection
+- **Used In**: skills/claude-teams/references/agent-sdk.md
+
+### Agent SDK Subagents Documentation
+- **URL**: https://platform.claude.com/docs/en/agent-sdk/subagents
+- **Purpose**: SDK-specific subagent configuration and invocation
+- **Date Accessed**: 2026-02-21
+- **Used In**: skills/claude-teams/references/agent-sdk.md
+
+### Building a C Compiler with Agent Teams (Anthropic Engineering Blog)
+- **URL**: https://www.anthropic.com/engineering/building-c-compiler
+- **Purpose**: Real-world case study of 16 parallel Claude Code agents building a C compiler
+- **Date Accessed**: 2026-02-21
+- **Key Concepts**: Docker container per agent, git-based coordination, lock files for task claiming, autonomous agent decision-making
+- **Used In**: skills/claude-teams/references/patterns.md
+
+### Community Analysis: Claude Code Agent Teams (Addy Osmani)
+- **URL**: https://addyosmani.com/blog/claude-code-agent-teams/
+- **Purpose**: Scaling guidance and practical recommendations
+- **Date Accessed**: 2026-02-21
+- **Key Findings**: 3 teammates often outperform 6, file ownership is critical, context window focus
+- **Used In**: skills/claude-teams/references/patterns.md
+
+### Community Analysis: From Tasks to Swarms
+- **URL**: https://alexop.dev/posts/from-tasks-to-swarms-agent-teams-in-claude-code/
+- **Purpose**: Technical analysis of task coordination and CLAUDE_CODE_TASK_LIST_ID
+- **Date Accessed**: 2026-02-21
+- **Used In**: skills/claude-teams/references/patterns.md
+
+### Community Analysis: Agent Teams - The Switch Got Flipped
+- **URL**: https://paddo.dev/blog/agent-teams-the-switch-got-flipped/
+- **Purpose**: Discovery and analysis of TeammateTool internals
+- **Date Accessed**: 2026-02-21
+- **Key Findings**: 13 operations across team lifecycle, coordination, and shutdown categories
+- **Used In**: skills/claude-teams/references/agent-teams.md
+
 ## Project Context
 
 ### Overall Goals
