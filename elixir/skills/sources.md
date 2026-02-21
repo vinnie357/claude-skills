@@ -42,6 +42,32 @@ This file documents the sources used to create the elixir plugin skills.
 - **Purpose**: Comprehensive guides for building Phoenix applications
 - **Key Topics**: Routing, controllers, views, templates, contexts, testing
 
+## Tidewave MCP Dev Tools (Phoenix Skill Extension)
+
+### Tidewave Hex Package
+- **URL**: https://hex.pm/packages/tidewave
+- **Purpose**: Package listing and version information for Tidewave
+- **Date Accessed**: 2026-02-21
+- **Key Topics**: Version history, installation, license (Apache 2.0)
+
+### Tidewave Documentation
+- **URL**: https://hexdocs.pm/tidewave
+- **Purpose**: Official Tidewave documentation for MCP dev tools integration
+- **Date Accessed**: 2026-02-21
+- **Key Topics**:
+  - Installation (Igniter and manual)
+  - MCP server setup and client configuration
+  - Available MCP tools (project_eval, execute_sql_query, get_ecto_schemas, get_docs, etc.)
+  - Plug configuration options
+  - LiveView debug annotations
+  - Security considerations
+
+### Tidewave GitHub Repository
+- **URL**: https://github.com/tidewave-ai/tidewave_phoenix
+- **Purpose**: Source code, README, and community documentation
+- **Date Accessed**: 2026-02-21
+- **Key Topics**: Installation walkthrough, editor-specific MCP setup, troubleshooting
+
 ## OTP Skill
 
 ### Elixir OTP Documentation

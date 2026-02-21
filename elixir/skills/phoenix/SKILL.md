@@ -1,6 +1,6 @@
 ---
 name: phoenix-framework
-description: Guide for Phoenix web applications. Use when building Phoenix apps, implementing LiveView, designing contexts, or setting up channels.
+description: Guide for Phoenix web applications. Use when building Phoenix apps, implementing LiveView, designing contexts, setting up channels, or integrating Tidewave MCP dev tools.
 ---
 
 # Phoenix Framework Development
@@ -490,6 +490,56 @@ end
 - Validate file uploads (type, size, content)
 - Use prepared statements (Ecto does this automatically)
 - Implement proper authentication and authorization
+
+## Tidewave MCP Dev Tools
+
+Tidewave connects AI coding assistants to running Phoenix applications via MCP, exposing runtime introspection tools (Ecto schemas, code execution, docs, logs, SQL queries).
+
+### When to Use Tidewave
+
+- Introspecting a running Phoenix app (schemas, modules, logs)
+- Executing Elixir code or SQL queries against a live dev server
+- Looking up documentation for project dependencies at runtime
+- Debugging LiveView components with source annotations
+
+### Quick Setup
+
+1. Add dependency to `mix.exs`:
+
+```elixir
+{:tidewave, "~> 0.5", only: :dev}
+```
+
+2. Add plug to `endpoint.ex` (before `code_reloading?`):
+
+```elixir
+if Mix.env() == :dev do
+  plug Tidewave
+end
+```
+
+3. Connect Claude Code to the MCP server:
+
+```bash
+claude mcp add --transport http tidewave http://localhost:4000/tidewave/mcp
+```
+
+### Key MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `project_eval` | Execute Elixir code in the running app |
+| `execute_sql_query` | Run SQL queries against the database |
+| `get_ecto_schemas` | List schemas with fields and associations |
+| `get_docs` | Retrieve module/function documentation |
+| `get_source_location` | Find source file paths and line numbers |
+| `get_logs` | Access server logs |
+
+### Security
+
+Tidewave is dev-only. Always guard with `Mix.env() == :dev` and never deploy to production. It only accepts localhost requests by default.
+
+For full setup details, configuration options, LiveView debug annotations, and troubleshooting, see `references/tidewave.md`.
 
 ## Key Principles
 
