@@ -137,11 +137,29 @@ def validate-marketplace [repo_root: string] {
 
 # Validate a specific plugin
 def validate-plugin [repo_root: string, plugin_name: string] {
+    # Read marketplace to get source path for this plugin
+    let marketplace = (open ($repo_root | path join ".claude-plugin" "marketplace.json"))
+    let plugin_entry = ($marketplace.plugins | where name == $plugin_name | first)
+    let source = ($plugin_entry | get -o source | default "./")
+    let source_type = ($source | describe)
+
+    # Skip external plugins (source is an object)
+    if ($source_type | str starts-with "record") {
+        return {
+            name: $"plugin: ($plugin_name)"
+            passed: true
+            error: null
+        }
+    }
+
+    # Derive directory from source field
+    let source_dir = ($source | str replace --regex '^\./' '')
+
     # Handle all-skills (root plugin) differently
     let plugin_path = if $plugin_name == "all-skills" {
         ($repo_root | path join ".claude-plugin" "plugin.json")
     } else {
-        ($repo_root | path join $plugin_name ".claude-plugin" "plugin.json")
+        ($repo_root | path join $source_dir ".claude-plugin" "plugin.json")
     }
 
     # Check if plugin.json exists

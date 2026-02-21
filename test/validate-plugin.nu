@@ -12,7 +12,7 @@ def main [plugin_name: string] {
     let repo_root = ($script_dir | path dirname)
 
     let marketplace_path = ($repo_root | path join ".claude-plugin" "marketplace.json")
-    let skill_script = ($repo_root | path join "claude-code" "skills" "claude-plugins" "scripts" "validate-plugin.nu")
+    let skill_script = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "claude-plugins" "scripts" "validate-plugin.nu")
 
     # Use the skill's validate-plugin.nu with marketplace mode
     nu $skill_script $plugin_name --marketplace $marketplace_path

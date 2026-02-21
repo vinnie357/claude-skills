@@ -21,7 +21,8 @@ Add the marketplace and install plugins:
 /plugin install rust@vinnie357        # Rust language features
 /plugin install wasm@vinnie357        # WebAssembly and Wasmtime
 /plugin install dagu@vinnie357        # Workflow orchestration
-/plugin install ui@vinnie357          # daisyUI, accessibility, Material Design
+/plugin install github@vinnie357      # GitHub Actions, workflows, act
+/plugin install ui@vinnie357          # daisyUI, Tailwind CSS theming
 /plugin install claude-code@vinnie357 # Plugin marketplace management tools
 ```
 
@@ -51,10 +52,13 @@ Fundamental development tools and best practices.
 - **code-review** - Code review best practices for security and maintainability
 - **accessibility** - Web accessibility standards (WCAG, ARIA)
 - **material-design** - Material Design 3 design system
-- **twelve-factor-app** - Cloud-native application design principles
+- **twelve-factor** - Cloud-native application design principles
 - **anti-fabrication** - Ensure factual accuracy through tool validation
+- **security** - Secret detection and credential scanning with gitleaks
+- **beads** - Distributed git-backed graph issue tracker
+- **container** - Apple Container CLI for Linux containers on macOS
 
-**Keywords**: git, documentation, code-review, tools
+**Keywords**: git, documentation, code-review, tools, beads, container
 
 ### `elixir` - Elixir Development
 
@@ -106,6 +110,17 @@ UI framework and component library skills.
 - **daisyui** - daisyUI component library with Tailwind CSS theming
 
 **Keywords**: ui, daisyui, tailwind
+
+### `github` - GitHub Development Tools
+
+GitHub Actions, workflows, and local testing.
+
+**Skills:**
+- **actions** - Creating and configuring GitHub Actions
+- **workflows** - Writing and optimizing GitHub Actions workflows
+- **act** - Testing GitHub Actions locally using act
+
+**Keywords**: github, actions, workflows, ci-cd, act, testing
 
 ### `claude-code` - Plugin Development Tools
 
@@ -177,19 +192,23 @@ Skills are automatically activated by Claude based on task context once plugins 
 
 ## Plugin Architecture
 
-The marketplace uses a tiered architecture with root-level plugins:
+The marketplace uses a categorized architecture with plugins organized under `plugins/`:
 
 ```
 claude-skills/
 ├── .claude-plugin/
-│   └── marketplace.json    # Marketplace definition
-├── claude-code/            # Plugin development tools
-├── core/                   # Essential development skills
-├── dagu/                   # Workflow orchestration
-├── elixir/                 # Elixir development
-├── rust/                   # Rust programming
-├── ui/                     # UI frameworks
-└── wasm/                   # WebAssembly development
+│   └── marketplace.json          # Marketplace definition
+└── plugins/
+    ├── core/                     # Essential development skills
+    ├── languages/
+    │   ├── elixir/               # Elixir development
+    │   └── rust/                 # Rust programming
+    ├── tools/
+    │   ├── claude-code/          # Plugin development tools
+    │   ├── dagu/                 # Workflow orchestration
+    │   └── github/               # GitHub Actions and workflows
+    ├── ui/                       # UI frameworks
+    └── wasm/                     # WebAssembly development
 ```
 
 Each plugin contains:
@@ -265,7 +284,7 @@ You can contribute skills to existing plugins or create new ones:
 
 1. Create a new skill directory:
    ```bash
-   mkdir -p elixir/skills/my-skill
+   mkdir -p plugins/languages/elixir/skills/my-skill
    ```
 
 2. Create `SKILL.md` with YAML frontmatter:
@@ -311,7 +330,7 @@ Install it to build your own Claude Code plugins:
 
 ## Testing
 
-The repository includes automated validation tests for the marketplace and all 9 plugins (including the all-skills meta-plugin).
+The repository includes automated validation tests for the marketplace and all 10 plugins (including the all-skills meta-plugin).
 
 ### Requirements
 
@@ -324,7 +343,7 @@ The repository includes automated validation tests for the marketplace and all 9
 # Install mise (if not already installed)
 curl https://mise.run | sh
 
-# Run all tests (validates marketplace + all 8 plugins)
+# Run all tests (validates marketplace + all 10 plugins)
 mise test
 
 # Test specific plugin
@@ -341,7 +360,7 @@ mise test:plugins
 ### What Gets Tested
 
 - **Marketplace validation**: Required fields, plugin entries, JSON structure
-- **Plugin validation** (all 9 plugins including all-skills):
+- **Plugin validation** (all 10 plugins including all-skills):
   - Name matches directory (or root for all-skills)
   - No invalid marketplace-only fields
   - Kebab-case naming
@@ -389,7 +408,7 @@ The repository includes automated CI/CD via GitHub Actions that runs on:
 
 **What gets tested:**
 - Validates marketplace.json schema
-- Validates all plugin.json files (9 plugins)
+- Validates all plugin.json files (10 plugins)
 - Checks skill paths exist
 - Verifies naming conventions
 
@@ -472,6 +491,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 1.0.0 (Current)
 - Tiered marketplace architecture with selective plugin installation
-- 9 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui, wasm
-- 25+ skills covering multiple programming languages and development tools
+- 10 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, ui, wasm, claudio (external)
+- 32 skills covering multiple programming languages and development tools
 - Comprehensive plugin development tools with Nushell validation scripts
