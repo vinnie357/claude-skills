@@ -32,9 +32,9 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.1.15",
+      "version": "0.1.16",
       "category": "development",
-      "keywords": ["git", "documentation", "code-review", "tools", "beads", "container"]
+      "keywords": ["git", "documentation", "code-review", "tools", "beads", "container", "tdd"]
     },
     {
       "name": "dagu",

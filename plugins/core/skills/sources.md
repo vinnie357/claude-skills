@@ -194,6 +194,39 @@ This file documents the sources used to create the core plugin skills.
 - **Purpose**: Version 0.9.0 release notes
 - **Key Topics**: Resource limits (--cpus/--memory), host.docker.internal, host-only/isolated networks, --dns on build, --force on image delete, zstd compression, Kata 3.26.0
 
+## TDD Skill
+
+### Test-Driven Development by Example
+- **Author**: Kent Beck
+- **ISBN**: 978-0321146533
+- **Purpose**: Canonical TDD methodology — the test list, Fake It, Triangulation, Obvious Implementation
+- **Key Topics**: Red-Green-Refactor cycle, test sequencing, getting to green strategies, test isolation
+
+### Growing Object-Oriented Software, Guided by Tests
+- **Author**: Steve Freeman & Nat Pryce
+- **ISBN**: 978-0321503626
+- **Purpose**: Outside-in TDD, double-loop TDD, walking skeletons, ports and adapters
+- **Key Topics**: Acceptance-test-driven development, Tell Don't Ask, role-based interfaces, test doubles, design feedback from tests
+
+### The Three Laws of TDD
+- **Author**: Robert C. Martin
+- **URL**: https://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd
+- **Purpose**: Concise formalization of Beck's TDD constraints into three strict laws
+
+### Software Craftsmanship Manifesto
+- **URL**: https://manifesto.softwarecraftsmanship.org/
+- **Purpose**: Professional framing for TDD as a craftsmanship discipline
+
+### Canon TDD
+- **Author**: Kent Beck
+- **URL**: https://tidyfirst.substack.com/p/canon-tdd
+- **Purpose**: Beck's 2023 restatement of canonical TDD, clarifying the five steps and their rationale
+
+### TDD (Martin Fowler's Bliki)
+- **Author**: Martin Fowler
+- **URL**: https://martinfowler.com/bliki/TestDrivenDevelopment.html
+- **Purpose**: Accessible overview of TDD practice and its relationship to software design
+
 ## Plugin Information
 
 - **Name**: core
