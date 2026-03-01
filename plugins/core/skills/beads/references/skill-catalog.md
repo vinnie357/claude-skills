@@ -39,6 +39,7 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 | `claude-agents` | custom agent, agent tools, specialized agent, subagent |
 | `claude-skills` | skill creation, SKILL.md, progressive disclosure, skill structure |
 | `claude-hooks` | hooks, event-driven, lifecycle event, tool call automation |
+| `claude-teams` | agent team, multi-agent, teammate, team lead, task coordination, parallel agents |
 
 ### core Plugin
 
@@ -82,6 +83,7 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 | `actions` | github action, custom action, action runner, action marketplace |
 | `workflows` | github workflow, CI/CD pipeline, workflow trigger, workflow artifact |
 | `act` | act, local action test, workflow debug local |
+| `community-health` | community health, code of conduct, contributing guide, security policy, issue template, PR template, open source |
 
 ### rust Plugin
 

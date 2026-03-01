@@ -155,6 +155,37 @@ Task(subagent_type="Explore", description="...", prompt="...")
 - **Scoped**: Do exactly what the task asks
 - **Sequential**: Only work tasks from `bd ready`
 
+## Claude Teams Coordination
+
+When running inside Claude Agent Teams, mirror beads actions into Claude's task list for teammate visibility.
+
+**Detection**: Teams mode is active when `TaskList` returns results. If no Claude tasks exist, skip mirroring and operate in standalone beads mode.
+
+**On Task Claim**: After `bd update <id> --status in_progress`, find the matching `[bd:<id>]` Claude task and claim it:
+
+```
+TaskList                          # Find task with [bd:<id>] in subject
+TaskUpdate taskId="<claude-id>" status="in_progress"
+```
+
+**On Task Completion**: After `bd close`, update the matching Claude task:
+
+```
+bd close <id>
+bd sync
+TaskUpdate taskId="<claude-id>" status="completed"
+```
+
+**On Task Failure**: Do not close either system. Add a beads comment with the failure details:
+
+```bash
+bd comment <id> "Failed: <error>
+Attempted: <what>
+Blockers: <why>"
+```
+
+The team lead will handle reconciliation. See `references/teams-integration.md` for the full protocol.
+
 ## On Failure
 
 Do NOT close the task. Add error comment:

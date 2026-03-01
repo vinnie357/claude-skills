@@ -497,6 +497,72 @@ bd assign bug1 charlie
 bd list --parent sprint42 --json | jq '[.[] | select(.status=="closed")] | length'
 ```
 
+### Claude Teams Epic Workflow
+
+When using Claude Agent Teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) with beads, the team lead decomposes an epic into beads tasks and mirrors them into Claude's built-in task list for real-time coordination. The `claude-teams` skill should be available for full guidance on team setup.
+
+#### Step 1: Team Lead Plans and Decomposes
+
+```bash
+# Create epic with stories
+bd create "Auth System Epic" --labels "epic"
+bd create "Login API endpoint" --parent epic123 --labels "story,skill:security"
+bd create "Session middleware" --parent epic123 --labels "story,skill:twelve-factor"
+bd create "Login UI form" --parent epic123 --labels "story,skill:accessibility"
+
+# Set dependencies
+bd dep add session456 login789   # Session depends on Login API
+```
+
+#### Step 2: Mirror into Claude Task List
+
+For each beads task, create a matching Claude task with `[bd:ID]` in the subject for cross-referencing:
+
+```
+TaskCreate subject="[bd:login789] Login API endpoint"
+  description="Implement POST /api/auth/login. Skills: security. See bd show login789 for full spec."
+
+TaskCreate subject="[bd:session456] Session middleware"
+  description="JWT session management. Skills: twelve-factor. See bd show session456 for full spec."
+
+TaskCreate subject="[bd:ui321] Login UI form"
+  description="Login form with validation. Skills: accessibility. See bd show ui321 for full spec."
+
+# Mirror dependencies
+TaskUpdate taskId="session-task" addBlockedBy=["login-task"]
+```
+
+#### Step 3: Teammates Claim and Execute
+
+Each teammate checks both systems:
+
+```bash
+# 1. Find available work
+TaskList                          # See unblocked Claude tasks
+bd show <id>                      # Get full spec from beads
+
+# 2. Claim in both systems
+bd update <id> --status in_progress
+TaskUpdate taskId="<claude-id>" status="in_progress"
+
+# 3. Do the work, then close both
+bd close <id>
+TaskUpdate taskId="<claude-id>" status="completed"
+```
+
+#### Step 4: Dual-System Sync Rules
+
+| Event | Beads Action | Claude Task Action |
+|-------|-------------|-------------------|
+| Task created | `bd create` | `TaskCreate` with `[bd:ID]` subject |
+| Work started | `bd update --status in_progress` | `TaskUpdate status="in_progress"` |
+| Work completed | `bd close` (first) | `TaskUpdate status="completed"` (second) |
+| Work blocked | `bd comment` with blocker | `TaskUpdate addBlockedBy` |
+
+Beads is the persistent source of truth (git-backed). Claude's task list is the ephemeral coordination layer (session-scoped). Always update beads first.
+
+See `references/teams-integration.md` for the full mirroring protocol.
+
 ## Best Practices
 
 ### Task ID References
@@ -656,6 +722,7 @@ bd show abc12345678
 ## References
 
 - `references/skill-catalog.md`: Skill catalog with keyword triggers for task matching
+- `references/teams-integration.md`: Full protocol for mirroring beads tasks into Claude's task list for Agent Teams coordination
 
 ## Key Principles
 
