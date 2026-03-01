@@ -118,7 +118,7 @@ def check-plugin-version-bump [plugin_name: string, plugin_dir: string, base: st
   if $current_plugin_version == $base_plugin_version {
     return {
       bumped: false,
-      error: $"($plugin_name): plugin.json version not bumped (still ($base_plugin_version))"
+      error: $"($plugin_name): plugin.json version not bumped \(still ($base_plugin_version)\)"
     }
   }
 
@@ -142,7 +142,7 @@ def check-plugin-version-bump [plugin_name: string, plugin_dir: string, base: st
   if $current_marketplace_version == $base_marketplace_version {
     return {
       bumped: false,
-      error: $"($plugin_name): marketplace.json version not bumped (still ($base_marketplace_version))"
+      error: $"($plugin_name): marketplace.json version not bumped \(still ($base_marketplace_version)\)"
     }
   }
 

@@ -58,10 +58,10 @@
       "name": "github",
       "source": "./plugins/tools/github",
       "strict": true,
-      "description": "GitHub Actions, Workflows, and act local testing tool",
-      "version": "0.1.2",
+      "description": "GitHub Actions, Workflows, act local testing, and community health files",
+      "version": "0.1.3",
       "category": "tools",
-      "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing"]
+      "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing", "community-health", "open-source"]
     },
     {
       "name": "rust",
