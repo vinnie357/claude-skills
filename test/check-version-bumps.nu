@@ -15,8 +15,11 @@ def main [
 ] {
   print $"🔍 Checking version bumps against ($base)...\n"
 
-  # Get list of changed files
-  let changed_files = (git diff --name-only $"($base)...HEAD" | lines | where { |f| ($f | str length) > 0 })
+  # Get list of changed files (committed, unstaged, and staged)
+  let committed = (git diff --name-only $"($base)...HEAD" | lines | where { |f| ($f | str length) > 0 })
+  let uncommitted = (git diff --name-only | lines | where { |f| ($f | str length) > 0 })
+  let staged = (git diff --cached --name-only | lines | where { |f| ($f | str length) > 0 })
+  let changed_files = ($committed | append $uncommitted | append $staged | uniq)
 
   if ($changed_files | length) == 0 {
     print "✅ No files changed"

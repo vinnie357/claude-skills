@@ -17,11 +17,11 @@ macos-arm64 = { asset_pattern = "beads_*_darwin_arm64.tar.gz" }
 
 [tasks.test]
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps"]
 
 [tasks."test:all"]
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -519,7 +519,7 @@ if $nu.os-info.name == "macos" {
 """
 
 [tasks."test:version-bumps"]
-description = "Check that modified plugins have version bumps (for CI)"
+description = "Check that modified plugins have version bumps"
 run = """
 #!/usr/bin/env bash
 set -e
