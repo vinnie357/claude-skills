@@ -177,3 +177,42 @@ This file documents all sources used to create the skills in this plugin.
 - **URL**: https://www.nushell.sh/
 - **Purpose**: Cross-platform shell used for installation scripts
 - **Usage**: Platform-agnostic installation automation
+
+## Community Health Files
+
+### Setting Up Your Project for Healthy Contributions
+- **URL**: https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions
+- **Accessed**: 2026-03-01
+- **Purpose**: Guide for community health files GitHub checks in the Community Standards profile
+- **Key Topics**:
+  - CODE_OF_CONDUCT.md
+  - CONTRIBUTING.md
+  - Issue and PR templates
+  - SECURITY.md
+  - CODEOWNERS
+  - FUNDING.yml
+
+### Repository Settings and Features
+- **URL**: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features
+- **Purpose**: Configuring repo-level settings via UI and API
+- **Key Topics**:
+  - Merge strategies
+  - Branch protection rules
+  - Topics and description
+  - Feature toggles (discussions, wiki)
+
+### Contributor Covenant
+- **URL**: https://www.contributor-covenant.org/
+- **Purpose**: Industry-standard Code of Conduct for open source projects
+- **Key Topics**:
+  - Latest version (v3.0) with updated language
+  - Adoption instructions
+  - Translations
+
+### Security Policy
+- **URL**: https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository
+- **Purpose**: Adding SECURITY.md for vulnerability disclosure
+- **Key Topics**:
+  - Security policy file placement
+  - GitHub Security Advisories
+  - Coordinated disclosure
