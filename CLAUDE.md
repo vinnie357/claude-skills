@@ -110,6 +110,7 @@ gh pr create --title "feat(beads): integrate task management with mise automatio
 ```
 
 **Rules:**
+- No attribution (no "Generated with Claude Code" or similar)
 - No PR templates or boilerplate sections
 - No "Summary", "Test Plan", or other headers
 - Just the changes as bullet points
@@ -135,7 +136,7 @@ Follow this workflow when creating PRs:
 ### Key Rules
 
 - **Single-line commits only**: No body, no footer, no attribution
-- **Minimal PRs**: Title + bullet list, no templates
+- **Minimal PRs**: Title + bullet list, no templates, no attribution
 - **Always wait**: Never merge PRs without user approval
 - **Clean up after merge**: Delete branches locally and remotely
 - **Use gcms**: Generate commit messages with `/core:gcms` skill

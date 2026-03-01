@@ -63,6 +63,7 @@ gh pr create --title "feat(auth): add JWT authentication" --body "- Add JWT gene
 ```
 
 **Rules:**
+- No attribution (no "Generated with Claude Code" or similar)
 - No PR templates or boilerplate sections
 - No "Summary", "Test Plan", or other headers
 - Just the changes as bullet points
@@ -115,7 +116,7 @@ gh pr merge 123 --squash                # Squash merge PR
 
 ## Key Rules
 
-- **No attribution**: Never add `Co-Authored-By`, `Signed-off-by`, or similar to commits
+- **No attribution**: Never add `Co-Authored-By`, `Signed-off-by`, or similar to commits. No "Generated with Claude Code" or similar in PRs
 - **Squash merge PRs**: Always use `gh pr merge --squash`
 - **Single-line commits preferred**: Use body only when explanation is needed
 - **Never merge without approval**: Always wait for user to approve PR merges
