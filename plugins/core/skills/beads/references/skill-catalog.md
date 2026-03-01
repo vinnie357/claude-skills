@@ -57,6 +57,7 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 | `security` | security, secret detection, gitleaks, credential scan, API key leak |
 | `beads` | beads, task management, dependency tracking, issue tracker |
 | `container` | container, OCI, linux container, apple container, macOS container |
+| `tdd` | TDD, test-driven, red green refactor, test first, test list, walking skeleton, outside-in, double loop |
 
 ### dagu Plugin
 
