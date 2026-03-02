@@ -64,15 +64,22 @@ def main [
     }
   }
 
+  # Check marketplace version bump if plugin list changed
+  let marketplace_result = (check-marketplace-version-bump $base)
+  if not $marketplace_result.bumped {
+    $errors = ($errors | append $marketplace_result.error)
+  }
+
   # Report results
   if ($errors | length) > 0 {
     print $"\n(ansi red_bold)❌ Version bump check failed:(ansi reset)\n"
     for error in $errors {
       print $"  • ($error)"
     }
-    print $"\n(ansi yellow)Hint: Bump the version in both:(ansi reset)"
+    print $"\n(ansi yellow)Hint: Bump the version in:(ansi reset)"
     print "  1. <plugin-dir>/.claude-plugin/plugin.json"
-    print "  2. .claude-plugin/marketplace.json"
+    print "  2. .claude-plugin/marketplace.json → plugin entry version"
+    print "  3. .claude-plugin/marketplace.json → metadata.version (when adding/removing plugins)"
     exit 1
   }
 
@@ -158,5 +165,55 @@ def check-plugin-version-bump [plugin_name: string, plugin_dir: string, base: st
   }
 
   print $"  ✓ ($plugin_name): ($base_plugin_version) → ($current_plugin_version)"
+  { bumped: true, error: "" }
+}
+
+# Check if marketplace metadata.version was bumped when the plugin list changes
+def check-marketplace-version-bump [base: string] {
+  let marketplace_path = ".claude-plugin/marketplace.json"
+
+  # Get base plugin names
+  let base_names = try {
+    let m = (git show $"($base):($marketplace_path)" | from json)
+    $m.plugins | get name | sort
+  } catch {
+    # No base marketplace — first time, skip
+    return { bumped: true, error: "" }
+  }
+
+  # Get current plugin names
+  let current_names = try {
+    let m = (open $marketplace_path)
+    $m.plugins | get name | sort
+  } catch {
+    return { bumped: false, error: "marketplace: Cannot read current marketplace.json" }
+  }
+
+  # If plugin list unchanged, no marketplace version bump needed
+  if $base_names == $current_names {
+    return { bumped: true, error: "" }
+  }
+
+  # Plugin list changed — verify metadata.version was bumped
+  let base_version = try {
+    git show $"($base):($marketplace_path)" | from json | get metadata.version
+  } catch {
+    return { bumped: true, error: "" }
+  }
+
+  let current_version = try {
+    open $marketplace_path | get metadata.version
+  } catch {
+    return { bumped: false, error: "marketplace: Cannot read metadata.version" }
+  }
+
+  if $current_version == $base_version {
+    return {
+      bumped: false,
+      error: $"marketplace: metadata.version not bumped \(still ($base_version)\) — plugin list changed"
+    }
+  }
+
+  print $"  ✓ marketplace: ($base_version) → ($current_version)"
   { bumped: true, error: "" }
 }
