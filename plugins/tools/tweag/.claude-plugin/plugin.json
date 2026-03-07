@@ -1,0 +1,15 @@
+{
+  "name": "tweag",
+  "version": "0.1.0",
+  "description": "Tweag tools: Topiary universal code formatter and Nickel configuration language",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["tweag", "topiary", "nickel", "formatter", "configuration", "tree-sitter"],
+  "skills": [
+    "./skills/topiary",
+    "./skills/nickel"
+  ]
+}

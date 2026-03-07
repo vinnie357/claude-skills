@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.13",
+      "version": "0.3.14",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -80,6 +80,16 @@
       "version": "0.1.0",
       "category": "tools",
       "keywords": ["slidev", "presentation", "slides", "markdown", "vite"],
+      "license": "MIT"
+    },
+    {
+      "name": "tweag",
+      "source": "./plugins/tools/tweag",
+      "strict": true,
+      "description": "Tweag tools: Topiary universal code formatter and Nickel configuration language",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["tweag", "topiary", "nickel", "formatter", "configuration", "tree-sitter"],
       "license": "MIT"
     },
     {
