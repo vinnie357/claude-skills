@@ -5,7 +5,7 @@ description: Guide for creating Agent Skills with progressive disclosure and bes
 
 # Agent Skills
 
-Comprehensive guide for creating modular, self-contained Agent Skills that extend Claude's capabilities with specialized knowledge.
+Guide for creating modular, self-contained Agent Skills that extend Claude's capabilities with specialized knowledge.
 
 ## What Are Agent Skills?
 
@@ -17,6 +17,16 @@ Agent Skills are organized directories containing instructions, scripts, and res
 - **Reusability**: Share and distribute expertise across projects and teams
 - **Progressive Disclosure**: Load context only when needed, keeping interactions efficient
 - **Specialization**: Deep domain knowledge without sacrificing generality
+
+### Skill Categories
+
+Skills fall into two categories (source: Anthropic PDF Guide):
+
+**Capability Uplift**: Enhances Claude's core abilities (coding, analysis, reasoning). These are stable across model versions because they build on general capabilities. Example: a code review skill that adds structured review steps.
+
+**Encoded Preference**: Encodes user-specific workflows, formatting, and conventions. These may need updates when models change because they depend on model behavior for fidelity. Example: a commit message skill that enforces team-specific format.
+
+When creating a skill, identify its category — this determines testing strategy and maintenance expectations.
 
 ## How Skills Work
 
@@ -80,7 +90,7 @@ Main instructional content goes here...
    Must contain only lowercase letters, numbers, and hyphens
    Cannot contain XML tags
    Cannot contain reserved words: "anthropic", "claude"
-- `description`: 
+- `description`:
    Explains the skill's purpose and when Claude should utilize it
    Must be non-empty
    Maximum 1024 characters
@@ -167,10 +177,6 @@ Develop resource files and update `SKILL.md` with:
 
 **Use imperative/infinitive form** rather than second-person instruction for clarity.
 
-✅ Good: "Follow the Conventional Commits specification"
-✅ Good: "Use descriptive branch names with type prefixes"
-❌ Avoid: "You should try to use descriptive names when possible"
-
 Keep core procedural information in `SKILL.md` and detailed reference material in separate files.
 
 ### 5. Documentation
@@ -185,21 +191,60 @@ This maintains traceability and helps others understand the skill's foundation.
 
 ### 6. Validation
 
-Test the skill with representative scenarios to ensure:
-- Claude activates it appropriately
-- Instructions are clear and actionable
-- Progressive disclosure works effectively
-- Token usage remains efficient
+Test the skill using the validation loop pattern:
+
+1. Define success criteria (what correct activation and output look like)
+2. Create eval prompts — both in-scope (should activate) and out-of-scope (should not)
+3. Run evaluations and record pass/fail rates
+4. Verify progressive disclosure works (references load when needed)
+5. Check token usage remains efficient
+6. If any validation fails, iterate on the skill before publishing
+
+For the complete evaluation methodology, see `references/evaluation-guide.md`.
 
 ### 7. Iteration
 
-Refine based on real-world usage feedback. Monitor how Claude actually uses the skill and adjust the description and content accordingly.
+Refine based on real-world usage and evaluation data:
+- **Optimize descriptions**: Reduce false positives (too broad) and false negatives (too narrow)
+- **Test across models**: Verify behavior on Haiku, Sonnet, and Opus
+- **Monitor activation**: Track when the skill triggers correctly vs incorrectly
+- **Deprecation signal**: If the base model passes evals without the skill loaded, the skill may no longer be needed
+
+For description optimization techniques, see `references/evaluation-guide.md`.
 
 ## Best Practices
 
-### Start with Evaluation
+### Evaluation-Driven Development
 
-Identify specific capability gaps by testing agents on representative tasks. Build skills incrementally to address actual shortcomings rather than anticipated needs.
+Build skills using an evaluation-first approach (source: Anthropic Blog Post):
+
+1. **Write evals first**: Define test prompts and expected behaviors before writing skill content
+2. **Test with and without**: Compare Claude's output with the skill loaded vs without it
+3. **Measure, don't guess**: Track pass rates, token usage, and timing — not subjective quality
+4. **Run A/B comparisons**: Use independent agents to compare skill versions blindly
+5. **Detect obsolescence**: When the base model passes evals without the skill, consider deprecation
+
+For the complete methodology, see `references/evaluation-guide.md`. For a copyable checklist, see `templates/evaluation-checklist.md`.
+
+### Degree of Freedom
+
+Balance specificity against fragility in skill instructions (source: Anthropic PDF Guide):
+
+- **Specify constraints, not implementations**: "Ensure commit messages follow conventional format" not "Run git commit -m with prefix type(scope):"
+- **Allow model adaptation**: Instructions should work across Haiku, Sonnet, and Opus without modification
+- **Test fragility**: If a minor model update breaks your skill, instructions are too rigid
+- **Test looseness**: If Claude produces inconsistent results, instructions are too loose
+
+For the full framework with examples, see `references/design-patterns.md`.
+
+### Context Window Discipline
+
+The context window is a shared resource (source: Anthropic PDF Guide):
+
+- Keep SKILL.md under **500 lines** — larger files degrade performance in smaller context windows
+- Move detailed content to `references/` and load only when needed
+- Monitor cumulative load: skill + prompt + conversation history must all fit
+- Every line in SKILL.md is loaded on every activation — justify each line's presence
 
 ### Structure for Scale
 
@@ -207,14 +252,23 @@ Split unwieldy `SKILL.md` files into separate referenced documents:
 - Keep commonly-used contexts together
 - Separate mutually exclusive information to reduce token usage
 - Use progressive disclosure to load details only when needed
+- **Reference depth**: Keep references one level deep only (SKILL.md → reference, not reference → reference)
+- **TOC in long references**: Add a Table of Contents to reference files over 100 lines
+- **Scripts**: Execute scripts for deterministic tasks; read scripts for patterns to adapt contextually
 
-**Example:**
-```markdown
-# Git Skill
+For design patterns and detailed guidance, see `references/design-patterns.md`.
 
-For detailed conventional commit format, see references/conventional-commits.md
-For rebase workflow, see references/rebasing-guide.md
-```
+### Claude A/B Testing
+
+Compare skill effectiveness using blind evaluation (source: Anthropic Blog Post):
+
+1. Run the same prompt through Agent A (with skill) and Agent B (without skill)
+2. Each agent uses a clean context — no accumulated state between tests
+3. A comparator agent judges outputs without knowing which is which
+4. Track token usage, timing, and quality metrics independently
+5. Run 10+ evals for statistical significance
+
+For detailed setup instructions, see `references/evaluation-guide.md`.
 
 ### Consider Claude's Perspective
 
@@ -227,24 +281,26 @@ The skill name and description heavily influence when Claude activates it. Pay p
 > The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it.
 > All activation triggers must be in the description using patterns like "Use when [scenarios]".
 
-**Examples:**
-
-✅ Good Description:
-```yaml
-description: Guide for Git operations including commits, branches, rebasing, and conflict resolution. Use when working with version control or the user mentions git, commits, or branches.
-```
-
-❌ Too Vague:
-```yaml
-description: Helps with Git
-```
-
-❌ Missing "Use when" triggers:
-```yaml
-description: Guide for Git operations including commits, branches, rebasing, and conflict resolution
-```
+**Description optimization** (source: Anthropic Blog Post):
+- **False positives**: Description too broad — add domain-specific terms
+- **False negatives**: Description too narrow — add synonyms and trigger scenarios
+- **Target**: 90%+ true positive rate, <5% false positive rate
+- Test with 10+ in-scope prompts and 5+ out-of-scope prompts
 
 Monitor real usage patterns and iterate based on actual behavior.
+
+### Platform Constraints
+
+Skills may run in different environments with different capabilities (source: Anthropic PDF Guide):
+
+| Platform | Script Execution | Network | Filesystem |
+|----------|-----------------|---------|------------|
+| Claude Code (CLI) | Full Bash access | Available | Full access |
+| Claude.ai (Web) | Sandbox only | Limited | Limited |
+| API | Tool-dependent | Tool-dependent | Tool-dependent |
+| Mobile | None | None | Read-only |
+
+Document which platform features each skill requires. Never assume external API availability.
 
 ### Iterate Collaboratively
 
@@ -254,15 +310,11 @@ Work with Claude to capture successful approaches and common mistakes into reusa
 
 Use clear, imperative language that Claude can follow:
 
-✅ Good:
 - "Follow the Conventional Commits specification"
 - "Use descriptive branch names with type prefixes"
 - "Run tests before committing"
 
-❌ Avoid:
-- "You should try to use descriptive names when possible"
-- "It might be good to run tests"
-- "Consider following best practices"
+Avoid hedging language like "You should try to" or "It might be good to" or "Consider following".
 
 Include concrete examples wherever possible to illustrate patterns and approaches.
 
@@ -276,7 +328,9 @@ Install skills only from trusted sources. When evaluating unfamiliar skills:
 
 ## Anti-Fabrication Requirements
 
-All skills MUST adhere to strict anti-fabrication requirements to ensure factual, measurable content.
+All skills MUST adhere to strict anti-fabrication requirements to ensure factual, measurable content. Every SKILL.md must include anti-fabrication rules — either inline (template below) or by referencing `core:anti-fabrication`.
+
+For skill-creation-specific anti-fabrication guidance, see `references/anti-fabrication.md`. For the authoritative anti-fabrication guide, see the `core:anti-fabrication` skill.
 
 ### Core Principles
 
@@ -312,152 +366,31 @@ All skills MUST adhere to strict anti-fabrication requirements to ensure factual
 
 ## Skill Examples
 
-### Simple Skill (Git)
-
-```markdown
----
-name: git
-description: Guide for Git operations including commits, branches, rebasing, and conflict resolution
-license: MIT
----
-
-# Git Operations
-
-## When to Use
-
-Activate when:
-- Creating commit messages
-- Managing branches
-- Resolving conflicts
-- Rebasing or merging
-
-## Conventional Commits
-
-Follow the format: `type(scope): description`
-
-Types: feat, fix, docs, style, refactor, test, chore
-
-Example: `feat(auth): add OAuth2 login support`
-
-## Branch Naming
-
-Use format: `type/description`
-
-Examples:
-- `feature/user-authentication`
-- `fix/memory-leak`
-- `docs/api-reference`
-
-## Rebasing Workflow
-
-1. Update main: `git checkout main && git pull`
-2. Rebase feature: `git checkout feature-branch && git rebase main`
-3. Resolve conflicts if needed
-4. Force push: `git push --force-with-lease`
-```
-
-### Complex Skill (Phoenix)
-
-```markdown
----
-name: phoenix
-description: Guide for building Phoenix web applications with LiveView, contexts, and best practices
-license: MIT
----
-
-# Phoenix Framework
-
-## When to Use
-
-Activate for:
-- Phoenix application development
-- LiveView implementations
-- Context design
-- Channel setup
-
-## Project Structure
-
-Phoenix apps follow:
-```
-lib/
-├── my_app/          # Business logic (contexts)
-├── my_app_web/      # Web interface
-└── my_app.ex
-```
-
-## Contexts
-
-Group related functionality:
-
-```elixir
-defmodule MyApp.Accounts do
-  def list_users, do: Repo.all(User)
-  def get_user!(id), do: Repo.get!(User, id)
-  def create_user(attrs), do: ...
-end
-```
-
-For detailed context patterns, see references/contexts.md
-
-## LiveView
-
-For real-time interfaces, see references/liveview-guide.md
-```
+For annotated examples of simple and complex skills with category classifications, see `references/examples.md`.
 
 ## Common Pitfalls
 
-### Too Generic
-
-❌ Avoid:
-```yaml
-name: programming
-description: Helps with programming
-```
-
-✅ Better:
-```yaml
-name: elixir-phoenix
-description: Guide for building Phoenix web applications with LiveView, contexts, and Elixir best practices
-```
-
-### Too Much in SKILL.md
-
-❌ Avoid putting entire API reference in SKILL.md
-
-✅ Better: Keep core patterns in SKILL.md, detailed reference in `references/`
-
-### Missing Activation Criteria
-
-❌ Avoid:
-```markdown
-# My Skill
-
-This skill helps with stuff.
-```
-
-✅ Better:
-```markdown
-# My Skill
-
-## When to Use
-
-Activate when:
-- Specific scenario 1
-- Specific scenario 2
-- Specific scenario 3
-```
+For common mistakes and how to avoid them, see `references/examples.md`.
 
 ## References
 
 claude-skills/
+├── references/
+│   ├── design-patterns.md    # Degree of freedom, validation loops, conditional workflows
+│   ├── evaluation-guide.md   # Eval-driven development, A/B testing, multi-model testing
+│   ├── anti-fabrication.md   # Skill-creation-specific anti-fab guidance
+│   └── examples.md           # Annotated skill examples and common pitfalls
 └── templates/
-    └── level1.md (example skill metadata)
-    └── level2.md (example skill body)
-    └── level3.md (example skill folder structure)
-    └── skill.md (example basic skill)
+    ├── evaluation-checklist.md  # Copyable eval checklist
+    ├── level1.md                # Example skill metadata
+    ├── level2.md                # Example skill body
+    ├── level3.md                # Example skill folder structure
+    └── skill.md                 # Example basic skill
 
 For more information:
 - **Agent Skills Blog**: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
+- **Building Skills Guide (PDF)**: https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+- **Improving Skill Creator Blog**: https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills
 - **Example Skills**: https://github.com/anthropics/skills
 - **Skills Cookbook**: https://github.com/anthropics/claude-cookbooks/tree/main/skills
 - **Skill Creator Guide**: https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md

@@ -245,6 +245,39 @@ Create a modular Claude Code plugin marketplace that:
 - **Distribution**: Git-based with marketplace support
 - **Validation**: Automated Nushell scripts for schema compliance
 
+## Skill Building Guide (PDF)
+
+### The Complete Guide to Building Skills for Claude
+- **URL**: https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+- **Purpose**: Comprehensive guide to skill design patterns, categories, and best practices
+- **Date Accessed**: 2026-03-07
+- **Key Concepts**:
+  - Skill categories: Capability Uplift vs Encoded Preference
+  - Degree of Freedom framework (specificity vs fragility)
+  - Context window discipline (500-line limit, "context window is a public good")
+  - Validation loop pattern
+  - Nested reference anti-pattern (one level deep only)
+  - TOC requirement for reference files over 100 lines
+  - Script execution vs reading distinction
+  - Platform constraints (network, runtime, filesystem by platform)
+  - Design patterns: checklist-based, conditional workflows, self-documenting constants
+  - Multi-model testing across Haiku/Sonnet/Opus
+- **Used In**: skills/claude-skills/SKILL.md, skills/claude-skills/references/design-patterns.md, skills/claude-skills-benchmark/SKILL.md
+
+### Improving skill-creator: Test, measure, and refine Agent Skills
+- **URL**: https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills
+- **Purpose**: Evaluation-driven development methodology for skills
+- **Date Accessed**: 2026-03-07
+- **Key Concepts**:
+  - Evaluation-driven development workflow
+  - Claude A/B testing pattern (comparator agents)
+  - Description optimization (false positives/negatives)
+  - Multi-agent evaluation with independent contexts
+  - Observations checklist (pass rate, tokens, timing, triggers)
+  - Iteration cycle: Test → Measure → Analyze → Refine → Verify
+  - Capability assessment: detecting when base model outgrows a skill
+- **Used In**: skills/claude-skills/SKILL.md, skills/claude-skills/references/evaluation-guide.md, skills/claude-skills-benchmark/SKILL.md
+
 ## Plugin Information
 
 - **Name**: claude-code
