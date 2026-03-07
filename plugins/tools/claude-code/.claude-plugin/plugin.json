@@ -1,6 +1,6 @@
 {
   "name": "claude-code",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Claude Code-specific skills for plugin marketplace management, validation, and component creation",
   "author": {
     "name": "vinnie357"
@@ -15,6 +15,7 @@
     "./skills/claude-agents",
     "./skills/claude-skills",
     "./skills/claude-hooks",
-    "./skills/claude-teams"
+    "./skills/claude-teams",
+    "./skills/claude-skills-benchmark"
   ]
 }

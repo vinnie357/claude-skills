@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -25,6 +25,7 @@
     "./plugins/tools/claude-code/skills/claude-skills",
     "./plugins/tools/claude-code/skills/claude-hooks",
     "./plugins/tools/claude-code/skills/claude-teams",
+    "./plugins/tools/claude-code/skills/claude-skills-benchmark",
     "./plugins/core/skills/git",
     "./plugins/core/skills/mise",
     "./plugins/core/skills/nushell",
@@ -37,6 +38,7 @@
     "./plugins/core/skills/security",
     "./plugins/core/skills/beads",
     "./plugins/core/skills/container",
+    "./plugins/core/skills/tdd",
     "./plugins/tools/dagu/skills/workflows",
     "./plugins/tools/dagu/skills/webui",
     "./plugins/tools/dagu/skills/rest-api",
@@ -48,6 +50,7 @@
     "./plugins/tools/github/skills/actions",
     "./plugins/tools/github/skills/workflows",
     "./plugins/tools/github/skills/act",
+    "./plugins/tools/github/skills/community-health",
     "./plugins/languages/rust/skills/rust",
     "./plugins/languages/rust/skills/ownership",
     "./plugins/languages/rust/skills/error-handling",

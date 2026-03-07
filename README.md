@@ -415,6 +415,48 @@ nu .claude-plugin/scripts/update-all-skills.nu
 
 See [test/README.md](test/README.md) for complete testing documentation.
 
+### Skill Quality Scorecard
+
+Analyze all skills against Anthropic's best practices:
+
+```bash
+# Run skill quality checks standalone
+mise test:skills-quality
+
+# Or as part of the full test suite (included automatically)
+mise test
+```
+
+This produces a scorecard table:
+
+```
+╭────┬─────────────────────────┬─────────────┬──────┬──────────┬─────────┬──────────┬──────────┬──────────┬───────╮
+│  # │          skill          │   plugin    │ desc │ use_when │  lines  │ lines_ok │ examples │ anti_fab │ score │
+├────┼─────────────────────────┼─────────────┼──────┼──────────┼─────────┼──────────┼──────────┼──────────┼───────┤
+│  0 │ plugin-marketplace      │ claude-code │ Pass │ Pass     │ 487/500 │ Pass     │ Pass     │ FAIL     │ 10/11 │
+│  1 │ anti-fabrication        │ core        │ Pass │ Pass     │ 265/500 │ Pass     │ Pass     │ Pass     │ 11/11 │
+│ .. │ ...                     │ ...         │ ...  │ ...      │ ...     │ ...      │ ...      │ ...      │ ...   │
+╰────┴─────────────────────────┴─────────────┴──────┴──────────┴─────────┴──────────┴──────────┴──────────┴───────╯
+```
+
+**Checks (11 total):**
+
+| Check | Pass Criteria | Source |
+|-------|--------------|--------|
+| desc | Non-empty, max 1024 chars | Anthropic Spec |
+| use_when | Description contains "Use when" triggers | Anthropic Best Practices |
+| third_person | No "I can", "You can" in description | Anthropic Best Practices |
+| kebab_case | Name matches `^[a-z0-9]+(-[a-z0-9]+)*$` | Anthropic Spec |
+| name_length | Name max 64 characters | Anthropic Spec |
+| no_reserved | No "anthropic"/"claude" in name | Anthropic Spec |
+| lines_ok | SKILL.md max 500 lines | Anthropic PDF Guide |
+| examples | Contains code blocks or example sections | Anthropic PDF Guide |
+| ref_depth | No nested references (one level deep only) | Anthropic PDF Guide |
+| anti_fab | Anti-fabrication rules present or referenced | Project Standard |
+| source_doc | Skill documented in plugin's `sources.md` | Project Convention |
+
+Use `/benchmark-skills` for a more detailed analysis with category classification and quality assessment.
+
 ### GitHub Actions CI/CD
 
 The repository includes automated CI/CD via GitHub Actions that runs on:
@@ -493,6 +535,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **Official Anthropic Skills Repository**: https://github.com/anthropics/skills
 - **Claude Skills Cookbook**: https://github.com/anthropics/claude-cookbooks/tree/main/skills
 - **Agent Skills Blog Post**: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
+- **Building Skills Guide (PDF)**: https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+- **Improving Skill Creator Blog**: https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills
 - **Agent Skills Specification**: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
 - **Claude Code Plugins**: https://code.claude.com/docs/en/plugins
 - **Plugin Marketplaces**: https://code.claude.com/docs/en/plugin-marketplaces
