@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -62,6 +62,8 @@
     "./plugins/tools/slidev/skills/code",
     "./plugins/tools/slidev/skills/export",
     "./plugins/tools/slidev/skills/troubleshooting",
+    "./plugins/tools/tweag/skills/topiary",
+    "./plugins/tools/tweag/skills/nickel",
     "./plugins/ui/skills/daisyui",
     "./plugins/wasm/skills/wasmtime",
     "./plugins/languages/zig/skills/zig",
