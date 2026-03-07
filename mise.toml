@@ -17,11 +17,11 @@ macos-arm64 = { asset_pattern = "beads_*_darwin_arm64.tar.gz" }
 
 [tasks.test]
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality"]
 
 [tasks."test:all"]
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -200,6 +200,15 @@ if $all_passed {
     print "❌ Some plugin validations failed"
     exit 1
 }
+"""
+
+[tasks."test:skills-quality"]
+description = "Validate skill quality across all plugins (scorecard)"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "validate-skills-quality.nu")
 """
 
 [tasks."test:plugin"]
