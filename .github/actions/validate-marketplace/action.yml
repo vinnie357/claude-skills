@@ -25,6 +25,10 @@ runs:
       shell: bash
       run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+    - name: Fetch main branch for version comparison
+      shell: bash
+      run: git fetch origin main:main 2>/dev/null || true
+
     - name: Install tools via mise
       shell: bash
       run: |
