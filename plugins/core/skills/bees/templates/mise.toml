@@ -1,0 +1,268 @@
+# multi-arch bees install
+[tools."github:ctxshift/bees"]
+version = "latest"
+
+[tools."github:ctxshift/bees".platforms]
+linux-x64 = { asset_pattern = "bees-linux-x86_64.tar.gz" }
+linux-arm64 = { asset_pattern = "bees-linux-aarch64.tar.gz" }
+macos-arm64 = { asset_pattern = "bees-macos-aarch64.tar.gz" }
+macos-x64 = { asset_pattern = "bees-macos-x86_64.tar.gz" }
+
+# Bees mise tasks
+# Copy these task definitions to your project's mise.toml
+
+[tasks."bees:init"]
+description = "Initialize bees in the repository"
+run = "bees init"
+
+[tasks."bees:ready"]
+description = "List unblocked issues ready for work"
+run = '''
+#!/usr/bin/env nu
+let issues = (bees ready --json | from json)
+if ($issues | is-empty) {
+    print "No ready issues"
+} else {
+    $issues | select id title labels? | table
+}
+'''
+
+[tasks."bees:list"]
+description = "List all issues with formatted output"
+run = '''
+#!/usr/bin/env nu
+let issues = (bees list --json | from json)
+if ($issues | is-empty) {
+    print "No issues found"
+} else {
+    $issues | select id title status labels? assignee? | table
+}
+'''
+
+[tasks."bees:show"]
+description = "Show issue details by ID"
+run = '''
+#!/usr/bin/env nu
+def main [issue_id: string] {
+    let issue = (bees show $issue_id --json | from json)
+    print $"(ansi green_bold)Issue: ($issue.id)(ansi reset)"
+    print $"Title: ($issue.title)"
+    print $"Status: ($issue.status)"
+    if ($issue.description? | is-not-empty) {
+        print $"Description: ($issue.description)"
+    }
+    if ($issue.labels? | is-not-empty) {
+        print $"Labels: ($issue.labels | str join ', ')"
+    }
+    if ($issue.assignee? | is-not-empty) {
+        print $"Assignee: ($issue.assignee)"
+    }
+}
+'''
+
+[tasks."bees:create"]
+description = "Create a new issue"
+run = '''
+#!/usr/bin/env nu
+def main [
+    title: string
+    --description (-d): string  # Issue description
+    --labels (-l): string       # Comma-separated labels
+    --assignee (-a): string     # Assignee name
+    --owner (-o): string        # Owner name
+    --parent (-p): string       # Parent issue ID
+] {
+    mut args = ["create", $title]
+    if ($description | is-not-empty) {
+        $args = ($args | append ["-d", $description])
+    }
+    if ($labels | is-not-empty) {
+        $args = ($args | append ["-l", $labels])
+    }
+    if ($assignee | is-not-empty) {
+        $args = ($args | append ["-a", $assignee])
+    }
+    if ($owner | is-not-empty) {
+        $args = ($args | append ["-o", $owner])
+    }
+    if ($parent | is-not-empty) {
+        $args = ($args | append ["-p", $parent])
+    }
+    ^bees ...$args
+}
+'''
+
+[tasks."bees:close"]
+description = "Close an issue by ID"
+run = '''
+#!/usr/bin/env nu
+def main [
+    issue_id: string
+    --reason (-r): string  # Closing reason
+] {
+    mut args = ["close", $issue_id]
+    if ($reason | is-not-empty) {
+        $args = ($args | append ["-r", $reason])
+    }
+    ^bees ...$args
+    print $"(ansi green)Closed issue: ($issue_id)(ansi reset)"
+}
+'''
+
+[tasks."bees:update"]
+description = "Update an issue"
+run = '''
+#!/usr/bin/env nu
+def main [
+    issue_id: string
+    --description (-d): string  # Updated description
+    --assignee (-a): string     # Assignee name
+    --status (-s): string       # Status (open, in_progress, closed)
+] {
+    mut args = ["update", $issue_id]
+    if ($description | is-not-empty) {
+        $args = ($args | append ["-d", $description])
+    }
+    if ($assignee | is-not-empty) {
+        $args = ($args | append ["-a", $assignee])
+    }
+    if ($status | is-not-empty) {
+        $args = ($args | append ["--status", $status])
+    }
+    ^bees ...$args
+    print $"(ansi cyan)Updated issue: ($issue_id)(ansi reset)"
+}
+'''
+
+[tasks."bees:sync"]
+description = "Export issues to JSONL format"
+run = "bees sync"
+
+[tasks."bees:prime"]
+description = "Generate markdown output for LLM context"
+run = '''
+#!/usr/bin/env nu
+def main [
+    --status (-s): string   # Filter by status
+    --labels (-l): string   # Filter by labels
+] {
+    mut args = ["prime"]
+    if ($status | is-not-empty) {
+        $args = ($args | append ["--status", $status])
+    }
+    if ($labels | is-not-empty) {
+        $args = ($args | append ["--labels", $labels])
+    }
+    ^bees ...$args
+}
+'''
+
+[tasks."bees:config"]
+description = "Show or set bees configuration"
+run = '''
+#!/usr/bin/env nu
+def main [
+    action?: string  # "set" or "get" (omit to show all)
+    key?: string     # Config key
+    value?: string   # Config value (for set)
+] {
+    if ($action | is-empty) {
+        bees config
+    } else if $action == "set" {
+        bees config set $key $value
+        print $"(ansi green)Set ($key) = ($value)(ansi reset)"
+    } else if $action == "get" {
+        bees config get $key
+    } else {
+        print $"(ansi red)Unknown action: ($action). Use 'set' or 'get'.(ansi reset)"
+    }
+}
+'''
+
+[tasks."bees:dep:add"]
+description = "Add a dependency (issue depends on blocker)"
+run = '''
+#!/usr/bin/env nu
+def main [
+    issue_id: string    # Issue that will be blocked
+    blocker_id: string  # Issue that blocks
+    --type (-t): string # Dependency type: blocks, related, parent
+] {
+    mut args = ["dep", "add", $issue_id, $blocker_id]
+    if ($type | is-not-empty) {
+        $args = ($args | append ["-t", $type])
+    }
+    ^bees ...$args
+    print $"(ansi cyan)Added dependency: ($issue_id) depends on ($blocker_id)(ansi reset)"
+}
+'''
+
+[tasks."bees:dep:remove"]
+description = "Remove a dependency"
+run = '''
+#!/usr/bin/env nu
+def main [
+    issue_id: string    # Issue to unblock
+    blocker_id: string  # Blocker to remove
+] {
+    bees dep remove $issue_id $blocker_id
+    print $"(ansi yellow)Removed dependency: ($issue_id) no longer depends on ($blocker_id)(ansi reset)"
+}
+'''
+
+[tasks."bees:dep:list"]
+description = "List dependencies for an issue"
+run = '''
+#!/usr/bin/env nu
+def main [issue_id: string] {
+    bees dep list $issue_id
+}
+'''
+
+[tasks."bees:comment:add"]
+description = "Add a comment to an issue"
+run = '''
+#!/usr/bin/env nu
+def main [
+    issue_id: string # Issue ID
+    body: string     # Comment body
+] {
+    bees comment add $issue_id $body
+    print $"(ansi green)Added comment to: ($issue_id)(ansi reset)"
+}
+'''
+
+[tasks."bees:comment:list"]
+description = "List comments on an issue"
+run = '''
+#!/usr/bin/env nu
+def main [issue_id: string] {
+    bees comment list $issue_id
+}
+'''
+
+[tasks."bees:label:add"]
+description = "Add labels to an issue"
+run = '''
+#!/usr/bin/env nu
+def main [
+    issue_id: string # Issue ID
+    labels: string   # Comma-separated labels to add
+] {
+    bees label add $issue_id $labels
+    print $"(ansi cyan)Added labels to ($issue_id): ($labels)(ansi reset)"
+}
+'''
+
+[tasks."bees:label:remove"]
+description = "Remove labels from an issue"
+run = '''
+#!/usr/bin/env nu
+def main [
+    issue_id: string # Issue ID
+    labels: string   # Comma-separated labels to remove
+] {
+    bees label remove $issue_id $labels
+    print $"(ansi yellow)Removed labels from ($issue_id): ($labels)(ansi reset)"
+}
+'''

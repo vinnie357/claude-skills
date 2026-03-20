@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.14",
+      "version": "0.3.15",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -32,9 +32,9 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.1.17",
+      "version": "0.1.18",
       "category": "development",
-      "keywords": ["git", "documentation", "code-review", "tools", "beads", "container", "tdd"]
+      "keywords": ["git", "documentation", "code-review", "tools", "beads", "bees", "container", "tdd"]
     },
     {
       "name": "dagu",

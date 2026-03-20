@@ -155,6 +155,34 @@ This file documents the sources used to create the core plugin skills.
 - Three sync modes: full, stealth (local-only), contributor (pull-only)
 - VS Code extensions for visual task management and IDE integration
 
+## Bees Skill
+
+### Bees GitHub Repository
+- **URL**: https://github.com/ctxshift/bees
+- **Purpose**: Source code, installation instructions, and CLI documentation for the SQLite-backed issue tracker
+- **Date Accessed**: 2026-03-20
+- **Key Topics**: SQLite WAL storage, Zig binary, JSONL export, markdown prime, dependency types, local-first design
+
+### Bees GitHub Releases
+- **URL**: https://github.com/ctxshift/bees/releases
+- **Purpose**: Pre-built binaries for Linux and macOS (x86_64 and aarch64)
+- **Date Accessed**: 2026-03-20
+- **Key Topics**: Asset naming patterns for mise installation
+
+### VS Code Extensions (Shared with Beads)
+- **URL**: https://marketplace.visualstudio.com/items?itemName=planet57.vscode-beads
+- **Purpose**: Core beads/bees integration for VS Code via .beads symlink
+- **URL**: https://marketplace.visualstudio.com/items?itemName=DavidCForbes.beads-kanban
+- **Purpose**: Visual kanban board compatible with bees via .beads symlink
+
+### Key Concepts Extracted
+- SQLite WAL-mode database as primary storage (vs beads' JSONL primary + SQLite cache)
+- Single Zig binary with cross-platform builds
+- `bees prime` for markdown LLM context output
+- `bees sync` for one-directional JSONL export
+- Three dependency types: blocks, related, parent
+- `.beads` symlink for VS Code extension compatibility
+
 ## Container Skill
 
 ### Apple Container CLI

@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.14",
+  "version": "0.3.15",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -37,6 +37,7 @@
     "./plugins/core/skills/anti-fabrication",
     "./plugins/core/skills/security",
     "./plugins/core/skills/beads",
+    "./plugins/core/skills/bees",
     "./plugins/core/skills/container",
     "./plugins/core/skills/tdd",
     "./plugins/tools/dagu/skills/workflows",

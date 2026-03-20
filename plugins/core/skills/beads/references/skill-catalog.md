@@ -56,6 +56,7 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 | `anti-fabrication` | validation, claims verification, factual accuracy, metrics |
 | `security` | security, secret detection, gitleaks, credential scan, API key leak |
 | `beads` | beads, task management, dependency tracking, issue tracker |
+| `bees` | bees, issue tracker, local issue, sqlite tracker, bees sync, bees prime, AI context |
 | `container` | container, OCI, linux container, apple container, macOS container |
 | `tdd` | TDD, test-driven, red green refactor, test first, test list, walking skeleton, outside-in, double loop |
 
