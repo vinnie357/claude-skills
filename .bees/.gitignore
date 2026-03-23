@@ -1,0 +1,16 @@
+# SQLite databases
+*.db
+*.db?*
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Daemon runtime files
+daemon.lock
+daemon.log
+daemon.pid
+bd.sock
+last-touched
+
+# Lock files
+.jsonl.lock
