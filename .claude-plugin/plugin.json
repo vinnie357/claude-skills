@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.15",
+  "version": "0.3.16",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -48,6 +48,7 @@
     "./plugins/languages/elixir/skills/otp",
     "./plugins/languages/elixir/skills/testing",
     "./plugins/languages/elixir/skills/config",
+    "./plugins/languages/elixir/skills/tidewave",
     "./plugins/tools/github/skills/actions",
     "./plugins/tools/github/skills/workflows",
     "./plugins/tools/github/skills/act",
