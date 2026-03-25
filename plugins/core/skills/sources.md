@@ -222,6 +222,12 @@ This file documents the sources used to create the core plugin skills.
 - **Purpose**: Version 0.9.0 release notes
 - **Key Topics**: Resource limits (--cpus/--memory), host.docker.internal, host-only/isolated networks, --dns on build, --force on image delete, zstd compression, Kata 3.26.0
 
+### Apple Container Release 0.10.0
+- **URL**: https://github.com/apple/container/releases/tag/0.10.0
+- **Purpose**: Version 0.10.0 release notes
+- **Date Accessed**: 2026-03-24
+- **Key Topics**: VM init image selection, container export, runtime flag, registry list, --format on system status, --init flag, generic ClientContainer, SandboxService bundle creation, multiple network plugins, minimum memory validation, SELinux kernel panic fix, env var duplication fix, Containerization 0.26.2
+
 ## TDD Skill
 
 ### Test-Driven Development by Example
@@ -258,7 +264,7 @@ This file documents the sources used to create the core plugin skills.
 ## Plugin Information
 
 - **Name**: core
-- **Version**: 0.1.10
+- **Version**: 0.1.19
 - **Description**: Essential development skills: Git, documentation, code review, accessibility, security
 - **Skills**: 12 skills covering fundamental development tools and best practices
 - **Created**: 2025-11-15

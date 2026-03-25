@@ -1,10 +1,10 @@
 #!/usr/bin/env nu
 
 # Apple Container lifecycle management
-# Supports: run, ps, start, stop, kill, rm, exec, logs, inspect, stats
+# Supports: run, ps, start, stop, kill, rm, exec, logs, inspect, stats, export
 
 def main [
-    command: string   # Subcommand: run, ps, start, stop, kill, rm, exec, logs, inspect, stats
+    command: string   # Subcommand: run, ps, start, stop, kill, rm, exec, logs, inspect, stats, export
     ...args: string   # Additional arguments passed to the command
 ] {
     match $command {
@@ -18,9 +18,10 @@ def main [
         "logs" => { cmd-logs $args }
         "inspect" => { cmd-inspect $args }
         "stats" => { cmd-stats }
+        "export" => { cmd-export $args }
         _ => {
             print $"(ansi red)Error:(ansi reset) Unknown command '($command)'"
-            print "Available: run, ps, start, stop, kill, rm, exec, logs, inspect, stats"
+            print "Available: run, ps, start, stop, kill, rm, exec, logs, inspect, stats, export"
             exit 1
         }
     }
@@ -191,5 +192,22 @@ def cmd-stats [] {
     } else {
         print $"(ansi red)Error:(ansi reset) ($result.stderr)"
         exit 1
+    }
+}
+
+def cmd-export [args: list<string>] {
+    ensure-running
+    if ($args | is-empty) {
+        print $"(ansi red)Error:(ansi reset) Container name or ID required"
+        print "Usage: container-lifecycle.nu export <container> [-o file] [-t tag]"
+        exit 1
+    }
+    let result = (do { ^container export ...$args } | complete)
+    if $result.exit_code == 0 {
+        print $result.stdout
+        print $"(ansi green)Export complete(ansi reset)"
+    } else {
+        print $"(ansi red)Error:(ansi reset) ($result.stderr)"
+        exit $result.exit_code
     }
 }

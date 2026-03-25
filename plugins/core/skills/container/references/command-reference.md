@@ -43,10 +43,11 @@ container run [FLAGS] IMAGE [COMMAND] [ARGS...]
 | `--tmpfs` | | Mount a tmpfs filesystem |
 | `--cidfile` | | Write container ID to file |
 | `--publish-socket` | | Publish a socket |
-| `--init-image` | | Init image for VM |
+| `--init` | | Run an init process in the container (0.10.0+) |
+| `--init-image` | | Init image for VM (0.10.0+ selection support) |
 | `--kernel` | | Custom kernel for VM |
 | `--virtualization` | | Virtualization backend |
-| `--runtime` | | Container runtime |
+| `--runtime` | | Container runtime (0.10.0+) |
 | `--scheme` | | Image scheme |
 | `--progress` | | Progress output (`none`, `ansi`) (0.7.0+) |
 | `--gid` | | Group ID |
@@ -65,7 +66,7 @@ Create a container without starting it.
 container create [FLAGS] IMAGE [COMMAND] [ARGS...]
 ```
 
-Accepts all the same flags as `container run` except `--detach`. Includes `--read-only` (0.8.0+), `--cpus`/`--memory` (0.9.0+), and all DNS flags.
+Accepts all the same flags as `container run` except `--detach`. Includes `--read-only` (0.8.0+), `--cpus`/`--memory` (0.9.0+), `--init`/`--init-image`/`--runtime` (0.10.0+), and all DNS flags.
 
 ### `container start`
 
@@ -166,6 +167,19 @@ container prune
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--force` | `-f` | Skip confirmation |
+
+### `container export`
+
+Create an image from a container's changes. (0.10.0+)
+
+```
+container export [FLAGS] CONTAINER
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--output` | `-o` | Output file path |
+| `--tag` | `-t` | Name and tag for the exported image |
 
 ### `container list` / `container ls`
 
@@ -459,6 +473,14 @@ Prompts for username and password. Credentials stored in macOS Keychain.
 - 0.4.x: `com.apple.container`
 - 0.5.0+: `com.apple.container.registry`
 
+### `container registry list`
+
+List configured container registries. (0.10.0+)
+
+```
+container registry list
+```
+
 ### `container registry logout`
 
 Log out from a container registry.
@@ -490,8 +512,12 @@ container system stop
 Check if the system service is running.
 
 ```
-container system status
+container system status [FLAGS]
 ```
+
+| Flag | Description |
+|------|-------------|
+| `--format` | Output format (e.g., `json`) (0.10.0+) |
 
 Exit code 0 if running, non-zero if not.
 

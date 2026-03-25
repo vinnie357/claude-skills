@@ -17,7 +17,7 @@ Activate when:
 - Managing container images (pull, push, tag, save, load)
 - Configuring container networks and volumes
 - Managing the container system service
-- Migrating between Apple Container versions (0.5.x to 0.9.x)
+- Migrating between Apple Container versions (0.5.x to 0.10.x)
 
 ## What is Apple Container?
 
@@ -26,7 +26,7 @@ Apple Container is a macOS-native tool for running Linux containers as lightweig
 - **Swift-based**: Built on Apple's Virtualization.framework
 - **OCI-compatible**: Produces and runs standard OCI container images
 - **Apple silicon only**: Requires Apple silicon Mac (M1 or later)
-- **Pre-1.0**: Currently at version 0.9.0, breaking changes expected between minor versions
+- **Pre-1.0**: Currently at version 0.10.0, breaking changes expected between minor versions
 - **Lightweight VMs**: Each container runs as a lightweight Linux VM
 
 ## Prerequisites
@@ -48,6 +48,9 @@ container system stop
 
 # Check service status
 container system status
+
+# Check service status with format (0.10.0+)
+container system status --format json
 
 # Show CLI version
 container system version
@@ -148,6 +151,15 @@ container run --mac-address 02:42:ac:11:00:02 --network mynet myapp:latest
 # Access host from container (0.9.0+)
 # Use host.docker.internal to reach host services
 container run -e API_URL=http://host.docker.internal:3000 myapp:latest
+
+# Run with custom init image (0.10.0+)
+container run --init-image custom-init:latest -d --name app myapp:latest
+
+# Run with init process (0.10.0+)
+container run --init -d --name app myapp:latest
+
+# Run with runtime selection (0.10.0+)
+container run --runtime myruntime -d --name app myapp:latest
 ```
 
 ### Manage Running Containers
@@ -191,6 +203,16 @@ container stats
 
 # Remove all stopped containers
 container prune
+```
+
+### Export Container (0.10.0+)
+
+```bash
+# Create an image from a running container
+container export <name-or-id> -o exported.tar
+
+# Export with a tag
+container export <name-or-id> -t myimage:snapshot
 ```
 
 ### Create Without Starting
@@ -416,11 +438,14 @@ container registry login <registry-url>
 
 # Log out from a registry
 container registry logout <registry-url>
+
+# List configured registries (0.10.0+)
+container registry list
 ```
 
 **Note**: In 0.5.0, the keychain ID changed from `com.apple.container` to `com.apple.container.registry`. Re-login is required after upgrading from 0.4.x.
 
-## Version Differences (0.5.0 to 0.9.0)
+## Version Differences (0.5.0 to 0.10.0)
 
 ### Breaking Changes
 
@@ -430,6 +455,9 @@ container registry logout <registry-url>
 | 0.7.0 | `--disable-progress-updates` removed | Use `--progress none\|ansi` instead |
 | 0.8.0 | Client API reorganization | Update API consumers |
 | 0.8.0 | Subnet allocation defaults changed | Review network configurations |
+| 0.10.0 | ClientContainer reworked as generic client | Update API consumers for generic client interface |
+| 0.10.0 | Bundle creation moved to SandboxService | Move bundle creation code from main container ops |
+| 0.10.0 | Multiple network plugins support | Review network configuration for multi-plugin model |
 
 ### New Features by Release
 
@@ -441,13 +469,18 @@ container registry logout <registry-url>
 
 **0.9.0**: Resource limits (`--cpus`/`--memory`), `host.docker.internal`, host-only/isolated networks, `--dns` on build, `--force` on image delete, zstd compression, container prune improvements, enhanced image inspection, Kata 3.26.0 kernel
 
-### Migration Checklist (0.5.x to 0.9.0)
+**0.10.0**: `--init-image` selection, `container export`, `--runtime` flag, `container registry list`, `--format` on `system status`, `--init` flag, minimum memory validation, multiple network plugins, SELinux kernel panic fix, env var duplication fix
+
+### Migration Checklist (0.5.x to 0.10.0)
 
 1. Replace `--disable-progress-updates` with `--progress none` in scripts
 2. Update any paths referencing `.build` directory to `builder`
 3. Review subnet configurations (allocation defaults changed in 0.8.0)
 4. Update API consumers for client API reorganization (0.8.0)
 5. Test build workflows with updated dependencies
+6. Update API consumers for generic ClientContainer interface (0.10.0)
+7. Move bundle creation code from main container operations to SandboxService (0.10.0)
+8. Review network configurations for multiple network plugins model (0.10.0)
 
 ### Dependencies
 
@@ -458,8 +491,9 @@ container registry logout <registry-url>
 | 0.7.0 | 0.16.0 | Builder shim 0.7.0 |
 | 0.8.0 | 0.21.1 | |
 | 0.9.0 | 0.24.0 | Kata 3.26.0 |
+| 0.10.0 | 0.26.2 | |
 
-See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0).
+See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0, 0.10.0).
 
 ## Scripts
 
@@ -506,7 +540,7 @@ nu scripts/container-images.nu prune
 
 ### container-lifecycle.nu
 
-Container run/stop/exec/logs:
+Container run/stop/exec/logs/export:
 
 ```bash
 # List running containers
@@ -520,6 +554,9 @@ nu scripts/container-lifecycle.nu logs mycontainer
 
 # Execute command
 nu scripts/container-lifecycle.nu exec mycontainer /bin/bash
+
+# Export container to image (0.10.0+)
+nu scripts/container-lifecycle.nu export mycontainer -o exported.tar
 ```
 
 ### container-cleanup.nu
