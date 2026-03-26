@@ -1,0 +1,9 @@
+# mise.toml - Install Nushell via mise
+# Copy to your project root or ~/.config/mise/config.toml for global install
+
+[tools]
+# Install Nushell from GitHub releases
+"github:nushell/nushell" = "latest"
+
+# Pin to a specific version
+# "github:nushell/nushell" = "0.111.0"

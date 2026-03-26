@@ -28,8 +28,14 @@ This file documents the sources used to create the core plugin skills.
 ### Nushell Book
 - **URL**: https://www.nushell.sh/book/
 - **Purpose**: Modern, structured data shell with pipeline support
-- **Date Accessed**: 2025-11-15
+- **Date Accessed**: 2026-03-25
 - **Key Topics**: Shell commands, data pipelines, structured data handling
+
+### Nushell GitHub Releases
+- **URL**: https://github.com/nushell/nushell/releases
+- **Purpose**: Nushell release tracking and changelog
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Version 0.111.0 (current), release notes, breaking changes
 
 ## Documentation Skill
 

@@ -19,6 +19,8 @@ Activate when:
 
 ## What is Nushell?
 
+Current stable: 0.111.0 (pre-1.0, breaking changes possible between minor versions)
+
 Nushell is a modern shell that:
 - Treats **data as structured** (not just text streams)
 - Works **cross-platform** (Windows, macOS, Linux)
@@ -37,6 +39,12 @@ cargo install nu
 
 # Windows
 winget install nushell
+
+# Via mise (recommended for project-level management)
+# Add to mise.toml:
+# [tools]
+# "github:nushell/nushell" = "latest"
+mise install github:nushell/nushell
 
 # Or download from https://www.nushell.sh/
 ```
