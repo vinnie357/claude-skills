@@ -278,12 +278,38 @@ Create a modular Claude Code plugin marketplace that:
   - Capability assessment: detecting when base model outgrows a skill
 - **Used In**: skills/claude-skills/SKILL.md, skills/claude-skills/references/evaluation-guide.md, skills/claude-skills-benchmark/SKILL.md
 
+## Skill Update Skill
+
+### GitHub REST API - Releases
+- **URL**: https://docs.github.com/en/rest/releases/releases
+- **Purpose**: API reference for querying GitHub repository releases programmatically
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: List releases, get latest release, release assets, tag names
+
+### Hex.pm API
+- **URL**: https://github.com/hexpm/hexpm/blob/main/guides/API.md
+- **Purpose**: API reference for querying Hex package versions
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Package metadata, release versions, dependency resolution
+
+### Crates.io API
+- **URL**: https://crates.io/policies
+- **Purpose**: API reference for querying Rust crate versions
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Crate metadata, max version, download counts
+
+### TOML Specification
+- **URL**: https://toml.io/en/v1.0.0
+- **Purpose**: TOML format specification for sources.toml schema design
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Array of tables, inline tables, key-value pairs
+
 ## Plugin Information
 
 - **Name**: claude-code
-- **Version**: 0.1.0
+- **Version**: 0.1.8
 - **Description**: Claude Code-specific skills for plugin marketplace management, validation, and component creation
-- **Skills**: 6 skills covering all aspects of Claude Code plugin development
+- **Skills**: 9 skills covering all aspects of Claude Code plugin development
   - plugin-marketplace: Marketplace.json validation and management
   - claude-plugins: Plugin.json validation and management
   - claude-commands: Creating custom slash commands

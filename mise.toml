@@ -1049,3 +1049,68 @@ def main [task_id?: string] {
 [tasks."beads:rebuild"]
 description = "Rebuild SQLite cache from JSONL files"
 run = "bd rebuild"
+
+# ========================
+# Sources Management Tasks
+# ========================
+
+[tasks."sources:check"]
+description = "Check all tracked sources for version updates"
+run = '''
+#!/usr/bin/env bash
+SCRIPT="plugins/tools/claude-code/skills/skill-update/scripts/sources-check.nu"
+if [ -n "$1" ]; then
+    nu "$SCRIPT" --plugin "$1"
+else
+    nu "$SCRIPT"
+fi
+'''
+
+[tasks."sources:stale"]
+description = "Show only stale/outdated sources"
+run = '''
+#!/usr/bin/env bash
+SCRIPT="plugins/tools/claude-code/skills/skill-update/scripts/sources-stale.nu"
+DAYS="${1:-30}"
+PLUGIN="${2:-}"
+if [ -n "$PLUGIN" ]; then
+    nu "$SCRIPT" --days "$DAYS" --plugin "$PLUGIN"
+else
+    nu "$SCRIPT" --days "$DAYS"
+fi
+'''
+
+[tasks."sources:validate"]
+description = "Validate all source URLs are accessible"
+run = '''
+#!/usr/bin/env bash
+SCRIPT="plugins/tools/claude-code/skills/skill-update/scripts/sources-validate-urls.nu"
+if [ -n "$1" ]; then
+    nu "$SCRIPT" --plugin "$1"
+else
+    nu "$SCRIPT"
+fi
+'''
+
+[tasks."sources:report"]
+description = "Generate markdown update report"
+run = '''
+#!/usr/bin/env bash
+SCRIPT="plugins/tools/claude-code/skills/skill-update/scripts/sources-report.nu"
+if [ -n "$1" ]; then
+    nu "$SCRIPT" --plugin "$1"
+else
+    nu "$SCRIPT"
+fi
+'''
+
+[tasks."sources:init"]
+description = "Bootstrap sources.toml from existing sources.md"
+run = '''
+#!/usr/bin/env bash
+if [ -z "$1" ]; then
+    echo "Usage: mise sources:init <plugin-name>"
+    exit 1
+fi
+nu "plugins/tools/claude-code/skills/skill-update/scripts/sources-init.nu" "$1"
+'''

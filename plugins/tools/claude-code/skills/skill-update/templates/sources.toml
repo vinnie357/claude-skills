@@ -1,0 +1,123 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Place alongside sources.md in each plugin's skills/ directory
+# Run `mise sources:validate` to verify this file against the schema
+
+[meta]
+plugin = "plugin-name"           # Plugin name (must match plugin.json `name` field)
+last_full_check = "2026-03-25"   # Date of last comprehensive check across all sources
+
+# ----------------------------------------------------------------------------
+# Each [[sources]] block tracks one upstream dependency for one skill.
+# Add one block per source. A single skill may have multiple source blocks.
+# ----------------------------------------------------------------------------
+
+[[sources]]
+skill = "skill-name"             # Skill directory name (must match skills/<skill-name>/)
+name = "source-name"             # Human-readable source identifier (e.g., "apple-container")
+url = ""                         # Primary source URL (docs, homepage, or repo)
+releases_url = ""                # URL to browse release history (optional but recommended)
+
+# check_method controls how `mise sources:check` queries the latest version.
+# Values: github-releases | hex-pm | crates-io | manual
+check_method = "manual"
+
+# Uncomment and fill in the field matching your check_method:
+# github_repo = "owner/repo"    # Required for check_method = "github-releases"
+# hex_package = "package"       # Required for check_method = "hex-pm"
+# crate_name = "crate"          # Required for check_method = "crates-io"
+
+# The version currently documented in this skill's SKILL.md.
+# Must be an exact version string (e.g., "0.10.0") or "stable"/"rolling".
+# Set to "requires-check" when version is unknown.
+current_version = ""
+
+# version_constraint describes how this source is versioned:
+#   pre-1.0  - Actively developed, may have breaking changes in any release
+#   semver   - Follows Semantic Versioning (major.minor.patch)
+#   rolling  - No discrete versions; tracks a continuously updated source
+#   stable   - Stable release channel (e.g., Linux stable kernel)
+version_constraint = "semver"
+
+# Date this source was last manually or automatically verified.
+# Update after every check, even if no version change was found.
+last_checked = "2026-03-25"
+
+# update_priority signals how urgently stale updates should be addressed:
+#   high   - Critical tools or frequently-used features; update immediately
+#   medium - Important but not blocking; update in current cycle
+#   low    - Rarely-changed; update opportunistically
+update_priority = "medium"
+
+# Set to true when minor or patch bumps in this source commonly introduce
+# breaking changes (typical for pre-1.0 packages or aggressive deprecation).
+breaking_changes_likely = false
+
+# Optional free-form notes about this source, quirks, or migration context.
+notes = ""
+
+# ----------------------------------------------------------------------------
+# Example: CLI tool tracked via GitHub releases
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skill = "container"
+# name = "apple-container"
+# url = "https://github.com/apple/container"
+# releases_url = "https://github.com/apple/container/releases"
+# check_method = "github-releases"
+# github_repo = "apple/container"
+# current_version = "0.10.0"
+# version_constraint = "pre-1.0"
+# last_checked = "2026-03-25"
+# update_priority = "high"
+# breaking_changes_likely = true
+# notes = "CLI commands change frequently; always create versioned template on update"
+
+# ----------------------------------------------------------------------------
+# Example: Hex.pm package
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skill = "tidewave"
+# name = "tidewave"
+# url = "https://hex.pm/packages/tidewave"
+# releases_url = "https://github.com/phx-tools/tidewave/releases"
+# check_method = "hex-pm"
+# hex_package = "tidewave"
+# current_version = "0.5.6"
+# version_constraint = "semver"
+# last_checked = "2026-03-25"
+# update_priority = "medium"
+# breaking_changes_likely = false
+# notes = ""
+
+# ----------------------------------------------------------------------------
+# Example: crates.io package
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skill = "wasm"
+# name = "wasmtime"
+# url = "https://wasmtime.dev"
+# releases_url = "https://github.com/bytecodealliance/wasmtime/releases"
+# check_method = "crates-io"
+# crate_name = "wasmtime"
+# current_version = "28.0.0"
+# version_constraint = "semver"
+# last_checked = "2026-03-25"
+# update_priority = "medium"
+# breaking_changes_likely = false
+# notes = ""
+
+# ----------------------------------------------------------------------------
+# Example: Documentation-based (manual check)
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skill = "twelve-factor"
+# name = "12factor.net"
+# url = "https://12factor.net"
+# releases_url = "https://12factor.net"
+# check_method = "manual"
+# current_version = "stable"
+# version_constraint = "stable"
+# last_checked = "2026-03-25"
+# update_priority = "low"
+# breaking_changes_likely = false
+# notes = "No formal versioning; check for editorial updates annually"
