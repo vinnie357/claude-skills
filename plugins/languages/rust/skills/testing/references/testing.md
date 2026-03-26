@@ -78,10 +78,10 @@ edition = "2021"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
-reqwest = "0.11"
+reqwest = "0.12"
 
 [dev-dependencies]
-mockall = "0.11"
+mockall = "0.13"
 
 [profile.release]
 opt-level = 3
