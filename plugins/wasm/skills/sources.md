@@ -69,10 +69,30 @@ This file documents the sources used to create the wasm plugin skills.
 - **Purpose**: Rust and WebAssembly integration guide
 - **Key Topics**: Wasm targets, wasm-pack, binary size optimization, debugging
 
+## WIT Skill
+
+### WIT Language Reference (Component Model)
+- **URL**: https://component-model.bytecodealliance.org/design/wit.html
+- **Purpose**: WIT syntax specification, type system, interfaces, and worlds
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Package naming, interfaces, worlds, type system (primitives, lists, options, results, records, variants, enums, flags, tuples), functions, resources
+
+### Component Model Worlds
+- **URL**: https://component-model.bytecodealliance.org/design/worlds.html
+- **Purpose**: World definition patterns and component composition
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Import and export declarations, world includes, component targets
+
+### Component Model Overview
+- **URL**: https://component-model.bytecodealliance.org/
+- **Purpose**: High-level overview of the WebAssembly Component Model
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Component architecture, interface-based composition, canonical ABI
+
 ## Plugin Information
 
 - **Name**: wasm
-- **Version**: 0.1.0
+- **Version**: 0.1.3
 - **Description**: WebAssembly skills: wasmtime runtime, component model, guest compilation, and host embedding
-- **Skills**: 1 skill (wasmtime)
+- **Skills**: 2 skills (wasmtime, wit)
 - **Created**: 2026-02-21

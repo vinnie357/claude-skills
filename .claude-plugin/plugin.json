@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.18",
+  "version": "0.3.20",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -69,6 +69,7 @@
     "./plugins/tools/tweag/skills/nickel",
     "./plugins/ui/skills/daisyui",
     "./plugins/wasm/skills/wasmtime",
+    "./plugins/wasm/skills/wit",
     "./plugins/languages/zig/skills/zig",
     "./plugins/languages/zig/skills/language",
     "./plugins/languages/zig/skills/build",
