@@ -1,6 +1,6 @@
 {
   "name": "elixir",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Elixir development skills: Phoenix, OTP, Tidewave MCP, testing, configuration, and anti-patterns",
   "author": {
     "name": "vinnie357"

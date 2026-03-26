@@ -7,6 +7,8 @@ description: Guide for Phoenix web applications. Use when building Phoenix apps,
 
 This skill activates when working with Phoenix web applications, including setup, development, LiveView, contexts, controllers, and channels.
 
+**Current versions**: Phoenix 1.8.x (current: 1.8.5), Phoenix LiveView 1.1.x (current: 1.1.27). Requires Elixir 1.14+, Erlang/OTP 25+.
+
 ## When to Use This Skill
 
 Activate this skill when:

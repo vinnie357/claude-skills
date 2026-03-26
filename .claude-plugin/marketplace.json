@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.20",
+      "version": "0.3.21",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -50,7 +50,7 @@
       "source": "./plugins/languages/elixir",
       "strict": true,
       "description": "Elixir development skills: Phoenix, OTP, Tidewave MCP, testing, configuration",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "category": "language",
       "keywords": ["elixir", "phoenix", "otp", "beam"]
     },

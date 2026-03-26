@@ -42,6 +42,18 @@ This file documents the sources used to create the elixir plugin skills.
 - **Purpose**: Comprehensive guides for building Phoenix applications
 - **Key Topics**: Routing, controllers, views, templates, contexts, testing
 
+### Phoenix Hex Package
+- **URL**: https://hex.pm/packages/phoenix
+- **Purpose**: Phoenix framework package and version tracking
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Version 1.8.5 (current), release history, dependencies
+
+### Phoenix LiveView Hex Package
+- **URL**: https://hex.pm/packages/phoenix_live_view
+- **Purpose**: Phoenix LiveView package and version tracking
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Version 1.1.27 (current), release history
+
 ## Tidewave MCP Dev Tools (Phoenix Skill Extension)
 
 ### Tidewave Hex Package
@@ -85,6 +97,18 @@ This file documents the sources used to create the elixir plugin skills.
 - **URL**: https://www.erlang.org/doc/design_principles/des_princ.html
 - **Purpose**: Understanding OTP design patterns and principles
 - **Key Topics**: Behaviors, supervision trees, applications, releases
+
+### Elixir Language
+- **URL**: https://github.com/elixir-lang/elixir/releases
+- **Purpose**: Elixir language release tracking
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Version 1.19.5 (current), release notes, changelog
+
+### Erlang/OTP
+- **URL**: https://github.com/erlang/otp/releases
+- **Purpose**: Erlang/OTP release tracking
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Version 28.4.1 (current), release notes
 
 ## Testing Skill
 
@@ -133,7 +157,8 @@ This file documents the sources used to create the elixir plugin skills.
 ## Plugin Information
 
 - **Name**: elixir
-- **Version**: 0.1.0
-- **Description**: Elixir development skills: Phoenix, OTP, testing, configuration, and anti-patterns
-- **Skills**: 5 skills covering Elixir language, framework, and best practices
+- **Version**: 0.1.5
+- **Description**: Elixir development skills: Phoenix, OTP, testing, configuration, anti-patterns, and Tidewave MCP dev tools
+- **Skills**: 6 skills covering Elixir language, framework, and best practices
 - **Created**: 2025-11-15
+- **Updated**: 2026-03-25

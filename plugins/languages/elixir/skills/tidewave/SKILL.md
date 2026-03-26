@@ -164,7 +164,7 @@ config :phoenix,
   debug_attributes: true
 ```
 
-Requires Phoenix LiveView v1.1+.
+Requires Phoenix LiveView v1.1+ (current: 1.1.27).
 
 ## Security
 
