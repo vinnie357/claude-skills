@@ -19,6 +19,8 @@ Activate when:
 
 ## What is mise?
 
+Current stable: v2026.3.15
+
 mise is a polyglot runtime manager and development environment tool that combines:
 - **Tool version management** - Install and manage multiple versions of dev tools
 - **Environment configuration** - Set environment variables per project
@@ -206,6 +208,7 @@ terraform = "latest"
 "cargo:ripgrep" = "latest"        # Requires rust installed
 "ubi:sharkdp/fd" = "latest"       # GitHub releases
 "npm:typescript" = "latest"       # Requires node installed
+"github:nushell/nushell" = "latest"  # Nushell (structured shell)
 
 # Version from file
 node = { version = "lts", resolve = "latest-lts" }

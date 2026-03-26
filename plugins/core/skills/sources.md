@@ -20,8 +20,14 @@ This file documents the sources used to create the core plugin skills.
 ### mise Documentation
 - **URL**: https://mise.jdx.dev/
 - **Purpose**: Development environment management and tool version control
-- **Date Accessed**: 2025-11-15
+- **Date Accessed**: 2026-03-25
 - **Key Topics**: Runtime management, environment configuration, task running
+
+### mise GitHub Releases
+- **URL**: https://github.com/jdx/mise/releases
+- **Purpose**: mise release tracking and changelog
+- **Date Accessed**: 2026-03-25
+- **Key Topics**: Version v2026.3.15 (current), calver versioning, release notes
 
 ## Nushell Skill
 
