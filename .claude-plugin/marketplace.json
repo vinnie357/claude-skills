@@ -64,6 +64,16 @@
       "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing", "community-health", "open-source"]
     },
     {
+      "name": "runex",
+      "source": "./plugins/tools/runex",
+      "strict": true,
+      "description": "Runex workflow engine: API, bundles, step logs, and debugging",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["runex", "workflow", "orchestration", "elixir", "bundles"],
+      "license": "MIT"
+    },
+    {
       "name": "rust",
       "source": "./plugins/languages/rust",
       "strict": true,

@@ -1,0 +1,14 @@
+{
+  "name": "runex",
+  "version": "0.1.0",
+  "description": "Runex workflow engine: API, bundles, step logs, and debugging",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["runex", "workflow", "orchestration", "elixir", "bundles"],
+  "skills": [
+    "./skills/runex"
+  ]
+}
