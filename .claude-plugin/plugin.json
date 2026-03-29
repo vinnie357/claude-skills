@@ -49,6 +49,8 @@
     "./plugins/languages/elixir/skills/otp",
     "./plugins/languages/elixir/skills/testing",
     "./plugins/languages/elixir/skills/config",
+    "./plugins/languages/elixir/skills/ports",
+    "./plugins/languages/elixir/skills/style",
     "./plugins/languages/elixir/skills/tidewave",
     "./plugins/tools/github/skills/actions",
     "./plugins/tools/github/skills/workflows",

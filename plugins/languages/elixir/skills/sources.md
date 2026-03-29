@@ -154,11 +154,81 @@ This file documents the sources used to create the elixir plugin skills.
   - Best practices for library vs application configuration
   - Configuration access patterns and anti-patterns
 
+## Ports Skill
+
+### Elixir Port Module
+- **URL**: https://hexdocs.pm/elixir/Port.html
+- **Purpose**: Elixir Port module documentation — wraps Erlang port functionality
+- **Date Accessed**: 2026-03-28
+- **Key Topics**: Port.open/2, Port.command/3, Port.close/1, Port.connect/2, Port.info/1, Port.monitor/1, message protocols
+
+### Erlang Ports Reference Manual
+- **URL**: https://www.erlang.org/doc/reference_manual/ports.html
+- **Purpose**: Erlang port concepts, communication protocol, port owner semantics
+- **Date Accessed**: 2026-03-28
+- **Key Topics**: Port as byte-oriented interface, spawn types, port drivers vs external programs, crash semantics
+
+### Erlang open_port/2 Function Reference
+- **URL**: https://www.erlang.org/doc/apps/erts/erlang.html#open_port-2
+- **Purpose**: Complete open_port/2 option reference with all PortSettings
+- **Date Accessed**: 2026-03-28
+- **Key Topics**: spawn/spawn_executable/spawn_driver/fd, packet modes, line mode, binary, env, cd, args, exit_status, parallelism, busy_limits
+
+### Elixir System.cmd/3
+- **URL**: https://hexdocs.pm/elixir/System.html#cmd/3
+- **Purpose**: System.cmd documentation for comparison with Port
+- **Date Accessed**: 2026-03-28
+- **Key Topics**: Synchronous command execution, argument passing, :into option, :lines option
+
+### Erlang C Nodes Documentation
+- **URL**: https://www.erlang.org/doc/system/c_nodes.html
+- **Purpose**: C Nodes as alternative to Ports for native code integration
+- **Date Accessed**: 2026-03-28
+- **Key Topics**: erl_interface library, EPMD registration, distributed messaging, RPC
+
+### Erlang NIFs Documentation
+- **URL**: https://www.erlang.org/doc/system/nif.html
+- **Purpose**: NIFs as alternative to Ports for native code integration
+- **Date Accessed**: 2026-03-28
+- **Key Topics**: Native Implemented Functions, dirty schedulers, crash risk, microsecond latency
+
+## Style Skill
+
+### Elixir Naming Conventions
+- **URL**: https://hexdocs.pm/elixir/naming-conventions.html
+- **Purpose**: Official naming conventions including trailing bang (!) for raising functions
+- **Date Accessed**: 2026-03-29
+- **Key Topics**: Bang functions convention, foo vs foo! pattern, when to raise vs return tuples
+
+### Elixir with Special Form
+- **URL**: https://hexdocs.pm/elixir/Kernel.SpecialForms.html#with/1
+- **Purpose**: with expression for chaining operations returning tagged tuples
+- **Date Accessed**: 2026-03-29
+- **Key Topics**: Pattern matching chains, early exit on mismatch, else clauses
+
+### Elixir Code Anti-Patterns
+- **URL**: https://hexdocs.pm/elixir/code-anti-patterns.html
+- **Purpose**: Official anti-patterns related to style conventions
+- **Date Accessed**: 2026-03-29
+- **Key Topics**: Non-assertive pattern matching, complex else clauses, alternative return types
+
+### Ecto Changeset Documentation
+- **URL**: https://hexdocs.pm/ecto/Ecto.Changeset.html
+- **Purpose**: Changeset as single validation layer for data shape
+- **Date Accessed**: 2026-03-29
+- **Key Topics**: cast/4, validate_required/3, validate_format/3, cast_assoc/3, cast_embed/3, schemaless changesets
+
+### Ecto Schema Documentation
+- **URL**: https://hexdocs.pm/ecto/Ecto.Schema.html
+- **Purpose**: Schema types including embedded_schema for non-DB data
+- **Date Accessed**: 2026-03-29
+- **Key Topics**: schema/2, embedded_schema/1, field types, associations
+
 ## Plugin Information
 
 - **Name**: elixir
-- **Version**: 0.1.5
-- **Description**: Elixir development skills: Phoenix, OTP, testing, configuration, anti-patterns, and Tidewave MCP dev tools
-- **Skills**: 6 skills covering Elixir language, framework, and best practices
+- **Version**: 0.1.7
+- **Description**: Elixir development skills: Phoenix, OTP, Ports, Style, testing, configuration, anti-patterns, and Tidewave MCP dev tools
+- **Skills**: 8 skills covering Elixir language, framework, and best practices
 - **Created**: 2025-11-15
-- **Updated**: 2026-03-25
+- **Updated**: 2026-03-29

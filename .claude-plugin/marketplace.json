@@ -49,10 +49,10 @@
       "name": "elixir",
       "source": "./plugins/languages/elixir",
       "strict": true,
-      "description": "Elixir development skills: Phoenix, OTP, Tidewave MCP, testing, configuration",
-      "version": "0.1.5",
+      "description": "Elixir development skills: Phoenix, OTP, Ports, Tidewave MCP, testing, configuration, style",
+      "version": "0.1.7",
       "category": "language",
-      "keywords": ["elixir", "phoenix", "otp", "beam"]
+      "keywords": ["elixir", "phoenix", "otp", "ports", "style", "beam"]
     },
     {
       "name": "github",
