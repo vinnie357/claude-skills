@@ -39,33 +39,33 @@ def get-headers [] {
 def api-get [path: string] {
     let host = (get-host)
     let headers = (get-headers)
-    let result = if ($headers | is-empty) {
-        do { http get $"($host)($path)" } | complete
-    } else {
-        do { http get -H $headers $"($host)($path)" } | complete
-    }
-    if $result.exit_code != 0 {
+    try {
+        if ($headers | is-empty) {
+            http get $"($host)($path)"
+        } else {
+            http get -H $headers $"($host)($path)"
+        }
+    } catch { |err|
         print $"(ansi red)Error:(ansi reset) Request to ($path) failed"
-        print $result.stderr
+        print $"($err.msg)"
         exit 1
     }
-    $result.stdout
 }
 
 def api-post [path: string, body: record] {
     let host = (get-host)
     let headers = (get-headers)
-    let result = if ($headers | is-empty) {
-        do { http post -t application/json $"($host)($path)" $body } | complete
-    } else {
-        do { http post -t application/json -H $headers $"($host)($path)" $body } | complete
-    }
-    if $result.exit_code != 0 {
+    try {
+        if ($headers | is-empty) {
+            http post -t application/json $"($host)($path)" $body
+        } else {
+            http post -t application/json -H $headers $"($host)($path)" $body
+        }
+    } catch { |err|
         print $"(ansi red)Error:(ansi reset) Request to ($path) failed"
-        print $result.stderr
+        print $"($err.msg)"
         exit 1
     }
-    $result.stdout
 }
 
 # GET /api/health — liveness probe
@@ -100,11 +100,16 @@ def cmd-submit [args: list<string>] {
         exit 1
     }
     let workflow_path = ($args | first)
-    let params_idx = ($args | enumerate | where { |it| $it.item == "--params" } | get index | first | default -1)
-    let params = if $params_idx >= 0 and ($args | length) > ($params_idx + 1) {
-        $args | get ($params_idx + 1) | from json
-    } else {
+    let params_match = ($args | enumerate | where { |it| $it.item == "--params" })
+    let params = if ($params_match | is-empty) {
         {}
+    } else {
+        let params_idx = ($params_match | first | get index)
+        if ($args | length) > ($params_idx + 1) {
+            $args | get ($params_idx + 1) | from json
+        } else {
+            {}
+        }
     }
     let body = {workflow_path: $workflow_path, params: $params}
     let resp = (api-post "/api/runs" $body)

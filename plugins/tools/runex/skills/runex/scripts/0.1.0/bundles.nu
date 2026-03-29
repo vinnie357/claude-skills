@@ -51,8 +51,8 @@ def cmd-list [args: list<string>] {
                 let wf_toml = $"($entry.name)/workflow.toml"
                 if ($wf_toml | path exists) {
                     let content = (open $wf_toml)
-                    let name = ($content | get -i workflow.name | default ($entry.name | path basename))
-                    let desc = ($content | get -i workflow.description | default "")
+                    let name = ($content | get -o workflow.name | default ($entry.name | path basename))
+                    let desc = ($content | get -o workflow.description | default "")
                     $found = ($found | append {
                         name: $name
                         path: $entry.name
@@ -86,14 +86,14 @@ def cmd-show [args: list<string>] {
     }
 
     let content = (open $wf_toml)
-    let workflow = ($content | get -i workflow | default {})
-    let name = ($workflow | get -i name | default "unknown")
-    let description = ($workflow | get -i description | default "")
-    let params = ($workflow | get -i params | default {})
-    let env_vars = ($workflow | get -i env | default {})
+    let workflow = ($content | get -o workflow | default {})
+    let name = ($workflow | get -o name | default "unknown")
+    let description = ($workflow | get -o description | default "")
+    let params = ($workflow | get -o params | default {})
+    let env_vars = ($workflow | get -o env | default {})
 
-    let steps = ($content | get -i step | default [])
-    let step_names = ($steps | each { |s| $s | get -i name | default "unnamed" })
+    let steps = ($content | get -o step | default [])
+    let step_names = ($steps | each { |s| $s | get -o name | default "unnamed" })
 
     let workflows_dir = $"($bundle_path)/workflows"
     let sub_workflows = if ($workflows_dir | path exists) {
@@ -150,24 +150,13 @@ def cmd-validate [args: list<string>] {
 
     # Check workflow.toml is valid TOML with workflow section
     if $wf_exists {
-        let parse_result = (do { open $wf_toml } | complete)
-        if $parse_result.exit_code == 0 {
-            $checks = ($checks | append {
-                check: "workflow.toml parses"
-                status: "pass"
-            })
-            let content = $parse_result.stdout
-            let has_workflow = ($content | get -i workflow | is-not-empty)
-            $checks = ($checks | append {
-                check: "workflow section present"
-                status: (if $has_workflow { "pass" } else { "fail" })
-            })
-        } else {
-            $checks = ($checks | append {
-                check: "workflow.toml parses"
-                status: "fail"
-            })
-        }
+        let content = (open $wf_toml)
+        $checks = ($checks | append { check: "workflow.toml parses", status: "pass" })
+        let has_workflow = ($content | get -o workflow | is-not-empty)
+        $checks = ($checks | append {
+            check: "workflow section present"
+            status: (if $has_workflow { "pass" } else { "fail" })
+        })
     }
 
     let failures = ($checks | where status == "fail" | length)
@@ -185,9 +174,9 @@ def cmd-validate [args: list<string>] {
     }
 
     if $failures > 0 {
-        print $"\n(ansi red)($failures) failure(s)(ansi reset), ($warnings) warning(s)"
+        print $"\n(ansi red)($failures) failures(ansi reset), ($warnings) warnings"
         exit 1
     } else {
-        print $"\n(ansi green)Valid(ansi reset) with ($warnings) warning(s)"
+        print $"\n(ansi green)Valid(ansi reset) with ($warnings) warnings"
     }
 }

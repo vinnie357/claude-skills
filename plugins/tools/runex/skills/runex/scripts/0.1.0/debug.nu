@@ -36,17 +36,17 @@ def get-headers [] {
 def api-get [path: string] {
     let host = (get-host)
     let headers = (get-headers)
-    let result = if ($headers | is-empty) {
-        do { http get $"($host)($path)" } | complete
-    } else {
-        do { http get -H $headers $"($host)($path)" } | complete
-    }
-    if $result.exit_code != 0 {
+    try {
+        if ($headers | is-empty) {
+            http get $"($host)($path)"
+        } else {
+            http get -H $headers $"($host)($path)"
+        }
+    } catch { |err|
         print $"(ansi red)Error:(ansi reset) Request to ($path) failed"
-        print $result.stderr
+        print $"($err.msg)"
         exit 1
     }
-    $result.stdout
 }
 
 # Show step names, statuses, and timing in a table
@@ -115,7 +115,8 @@ def cmd-failures [args: list<string>] {
         return
     }
 
-    print $"(ansi red)($failed | length) failed step(s):(ansi reset)\n"
+    let fail_count = ($failed | length)
+    print $"(ansi red)($fail_count) failed steps:(ansi reset)\n"
     for step in $failed {
         print $"(ansi red)Step ($step.id)(ansi reset) — exit_code: ($step.exit_code)"
         if ($step.error | is-not-empty) {
@@ -137,11 +138,16 @@ def cmd-watch [args: list<string>] {
     }
     let run_id = ($args | first)
 
-    let interval_idx = ($args | enumerate | where { |it| $it.item == "--interval" } | get index | first | default -1)
-    let interval = if $interval_idx >= 0 and ($args | length) > ($interval_idx + 1) {
-        $args | get ($interval_idx + 1) | into int
-    } else {
+    let interval_match = ($args | enumerate | where { |it| $it.item == "--interval" })
+    let interval = if ($interval_match | is-empty) {
         2
+    } else {
+        let interval_idx = ($interval_match | first | get index)
+        if ($args | length) > ($interval_idx + 1) {
+            $args | get ($interval_idx + 1) | into int
+        } else {
+            2
+        }
     }
 
     print $"(ansi cyan)Watching run ($run_id) (interval: ($interval)s)...(ansi reset)"
@@ -161,7 +167,7 @@ def cmd-watch [args: list<string>] {
         print $"  status: ($status) | steps: ($completed)/($total) completed, ($failed) failed"
 
         match $status {
-            "completed" | "failed" | "cancelled" => {
+            "success" | "completed" | "failed" | "cancelled" => {
                 $done = true
                 print $"\n(ansi cyan)Run ($run_id) finished: ($status)(ansi reset)"
             }
