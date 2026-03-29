@@ -57,6 +57,7 @@
     "./plugins/tools/github/skills/workflows",
     "./plugins/tools/github/skills/act",
     "./plugins/tools/github/skills/community-health",
+    "./plugins/tools/runex/skills/runex",
     "./plugins/languages/rust/skills/rust",
     "./plugins/languages/rust/skills/ownership",
     "./plugins/languages/rust/skills/error-handling",
