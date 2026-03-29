@@ -20,9 +20,11 @@ Add the marketplace and install plugins:
 /plugin install elixir@vinnie357      # Elixir, Phoenix, OTP, testing
 /plugin install rust@vinnie357        # Rust language features
 /plugin install wasm@vinnie357        # WebAssembly and Wasmtime
+/plugin install zig@vinnie357         # Zig language features
 /plugin install dagu@vinnie357        # Workflow orchestration
 /plugin install github@vinnie357      # GitHub Actions, workflows, act
 /plugin install slidev@vinnie357      # Slidev presentations
+/plugin install tweag@vinnie357       # Topiary formatter and Nickel config
 /plugin install ui@vinnie357          # daisyUI, Tailwind CSS theming
 /plugin install claude-code@vinnie357 # Plugin marketplace management tools
 ```
@@ -57,13 +59,15 @@ Fundamental development tools and best practices.
 - **anti-fabrication** - Ensure factual accuracy through tool validation
 - **security** - Secret detection and credential scanning with gitleaks
 - **beads** - Distributed git-backed graph issue tracker
+- **bees** - Bees issue tracking and task management
 - **container** - Apple Container CLI for Linux containers on macOS
+- **tdd** - Test-driven development practices and workflows
 
-**Keywords**: git, documentation, code-review, tools, beads, container
+**Keywords**: git, documentation, code-review, tools, beads, bees, container, tdd
 
 ### `elixir` - Elixir Development
 
-Comprehensive Elixir and Phoenix development skills.
+Elixir and Phoenix development skills.
 
 **Skills:**
 - **anti-patterns** - Identify and refactor Elixir code smells and anti-patterns
@@ -71,15 +75,23 @@ Comprehensive Elixir and Phoenix development skills.
 - **otp** - OTP behaviors (GenServer, Supervisor, Task, Agent)
 - **testing** - ExUnit testing, property-based testing, mocks
 - **config** - Runtime vs compile-time configuration best practices
+- **ports** - Elixir Ports for external OS process communication
+- **style** - Elixir code style and formatting conventions
+- **tidewave** - Tidewave MCP integration for Elixir development
 
-**Keywords**: elixir, phoenix, otp, beam
+**Keywords**: elixir, phoenix, otp, ports, style, beam
 
 ### `rust` - Rust Programming
 
 Rust language features and best practices.
 
 **Skills:**
-- **rust** - Ownership, borrowing, lifetimes, error handling, async programming
+- **rust** - Rust overview, concepts, and routing to sub-skills
+- **ownership** - Ownership, borrowing, and lifetimes
+- **error-handling** - Error types, Result, and error propagation patterns
+- **async** - Async/await, Tokio runtime, and concurrent programming
+- **testing** - Unit testing, integration testing, and test organization
+- **troubleshooting** - Diagnosing and resolving common Rust errors
 
 **Keywords**: rust, systems-programming, memory-safety
 
@@ -89,6 +101,7 @@ WebAssembly runtime, compilation, and embedding skills.
 
 **Skills:**
 - **wasmtime** - Wasmtime runtime, Component Model, WIT, WASI, guest compilation (Rust, Zig), host embedding (Rust, Elixir)
+- **wit** - WIT interface definition language for WebAssembly components
 
 **Keywords**: wasm, webassembly, wasmtime, wasi, component-model
 
@@ -120,8 +133,9 @@ GitHub Actions, workflows, and local testing.
 - **actions** - Creating and configuring GitHub Actions
 - **workflows** - Writing and optimizing GitHub Actions workflows
 - **act** - Testing GitHub Actions locally using act
+- **community-health** - Repository community health files and open source standards
 
-**Keywords**: github, actions, workflows, ci-cd, act, testing
+**Keywords**: github, actions, workflows, ci-cd, act, testing, community-health
 
 ### `slidev` - Presentation Framework
 
@@ -135,6 +149,31 @@ Slidev markdown-based presentation development.
 - **slidev-troubleshooting** - Export failures, font issues, configuration debugging
 
 **Keywords**: slidev, presentation, slides, markdown, vite
+
+### `tweag` - Tweag Tools
+
+Tweag open-source tools for code formatting and configuration.
+
+**Skills:**
+- **topiary** - Topiary universal code formatter using tree-sitter
+- **nickel** - Nickel configuration language
+
+**Keywords**: tweag, topiary, nickel, formatter, configuration
+
+### `zig` - Zig Programming
+
+Zig language features, build system, and tooling.
+
+**Skills:**
+- **zig** - Zig overview and routing to sub-skills
+- **language** - Zig language features, comptime, and type system
+- **build** - Zig build system, cross-compilation, and packages
+- **allocators** - Memory allocation strategies and custom allocators
+- **testing** - Zig testing patterns and practices
+- **c-interop** - Calling C code from Zig and Zig from C
+- **troubleshooting** - Diagnosing and resolving common Zig errors
+
+**Keywords**: zig, systems-programming, comptime, allocators
 
 ### `claude-code` - Plugin Development Tools
 
@@ -216,12 +255,14 @@ claude-skills/
     ├── core/                     # Essential development skills
     ├── languages/
     │   ├── elixir/               # Elixir development
-    │   └── rust/                 # Rust programming
+    │   ├── rust/                 # Rust programming
+    │   └── zig/                  # Zig programming
     ├── tools/
     │   ├── claude-code/          # Plugin development tools
     │   ├── dagu/                 # Workflow orchestration
     │   ├── github/               # GitHub Actions and workflows
-    │   └── slidev/               # Presentation framework
+    │   ├── slidev/               # Presentation framework
+    │   └── tweag/                # Tweag tools (Topiary, Nickel)
     ├── ui/                       # UI frameworks
     └── wasm/                     # WebAssembly development
 ```
@@ -330,7 +371,7 @@ See the [Agent Skills Specification](https://github.com/anthropics/skills/blob/m
 
 ## Plugin Development
 
-The `claude-code` plugin provides comprehensive tools for plugin and marketplace development:
+The `claude-code` plugin provides tools for plugin and marketplace development:
 
 - Complete schema documentation for marketplace.json and plugin.json
 - Nushell validation scripts for automated compliance checking
@@ -345,7 +386,7 @@ Install it to build your own Claude Code plugins:
 
 ## Testing
 
-The repository includes automated validation tests for the marketplace and all 11 plugins (including the all-skills meta-plugin).
+The repository includes automated validation tests for the marketplace and all 13 plugins (including the all-skills meta-plugin).
 
 ### Requirements
 
@@ -358,7 +399,7 @@ The repository includes automated validation tests for the marketplace and all 1
 # Install mise (if not already installed)
 curl https://mise.run | sh
 
-# Run all tests (validates marketplace + all 11 plugins)
+# Run all tests (validates marketplace + all 13 plugins)
 mise test
 
 # Test specific plugin
@@ -375,7 +416,7 @@ mise test:plugins
 ### What Gets Tested
 
 - **Marketplace validation**: Required fields, plugin entries, JSON structure
-- **Plugin validation** (all 11 plugins including all-skills):
+- **Plugin validation** (all 13 plugins including all-skills):
   - Name matches directory (or root for all-skills)
   - No invalid marketplace-only fields
   - Kebab-case naming
@@ -465,7 +506,7 @@ The repository includes automated CI/CD via GitHub Actions that runs on:
 
 **What gets tested:**
 - Validates marketplace.json schema
-- Validates all plugin.json files (11 plugins)
+- Validates all plugin.json files (13 plugins)
 - Checks skill paths exist
 - Verifies naming conventions
 
@@ -550,6 +591,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 1.0.0 (Current)
 - Tiered marketplace architecture with selective plugin installation
-- 11 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, slidev, ui, wasm, claudio (external)
-- 37 skills covering multiple programming languages and development tools
-- Comprehensive plugin development tools with Nushell validation scripts
+- 13 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, slidev, tweag, ui, wasm, zig, claudio (external)
+- 61 skills covering multiple programming languages and development tools
+- Plugin development tools with Nushell validation scripts
