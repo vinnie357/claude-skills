@@ -18,46 +18,93 @@ Activate when:
 - Configuring workflow path resolution (`RUNEX_WORKFLOW_PATH`, `RUNEX_WORKFLOWS_DIR`)
 - Running `mise tasks` to discover repo-level helpers that wrap Runex operations
 
-## API Quick Reference
+## Scripts
 
-Runex exposes a REST API at `http://localhost:4001/api` (default port). Authentication is via Bearer token when `RUNEX_API_TOKEN` is set; otherwise the API is open.
+This skill provides versioned Nushell scripts for direct API interaction. Scripts are in `scripts/0.1.0/`.
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/health` | Liveness probe (returns node name, timestamp) |
-| GET | `/api/ready` | Readiness probe (checks database, PTY info) |
-| GET | `/api/workflows` | List registered workflows |
-| GET | `/api/workflows/:id` | Show workflow detail with steps |
-| GET | `/api/runs` | List runs (latest 50, optional `?workflow_id=` filter) |
-| GET | `/api/runs/:id` | Show run detail with step runs |
-| POST | `/api/runs` | Execute a workflow |
-| GET | `/api/runs/:id/steps` | List step runs for a run |
+### runex.nu — API Client
 
-### Submitting a Workflow
+Main Runex API client. All commands return structured data (tables/records).
 
 ```bash
-curl -X POST http://localhost:4001/api/runs \
-  -H "Content-Type: application/json" \
-  -d '{"workflow_path": "bundles/core/workflows/tool-verify.toml", "params": {"TOOLS": "mise,nu,git"}}'
+# Health check
+nu scripts/0.1.0/runex.nu health
+
+# List recent runs
+nu scripts/0.1.0/runex.nu runs
+
+# Show run detail with step runs
+nu scripts/0.1.0/runex.nu run 42
+
+# Submit a workflow
+nu scripts/0.1.0/runex.nu submit "bundles/core/workflows/tool-verify.toml"
+
+# Submit with params
+nu scripts/0.1.0/runex.nu submit "bundles/core/workflows/tool-verify.toml" --params '{"TOOLS":"mise,nu,git"}'
+
+# List step runs for a run
+nu scripts/0.1.0/runex.nu steps 42
+
+# List workflows
+nu scripts/0.1.0/runex.nu workflows
+
+# Show workflow detail with steps
+nu scripts/0.1.0/runex.nu workflow 1
 ```
 
-**Request body:**
-- `workflow_path` (required): Path to a `.toml`, `.yaml`, or `.yml` workflow file. Resolved via the workflow search order (see below).
-- `params` (optional): Key-value map injected as environment variables into workflow steps.
+### bundles.nu — Bundle Discovery
 
-**Param security:** Params matching patterns like `password`, `secret`, `token`, `key`, or `url` are auto-masked in step output logs.
-
-**Response:** Returns a run object with `id`, `status`, `workflow` name, and timestamps. Use the run `id` to poll status and inspect step logs.
-
-### Authentication
-
-When `RUNEX_API_TOKEN` is set, include a Bearer token header:
+Discover and inspect workflow bundles on the filesystem.
 
 ```bash
-curl -H "Authorization: Bearer $RUNEX_API_TOKEN" http://localhost:4001/api/health
+# List bundles in default search paths
+nu scripts/0.1.0/bundles.nu list
+
+# List bundles in a specific directory
+nu scripts/0.1.0/bundles.nu list ~/github/runex-workflows/bundles
+
+# Show bundle details (name, params, steps, sub-workflows)
+nu scripts/0.1.0/bundles.nu show bundles/core
+
+# Validate bundle structure
+nu scripts/0.1.0/bundles.nu validate bundles/core
 ```
 
-If unset, the API is open (dev-friendly default).
+### debug.nu — Step Log Inspection
+
+Inspect run execution, step output, and failures.
+
+```bash
+# Show step statuses and timing
+nu scripts/0.1.0/debug.nu steps 42
+
+# Show full output for a specific step
+nu scripts/0.1.0/debug.nu log 42 7
+
+# Show only failed steps with error output
+nu scripts/0.1.0/debug.nu failures 42
+
+# Watch a run until completion (polls every 2 seconds)
+nu scripts/0.1.0/debug.nu watch 42
+
+# Watch with custom interval
+nu scripts/0.1.0/debug.nu watch 42 --interval 5
+```
+
+## Configuration
+
+Scripts read configuration from environment variables:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `RUNEX_HOST` | Base URL for API requests | `http://localhost:4001` |
+| `RUNEX_API_TOKEN` | Bearer token for API auth | unset (open) |
+| `RUNEX_WORKFLOW_PATH` | Colon-separated extra workflow search dirs | unset |
+| `RUNEX_WORKFLOWS_DIR` | Project workflows directory | `./workflows` |
+| `RUNEX_DATABASE_URL` | Postgres URL for peered mode | unset (SQLite) |
+| `RUNEX_REGION` | Region identifier | unset |
+| `RUNEX_DATACENTER` | Datacenter identifier | unset |
+| `PORT` / `RUNEX_PORT` | HTTP listen port | 4001 |
 
 ## Workflow Path Resolution
 
@@ -87,82 +134,14 @@ bundle-name/
     another.sh
 ```
 
-**Root workflow pattern** -- dispatches via an `ACTION` param:
+Bundle names are globally unique. Workflow names are unique within their containing directory. Use `bundles.nu show` and `bundles.nu validate` to inspect and verify bundle structure.
 
-```toml
-[workflow]
-name = "my-bundle"
-description = "What this bundle does"
+## Version Detection
 
-[workflow.params]
-ACTION = { required = true, description = "Action to run: action-one, action-two" }
-
-[workflow.env]
-BUNDLE_DIR = "bundles/my-bundle"
-
-[[step]]
-name = "dispatch"
-driver = "shell"
-command = """
-case "$ACTION" in
-  action-one) nu "$BUNDLE_DIR/scripts/do-thing.nu" ;;
-  action-two) sh "$BUNDLE_DIR/scripts/another.sh" ;;
-  *) echo "Unknown ACTION: $ACTION" && exit 1 ;;
-esac
-"""
-```
-
-**Sub-workflows** can be invoked directly without the dispatcher:
+Scripts are versioned under `scripts/<version>/`. To check the current version:
 
 ```bash
-curl -X POST http://localhost:4001/api/runs \
-  -d '{"workflow_path": "bundles/my-bundle/workflows/action-one.toml"}'
-```
-
-Bundle names are globally unique. Workflow names are unique within their containing directory.
-
-## Debugging with Step Logs
-
-Inspect a run's step-by-step execution:
-
-```bash
-# Get run status
-curl http://localhost:4001/api/runs/<id>
-
-# Get step logs
-curl http://localhost:4001/api/runs/<id>/steps
-```
-
-Each step run includes:
-- `status`: Current state of the step
-- `output`: stdout captured from the step
-- `error`: stderr or error message
-- `exit_code`: Process exit code
-- `started_at` / `finished_at`: Timing
-- `attempt`: Retry attempt number
-
-**Debugging pattern:**
-
-1. Submit workflow, capture run `id` from response
-2. Poll `GET /api/runs/<id>` until status is terminal
-3. Fetch `GET /api/runs/<id>/steps` to see per-step output
-4. Check `exit_code` and `error` fields for failures
-5. Re-submit with adjusted `params` if needed
-
-## Bundle Discovery
-
-List available bundles and workflows:
-
-```bash
-# Discover bundles on the filesystem
-ls ~/github/runex-workflows/bundles/
-ls ~/github/<app>/bundles/
-
-# List registered workflows via API
-curl http://localhost:4001/api/workflows | jq '.data[].name'
-
-# Check a specific workflow
-curl http://localhost:4001/api/workflows/<id> | jq '.data.steps'
+ls scripts/ | get name
 ```
 
 ## mise Tasks Integration
@@ -175,21 +154,9 @@ mise run dev      # Start dev server (live-reload)
 mise run ci       # Run full CI suite
 ```
 
-## Environment Variables
-
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `RUNEX_WORKFLOW_PATH` | Colon-separated extra workflow search dirs | unset |
-| `RUNEX_WORKFLOWS_DIR` | Project workflows directory | `./workflows` |
-| `RUNEX_API_TOKEN` | Bearer token for API auth | unset (open) |
-| `RUNEX_DATABASE_URL` | Postgres URL for peered mode | unset (SQLite) |
-| `RUNEX_REGION` | Region identifier | unset |
-| `RUNEX_DATACENTER` | Datacenter identifier | unset |
-| `PORT` / `RUNEX_PORT` | HTTP listen port | 4001 |
-
 ## References
 
 For detailed information, see:
-- **[references/api.md](references/api.md)** -- Full API reference with request/response shapes
+- **[templates/0.1.0/api.md](templates/0.1.0/api.md)** -- Full API reference with request/response shapes
 - **[references/bundles.md](references/bundles.md)** -- Bundle authoring guide with patterns
 - **[references/debugging.md](references/debugging.md)** -- Step log inspection and troubleshooting
