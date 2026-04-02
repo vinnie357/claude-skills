@@ -20,6 +20,8 @@ Phase 1: Pre flight checks
     - /core:security
     - /core:mise
     - /core:nushell
+- discover project-local skills (.claude/skills/, .github/skills/, .agents/skills/) but only load them when a task requires them — progressive disclosure
+- if CLAUDE.md is not present, check for AGENTS.md or .github/copilot-instructions.md for project instructions
 - all tasks must use the claude task-list tool to work their items
 - check that we are working on a feature branch per epic
 - verify feature branch exists for the epic
