@@ -1,13 +1,13 @@
-Before starting any work, make sure you have used `bees ready` (/core:bees).
-load our /core:bees skill to help.
-if you find bees is not initialized, use our /core:bees skill to setup bees
-to ensure we are working on an epic or task created and tracked by bees.
+Before starting any work, make sure you have used `bees ready` (/core:bees) or `bd ready` (/core:beads).
+load our /core:bees or /core:beads skill depending on which tracker is initialized in the project.
+if you find neither, use our /core:bees skill to setup bees.
+to ensure we are working on an epic or task created and tracked by one of these project tracking tools.
 all epics should be aware of claude-code teams, and have teams defined in the epic with models assigned by complexity of the task, all epics should have
 tasks that are claude skills aware, the primary library of skills available is here: https://github.com/vinnie357/claude-skills/blob/main/.claude-plugin/marketplace.json
 if the task needs a skill you don't have suggest or ask the user for this new skill.
 
 Phase 1: Pre flight checks
-- use `bees ready` to look for open work items
+- use `bees ready` or `bd ready` to look for open work items
 - make sure the epic you are working, has a team defined with the relevent models for each team member
 - a members model should attempt to use haiku first if possible based on the complexity of their task
 - all tasks must have relevent skills for the work, eg: elixir skill when working with elixir
@@ -32,7 +32,7 @@ Phase 2: Working the items
 - instruct team members to load their tasks labels skills on start
 - instruct team members that code without tests is not complete /core:tdd
 - include existing code references (file paths, function names) in every agent prompt
-- use jq for JSON parsing, nushell for scripts, Runex workflows for infra
+- use jq for JSON parsing, nushell for scripts
 - if a team member fails in a task twice, collect the members summary,then spawn the agent agent with the summary and promote the model it is using, haiku -> sonnet -> opus
 
 Phase 3: Validation
@@ -50,5 +50,6 @@ Phase 4: Submit loop
 - agents never merge — they report PR URL and wait
 - step order: local CI → commit → gitleaks → push → PR → watch remote CI → notify
 - we wait for ci to pass then ask the user to squash merge and delete the merged branch
-- once merged, we checkout main, pull and delete our merged feature branch
+- once merged, close the tracker issue (bees or beads), commit the tracker state, and push
+- we checkout main, pull and delete our merged feature branch
 - we go back to Phase1 to work a new epic
