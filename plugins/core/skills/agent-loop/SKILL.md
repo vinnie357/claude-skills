@@ -66,6 +66,90 @@ Domain-specific skills load based on issue/task labels.
 - **Branches**: One feature branch per epic (`feature/<epic-slug>`)
 - **Merge**: Squash merge only, user approves
 
+## Agent Worker Execution Order
+
+Every agent worker (Tier 3) follows these steps:
+
+1. Create feature branch
+2. Write tests first (TDD)
+3. Implement
+4. Run local CI (`mise run ci`) — fix until 0 failures
+5. Commit without attribution
+6. Run gitleaks scan on committed changes — fix if secrets detected
+7. Push, create PR
+8. Watch remote CI (`gh pr checks --watch`) — fix and push until passing
+9. Close bees issue, notify leader of PR status and URL
+
+Agents never merge — they report the PR URL to the team leader.
+
+## Agent Prompt Template
+
+Team leaders structure agent prompts with these sections:
+
+```
+## Load skills
+/core:anti-fabrication
+/core:git
+/core:tdd
+/core:security
+/core:mise
+/core:nushell
+<domain-specific skills based on task>
+
+## Working directory
+cd /path/to/repo
+
+## Bees issue
+<issue-id>: <title>
+
+## Context
+<what exists, what's needed, why>
+
+## What to implement
+<specific files, existing functions to reuse, code patterns>
+
+## Rules
+<project-specific constraints>
+
+## Execution order
+<the 9 steps above>
+```
+
+Key: always reference existing code and functions to reuse. "Implement X" is vague — "add import/2 action to WorkflowController, reuse serialize_workflow/1 from line 28" is machine-executable.
+
+## Model Selection
+
+Choose the initial model by task complexity:
+
+| Task Type | Model | Examples |
+|-----------|-------|---------|
+| Multi-file implementation, design decisions | sonnet | New API endpoint, adapter refactor |
+| Simple ops, monitoring, status checks | haiku | Deploy monitor, log reader, port check |
+| Research, codebase exploration | Explore subagent | Pattern discovery, ADR review |
+| Architecture design | Plan subagent | API design, system integration |
+
+Default to haiku. Use sonnet when the task requires judgment across multiple files or architectural decisions. The escalation path (haiku → sonnet → opus) applies when an agent fails twice on the same work.
+
+## Secret Safety
+
+Agents must NEVER read, print, or report actual secret values (API keys, tokens, passwords). Only confirm secrets exist and are non-empty:
+
+```bash
+# WRONG — exposes the secret
+op item get "KEY" --vault Vault --fields credential --reveal
+
+# RIGHT — confirms it's set without exposing
+test -n "$(op item get KEY --vault Vault --fields credential 2>/dev/null)" && echo "set" || echo "empty"
+```
+
+## Tool Preferences
+
+- **JSON parsing**: Use `jq`, not `python3 -c "import json..."`
+- **Scripting**: Nushell (`.nu`), not bash — cross-platform, structured data
+- **Infrastructure**: Runex workflows, not direct SSH
+- **Tool management**: mise, not brew — portable across macOS and Linux
+- **Issue tracking**: bees, not beads
+
 ## The Layered Model
 
 - **Epic** -- what the user writes. Objective, skills, constraints. No implementation details.
