@@ -75,6 +75,17 @@ The hook requires a container runtime to run gitleaks. It auto-detects:
 
 If no runtime is available, the hook logs a warning and allows the commit.
 
+## Agent Secret Safety
+
+When agents interact with secrets (1Password, environment variables, keychains):
+
+- **Never print secret values** in output, logs, or reports
+- **Confirm existence only**: `test -n "$VAR" && echo "set" || echo "empty"`
+- **Never use `--reveal`** in agent scripts — use it only in launcher scripts that don't capture output
+- If a secret value is accidentally exposed in conversation context, the user must rotate it immediately
+
+This applies to all agent tiers. A leaked secret in agent output forces credential rotation.
+
 ## When to Use security-review Instead
 
 Use the `security-review` skill for:

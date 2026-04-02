@@ -71,18 +71,21 @@ gh pr create --title "feat(auth): add JWT authentication" --body "- Add JWT gene
 
 ## PR Workflow
 
-1. **Push**: `git push -u origin <branch>`
-2. **Create PR**: `gh pr create` with minimal format (title + bullets)
-3. **Watch CI**: `gh pr checks --watch` (wait for CI to complete)
-4. **After CI passes** (if using beads):
-   - `bd close <task-id>`
-   - `git add .beads/ && git commit -m "chore(beads): close <task-id>"`
+1. **Local CI**: `mise run ci` — fix until 0 failures
+2. **Commit**: Conventional commit, no attribution
+3. **Gitleaks**: Scan committed changes for secrets (`/core:security`)
+4. **Push**: `git push -u origin <branch>`
+5. **Create PR**: `gh pr create` with minimal format (title + bullets)
+6. **Watch CI**: `gh pr checks --watch` (wait for CI to complete)
+7. **After CI passes** (if using bees):
+   - `bees close <task-id>`
+   - `git add .bees/ && git commit -m "chore(bees): close <task-id>"`
    - `git push`
-5. **Notify user**: "CI passed, PR ready for merge review"
-6. **Cleanup** (after user merges):
+8. **Notify**: "CI passed, PR ready for merge review"
+9. **Cleanup** (after user merges):
    - `git checkout main && git pull`
    - `git branch -d <branch>`
-7. **Continue**: `bd ready` for next task
+10. **Continue**: `bees ready` for next task
 
 ## Merge Strategy
 
