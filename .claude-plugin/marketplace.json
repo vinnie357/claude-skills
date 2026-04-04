@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   "plugins": [
     {
