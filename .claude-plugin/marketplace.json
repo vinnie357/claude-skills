@@ -106,10 +106,10 @@
       "name": "slidev",
       "source": "./plugins/tools/slidev",
       "strict": true,
-      "description": "Slidev presentation skills: markdown slides, syntax, code blocks, export, and troubleshooting",
-      "version": "0.1.0",
+      "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
+      "version": "0.2.0",
       "category": "tools",
-      "keywords": ["slidev", "presentation", "slides", "markdown", "vite"],
+      "keywords": ["slidev", "presentation", "slides", "markdown", "vite", "branding", "interactive", "strategy"],
       "license": "MIT"
     },
     {
