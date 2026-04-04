@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.24",
+      "version": "0.3.25",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -62,6 +62,16 @@
       "version": "0.1.3",
       "category": "tools",
       "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing", "community-health", "open-source"]
+    },
+    {
+      "name": "linear",
+      "source": "./plugins/tools/linear",
+      "strict": true,
+      "description": "Linear project management: MCP/GraphQL API, VantageEx epic authoring, auditing, and grooming",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["linear", "project-management", "epics", "graphql", "vantageex", "mcp"],
+      "license": "MIT"
     },
     {
       "name": "runex",

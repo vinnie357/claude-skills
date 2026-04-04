@@ -1,0 +1,14 @@
+{
+  "name": "linear",
+  "version": "0.1.0",
+  "description": "Linear project management: MCP/GraphQL API, VantageEx epic authoring, auditing, and grooming",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["linear", "project-management", "epics", "graphql", "vantageex", "mcp"],
+  "skills": [
+    "./skills/linear"
+  ]
+}

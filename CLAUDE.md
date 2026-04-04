@@ -1,4 +1,5 @@
 @plugins/tools/claude-code/templates/CLAUDE.md
+When Spawning agents allways instruct them to load skills for their tasks as the frist step.
 # Claude Skills Project
 
 This repository contains modular, self-contained skills that extend Claude's capabilities with specialized knowledge, workflows, and tools.

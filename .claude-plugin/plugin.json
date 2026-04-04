@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.24",
+  "version": "0.3.25",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -57,6 +57,7 @@
     "./plugins/tools/github/skills/workflows",
     "./plugins/tools/github/skills/act",
     "./plugins/tools/github/skills/community-health",
+    "./plugins/tools/linear/skills/linear",
     "./plugins/tools/runex/skills/runex",
     "./plugins/languages/rust/skills/rust",
     "./plugins/languages/rust/skills/ownership",
