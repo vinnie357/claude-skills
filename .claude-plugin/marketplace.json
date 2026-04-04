@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.3"
+    "version": "1.0.4"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.25",
+      "version": "0.3.26",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -71,6 +71,16 @@
       "version": "0.1.0",
       "category": "tools",
       "keywords": ["linear", "project-management", "epics", "graphql", "vantageex", "mcp"],
+      "license": "MIT"
+    },
+    {
+      "name": "playwright",
+      "source": "./plugins/tools/playwright",
+      "strict": true,
+      "description": "Playwright MCP browser automation for Claude Code",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["playwright", "mcp", "browser", "automation", "screenshots"],
       "license": "MIT"
     },
     {

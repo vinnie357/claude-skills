@@ -1,0 +1,7 @@
+# Playwright MCP development environment
+# Copy to your project's mise.toml or ~/mise.toml
+
+[tools]
+bun = "latest"
+# Fallback: use node if bun is not preferred
+# node = "22"
