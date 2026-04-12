@@ -7,7 +7,9 @@ Full REST API reference for Runex. Default base URL: `http://localhost:4001`.
 - [Authentication](#authentication)
 - [Health Endpoints](#health-endpoints)
 - [Workflow Endpoints](#workflow-endpoints)
+- [Info Endpoints](#info-endpoints)
 - [Run Endpoints](#run-endpoints)
+- [Bundle Endpoints](#bundle-endpoints)
 
 ## Authentication
 
@@ -58,6 +60,21 @@ Readiness probe. Checks database connectivity and PTY state.
   "checks": {"database": "error"},
   "pty": {"active_ttys": 0, "orphan_shells": 0},
   "timestamp": "2026-03-29T12:00:00Z"
+}
+```
+
+## Info Endpoints
+
+### GET /api/info
+
+Server build and version information.
+
+**Response 200:**
+```json
+{
+  "git_sha": "abc1234",
+  "build_time": "2026-03-29T12:00:00Z",
+  "version": "0.1.0"
 }
 ```
 
@@ -116,6 +133,35 @@ Show workflow detail including its steps.
 **Response 404:**
 ```json
 {"error": "Workflow not found"}
+```
+
+### POST /api/workflows/import
+
+Import a workflow from content, URL, or git source.
+
+**Request body:**
+```json
+{
+  "source": "content",
+  "content": "# TOML workflow content...",
+  "name": "my-workflow"
+}
+```
+
+Source types:
+- `content`: Inline TOML/YAML workflow definition
+- `url`: URL to fetch workflow from
+- `git`: Git repository URL with optional path and ref
+
+**Response 201:**
+```json
+{
+  "data": {
+    "id": 5,
+    "name": "my-workflow",
+    "source_path": "imports/my-workflow.toml"
+  }
+}
 ```
 
 ## Run Endpoints
@@ -245,3 +291,91 @@ Step run fields:
 - `exit_code`: OS process exit code (0 = success)
 - `started_at` / `finished_at`: Execution timestamps
 - `attempt`: Retry attempt number (1 = first attempt)
+
+### GET /api/runs/:id/steps/:step_id
+
+Show detail for a single step run.
+
+**Response 200:**
+```json
+{
+  "data": {
+    "id": 7,
+    "status": "completed",
+    "output": "step output text",
+    "error": null,
+    "exit_code": 0,
+    "started_at": "2026-03-29T12:00:00Z",
+    "finished_at": "2026-03-29T12:00:03Z",
+    "attempt": 1
+  }
+}
+```
+
+**Response 404:**
+```json
+{"error": "Step not found"}
+```
+
+## Bundle Endpoints
+
+### POST /api/bundles/import
+
+Import a workflow bundle from a tar.gz archive. Accepts multipart form upload.
+
+**Request:** `Content-Type: multipart/form-data`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| file | file | yes | tar.gz archive of the bundle directory |
+
+**Response 201:**
+```json
+{
+  "data": {
+    "name": "my-bundle",
+    "workflows_imported": 3,
+    "message": "Bundle imported successfully"
+  }
+}
+```
+
+**Error responses:**
+
+| Status | Body | Cause |
+|--------|------|-------|
+| 400 | `{"error": "Invalid archive format"}` | Not a valid tar.gz |
+| 422 | `{"error": "<details>"}` | Bundle validation failed |
+
+### POST /api/bundles/sync
+
+Trigger re-sync of all bundles from configured sources.
+
+**Response 200:**
+```json
+{
+  "data": {
+    "synced": 5,
+    "message": "Bundle sync complete"
+  }
+}
+```
+
+### POST /api/bundles/webhook
+
+Webhook receiver for automated bundle sync triggers.
+
+**Request body:**
+```json
+{
+  "event": "push",
+  "repository": "org/repo"
+}
+```
+
+**Response 200:**
+```json
+{
+  "status": "accepted"
+}
+```
