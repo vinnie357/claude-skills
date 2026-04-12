@@ -44,7 +44,7 @@ def main [] {
         # Find sources.md for the plugin
         let sources_path = ($plugin_dir | path join "skills" "sources.md")
         let sources_content = if ($sources_path | path exists) {
-            open $sources_path
+            open --raw $sources_path
         } else {
             ""
         }
@@ -59,7 +59,7 @@ def main [] {
 
             $total_skills = $total_skills + 1
 
-            let content = (open $skill_md_path)
+            let content = (open --raw $skill_md_path)
             let all_lines = ($content | lines)
             let line_count = ($all_lines | length)
 
@@ -145,7 +145,7 @@ def main [] {
             let ref_depth_ok = if ($refs_dir | path exists) {
                 let ref_files = (glob ($refs_dir | path join "*.md"))
                 let nested = ($ref_files | where {|f|
-                    let ref_content = (open $f)
+                    let ref_content = (open --raw $f)
                     $ref_content | str contains "references/"
                 })
                 ($nested | length) == 0
