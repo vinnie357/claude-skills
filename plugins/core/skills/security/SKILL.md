@@ -7,7 +7,7 @@ hooks:
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "./hooks/check-secrets-before-commit.sh"
+          command: "${CLAUDE_PLUGIN_ROOT}/skills/security/hooks/check-secrets-before-commit.sh"
           timeout: 120
 ---
 
