@@ -1,6 +1,6 @@
 {
   "name": "runex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Runex workflow engine: API, bundles, step logs, and debugging",
   "author": {
     "name": "vinnie357"
