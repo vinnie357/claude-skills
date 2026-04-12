@@ -1,19 +1,21 @@
 #!/usr/bin/env nu
 
-# Runex bundle discovery and inspection
-# Supports: list, show, validate
+# Runex bundle discovery, inspection, and distribution
+# Supports: list, show, validate, pack, import
 
 def main [
-    command: string   # Subcommand: list, show, validate
+    command: string   # Subcommand: list, show, validate, pack, import
     ...args: string   # Additional arguments passed to the command
 ] {
     match $command {
         "list" => { cmd-list $args }
         "show" => { cmd-show $args }
         "validate" => { cmd-validate $args }
+        "pack" => { cmd-pack $args }
+        "import" => { cmd-import $args }
         _ => {
             print $"(ansi red)Error:(ansi reset) Unknown command '($command)'"
-            print "Available: list, show, validate"
+            print "Available: list, show, validate, pack, import"
             exit 1
         }
     }
@@ -179,4 +181,46 @@ def cmd-validate [args: list<string>] {
     } else {
         print $"\n(ansi green)Valid(ansi reset) with ($warnings) warnings"
     }
+}
+
+# Pack a bundle directory into a tar.gz archive
+def cmd-pack [args: list<string>] {
+    if ($args | is-empty) {
+        print $"(ansi red)Error:(ansi reset) Bundle directory required"
+        print "Usage: bundles.nu pack <bundle-dir> [output-path]"
+        exit 1
+    }
+    let bundle_dir = ($args | first)
+    if not ($bundle_dir | path exists) {
+        print $"(ansi red)Error:(ansi reset) Directory not found: ($bundle_dir)"
+        exit 1
+    }
+    let output = if ($args | length) > 1 {
+        $args | get 1
+    } else {
+        $"($bundle_dir | path basename).tar.gz"
+    }
+    ^tar -czf $output -C ($bundle_dir | path dirname) ($bundle_dir | path basename)
+    print $"(ansi green)Packed:(ansi reset) ($output)"
+}
+
+# Import a tar.gz bundle archive to a Runex host
+def cmd-import [args: list<string>] {
+    if ($args | is-empty) {
+        print $"(ansi red)Error:(ansi reset) Archive path required"
+        print "Usage: bundles.nu import <archive-path> [host-url]"
+        exit 1
+    }
+    let archive = ($args | first)
+    if not ($archive | path exists) {
+        print $"(ansi red)Error:(ansi reset) Archive not found: ($archive)"
+        exit 1
+    }
+    let host = if ($args | length) > 1 {
+        $args | get 1
+    } else {
+        $env.RUNEX_HOST? | default "http://localhost:4001"
+    }
+    let resp = (^curl -s -X POST $"($host)/api/bundles/import" -F $"file=@($archive)" | from json)
+    $resp
 }

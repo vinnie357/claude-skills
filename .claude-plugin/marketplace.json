@@ -32,7 +32,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.1.23",
+      "version": "0.1.24",
       "category": "development",
       "keywords": ["git", "documentation", "code-review", "tools", "beads", "bees", "container", "tdd", "agent-loop"]
     },
@@ -88,7 +88,7 @@
       "source": "./plugins/tools/runex",
       "strict": true,
       "description": "Runex workflow engine: API, bundles, step logs, and debugging",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "tools",
       "keywords": ["runex", "workflow", "orchestration", "elixir", "bundles"],
       "license": "MIT"

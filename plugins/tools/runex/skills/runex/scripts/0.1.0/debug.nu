@@ -150,7 +150,8 @@ def cmd-watch [args: list<string>] {
         }
     }
 
-    print $"(ansi cyan)Watching run ($run_id) (interval: ($interval)s)...(ansi reset)"
+    let interval_msg = $"(char lparen)interval: ($interval)s(char rparen)"
+    print $"(ansi cyan)Watching run ($run_id) ($interval_msg)...(ansi reset)"
 
     mut done = false
     while not $done {

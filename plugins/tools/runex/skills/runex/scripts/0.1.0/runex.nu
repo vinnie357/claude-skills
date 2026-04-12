@@ -1,13 +1,14 @@
 #!/usr/bin/env nu
 
 # Runex API client
-# Supports: health, runs, run, submit, steps, workflows, workflow
+# Supports: info, health, runs, run, submit, steps, workflows, workflow
 
 def main [
-    command: string   # Subcommand: health, runs, run, submit, steps, workflows, workflow
+    command: string   # Subcommand: info, health, runs, run, submit, steps, workflows, workflow
     ...args: string   # Additional arguments passed to the command
 ] {
     match $command {
+        "info" => { cmd-info }
         "health" => { cmd-health }
         "runs" => { cmd-runs }
         "run" => { cmd-run $args }
@@ -17,7 +18,7 @@ def main [
         "workflow" => { cmd-workflow $args }
         _ => {
             print $"(ansi red)Error:(ansi reset) Unknown command '($command)'"
-            print "Available: health, runs, run, submit, steps, workflows, workflow"
+            print "Available: info, health, runs, run, submit, steps, workflows, workflow"
             exit 1
         }
     }
@@ -68,6 +69,12 @@ def api-post [path: string, body: record] {
     }
 }
 
+# GET /api/info — server build info
+def cmd-info [] {
+    let resp = (api-get "/api/info")
+    $resp
+}
+
 # GET /api/health — liveness probe
 def cmd-health [] {
     let resp = (api-get "/api/health")
@@ -96,20 +103,20 @@ def cmd-run [args: list<string>] {
 def cmd-submit [args: list<string>] {
     if ($args | is-empty) {
         print $"(ansi red)Error:(ansi reset) Workflow path required"
-        print "Usage: runex.nu submit <workflow_path> [--params '{\"K\":\"V\"}']"
+        print "Usage: runex.nu submit <workflow_path> [params_json]"
         exit 1
     }
     let workflow_path = ($args | first)
-    let params_match = ($args | enumerate | where { |it| $it.item == "--params" })
-    let params = if ($params_match | is-empty) {
-        {}
-    } else {
-        let params_idx = ($params_match | first | get index)
-        if ($args | length) > ($params_idx + 1) {
-            $args | get ($params_idx + 1) | from json
-        } else {
-            {}
+    let params = if ($args | length) > 1 {
+        try {
+            $args | get 1 | from json
+        } catch {
+            print $"(ansi red)Error:(ansi reset) Invalid JSON in params argument"
+            print "Params must be a valid JSON object, e.g. '{\"KEY\":\"val\"}'"
+            exit 1
         }
+    } else {
+        {}
     }
     let body = {workflow_path: $workflow_path, params: $params}
     let resp = (api-post "/api/runs" $body)

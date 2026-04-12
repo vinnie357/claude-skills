@@ -27,6 +27,9 @@ This skill provides versioned Nushell scripts for direct API interaction. Script
 Main Runex API client. All commands return structured data (tables/records).
 
 ```bash
+# Server info (git_sha, build_time, version)
+nu scripts/0.1.0/runex.nu info
+
 # Health check
 nu scripts/0.1.0/runex.nu health
 
@@ -39,8 +42,8 @@ nu scripts/0.1.0/runex.nu run 42
 # Submit a workflow
 nu scripts/0.1.0/runex.nu submit "bundles/core/workflows/tool-verify.toml"
 
-# Submit with params
-nu scripts/0.1.0/runex.nu submit "bundles/core/workflows/tool-verify.toml" --params '{"TOOLS":"mise,nu,git"}'
+# Submit with params (positional JSON argument)
+nu scripts/0.1.0/runex.nu submit "bundles/core/workflows/tool-verify.toml" '{"TOOLS":"mise,nu,git"}'
 
 # List step runs for a run
 nu scripts/0.1.0/runex.nu steps 42
@@ -68,6 +71,18 @@ nu scripts/0.1.0/bundles.nu show bundles/core
 
 # Validate bundle structure
 nu scripts/0.1.0/bundles.nu validate bundles/core
+
+# Pack a bundle into a tar.gz archive
+nu scripts/0.1.0/bundles.nu pack bundles/core
+
+# Pack with custom output path
+nu scripts/0.1.0/bundles.nu pack bundles/core core-bundle.tar.gz
+
+# Import a packed bundle to a Runex host
+nu scripts/0.1.0/bundles.nu import core.tar.gz
+
+# Import to a specific host
+nu scripts/0.1.0/bundles.nu import core.tar.gz http://runex.example.com:4001
 ```
 
 ### debug.nu — Step Log Inspection
