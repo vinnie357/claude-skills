@@ -68,7 +68,7 @@
       "source": "./plugins/tools/linear",
       "strict": true,
       "description": "Linear project management: MCP/GraphQL API, VantageEx epic authoring, auditing, and grooming",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "tools",
       "keywords": ["linear", "project-management", "epics", "graphql", "vantageex", "mcp"],
       "license": "MIT"

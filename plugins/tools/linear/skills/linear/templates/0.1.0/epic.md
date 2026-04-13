@@ -52,7 +52,7 @@ constraints:
 
 ```yaml
 team:
-  lead: sonnet
+  lead: opus
   default_model: haiku
   escalation: haiku -> sonnet -> opus
 ```

@@ -68,6 +68,7 @@ VantageEx requires custom workflow states in Linear that do not exist by default
 
 - **Up Next** (type: `unstarted`) — the user-approval gate
 - **Needs Help** (type: `started`) — failure escalation
+- **In Review** (type: `started`) — PR submitted, waiting for human merge
 
 Create these in Linear: Settings > Teams > [Team] > Workflow > Add State.
 

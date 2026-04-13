@@ -1,6 +1,6 @@
 {
   "name": "linear",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Linear project management: MCP/GraphQL API, VantageEx epic authoring, auditing, and grooming",
   "author": {
     "name": "vinnie357"
