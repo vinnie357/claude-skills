@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.6"
+    "version": "1.0.7"
   },
   "plugins": [
     {
@@ -26,6 +26,16 @@
       "version": "0.1.0",
       "category": "tools",
       "keywords": ["allium", "agent-loop", "tdd", "behavioral-spec"],
+      "license": "MIT"
+    },
+    {
+      "name": "allium-db",
+      "source": "./plugins/tools/allium-db",
+      "strict": true,
+      "description": "Allium behavioral spec store — query specs at propagate/weed time via Dolt-backed database",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["allium", "spec", "dolt", "tdd", "behavioral-spec"],
       "license": "MIT"
     },
     {

@@ -1,0 +1,14 @@
+{
+  "name": "allium-db",
+  "version": "0.1.0",
+  "description": "Allium behavioral spec store: query specs at propagate/weed time via Dolt-backed database",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["allium", "spec", "dolt", "tdd", "behavioral-spec"],
+  "skills": [
+    "./skills/allium-db"
+  ]
+}
