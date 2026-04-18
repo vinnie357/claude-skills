@@ -2,12 +2,6 @@
 name: claude-statusline
 description: Guide for creating and configuring the Claude Code status line. Use when building a custom status bar, configuring statusLine in settings.json, scripting token/model/git readouts, or debugging status-line output.
 license: MIT
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
 ---
 
 # Claude Code Status Line
