@@ -27,7 +27,7 @@ The CLI (`allium-tools` binary) installs via mise — see `references/installati
 
 ## Spec Location Convention
 
-All Allium specs for this repo live at `docs/specs/<epic-slug>.allium`. Shared specs go in `docs/specs/shared/`. The repo-root `allium.config.json` declares `specPaths: ["docs/specs"]`.
+Recommended convention for projects adopting this skill: specs live at `docs/specs/<epic-slug>.allium` with shared specs in `docs/specs/shared/`. A project-root `allium.config.json` declares `specPaths: ["docs/specs"]` so the CLI and LSP resolve them. Copy `templates/allium.config.json` into the project root to bootstrap this layout.
 
 ## Integration Points by Tier
 

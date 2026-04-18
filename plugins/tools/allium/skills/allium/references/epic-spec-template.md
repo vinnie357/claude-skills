@@ -95,11 +95,12 @@ rule ProtectedEndpoint {
 }
 ```
 
-Shared specs live in `docs/specs/shared/`. The `allium.config.json` at the repo root declares `specPaths: ["docs/specs"]`, so imports resolve correctly.
+Shared specs live in `docs/specs/shared/`. A project-root `allium.config.json` declares `specPaths: ["docs/specs"]`, so imports resolve correctly. The skill ships a starter at `templates/allium.config.json` — copy it into the project root on first adoption.
 
 ## Checklist for a New Epic with a Spec
 
-- [ ] Copy the closest template to `docs/specs/<epic-slug>.allium`
+- [ ] First time in this project: copy `templates/allium.config.json` to the project root and create `docs/specs/`
+- [ ] Copy the closest spec template to `docs/specs/<epic-slug>.allium`
 - [ ] Edit entity fields, transitions, and rule names for the epic
 - [ ] Add `spec: ./docs/specs/<epic-slug>.allium` to the epic markdown
 - [ ] Commit the spec on the feature branch before spawning the team
