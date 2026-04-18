@@ -190,8 +190,9 @@ Main instructional content goes here...
 #### Optional YAML Properties
 
 - `license`: License name or filename reference
-- `allowed-tools`: Pre-approved tools list (Claude Code support only)
 - `metadata`: Key-value string pairs for client-specific properties
+
+**Do not use `allowed-tools` in skill frontmatter.** It is enforced by `test/validate-plugin.nu` and the skill-quality scorecard. Skills keep frontmatter minimal (`name`, `description`, optional `license`) — tool gating belongs on the invoking agent or slash command, not on the skill.
 
 #### Markdown Body
 

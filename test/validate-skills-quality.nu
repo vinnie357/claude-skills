@@ -172,13 +172,19 @@ def main [] {
             }
             if $source_ok { $score = $score + 1 }
 
+            # 12. No 'allowed-tools' in frontmatter
+            let has_allowed_tools = ($fm_lines | any {|line| ($line | str trim) | str starts-with "allowed-tools:"})
+            let no_allowed_tools = not $has_allowed_tools
+            if $no_allowed_tools { $score = $score + 1 }
+
             let desc_result = if $desc_ok { "Pass" } else { "FAIL" }
             let use_when_result = if $use_when_ok { "Pass" } else { "FAIL" }
             let lines_str = $"($line_count)/500"
             let lines_result = if $lines_ok { "Pass" } else { "FAIL" }
             let examples_result = if $has_examples { "Pass" } else { "FAIL" }
             let anti_fab_result = if $anti_fab_ok { "Pass" } else { "FAIL" }
-            let score_str = $"($score)/11"
+            let allowed_tools_result = if $no_allowed_tools { "Pass" } else { "FAIL" }
+            let score_str = $"($score)/12"
 
             $results = ($results | append {
                 skill: $name
@@ -189,10 +195,11 @@ def main [] {
                 lines_ok: $lines_result
                 examples: $examples_result
                 anti_fab: $anti_fab_result
+                no_allowed_tools: $allowed_tools_result
                 score: $score_str
             })
 
-            if $score == 11 {
+            if $score == 12 {
                 $total_pass = $total_pass + 1
             }
         }
@@ -208,7 +215,7 @@ def main [] {
 
     print ""
     print $"Total skills: ($total_skills)"
-    print $"Perfect score 11/11: ($total_pass)/($total_skills)"
+    print $"Perfect score 12/12: ($total_pass)/($total_skills)"
 
     # Check for critical failures (name or description issues)
     let failures = ($results | where desc == "FAIL" or use_when == "FAIL")
@@ -216,6 +223,16 @@ def main [] {
         print ""
         print "Skills with description issues:"
         print ($failures | select skill plugin desc use_when | table --expand)
+    }
+
+    # Hard fail on allowed-tools: the validator errors on it too, but surface here
+    let allowed_tools_failures = ($results | where no_allowed_tools == "FAIL")
+    if ($allowed_tools_failures | is-not-empty) {
+        print ""
+        print "Skills with forbidden 'allowed-tools' in frontmatter:"
+        print ($allowed_tools_failures | select skill plugin | table --expand)
+        print "Skill quality validation complete!"
+        exit 1
     }
 
     print ""
