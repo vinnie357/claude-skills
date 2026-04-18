@@ -1,0 +1,9 @@
+{
+  "specPaths": ["docs/specs"],
+  "formatter": {
+    "indentSize": 4
+  },
+  "drift": {
+    "failOnDivergence": true
+  }
+}

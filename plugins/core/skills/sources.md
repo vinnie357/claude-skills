@@ -273,6 +273,12 @@ This file documents the sources used to create the core plugin skills.
 - **URL**: https://martinfowler.com/bliki/TestDrivenDevelopment.html
 - **Purpose**: Accessible overview of TDD practice and its relationship to software design
 
+## Agent Loop — Allium Integration
+
+- **URL**: https://github.com/juxt/allium
+- **Purpose**: Source for optional spec-driven flows integrated into /core:agent-loop (team-leader, agent-worker, validator, epic-authoring edits)
+- **Date Accessed**: 2026-04-17
+
 ## Plugin Information
 
 - **Name**: core

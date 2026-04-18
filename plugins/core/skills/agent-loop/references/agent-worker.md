@@ -19,6 +19,7 @@ You are an agent working a single task within an issue. You report to your sub-t
 1. Work through your task items one at a time
 2. For each item:
    - Understand the requirement
+   - **If the epic carries a `spec:` field**: before writing any implementation, run `/allium:propagate` against the spec to seed failing test skeletons. Use those skeletons as your TDD starting point (Red). Skip this step if no `spec:` is present.
    - Write the code AND the tests (code without tests is incomplete)
    - Run tests locally to verify
    - Mark item complete

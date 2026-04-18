@@ -56,9 +56,19 @@ cargo fmt -- --check
 mise run ci  # if available -- overrides per-language suites
 ```
 
+## Phase 2b: Spec Divergence Check (optional)
+
+Run only when the epic carries a `spec:` field. After the full validation suite passes:
+
+```sh
+allium weed --spec <path-from-spec-field>
+```
+
+Collect any divergences reported by `weed`. Treat each divergence as a validation failure — route to the Fix Agent the same way CI failures are routed. If `allium` is not installed or the `spec:` field is absent, skip this step entirely.
+
 ## Phase 3: Report Failures
 
-1. Collect ALL failures from the full suite run
+1. Collect ALL failures from the full suite run (CI failures and, if applicable, spec divergences)
 2. Report failures in structured format:
    - file, line, error type, error message
    - severity: error vs warning-as-error

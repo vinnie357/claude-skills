@@ -1,0 +1,55 @@
+// Circuit Breaker spec
+// Adapted from juxt/allium upstream README example (https://github.com/juxt/allium)
+// Accessed: 2026-04-17
+// Demonstrates infrastructure contract modeling with entity + config + rule
+
+config CircuitBreakerSettings {
+    failure_threshold: 5
+    recovery_timeout_ms: 30000
+    half_open_max_calls: 3
+}
+
+entity CircuitBreaker {
+    status: closed | open | half_open
+    failure_count: Int
+    last_failure_at: Timestamp?
+
+    transitions status {
+        closed -> open
+        open -> half_open
+        half_open -> closed
+        half_open -> open
+        terminal: none
+    }
+
+    invariant FailureCountNonNegative { this.failure_count >= 0 }
+    invariant OpenHasFailureTime { this.last_failure_at != null when this.status = open }
+}
+
+rule RecordFailure {
+    when: CallFails(breaker)
+    requires: breaker.status = closed
+    ensures:
+        breaker.failure_count = breaker.failure_count + 1
+        breaker.last_failure_at = now
+        breaker.status = open when breaker.failure_count >= CircuitBreakerSettings.failure_threshold
+}
+
+rule AttemptRecovery {
+    when: RecoveryTimeout(breaker)
+    requires:
+        breaker.status = open
+        now - breaker.last_failure_at >= CircuitBreakerSettings.recovery_timeout_ms
+    ensures:
+        breaker.status = half_open
+        breaker.failure_count = 0
+}
+
+rule ConfirmRecovery {
+    when: CallSucceeds(breaker)
+    requires: breaker.status = half_open
+    ensures:
+        breaker.status = closed
+        breaker.failure_count = 0
+        breaker.last_failure_at = null
+}

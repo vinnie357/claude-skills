@@ -1,0 +1,50 @@
+// OAuth2 PKCE Flow spec
+// Matches the agent-loop epic-authoring example from references/epic-authoring.md
+// Use with: /allium:propagate to seed TDD tests before implementation
+
+entity AuthSession {
+    status: initiated | challenged | authorized | expired | revoked
+
+    transitions status {
+        initiated -> challenged
+        challenged -> authorized
+        authorized -> expired
+        initiated -> expired
+        challenged -> expired
+        authorized -> revoked
+        terminal: expired, revoked
+    }
+
+    invariant HasCodeVerifier { this.code_verifier != null when this.status = challenged }
+    invariant AuthorizedHasToken { this.access_token != null when this.status = authorized }
+}
+
+rule InitiatePKCE {
+    when: UserInitiatesLogin(session, redirect_uri)
+    requires:
+        session.status = initiated
+        redirect_uri matches registered_uris
+    ensures:
+        session.status = challenged
+        session.code_challenge != null
+        session.code_challenge_method = "S256"
+}
+
+rule ExchangeCode {
+    when: ClientExchangesCode(session, code, code_verifier)
+    requires:
+        session.status = challenged
+        sha256(code_verifier) = session.code_challenge
+    ensures:
+        session.status = authorized
+        session.access_token != null
+        session.expires_at > now
+}
+
+rule RevokeSession {
+    when: UserRevokes(session)
+    requires: session.status = authorized
+    ensures:
+        session.status = revoked
+        session.access_token = null
+}
