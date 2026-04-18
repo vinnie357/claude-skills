@@ -29,6 +29,16 @@
       "license": "MIT"
     },
     {
+      "name": "allium-db",
+      "source": "./plugins/tools/allium-db",
+      "strict": true,
+      "description": "Allium behavioral spec store — query specs at propagate/weed time via Dolt-backed database",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["allium", "spec", "dolt", "tdd", "behavioral-spec"],
+      "license": "MIT"
+    },
+    {
       "name": "claude-code",
       "source": "./plugins/tools/claude-code",
       "strict": true,
