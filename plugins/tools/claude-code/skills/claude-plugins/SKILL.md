@@ -2,12 +2,6 @@
 name: claude-plugins
 description: Guide for creating and validating Claude Code plugin.json files. Use when creating plugins, validating plugin schemas, or troubleshooting plugin configuration.
 license: MIT
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
 ---
 
 # Claude Code Plugin

@@ -2,12 +2,6 @@
 name: plugin-marketplace
 description: Guide for creating and managing Claude Code plugin marketplaces. Use when setting up a marketplace, validating marketplace.json, or distributing plugins.
 license: MIT
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
 ---
 
 # Claude Code Plugin Marketplace

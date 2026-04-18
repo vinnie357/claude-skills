@@ -2,12 +2,6 @@
 name: claude-hooks
 description: Guide for creating event-driven hooks for Claude Code. Use when automating responses to tool calls, lifecycle events, or implementing custom validations.
 license: MIT
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
 ---
 
 # Claude Code Hooks
