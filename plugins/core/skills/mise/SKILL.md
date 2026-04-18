@@ -54,14 +54,14 @@ mise uses different backends (package managers) to install tools. Understanding 
 #### Available Backends
 
 - **asdf** - Traditional asdf plugins (default for many tools)
-- **ubi** - Universal Binary Installer (GitHub/GitLab releases)
+- **github** - GitHub release-asset installer (replaces deprecated ubi backend)
 - **cargo** - Rust packages (requires Rust installed)
 - **npm** - Node.js packages (requires Node installed)
 - **go** - Go packages (requires Go installed)
 - **aqua** - Package manager
 - **pipx** - Python packages (requires Python installed)
 - **gem** - Ruby packages (requires Ruby installed)
-- **github/gitlab** - Direct from repositories
+- **gitlab** - Direct from GitLab repositories
 - **http** - Direct HTTP downloads
 
 #### Verifying Tool Names
@@ -74,11 +74,69 @@ mise ls-remote node
 
 # Check tool with specific backend
 mise ls-remote cargo:ripgrep
-mise ls-remote ubi:sharkdp/fd
+mise ls-remote github:sharkdp/fd
 
 # Search the registry
 mise registry | grep <tool-name>
 ```
+
+### Discovering Available Tools with ls-remote
+
+`mise ls-remote <backend>:<target>` returns all available versions for any backend. Run this BEFORE pinning a version in mise.toml to confirm the backend can actually see the tool.
+
+```bash
+# github backend — lists release tags from GitHub
+$ mise ls-remote github:sharkdp/fd | head -5
+7.0.0
+7.1.0
+7.2.0
+7.3.0
+7.4.0
+
+# github backend — another tool
+$ mise ls-remote github:goreleaser/goreleaser | head -5
+2.8.1
+2.8.2
+2.9.0
+2.10.0
+2.10.1
+
+# cargo backend — lists versions from crates.io
+$ mise ls-remote cargo:ripgrep | head -5
+0.1.0
+0.1.1
+0.1.2
+0.1.3
+0.1.4
+
+# npm backend — lists versions from the npm registry
+$ mise ls-remote npm:typescript | head -5
+0.8.0
+0.8.1-1
+0.8.1
+0.8.2
+0.8.3
+```
+
+**Failure mode — the tool lives in a different repo than you expect.** Sometimes the CLI binary is released from a different repository than the documentation or project homepage. Example:
+
+```bash
+# Returns no versions — wrong repo
+$ mise ls-remote github:juxt/allium | head -5
+(no output)
+
+# Returns versions — correct repo for the CLI releases
+$ mise ls-remote github:juxt/allium-tools | head -5
+0.1.0
+0.1.1
+0.1.2
+0.1.3
+0.1.5
+```
+
+If `ls-remote` returns nothing, check whether the project publishes releases to a separate repository (e.g., a `-tools`, `-cli`, or `-releases` repo).
+
+Don't pin a version you haven't verified ls-remote can see.
 
 ### Installing Tools
 
@@ -93,7 +151,7 @@ mise install ruby@3.3
 
 # Install with specific backend
 mise install cargo:ripgrep        # From Rust crates
-mise install ubi:sharkdp/fd       # From GitHub releases
+mise install github:sharkdp/fd    # From GitHub releases
 mise install npm:typescript       # From npm
 
 # Install latest version
@@ -128,7 +186,7 @@ mise use node@latest          # Saves as "latest"
 
 # Add with specific backend
 mise use cargo:ripgrep@latest
-mise use ubi:sharkdp/fd
+mise use github:sharkdp/fd
 ```
 
 #### Configuration File Selection
@@ -205,64 +263,65 @@ go = "1.21"
 terraform = "latest"
 
 # Backends - use quotes for namespaced tools
-"cargo:ripgrep" = "latest"        # Requires rust installed
-"ubi:sharkdp/fd" = "latest"       # GitHub releases
-"npm:typescript" = "latest"       # Requires node installed
+"cargo:ripgrep" = "latest"           # Requires rust installed
+"github:sharkdp/fd" = "latest"       # GitHub releases
+"npm:typescript" = "latest"          # Requires node installed
 "github:nushell/nushell" = "latest"  # Nushell (structured shell)
 
 # Version from file
 node = { version = "lts", resolve = "latest-lts" }
 ```
 
-### UBI Backend (Universal Binary Installer)
+### GitHub Backend
 
-The **ubi** backend installs tools directly from GitHub/GitLab releases without requiring plugins. It's built into mise and works cross-platform including Windows.
+The **github** backend installs tools directly from GitHub release assets without requiring plugins. It is built into mise, works cross-platform including Windows, and adds provenance verification and download progress over the older ubi backend.
 
-#### Basic UBI Usage
+Note: The `ubi:` prefix is deprecated (per upstream mise docs); migrate any existing `ubi:owner/repo` entries to `github:owner/repo`.
+
+#### Basic GitHub Backend Usage
 
 ```bash
 # Install from GitHub releases
-mise use -g ubi:goreleaser/goreleaser
-mise use -g ubi:sharkdp/fd
-mise use -g ubi:BurntSushi/ripgrep
+mise use -g github:goreleaser/goreleaser
+mise use -g github:sharkdp/fd
+mise use -g github:BurntSushi/ripgrep
 
 # Specific version
-mise use -g ubi:goreleaser/goreleaser@1.25.1
+mise use -g github:goreleaser/goreleaser@2.10.0
 
 # In .mise.toml
 [tools]
-"ubi:goreleaser/goreleaser" = "latest"
-"ubi:sharkdp/fd" = "2.0.0"
+"github:goreleaser/goreleaser" = "latest"
+"github:sharkdp/fd" = "10.0.0"
 ```
 
-#### UBI Advanced Options
+#### GitHub Backend Advanced Options
 
-Configure tool-specific options when binary names differ or filtering is needed:
+Configure tool-specific options when binary names differ or asset filtering is needed:
 
 ```toml
 [tools]
 # When executable name differs from repo name
-"ubi:BurntSushi/ripgrep" = { version = "latest", exe = "rg" }
+"github:BurntSushi/ripgrep" = { version = "latest", exe = "rg" }
 
-# Filter releases with matching pattern
-"ubi:some/tool" = { version = "latest", matching = "linux-gnu" }
+# Filter release assets with a glob pattern
+"github:some/tool" = { version = "latest", asset_pattern = "*-linux-gnu*" }
 
-# Use regex for complex filtering
-"ubi:some/tool" = { version = "latest", matching_regex = ".*-linux-.*\\.tar\\.gz$" }
+# Asset pattern with exact architecture
+"github:some/tool" = { version = "latest", asset_pattern = "*_darwin_arm64.tar.gz" }
 
 # Extract entire tarball
-"ubi:some/tool" = { version = "latest", extract_all = true }
+"github:some/tool" = { version = "latest", extract_all = true }
 
 # Rename extracted executable
-"ubi:some/tool" = { version = "latest", rename_exe = "my-tool" }
+"github:some/tool" = { version = "latest", rename_exe = "my-tool" }
 ```
 
-#### UBI Supported Syntax
+#### GitHub Backend Supported Syntax
 
-Three installation formats:
-- **GitHub shorthand (latest)**: `ubi:owner/repo`
-- **GitHub shorthand (version)**: `ubi:owner/repo@1.2.3`
-- **Direct URL**: `ubi:https://github.com/owner/repo/releases/download/v1.2.3/...`
+Two installation formats:
+- **GitHub shorthand (latest)**: `github:owner/repo`
+- **GitHub shorthand (version)**: `github:owner/repo@1.2.3`
 
 ## Templates
 
