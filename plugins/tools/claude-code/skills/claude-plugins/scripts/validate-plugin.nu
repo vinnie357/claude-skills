@@ -478,9 +478,9 @@ def validate-skill-md [skill_md_path: string, skill_name: string, verbose: bool]
   }
 
   # Reject 'allowed-tools' — skills keep frontmatter minimal (name, description, optional license).
-  # Tool gating belongs on agents/commands, not skills.
+  # Tool filtering applies to agents (via the agent's `tools:` frontmatter field), not skills.
   if ($frontmatter | get -o allowed-tools) != null {
-    $errors = ($errors | append $"SKILL.md must not set 'allowed-tools': ($skill_name) — skills use name/description/license only; move tool gating to the invoking agent or command")
+    $errors = ($errors | append $"SKILL.md must not set 'allowed-tools': ($skill_name) — skills use name/description/license only. Declare tool allowlists on the invoking agent's `tools:` field instead.")
   }
 
   { errors: $errors, warnings: $warnings }

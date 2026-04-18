@@ -192,7 +192,7 @@ Main instructional content goes here...
 - `license`: License name or filename reference
 - `metadata`: Key-value string pairs for client-specific properties
 
-**Do not use `allowed-tools` in skill frontmatter.** It is enforced by `test/validate-plugin.nu` and the skill-quality scorecard. Skills keep frontmatter minimal (`name`, `description`, optional `license`) — tool gating belongs on the invoking agent or slash command, not on the skill.
+**Do not use `allowed-tools` in skill frontmatter.** Enforced by `test/validate-plugin.nu` and the skill-quality scorecard. Skills keep frontmatter minimal (`name`, `description`, optional `license`). Tool filtering applies to **agents** — declare the allowlist via the agent's `tools:` frontmatter field (see `/claude-code:claude-agents`), not on the skill the agent loads.
 
 #### Markdown Body
 
