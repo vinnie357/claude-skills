@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.28",
+      "version": "0.3.29",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -33,9 +33,9 @@
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills: plugin marketplace management and validation",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "category": "tools",
-      "keywords": ["claude-code", "marketplace", "validation", "teams", "benchmark", "skill-update"]
+      "keywords": ["claude-code", "marketplace", "validation", "teams", "benchmark", "skill-update", "output-styles"]
     },
     {
       "name": "core",

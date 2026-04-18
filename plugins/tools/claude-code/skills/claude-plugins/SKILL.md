@@ -79,6 +79,9 @@ All plugin manifests must be located at `.claude-plugin/plugin.json` within the 
 - `hooks`: String path to hooks.json or hooks configuration object
 - `mcpServers`: String path to MCP config or configuration object
 
+**Convention-Based Directories** (no `plugin.json` field required):
+- `output-styles/`: Markdown output style files discovered when plugin is installed (see `claude-output-styles` skill)
+
 ## Field Validation Rules
 
 ### name
@@ -192,7 +195,8 @@ plugin-name/
 │   ├── skill-one/
 │   └── skill-two/
 ├── commands/
-└── agents/
+├── agents/
+└── output-styles/
 ```
 
 **In plugin.json:**

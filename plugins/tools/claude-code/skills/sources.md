@@ -109,6 +109,19 @@ This file documents the sources used to create the claude-code plugin skills.
   - Variable substitution
 - **Used In**: skills/claude-hooks/SKILL.md
 
+### Claude Code Output Styles Documentation
+- **URL**: https://code.claude.com/docs/en/output-styles
+- **Purpose**: Adapting Claude Code's system prompt for non-engineering roles and response formats
+- **Date Accessed**: 2026-04-17
+- **Key Topics**:
+  - Built-in styles (Default, Explanatory, Learning)
+  - Custom style frontmatter (`name`, `description`, `keep-coding-instructions`)
+  - File locations: `~/.claude/output-styles/`, `.claude/output-styles/`, plugin `output-styles/`
+  - Session-start scoping (takes effect next session for cache stability)
+  - Comparison with CLAUDE.md, `--append-system-prompt`, agents, and skills
+  - Subagents do not inherit session output style — contracts must be explicit
+- **Used In**: skills/claude-output-styles/SKILL.md, skills/claude-plugins/SKILL.md
+
 ## Plugin Marketplace Skill
 
 ### Claude Code Plugin Marketplace Schema
