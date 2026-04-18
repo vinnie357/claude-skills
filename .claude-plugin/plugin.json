@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.3.29",
+  "version": "0.3.30",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -29,6 +29,7 @@
     "./plugins/tools/claude-code/skills/claude-output-styles",
     "./plugins/tools/claude-code/skills/claude-skills-benchmark",
     "./plugins/tools/claude-code/skills/skill-update",
+    "./plugins/tools/claude-code/skills/claude-statusline",
     "./plugins/core/skills/git",
     "./plugins/core/skills/mise",
     "./plugins/core/skills/nushell",

@@ -239,6 +239,24 @@ This file documents the sources used to create the claude-code plugin skills.
 - **Key Findings**: 13 operations across team lifecycle, coordination, and shutdown categories
 - **Used In**: skills/claude-teams/references/agent-teams.md
 
+## Claude Statusline Skill
+
+### Claude Code Status Line Documentation
+- **URL**: https://code.claude.com/docs/en/statusline
+- **Purpose**: Specification for the `statusLine` setting, stdin JSON payload, output rendering, and update cadence
+- **Date Accessed**: 2026-04-18
+- **Key Topics**:
+  - `statusLine` block in `settings.json` (`type`, `command`, `padding`, `refreshInterval`)
+  - Stdin JSON schema: `model`, `workspace`, `context_window`, `cost`, `rate_limits`, `worktree`, `vim`, `agent`
+  - `context_window.used_percentage` formula (input + cache_creation + cache_read) / window_size — excludes output tokens
+  - Update cadence: event-driven (assistant message, permission-mode, vim-toggle) + 300ms debounce + in-flight cancellation
+  - Output rules: stdout rendered verbatim, ANSI colors, OSC 8 hyperlinks, multi-line support
+  - `subagentStatusLine` NDJSON output for subagent panel
+  - Caching guidance: key on `session_id` (stable), not `$$` (volatile)
+  - `/statusline <description>` built-in slash command
+  - Trust gate + `disableAllHooks` shared with hooks
+- **Used In**: skills/claude-statusline/SKILL.md, skills/claude-statusline/references/input-schema.md
+
 ## Project Context
 
 ### Overall Goals
