@@ -1,0 +1,77 @@
+// Runex Workflow Step spec
+// Models a Runex workflow execution in terms of observable state transitions
+// Use with: /allium:propagate before implementing workflow TOML bundles
+
+config RunexSettings {
+    max_retries: 3
+    step_timeout_ms: 300000
+}
+
+entity WorkflowRun {
+    status: pending | running | succeeded | failed | timed_out
+
+    transitions status {
+        pending -> running
+        running -> succeeded
+        running -> failed
+        running -> timed_out
+        terminal: succeeded, failed, timed_out
+    }
+
+    invariant HasStartTimeWhenRunning { this.started_at != null when this.status = running }
+    invariant TerminalHasEndTime { this.ended_at != null when this.status in {succeeded, failed, timed_out} }
+}
+
+entity WorkflowStep {
+    status: pending | running | succeeded | failed | skipped
+    attempt: Int
+
+    transitions status {
+        pending -> running
+        running -> succeeded
+        running -> failed
+        failed -> running
+        pending -> skipped
+        terminal: succeeded, skipped
+    }
+
+    invariant AttemptWithinLimit { this.attempt <= RunexSettings.max_retries }
+}
+
+rule StartWorkflow {
+    when: WorkflowSubmitted(run, params)
+    requires: run.status = pending
+    ensures:
+        run.status = running
+        run.started_at = now
+}
+
+rule CompleteStep {
+    when: StepExits(step, exit_code)
+    requires:
+        step.status = running
+        exit_code = 0
+    ensures:
+        step.status = succeeded
+}
+
+rule RetryStep {
+    when: StepExits(step, exit_code)
+    requires:
+        step.status = running
+        exit_code != 0
+        step.attempt < RunexSettings.max_retries
+    ensures:
+        step.status = failed
+        step.attempt = step.attempt + 1
+}
+
+rule TimeoutWorkflow {
+    when: StepDurationExceeds(step, run)
+    requires:
+        step.status = running
+        now - run.started_at >= RunexSettings.step_timeout_ms
+    ensures:
+        run.status = timed_out
+        run.ended_at = now
+}

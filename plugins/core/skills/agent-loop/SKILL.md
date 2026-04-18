@@ -169,6 +169,16 @@ Fix Agent      -> Read references/fix-agent.md
 Epic Author    -> Read references/epic-authoring.md
 ```
 
+## Spec-Driven Epics (optional)
+
+Epics may include a `spec:` field pointing to a `.allium` behavioral spec file (e.g., `spec: docs/specs/<epic-slug>.allium`). When present:
+
+- The team leader checks for the spec in Phase 1 and may invoke `/allium:distill` on refactor epics lacking a spec.
+- Agent workers invoke `/allium:propagate` to seed failing test skeletons before implementation.
+- The validator invokes `/allium:weed` after CI passes to flag spec/code divergence.
+
+Epics WITHOUT a `spec:` field behave exactly as today — all spec-driven steps are no-ops. Requires the upstream allium plugin: `/plugin install allium@juxt`. See `/allium:allium` for full integration details.
+
 ## References
 
 - `references/team-leader.md` -- Epic decomposition, team formation, orchestration

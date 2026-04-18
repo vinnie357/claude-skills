@@ -69,6 +69,34 @@ constraints:
 
 ## Optional Fields
 
+### Spec (Behavioral Specification)
+
+Attach a formal Allium spec to anchor acceptance criteria across all agent tiers:
+
+```yaml
+spec: docs/specs/oauth-pkce-flow.allium
+```
+
+The value is a path string relative to the repo root. Convention: `docs/specs/<epic-slug>.allium`. All specs live in one flat directory (`docs/specs/`); shared specs go in `docs/specs/shared/` and are imported with `use "./shared/<name>.allium"`.
+
+When present, the team leader uses the spec as the authoritative acceptance criteria instead of prose. Workers run `/allium:propagate` to seed TDD skeletons; the validator runs `/allium:weed` after CI to catch spec/code divergence. Epics without `spec:` are unaffected. See `/allium:allium` for setup.
+
+Example epic with spec attached:
+
+```yaml
+title: Implement OAuth2 PKCE flow for API gateway
+objective: |
+  Users can authenticate via Google/GitHub OAuth2 with PKCE.
+  Tokens refresh automatically. All auth endpoints pass OWASP top-10 checks.
+skills: [elixir, oauth, security, tdd]
+spec: docs/specs/oauth-pkce-flow.allium
+constraints:
+  - All code must pass `mise run ci`
+  - No attribution in commits
+  - Feature branch per epic: feature/oauth-pkce-flow
+  - Squash merge only
+```
+
 ### Team Shape
 
 ```yaml

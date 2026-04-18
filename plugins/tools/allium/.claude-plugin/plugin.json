@@ -1,0 +1,12 @@
+{
+  "name": "allium",
+  "version": "0.1.0",
+  "description": "Opinionated Allium integration for /core:agent-loop: attach behavioral specs to epics, propagate TDD tests, weed-check semantic divergence post-CI.",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["allium", "agent-loop", "tdd", "behavioral-spec", "epic"],
+  "skills": ["./skills/allium"]
+}

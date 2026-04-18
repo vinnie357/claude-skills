@@ -16,7 +16,8 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
    /core:security, /core:mise, /core:nushell
    ```
 2. Create a bees epic that mirrors the upstream epic (same title, objective, slug)
-3. Decompose the epic into bees issues:
+3. **If the epic carries a `spec:` field** (e.g., `spec: docs/specs/<slug>.allium`): confirm the spec file exists at that path. If the epic is a refactor and no `spec:` is set, offer to run `/allium:distill` to capture a behavioral baseline before decomposition (optional — only if the user or epic asks for it). Skip this step entirely if neither condition applies.
+4. Decompose the epic into bees issues:
    - Each issue is an independently deliverable unit of work
    - Each issue must have: acceptance criteria, skill labels, clear scope
    - Each issue must declare dependencies if it cannot start before another issue completes

@@ -6,16 +6,26 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.4"
+    "version": "1.0.5"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.3.26",
+      "version": "0.3.27",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
+      "license": "MIT"
+    },
+    {
+      "name": "allium",
+      "source": "./plugins/tools/allium",
+      "strict": true,
+      "description": "Opinionated Allium integration for /core:agent-loop",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["allium", "agent-loop", "tdd", "behavioral-spec"],
       "license": "MIT"
     },
     {
@@ -32,7 +42,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "category": "development",
       "keywords": ["git", "documentation", "code-review", "tools", "beads", "bees", "container", "tdd", "agent-loop"]
     },
