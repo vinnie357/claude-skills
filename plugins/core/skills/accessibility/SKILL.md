@@ -1,6 +1,6 @@
 ---
 name: accessibility
-description: Guide for implementing web accessibility (WCAG). Use when designing UI components, reviewing interfaces for accessibility, or ensuring compliance with W3C WAI standards.
+description: Add ARIA attributes, check color contrast ratios, validate keyboard navigation, write alt text, and fix a11y issues. Use when working with screen readers, WCAG compliance, accessible forms, focus management, alt text, color contrast, keyboard navigation, or any a11y review.
 ---
 
 # Web Accessibility
