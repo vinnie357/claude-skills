@@ -16,7 +16,7 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
    /core:security, /core:mise, /core:nushell
    ```
 2. Create a bees epic that mirrors the upstream epic (same title, objective, slug)
-3. **If the epic carries a `spec:` field** (e.g., `spec: docs/specs/<slug>.allium`): confirm the spec file exists at that path. If the epic is a refactor and no `spec:` is set, offer to run `/allium:distill` to capture a behavioral baseline before decomposition (optional — only if the user or epic asks for it). Skip this step entirely if neither condition applies.
+3. **If the epic carries a `spec:` field** (e.g., `spec: docs/specs/<slug>.allium`): confirm the spec file exists at that path. If the epic is a refactor and no `spec:` is set, run `/allium:distill` to capture a behavioral baseline before decomposition. Skip this step entirely if neither condition applies.
 4. Decompose the epic into bees issues:
    - Each issue is an independently deliverable unit of work
    - Each issue must have: acceptance criteria, skill labels, clear scope
@@ -29,6 +29,19 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
    - Label each agent with their assigned model and skills
    - Respect dependency ordering: do not start issue B if it depends on A
 7. Report plan before spawning any agents
+
+## Before-spawn checklist
+
+Before invoking the Task tool to spawn any agent, verify:
+
+- [ ] Core skills still loaded (quote one sentence from each as self-check)
+- [ ] `/claude-code:claude-agents` loaded (always)
+- [ ] `/claude-code:claude-teams` loaded (if spawning ≥2 parallel workers)
+- [ ] Spawn prompt names specific files and functions to reuse, not generic goals
+- [ ] Spawn prompt opens with a `## Load skills` block listing exact skill names
+- [ ] Spawn prompt requires the agent to quote one sentence from each loaded skill in its first response
+
+A failed checkbox blocks the spawn. Fix it before invoking Task.
 
 ## Phase 2: Working
 

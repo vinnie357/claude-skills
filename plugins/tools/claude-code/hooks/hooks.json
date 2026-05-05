@@ -1,0 +1,17 @@
+{
+  "description": "Inject skill-authoring discipline and agent/team triad anchor at session start",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

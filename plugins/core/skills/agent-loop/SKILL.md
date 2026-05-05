@@ -15,7 +15,7 @@ Every agent, regardless of tier, follows these four phases:
 | Phase | Name | Purpose |
 |-------|------|---------|
 | 1 | Pre-flight | Load skills, check tracker, verify branch, understand assignment |
-| 2 | Working | Execute assigned work items, report progress, escalate blockers |
+| 2 | Working | Execute work items. **Before any spawn**: re-verify core skills loaded, load `/claude-code:claude-agents` always, load `/claude-code:claude-teams` for ≥2 parallel workers. |
 | 3 | Validation | Run strictest CI suite, iterate with fix agent until clean |
 | 4 | Submit | Create PR, wait for CI, report to upstream, clean up after merge |
 
@@ -55,6 +55,16 @@ Every agent at every tier loads these before any work:
 ```
 
 Domain-specific skills load based on issue/task labels.
+
+### Skills to load before spawning
+
+When a leader (Tier 1 or Tier 2) prepares to spawn an agent, load these by exact name with the Skill tool:
+
+- `/claude-code:claude-agents` — always. Carries agent file format, tool allowlists, and model selection.
+- `/claude-code:claude-teams` — if forming a team or spawning ≥2 parallel workers. Carries peer-to-peer messaging, shared task list, Agent SDK patterns.
+- `/claude-code:plugin-marketplace` — when the spawned agent needs a skill not already in the team's load list.
+
+Glob patterns like `/core:*` do not expand in Agent prompts. List skill names explicitly.
 
 ## Key Conventions
 
@@ -117,6 +127,54 @@ cd /path/to/repo
 
 Key: always reference existing code and functions to reuse. "Implement X" is vague — "add import/2 action to WorkflowController, reuse serialize_workflow/1 from line 28" is machine-executable.
 
+### Proof of loading
+
+Require each spawned agent to quote one sentence from each loaded skill in its first response. Do not proceed with the agent's work until proof is received. Listing skill names in the prompt is not the same as the agent loading them — proof prevents skipped loads.
+
+### Leader spawn — concrete example
+
+Team leader's Task-tool prompt for an Elixir worker on a Phoenix endpoint:
+
+```
+## Load skills
+/core:anti-fabrication
+/core:git
+/core:tdd
+/core:security
+/core:mise
+/core:nushell
+/elixir:phoenix-framework
+/elixir:elixir-testing
+/elixir:style
+
+## Working directory
+cd /Users/vinnie/github/runex
+
+## Bees issue
+runex-142: add /api/workflows/import endpoint
+
+## Context
+WorkflowController already exposes /export at lib/runex_web/controllers/workflow_controller.ex:14. Mirror that pattern for import. Existing serializer Runex.Workflow.serialize/1 at lib/runex/workflow.ex:28 — reuse it inverse for deserialize.
+
+## What to implement
+- POST /api/workflows/import accepting JSON body
+- New action import/2 in WorkflowController
+- Reuse Runex.Workflow.deserialize/1 (already exists at line 41)
+- Tests in test/runex_web/controllers/workflow_controller_test.exs
+
+## Rules
+- TDD: failing test first
+- async: true on all tests
+- Mock Runex.WorkflowStore.put/2
+
+## Execution order
+Follow the 9-step Agent Worker Execution Order. After step 2 (write tests),
+quote one sentence from each loaded skill and post your test code before
+proceeding to step 3.
+```
+
+Compact. Names files and functions to reuse. Anchors the proof-of-loading checkpoint inside the execution order.
+
 ## Model Selection
 
 Choose the initial model by task complexity:
@@ -173,7 +231,7 @@ Epic Author    -> Read references/epic-authoring.md
 
 Epics may include a `spec:` field pointing to a `.allium` behavioral spec file (e.g., `spec: docs/specs/<epic-slug>.allium`). When present:
 
-- The team leader checks for the spec in Phase 1 and may invoke `/allium:distill` on refactor epics lacking a spec.
+- The team leader checks for the spec in Phase 1. On a refactor epic without a `spec:` field, run `/allium:distill` to derive a baseline spec from existing code before decomposition.
 - Agent workers invoke `/allium:propagate` to seed failing test skeletons before implementation.
 - The validator invokes `/allium:weed` after CI passes to flag spec/code divergence.
 

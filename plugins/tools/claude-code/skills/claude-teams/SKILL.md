@@ -8,6 +8,16 @@ license: MIT
 
 Coordinate multiple Claude Code agents working together on shared tasks.
 
+## When forming a team
+
+Invoke `/core:agent-loop` for the 4-phase / 6-tier execution model.
+Invoke `/claude-code:claude-agents` for agent file format, tool allowlists, and model selection.
+Invoke `/core:anti-fabrication` always — every claim about a tool, file, or test result requires tool execution.
+
+Require each teammate to quote one sentence from each loaded skill in its first message as proof of loading. Do not proceed with the teammate's work until proof is received.
+
+Glob patterns like `/core:*` do not expand in Agent prompts. List skill names explicitly.
+
 ## When to Use
 
 Activate when:

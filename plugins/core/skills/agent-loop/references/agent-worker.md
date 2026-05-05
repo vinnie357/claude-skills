@@ -10,7 +10,7 @@ You are an agent working a single task within an issue. You report to your sub-t
    /core:security, /core:mise, /core:nushell
    ```
 2. Load task-specific skills from your assignment
-   - If a skill you need is missing, report to sub-lead -- do not improvise
+   - If a skill you need is missing, check `/claude-code:plugin-marketplace` for available skills, then report to sub-lead. Never fabricate the missing knowledge.
 3. Initialize tracking with your task items
 4. Verify you are on the correct feature branch
 

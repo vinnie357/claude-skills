@@ -7,6 +7,14 @@ description: Guide for creating custom agents for Claude Code. Use when creating
 
 Guide for creating custom agents that provide specialized behaviors and tool access for specific tasks.
 
+## When spawning as part of a team
+
+Invoke `/core:agent-loop` for the 4-phase / 6-tier execution model.
+Invoke `/claude-code:claude-teams` if the agent joins a multi-agent team.
+Invoke `/core:anti-fabrication` always — every claim about a tool, file, or test result requires tool execution.
+
+Glob patterns like `/core:*` do not expand in Agent prompts. List skill names explicitly.
+
 ## When to Use This Skill
 
 Activate this skill when:
@@ -240,7 +248,7 @@ Task(
 
 ### Clear Purpose
 
-Each agent should have a specific, well-defined purpose:
+Each agent has a specific, well-defined purpose:
 
 ```markdown
 ---

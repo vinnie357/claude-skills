@@ -24,7 +24,7 @@ Skills fall into two categories (source: Anthropic PDF Guide):
 
 **Capability Uplift**: Enhances Claude's core abilities (coding, analysis, reasoning). These are stable across model versions because they build on general capabilities. Example: a code review skill that adds structured review steps.
 
-**Encoded Preference**: Encodes user-specific workflows, formatting, and conventions. These may need updates when models change because they depend on model behavior for fidelity. Example: a commit message skill that enforces team-specific format.
+**Encoded Preference**: Encodes user-specific workflows, formatting, and conventions. These need updates when models change because they depend on model behavior for fidelity. Example: a commit message skill that enforces team-specific format.
 
 When creating a skill, identify its category — this determines testing strategy and maintenance expectations.
 
@@ -82,44 +82,39 @@ license: MIT
 Main instructional content goes here...
 ```
 
-### Required YAML Properties
+### YAML Properties
 
-- `name`:
-   Hyphen-case identifier matching directory name (lowercase alphanumeric and hyphens only, max 64 characters)
-   Maximum 64 characters
-   Must contain only lowercase letters, numbers, and hyphens
-   Cannot contain XML tags
-   Cannot contain reserved words: "anthropic", "claude"
-- `description`:
-   Explains the skill's purpose and when Claude should utilize it
-   Must be non-empty
-   Maximum 1024 characters
-   Cannot contain XML tags
-   The description should include both what the Skill does and when Claude should use it. For complete authoring guidance, see the best practices guide.
+Source: [Claude Code Skills documentation](https://code.claude.com/docs/en/skills#frontmatter-reference). All fields are optional; only `description` is recommended.
 
+- `name`: Display name. If omitted, defaults to the directory name. Lowercase letters, numbers, and hyphens only (max 64 characters).
+- `description` (recommended): What the skill does and when to use it. Claude uses this to decide when to apply the skill. Combined `description` + `when_to_use` is truncated at 1,536 characters in the skill listing — put the key use case first.
+- `when_to_use`: Additional trigger phrases or example requests, appended to `description` in the listing.
+- `license`: License name or filename reference.
 
+The full upstream frontmatter reference (with `disable-model-invocation`, `user-invocable`, `allowed-tools`, `model`, `effort`, `context: fork`, `agent`, `hooks`, `paths`, `shell`, `arguments`, `argument-hint`, `metadata`) lives in `references/frontmatter-fields.md`. Load that reference when authoring a skill that needs anything beyond name/description/license.
 
-**Description Constraints** (from Anthropic best-practices):
-- Maximum 1024 characters
-- Must use third person (not "I can help you" or "You can use this")
-- Must include both **what it does** AND **when to use it**
-- Use pattern: `[What it does]. Use when [trigger conditions].`
+**Description constraints**:
+- Use third person (not "I can help you" or "You can use this")
+- Include both **what it does** AND **when to use it**
+- Pattern: `[What it does]. Use when [trigger conditions].`
 
-> **Critical**: The `description` is the ONLY text Claude sees during skill discovery (Level 1).
-> The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it.
-> All activation triggers must be in the description.
+> **Critical**: The `description` is the ONLY text Claude sees during skill discovery (Level 1). The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it. All activation triggers belong in the description.
 
+### Frontmatter policy for THIS marketplace
 
-### Optional YAML Properties
+The upstream Claude Code spec allows `allowed-tools` on a skill — it pre-approves listed tools while the skill is active. **This marketplace's `test/validate-plugin.nu` rejects `allowed-tools` on skills as a hard validation failure.** Reasoning:
 
-- `license`: License name or filename reference
-- `metadata`: Key-value string pairs for client-specific properties
+- Tool filtering belongs on **agents** (the `tools:` frontmatter on an agent file), not on skills the agent loads. See the `claude-agents` skill.
+- Skills in this marketplace stay capability-driven (knowledge, procedure) and inherit tools from the calling context.
+- An agent that needs constrained tool access defines its own allowlist; skills it consumes do not override that.
 
-> **Do not use `allowed-tools` in skill frontmatter.** Skills keep frontmatter minimal (`name`, `description`, optional `license`). Tool filtering applies to **agents** — declare the allowlist via the agent's `tools:` frontmatter field (see the `claude-agents` skill), not on the skill that the agent loads. Enforced by `validate-plugin.nu` and the skill-quality scorecard.
+When working in this marketplace: keep skill frontmatter to `name`, `description`, optional `license`, optional `metadata`. Use `allowed-tools` on agents instead.
+
+When working in another project that does not enforce this policy, the upstream `allowed-tools` field is valid and documented.
 
 ### Markdown Body
 
-The content section has no restrictions and should contain:
+The content section has no structural restrictions. Include:
 
 - When to activate the skill
 - Core procedural knowledge
@@ -127,11 +122,54 @@ The content section has no restrictions and should contain:
 - Examples and patterns
 - References to additional resources (if any)
 
+## Pre-edit checklist
+
+Before writing or editing any SKILL.md, verify:
+
+- [ ] Description uses third person and includes a `Use when ...` trigger pattern
+- [ ] Combined `description` + `when_to_use` under 1,536 characters
+- [ ] No `allowed-tools` field in frontmatter (this marketplace's validator rejects it; use agents for tool allowlists)
+- [ ] Body under 500 lines per upstream guideline; split into `references/` once exceeded
+- [ ] References stay one level deep (SKILL.md → reference, not reference → reference)
+- [ ] Zero hedging verbs: should, may, might, consider, try to, offer to, it would be good to
+- [ ] Anti-fabrication rules apply to this SKILL.md itself — every claim about a tool, file, or behavior is verifiable
+
+A failed checkbox is a blocker, not a preference.
+
+## Skill content types
+
+Three patterns from the upstream docs guide what to put in the body:
+
+- **Reference content** — knowledge, conventions, style guides. Loads inline alongside conversation context. Example: API design patterns for a codebase.
+- **Task content** — step-by-step instructions for a specific action (deploy, commit, generate). Often pair with `disable-model-invocation: true` to prevent automatic invocation.
+- **Subagent-fork content** — runs in an isolated context (`context: fork` + `agent: Explore|Plan|...`). Skill body becomes the task prompt; skill produces a self-contained result.
+
+## Dynamic context and substitutions
+
+Skills support runtime substitution before content reaches the model. Source: [Claude Code Skills docs](https://code.claude.com/docs/en/skills#inject-dynamic-context).
+
+**Shell injection** — `` !`<command>` `` inline or fenced ` ```! ` blocks run shell commands; output replaces the placeholder before Claude sees the skill:
+
+````markdown
+## Current diff
+!`git diff HEAD`
+````
+
+**String substitutions** in skill content:
+- `$ARGUMENTS` — full arguments string
+- `$ARGUMENTS[N]` or `$N` — argument by 0-based index
+- `$name` — named argument when `arguments:` declared in frontmatter
+- `${CLAUDE_SESSION_ID}` — current session ID
+- `${CLAUDE_EFFORT}` — current effort level
+- `${CLAUDE_SKILL_DIR}` — absolute path to this skill's directory (use for bundled scripts: `bash ${CLAUDE_SKILL_DIR}/scripts/foo.sh`)
+
+Disable shell injection across user/project/plugin skills via `"disableSkillShellExecution": true` in settings — useful for managed environments.
+
 ## Creating Skills: Seven-Step Workflow
 
 ### 1. Understanding Through Examples
 
-Gather concrete use cases to clarify what the skill should support. Real-world examples reveal actual needs better than theoretical requirements.
+Gather concrete use cases to clarify what the skill needs to support. Real-world examples reveal actual needs better than theoretical requirements.
 
 **Example:**
 ```
@@ -209,7 +247,7 @@ Refine based on real-world usage and evaluation data:
 - **Optimize descriptions**: Reduce false positives (too broad) and false negatives (too narrow)
 - **Test across models**: Verify behavior on Haiku, Sonnet, and Opus
 - **Monitor activation**: Track when the skill triggers correctly vs incorrectly
-- **Deprecation signal**: If the base model passes evals without the skill loaded, the skill may no longer be needed
+- **Deprecation signal**: If the base model passes evals without the skill loaded, the skill is unnecessary — deprecate it
 
 For description optimization techniques, see `references/evaluation-guide.md`.
 
@@ -223,7 +261,7 @@ Build skills using an evaluation-first approach (source: Anthropic Blog Post):
 2. **Test with and without**: Compare Claude's output with the skill loaded vs without it
 3. **Measure, don't guess**: Track pass rates, token usage, and timing — not subjective quality
 4. **Run A/B comparisons**: Use independent agents to compare skill versions blindly
-5. **Detect obsolescence**: When the base model passes evals without the skill, consider deprecation
+5. **Detect obsolescence**: When the base model passes evals without the skill, deprecate it
 
 For the complete methodology, see `references/evaluation-guide.md`. For a copyable checklist, see `templates/evaluation-checklist.md`.
 
@@ -232,7 +270,7 @@ For the complete methodology, see `references/evaluation-guide.md`. For a copyab
 Balance specificity against fragility in skill instructions (source: Anthropic PDF Guide):
 
 - **Specify constraints, not implementations**: "Ensure commit messages follow conventional format" not "Run git commit -m with prefix type(scope):"
-- **Allow model adaptation**: Instructions should work across Haiku, Sonnet, and Opus without modification
+- **Allow model adaptation**: Instructions must work across Haiku, Sonnet, and Opus without modification
 - **Test fragility**: If a minor model update breaks your skill, instructions are too rigid
 - **Test looseness**: If Claude produces inconsistent results, instructions are too loose
 
@@ -240,12 +278,14 @@ For the full framework with examples, see `references/design-patterns.md`.
 
 ### Context Window Discipline
 
-The context window is a shared resource (source: Anthropic PDF Guide):
+The context window is a shared resource (source: [Claude Code Skills docs](https://code.claude.com/docs/en/skills#add-supporting-files)):
 
-- Keep SKILL.md under **500 lines** — larger files degrade performance in smaller context windows
-- Move detailed content to `references/` and load only when needed
-- Monitor cumulative load: skill + prompt + conversation history must all fit
-- Every line in SKILL.md is loaded on every activation — justify each line's presence
+- Keep SKILL.md under **500 lines** per upstream guideline. Split detailed content into `references/` once the body exceeds 500 lines.
+- Move detailed reference material (API specs, deep-dive docs, examples) to separate files. Load only when needed.
+- Monitor cumulative load: skill + prompt + conversation history must all fit.
+- Every line in SKILL.md is loaded on every activation — justify each line's presence.
+
+**Skill content lifecycle:** A skill loads as a single message and stays for the session. Auto-compaction keeps the first 5,000 tokens of each invoked skill, with a 25,000-token combined budget filled from most-recently-invoked first. Older skills can be dropped after compaction. Re-invoke a skill if it stops influencing behavior post-compaction.
 
 ### Structure for Scale
 
@@ -271,12 +311,12 @@ Compare skill effectiveness using blind evaluation (source: Anthropic Blog Post)
 
 For detailed setup instructions, see `references/evaluation-guide.md`.
 
-### Consider Claude's Perspective
+### Claude's Perspective
 
 The skill name and description heavily influence when Claude activates it. Pay particular attention to:
 
-- **Name**: Should be clear and reflect the domain (e.g., `git-operations`, `elixir-phoenix`)
-- **Description**: Should specify both what the skill does and when to use it
+- **Name**: Reflects the domain in clear hyphen-case (e.g., `git-operations`, `elixir-phoenix`)
+- **Description**: States both what the skill does and when to use it, in third person
 
 > **Critical**: The `description` is the ONLY text Claude sees during skill discovery (Level 1).
 > The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it.
@@ -292,7 +332,7 @@ Monitor real usage patterns and iterate based on actual behavior.
 
 ### Platform Constraints
 
-Skills may run in different environments with different capabilities (source: Anthropic PDF Guide):
+Skills run in different environments with different capabilities (source: Anthropic PDF Guide):
 
 | Platform | Script Execution | Network | Filesystem |
 |----------|-----------------|---------|------------|
