@@ -224,11 +224,59 @@ This file documents the sources used to create the elixir plugin skills.
 - **Date Accessed**: 2026-03-29
 - **Key Topics**: schema/2, embedded_schema/1, field types, associations
 
+## Ecto Skill
+
+### Ecto Documentation
+- **URL**: https://hexdocs.pm/ecto/
+- **Purpose**: Foundation for the Ecto skill — schemas, changesets, queries, Multi
+- **Date Accessed**: 2026-05-06
+- **Key Topics**: Repo callbacks, changeset pipeline, query DSL, transactions
+
+### Ecto.Changeset
+- **URL**: https://hexdocs.pm/ecto/Ecto.Changeset.html
+- **Purpose**: Authoritative reference for `cast/4`, `validate_*`, constraint mapping
+- **Date Accessed**: 2026-05-06
+- **Key Topics**: cast pipeline, validation catalog, `prepare_changes/2`, `cast_assoc`, `cast_embed`
+
+### Ecto.Query
+- **URL**: https://hexdocs.pm/ecto/Ecto.Query.html
+- **Purpose**: Reference for the query DSL, `from`, `where`, `join`, `select`, `fragment`
+- **Date Accessed**: 2026-05-06
+- **Key Topics**: query composition, `fragment/1`, `subquery/1`, named bindings
+
+### Ecto.Multi
+- **URL**: https://hexdocs.pm/ecto/Ecto.Multi.html
+- **Purpose**: Reference for atomic multi-step operations
+- **Date Accessed**: 2026-05-06
+- **Key Topics**: `Multi.new/0`, `Multi.insert/4`, `Multi.update/4`, `Multi.run/3`, transaction failure tuple
+
+### Ecto.Migration (ecto_sql)
+- **URL**: https://hexdocs.pm/ecto_sql/Ecto.Migration.html
+- **Purpose**: Reference for migration DDL — `add`, `alter`, `create`, `execute`, indexes, references
+- **Date Accessed**: 2026-05-06
+- **Key Topics**: `change/0` vs `up/down`, `@disable_ddl_transaction`, concurrent indexes, reversible `execute/2`
+
+### Ecto.Adapters.SQL
+- **URL**: https://hexdocs.pm/ecto_sql/Ecto.Adapters.SQL.html
+- **Purpose**: Raw SQL escape-hatch reference — `query/4`, `query!/4`, return shape
+- **Date Accessed**: 2026-05-06
+- **Key Topics**: `{:ok, %{columns, rows}}` return shape, parameter binding, telemetry
+
+### Verified runtime sources
+- **Path**: `~/github/vantageex/deps/ecto/lib/ecto/` and `~/github/vantageex/deps/ecto_sql/lib/`
+- **Purpose**: Anti-fabrication — every API signature in the skill body is read from the installed dep source for ecto 3.13.5 / ecto_sql 3.13.5, not memory.
+- **Date Accessed**: 2026-05-06
+
+### Vantageex.Epics.Epic exemplar
+- **Path**: `~/github/vantageex/lib/vantageex/epics/epic.ex`
+- **Purpose**: Real-world changeset example referenced in the Writes — changesets section of SKILL.md
+- **Date Accessed**: 2026-05-06
+
 ## Plugin Information
 
 - **Name**: elixir
-- **Version**: 0.1.7
-- **Description**: Elixir development skills: Phoenix, OTP, Ports, Style, testing, configuration, anti-patterns, and Tidewave MCP dev tools
-- **Skills**: 8 skills covering Elixir language, framework, and best practices
+- **Version**: 0.1.8
+- **Description**: Elixir development skills: Phoenix, OTP, Ports, Ecto, Style, testing, configuration, anti-patterns, and Tidewave MCP dev tools
+- **Skills**: 9 skills covering Elixir language, framework, and best practices
 - **Created**: 2025-11-15
-- **Updated**: 2026-03-29
+- **Updated**: 2026-05-06
