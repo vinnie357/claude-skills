@@ -101,6 +101,14 @@ $ mise ls-remote github:goreleaser/goreleaser | head -5
 2.10.0
 2.10.1
 
+# github backend — the GitHub CLI itself
+$ mise ls-remote github:cli/cli | head -5
+2.74.0
+2.74.1
+2.74.2
+2.75.0
+2.75.1
+
 # cargo backend — lists versions from crates.io
 $ mise ls-remote cargo:ripgrep | head -5
 0.1.0
@@ -108,6 +116,14 @@ $ mise ls-remote cargo:ripgrep | head -5
 0.1.2
 0.1.3
 0.1.4
+
+# go backend — requires Go installed (mise use go@latest)
+$ mise ls-remote go:mvdan.cc/gofumpt | head -5
+0.1.0
+0.1.1
+0.2.0
+0.2.1
+0.3.0
 
 # npm backend — lists versions from the npm registry
 $ mise ls-remote npm:typescript | head -5
