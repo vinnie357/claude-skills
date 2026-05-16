@@ -8,7 +8,19 @@ license: MIT
 
 Tidewave is a dev tool by Dashbit that connects AI coding assistants to running Phoenix applications via the Model Context Protocol (MCP). It exposes runtime introspection tools: Ecto schemas, code execution, documentation lookup, log inspection, and SQL queries.
 
-Current version: `~> 0.5` (v0.5.6 released 2026-03-13)
+Current version: `~> 0.5` (v0.5.6 released 2026-03-13 — adds `:extra_apps` plug option)
+
+## When connected, prefer MCP tools over web fetches
+
+**When Tidewave MCP is connected to an Elixir/Phoenix project, route documentation, source, and runtime queries through the MCP tools — not WebFetch or hexdocs.pm.**
+
+- `get_docs` instead of WebFetch on `hexdocs.pm/<package>/<Module>.html`
+- `search_package_docs` instead of broader hex-doc searches
+- `get_source_location` instead of reading `deps/<package>/lib/...` with Read
+- `execute_sql_query` instead of shelling into `psql`
+- `project_eval` instead of running `iex -S mix` snippets
+
+Why: MCP tool calls return results pinned to the exact versions in the project's `mix.lock`, complete in a single round-trip, and skip HTML→markdown conversion and page chrome — significantly fewer tokens per lookup than WebFetch, and the answer is guaranteed to match the running app rather than whatever version is on hexdocs.pm today.
 
 ## Installation
 
@@ -55,32 +67,11 @@ Apply the manual steps to the application defining the Phoenix endpoint (typical
 
 ## MCP Server Configuration
 
-Tidewave exposes an MCP server at `/tidewave/mcp` on the Phoenix app's port. The transport type is HTTP (streamable).
+Tidewave exposes an MCP server at `/tidewave/mcp` on the Phoenix app's port. The transport type is HTTP (streamable) — SSE was removed in v0.4.0. Tidewave is unauthenticated; decline any "Authenticate" prompt the editor offers.
 
 Default URL: `http://localhost:4000/tidewave/mcp`
 
-### Claude Code
-
-```bash
-claude mcp add --transport http tidewave http://localhost:4000/tidewave/mcp
-```
-
-Add to `CLAUDE.md` to encourage MCP tool usage:
-
-```markdown
-Always use Tidewave's tools for evaluating code, querying the database, etc.
-Use `get_docs` to access documentation and `get_source_location` to find module/function definitions.
-```
-
-### Other Editors
-
-| Editor | Config File | URL Key |
-|--------|-------------|---------|
-| Cursor | `.cursor/mcp.json` | `mcpServers.tidewave.url` |
-| VS Code | `.vscode/mcp.json` | `servers.tidewave.url` |
-| Zed | Zed `settings.json` | `context_servers.tidewave.settings.url` |
-
-All use URL: `http://localhost:4000/tidewave/mcp`
+See `references/mcp-setup.md` for verbatim setup commands and JSON config for **Claude Code, Codex CLI, Gemini CLI, and opencode**, plus a `curl` ping for raw verification and a troubleshooting table.
 
 ## MCP Tools Reference
 
@@ -99,6 +90,8 @@ All use URL: `http://localhost:4000/tidewave/mcp`
 **Note**: `search_package_docs` may not be available in all frameworks. Verify availability for your setup.
 
 ### Usage Patterns
+
+See "When connected, prefer MCP tools over web fetches" at the top of this skill for the routing rule.
 
 Introspect schemas before writing queries:
 ```
@@ -130,6 +123,7 @@ end
 | `allow_remote_access` | `false` | Allow connections from non-localhost |
 | `inspect_opts` | `[]` | Options passed to `Kernel.inspect/2` for output formatting |
 | `team` | `nil` | Team configuration (e.g., `[id: "my-company"]`) |
+| `extra_apps` | `[]` | Additional OTP apps to include in source/module discovery (v0.5.6+) |
 
 ## CLI App (Standalone MCP Server)
 
@@ -164,7 +158,7 @@ config :phoenix,
   debug_attributes: true
 ```
 
-Requires Phoenix LiveView v1.1+ (current: 1.1.27).
+Requires Phoenix LiveView v1.1+.
 
 ## Security
 
