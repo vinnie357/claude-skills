@@ -885,6 +885,35 @@ if true {
 print $x  # Works
 ```
 
+### Bare `main` Call After `def main` (Double-Invocation)
+
+Nushell auto-invokes `def main` when a script is executed via `nu script.nu`. A script that defines `def main` AND has a bare `main` line at the end of the file runs `main` **twice**, silently doubling every side effect (HTTP posts, file writes, subprocess spawns, workflow submissions).
+
+```nu
+# WRONG — fires main twice
+def main [] {
+  http post $url $body
+  print "done"
+}
+
+main  # ← Nushell already invoked this; the explicit call duplicates work
+```
+
+```nu
+# CORRECT — Nushell handles the invocation
+def main [] {
+  http post $url $body
+  print "done"
+}
+# (no bare `main` line — script ends with the def)
+```
+
+**Why it matters:** silent duplication is hard to debug. The classic symptom is "this single-step workflow somehow fired two HTTP requests." Confirmed via instrumented print counters: the file parses once but the `main` entry counter increments twice.
+
+**Detection:** `grep -nE '^main(\s|$)' script.nu` flags any bare invocations at column 0. Add this as a CI lint rule for repos that contain multiple Nushell scripts — chained workflows multiply the impact (each chain hop doubles the next).
+
+**Reference:** Nushell script execution model — when invoking `nu script.nu`, the runtime auto-calls `main` if defined. Do not double up.
+
 ## Key Principles
 
 - **Structured data first**: Think in terms of tables and records, not text
