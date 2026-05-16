@@ -1,0 +1,19 @@
+{
+  "name": "qa",
+  "version": "0.1.0",
+  "description": "QA team that validates a running application against Gherkin user stories using Playwright and Tidewave",
+  "author": { "name": "vinnie357" },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["qa", "gherkin", "playwright", "tidewave", "tdd", "user-stories", "bdd"],
+  "agents": [
+    "./agents/qa-lead.md",
+    "./agents/qa-author.md",
+    "./agents/qa-playwright.md",
+    "./agents/qa-tidewave.md",
+    "./agents/qa-backend.md",
+    "./agents/qa-test-writer.md",
+    "./agents/qa-implementer.md"
+  ],
+  "skills": ["./skills/qa"]
+}
