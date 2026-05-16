@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -19,6 +19,11 @@
   ],
   "skills": [
     "./plugins/tools/allium/skills/allium",
+    "./plugins/tools/ansible/skills/ansible",
+    "./plugins/tools/ansible/skills/ansible-inventory",
+    "./plugins/tools/ansible/skills/ansible-roles",
+    "./plugins/tools/ansible/skills/ansible-vault",
+    "./plugins/tools/ansible/skills/ansible-testing",
     "./plugins/tools/claude-code/skills/plugin-marketplace",
     "./plugins/tools/claude-code/skills/claude-plugins",
     "./plugins/tools/claude-code/skills/claude-commands",

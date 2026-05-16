@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.6"
+    "version": "1.0.7"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -26,6 +26,16 @@
       "version": "0.1.0",
       "category": "tools",
       "keywords": ["allium", "agent-loop", "tdd", "behavioral-spec"],
+      "license": "MIT"
+    },
+    {
+      "name": "ansible",
+      "source": "./plugins/tools/ansible",
+      "strict": true,
+      "description": "Ansible automation skills: playbooks, inventory, roles, vault secrets, and Molecule testing",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["ansible", "automation", "configuration-management", "devops", "playbooks", "molecule"],
       "license": "MIT"
     },
     {

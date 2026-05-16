@@ -27,6 +27,7 @@ Add the marketplace and install plugins:
 /plugin install tweag@vinnie357       # Topiary formatter and Nickel config
 /plugin install ui@vinnie357          # daisyUI, Tailwind CSS theming
 /plugin install claude-code@vinnie357 # Plugin marketplace management tools
+/plugin install ansible@vinnie357      # Ansible automation, roles, vault, testing
 ```
 
 Verify installation:
@@ -195,6 +196,19 @@ Claude Code plugin marketplace management and validation.
 
 **Keywords**: claude-code, marketplace, validation
 
+### `ansible` - Ansible Automation
+
+Ansible configuration management and automation skills.
+
+**Skills:**
+- **ansible** - Playbooks, tasks, handlers, variables, conditionals, loops, and project layout
+- **ansible-inventory** - Static and dynamic inventory, host patterns, group_vars, host_vars
+- **ansible-roles** - Role structure, Galaxy collections, Jinja2 templates, role dependencies
+- **ansible-vault** - Encrypting secrets, vault IDs, password sources, security practices
+- **ansible-testing** - Molecule test scenarios, Docker/Podman drivers, Testinfra, CI integration
+
+**Keywords**: ansible, automation, configuration-management, devops, playbooks, molecule
+
 ## Usage
 
 Skills are automatically activated by Claude based on task context once plugins are installed.
@@ -258,6 +272,7 @@ claude-skills/
     │   ├── rust/                 # Rust programming
     │   └── zig/                  # Zig programming
     ├── tools/
+    │   ├── ansible/              # Ansible automation
     │   ├── claude-code/          # Plugin development tools
     │   ├── dagu/                 # Workflow orchestration
     │   ├── github/               # GitHub Actions and workflows
@@ -306,6 +321,7 @@ Install only the plugins you need:
 # DevOps/Platform engineer
 /plugin install core@vinnie357
 /plugin install dagu@vinnie357
+/plugin install ansible@vinnie357
 
 # Plugin developer
 /plugin install claude-code@vinnie357
