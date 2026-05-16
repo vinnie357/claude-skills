@@ -59,17 +59,17 @@ This file documents the sources used to create the elixir plugin skills.
 ### Tidewave Hex Package
 - **URL**: https://hex.pm/packages/tidewave
 - **Purpose**: Package listing and version information for Tidewave
-- **Date Accessed**: 2026-02-21
-- **Key Topics**: Version history, installation, license (Apache 2.0)
+- **Date Accessed**: 2026-05-16
+- **Key Topics**: Version history, installation, license (Apache 2.0). Current version 0.5.6 (released 2026-03-13)
 
 ### Tidewave Documentation
 - **URL**: https://hexdocs.pm/tidewave
 - **Purpose**: Official Tidewave documentation for MCP dev tools integration
-- **Date Accessed**: 2026-02-21
+- **Date Accessed**: 2026-05-16
 - **Key Topics**:
   - Installation (Igniter and manual)
   - MCP server setup and client configuration
-  - Available MCP tools (project_eval, execute_sql_query, get_ecto_schemas, get_docs, etc.)
+  - Available MCP tools (project_eval, execute_sql_query, get_ecto_schemas, get_ash_resources, get_docs, etc.)
   - Plug configuration options
   - LiveView debug annotations
   - Security considerations
@@ -77,8 +77,32 @@ This file documents the sources used to create the elixir plugin skills.
 ### Tidewave GitHub Repository
 - **URL**: https://github.com/tidewave-ai/tidewave_phoenix
 - **Purpose**: Source code, README, and community documentation
-- **Date Accessed**: 2026-02-21
+- **Date Accessed**: 2026-05-16
 - **Key Topics**: Installation walkthrough, editor-specific MCP setup, troubleshooting
+
+### Tidewave CHANGELOG.md
+- **URL**: https://github.com/tidewave-ai/tidewave_phoenix/blob/main/CHANGELOG.md
+- **Purpose**: Authoritative release notes for version tracking
+- **Date Accessed**: 2026-05-16
+- **Key Topics**:
+  - v0.5.6 (2026-03-13): adds `:extra_apps` config for additional app discovery
+  - v0.5.5 (2026-02-10): Spark metadata in `get_ecto_schemas`, new `get_ash_resources` tool, log level filtering on `get_logs`
+  - v0.4.0 (2025-08-19): switched to streamable HTTP MCP protocol — SSE deprecated
+
+### Tidewave Editor MCP Setup Pages
+- **URLs**:
+  - https://hexdocs.pm/tidewave/mcp_claude_code.html
+  - https://hexdocs.pm/tidewave/mcp_codex.html
+  - https://hexdocs.pm/tidewave/mcp_opencode.html
+- **Purpose**: Per-editor MCP setup commands and JSON snippets extracted into `tidewave/references/mcp-setup.md`
+- **Date Accessed**: 2026-05-16
+- **Key Topics**: `claude mcp add --transport http`, `codex mcp add --url`, opencode `mcp` config block
+
+### Gemini CLI MCP Servers Documentation
+- **URL**: https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md
+- **Purpose**: `httpUrl` field shape for Gemini CLI's `~/.gemini/settings.json` — upstream Tidewave docs do not cover Gemini CLI (no `mcp_gemini_cli.html` page)
+- **Date Accessed**: 2026-05-16
+- **Key Topics**: `mcpServers.<name>.httpUrl` for streamable HTTP, `gemini mcp add --transport http` CLI form, user vs project settings paths
 
 ## OTP Skill
 
@@ -279,4 +303,4 @@ This file documents the sources used to create the elixir plugin skills.
 - **Description**: Elixir development skills: Phoenix, OTP, Ports, Ecto, Style, testing, configuration, anti-patterns, and Tidewave MCP dev tools
 - **Skills**: 9 skills covering Elixir language, framework, and best practices
 - **Created**: 2025-11-15
-- **Updated**: 2026-05-06
+- **Updated**: 2026-05-16
