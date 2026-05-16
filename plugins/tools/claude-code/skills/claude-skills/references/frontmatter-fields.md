@@ -43,7 +43,7 @@ Only `description` is recommended (so Claude knows when to invoke the skill).
 | `agent` | Subagent type when `context: fork`. Built-in: `Explore`, `Plan`, `general-purpose`. Or any custom subagent in `.claude/agents/`. |
 | `hooks` | Hooks scoped to this skill's lifecycle. See `claude-hooks` skill. |
 | `paths` | Glob patterns that limit auto-activation. Comma-separated string or YAML list. Skill loads only when working with matching files. |
-| `shell` | `bash` (default) or `powershell` for `` !`...` `` inline shell. PowerShell requires `CLAUDE_CODE_USE_POWERSHELL_TOOL=1`. |
+| `shell` | `bash` (default) or `powershell` — selects the interpreter for bang-backtick inline command substitution. PowerShell requires `CLAUDE_CODE_USE_POWERSHELL_TOOL=1`. |
 
 ## String substitutions in skill content
 
@@ -60,22 +60,21 @@ Indexed arguments use shell-style quoting. Wrap multi-word values in quotes: `/s
 
 ## Dynamic context injection
 
-Inline shell commands run before the skill content reaches Claude. Output replaces the placeholder:
+Shell commands embedded in skill content run before the body reaches Claude; their stdout replaces the placeholder. Two forms:
 
-```markdown
+- **Inline**: a bang character followed by a backtick-quoted command on a single line.
+- **Fenced**: a code fence whose opening line is three backticks followed by a bang.
+
+`````markdown
 ## Current changes
 !`git diff HEAD`
-```
 
-Multi-line form uses a fenced code block opened with ` ```! `:
-
-````markdown
 ## Environment
 ```!
 node --version
 npm --version
 ```
-````
+`````
 
 Disable across user/project/plugin/additional-directory skills via `"disableSkillShellExecution": true` in settings. Bundled and managed skills are unaffected.
 

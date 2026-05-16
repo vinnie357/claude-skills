@@ -148,12 +148,20 @@ Three patterns from the upstream docs guide what to put in the body:
 
 Skills support runtime substitution before content reaches the model. Source: [Claude Code Skills docs](https://code.claude.com/docs/en/skills#inject-dynamic-context).
 
-**Shell injection** — `` !`<command>` `` inline or fenced ` ```! ` blocks run shell commands; output replaces the placeholder before Claude sees the skill:
+**Shell injection** — Claude Code can run shell commands embedded in a skill before the body reaches the model; the command's stdout replaces the placeholder. Two forms:
 
-````markdown
+- **Inline**: a bang character followed by a backtick-quoted command on a single line.
+- **Fenced**: a code fence whose opening line is three backticks followed by a bang.
+
+`````markdown
 ## Current diff
 !`git diff HEAD`
-````
+
+```!
+node --version
+npm --version
+```
+`````
 
 **String substitutions** in skill content:
 - `$ARGUMENTS` — full arguments string
