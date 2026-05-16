@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.6",
+      "version": "0.4.7",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -111,6 +111,16 @@
       "version": "0.1.0",
       "category": "tools",
       "keywords": ["playwright", "mcp", "browser", "automation", "screenshots"],
+      "license": "MIT"
+    },
+    {
+      "name": "qa",
+      "source": "./plugins/tools/qa",
+      "strict": true,
+      "description": "QA team that validates a running application against Gherkin user stories using Playwright and Tidewave",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["qa", "gherkin", "playwright", "tidewave", "tdd", "user-stories", "bdd"],
       "license": "MIT"
     },
     {
