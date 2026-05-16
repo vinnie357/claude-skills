@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.8"
+    "version": "1.0.9"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.5",
+      "version": "0.4.6",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -26,6 +26,16 @@
       "version": "0.1.0",
       "category": "tools",
       "keywords": ["allium", "agent-loop", "tdd", "behavioral-spec"],
+      "license": "MIT"
+    },
+    {
+      "name": "amux",
+      "source": "./plugins/tools/amux",
+      "strict": true,
+      "description": "amux: parallel AI code agent sessions with container isolation, worktrees, and a headless REST API",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["amux", "agents", "workflows", "tmux", "claude-code", "container"],
       "license": "MIT"
     },
     {

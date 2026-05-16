@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -19,6 +19,7 @@
   ],
   "skills": [
     "./plugins/tools/allium/skills/allium",
+    "./plugins/tools/amux/skills/amux",
     "./plugins/tools/ansible/skills/ansible",
     "./plugins/tools/ansible/skills/ansible-inventory",
     "./plugins/tools/ansible/skills/ansible-roles",
