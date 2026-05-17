@@ -23,21 +23,25 @@ Activate when:
 
 ## Install
 
-Pin Runex via mise's github backend:
+Mise is the recommended install path. It manages the version, pins reproducibly, and uses the GitHub releases backend.
 
+A ready-to-copy pin lives at `templates/0.0.6/mise.toml` in this skill — copy it into the target repo's `mise.toml` (or merge under `[tools]`) and run `mise install`.
+
+**Global pin (one-time, any project):**
+```sh
+mise use -g github:vinnie357/runex@0.0.6
+```
+
+**Per-project pin (recommended for repos that run Runex):**
+```sh
+cp templates/0.0.6/mise.toml <your-repo>/mise.toml   # then: cd <your-repo> && mise install
+```
+
+The template's contents:
 ```toml
 [tools]
 "github:vinnie357/runex" = "0.0.6"
 ```
-
-Copy the template and install:
-
-```bash
-cp templates/0.0.6/mise.toml <your-repo>/mise.toml
-cd <your-repo> && GITHUB_TOKEN=<token-with-repo-read> mise install
-```
-
-`vinnie357/runex` is a **private** GitHub repository. `mise install` and `mise ls-remote github:vinnie357/runex` both require `GITHUB_TOKEN` (or `GH_TOKEN`) with `repo` read scope. Without a token, mise reports "no versions found" — that is an auth failure, not a backend mismatch. Source the token from `op read` (1Password CLI) or your shell secret manager rather than hardcoding it in shell history.
 
 ## Scripts
 
