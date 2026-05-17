@@ -1,6 +1,6 @@
 # Runex API Reference
 
-Full REST API reference for Runex v0.0.6. Default base URL: `http://localhost:4000`.
+Full REST API reference for Runex v0.0.7. Default base URL: `http://localhost:4000`.
 
 > **Note:** Operators commonly run Runex on port 4001 to coexist with VantageEx on port 4000, but the application default (from `runtime.exs`) is 4000.
 
@@ -12,7 +12,6 @@ Full REST API reference for Runex v0.0.6. Default base URL: `http://localhost:40
 - [Workflow Endpoints](#workflow-endpoints)
 - [Run Endpoints](#run-endpoints)
 - [Step Heartbeat](#step-heartbeat)
-- [Agent Run Endpoints](#agent-run-endpoints)
 - [Bundle Endpoints](#bundle-endpoints)
 - [Federation Endpoints](#federation-endpoints)
 
@@ -24,7 +23,7 @@ Controlled by the `RUNEX_API_TOKEN` environment variable.
 - **Set**: Requires `Authorization: Bearer <token>` header on all `/api/*` requests
 
 The `RunexWeb.Plugs.APIAuth` plug gates the entire `/api` scope, which includes
-`/api/workflows`, `/api/runs`, `/api/bundles`, `/api/agent_runs`, and `/api/federation/*`.
+`/api/workflows`, `/api/runs`, `/api/bundles`, and `/api/federation/*`.
 
 Unauthorized requests return:
 ```json
@@ -81,7 +80,7 @@ Server build and version information. Served by `Runex.BuildInfo.info/0`.
 ```json
 {
   "app": "runex",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "git_sha": "abc1234",
   "build_time": "2026-03-29T12:00:00Z",
   "node": "runex@hostname",
@@ -450,147 +449,6 @@ must be integer IDs.
 | 404 | `{"error": "Step not found"}` | Step run does not exist |
 | 404 | `{"error": "Step is not running"}` | Step exists but is not in `running` status |
 | 422 | `{"error": "<changeset details>"}` | Deadline update changeset failure |
-
-## Agent Run Endpoints
-
-Agent runs track Claude Code tmux agent sessions independently of the Runex workflow
-runs that spawned them. An agent run record is created after the tmux session is
-dispatched, recording the session name, workspace path, and lifecycle status. Agent
-runs are decoupled from workflow lifecycle — a workflow run may complete while the
-agent session it spawned is still in progress.
-
-### POST /api/agent_runs
-
-Register a new agent session. Default status is `"running"` unless overridden in the
-request body.
-
-**Request body:**
-```json
-{
-  "run_id": 42,
-  "epic_id": "VIN-123",
-  "session_name": "runex-agent-abc123",
-  "workspace_path": "/tmp/agent-abc123",
-  "status": "running"
-}
-```
-
-**Request fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `run_id` | integer | ID of the Runex workflow run that spawned this agent (optional) |
-| `epic_id` | string | Epic identifier from the orchestrator (optional) |
-| `session_name` | string | tmux session name |
-| `workspace_path` | string | Absolute path to the agent's working directory |
-| `status` | string | Session status (defaults to `"running"`) |
-
-**Response 201:**
-```json
-{
-  "data": {
-    "id": 1,
-    "run_id": 42,
-    "epic_id": "VIN-123",
-    "session_name": "runex-agent-abc123",
-    "workspace_path": "/tmp/agent-abc123",
-    "status": "running",
-    "exit_classification": null,
-    "started_at": "2026-03-29T12:00:00Z",
-    "finished_at": null,
-    "last_polled_at": null,
-    "inserted_at": "2026-03-29T12:00:00Z"
-  }
-}
-```
-
-**Response 422** (changeset validation failure):
-```json
-{
-  "errors": {
-    "session_name": ["can't be blank"]
-  }
-}
-```
-
-### GET /api/agent_runs
-
-Look up an agent run by session name. The `session_name` query parameter is required.
-
-**Query parameter:** `?session_name=<name>`
-
-**Response 200:**
-```json
-{
-  "data": {
-    "id": 1,
-    "run_id": 42,
-    "epic_id": "VIN-123",
-    "session_name": "runex-agent-abc123",
-    "workspace_path": "/tmp/agent-abc123",
-    "status": "running",
-    "exit_classification": null,
-    "started_at": "2026-03-29T12:00:00Z",
-    "finished_at": null,
-    "last_polled_at": null,
-    "inserted_at": "2026-03-29T12:00:00Z"
-  }
-}
-```
-
-**Response 400** (missing query param):
-```json
-{"error": "session_name query param required"}
-```
-
-**Response 404:**
-```json
-{"error": "AgentRun not found"}
-```
-
-### GET /api/agent_runs/:id
-
-Look up an agent run by its integer ID.
-
-**Response 200:**
-```json
-{
-  "data": {
-    "id": 1,
-    "run_id": 42,
-    "epic_id": "VIN-123",
-    "session_name": "runex-agent-abc123",
-    "workspace_path": "/tmp/agent-abc123",
-    "status": "running",
-    "exit_classification": null,
-    "started_at": "2026-03-29T12:00:00Z",
-    "finished_at": null,
-    "last_polled_at": null,
-    "inserted_at": "2026-03-29T12:00:00Z"
-  }
-}
-```
-
-**Response 404:**
-```json
-{"error": "AgentRun not found"}
-```
-
-**Agent run fields:**
-
-| Field | Description |
-|-------|-------------|
-| `id` | Unique agent run identifier |
-| `run_id` | Linked workflow run ID (may be null if spawned outside a workflow) |
-| `epic_id` | External epic reference string |
-| `session_name` | tmux session name |
-| `workspace_path` | Filesystem path for the agent workspace |
-| `status` | Lifecycle status (e.g. `"running"`, `"completed"`, `"failed"`) |
-| `exit_classification` | Structured exit reason, set when session ends (null while running) |
-| `started_at` | When the agent session began |
-| `finished_at` | When the agent session ended (null while running) |
-| `last_polled_at` | Timestamp of last poll/heartbeat from the agent |
-| `inserted_at` | Record creation time |
 
 ## Bundle Endpoints
 

@@ -140,49 +140,6 @@ Response includes:
 - `extensions_used` -- count of successful heartbeats sent
 - `deadline` -- current deadline (extended by heartbeat, resets on restart)
 
-## Agent Run Debugging
-
-Agent runs (Claude Code tmux sessions) are decoupled from workflow lifecycle. A workflow can complete while the agent session is still running, or vice versa. Agent runs are tracked independently as their own resource.
-
-### Inspecting a Specific Agent Run
-
-```bash
-curl -s http://localhost:4001/api/agent_runs/$AGENT_RUN_ID | jq '.data'
-```
-
-Response shape:
-```json
-{
-  "data": {
-    "id": "agent-123",
-    "run_id": 42,
-    "epic_id": "VIN-99",
-    "session_name": "tmux-session-abc",
-    "workspace_path": "/tmp/workspace-abc",
-    "status": "running",
-    "exit_classification": null,
-    "started_at": "2025-05-16T10:00:00Z",
-    "finished_at": null,
-    "last_polled_at": "2025-05-16T10:15:30Z",
-    "inserted_at": "2025-05-16T10:00:00Z"
-  }
-}
-```
-
-Key fields:
-- `status` -- current state: `running`, `completed`, `failed`, etc.
-- `exit_classification` -- reason for exit if finished (null while running)
-- `last_polled_at` -- most recent poll timestamp (tracks heartbeat liveness)
-- `workspace_path` -- where the agent session files and logs are stored
-
-### Listing Recent Agent Runs
-
-```bash
-curl -s http://localhost:4001/api/agent_runs | jq '.data[] | {id, session_name, status, started_at}'
-```
-
-Returns paginated list of agent runs. Add `?limit=20&offset=0` to control pagination.
-
 ## Health Check Validation
 
 Before debugging workflow issues, confirm Runex is healthy:

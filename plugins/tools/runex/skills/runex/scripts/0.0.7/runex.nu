@@ -2,11 +2,10 @@
 
 # Runex API client
 # Supports: info, health, runs, run, submit, steps, workflows, workflow,
-#           heartbeat, agent-runs, agent-run, submit-agent,
-#           federation-nodes, federation-runs, federation-run
+#           heartbeat, federation-nodes, federation-runs, federation-run
 
 def main [
-    command: string   # Subcommand: info, health, runs, run, submit, steps, workflows, workflow, heartbeat, agent-runs, agent-run, submit-agent, federation-nodes, federation-runs, federation-run
+    command: string   # Subcommand: info, health, runs, run, submit, steps, workflows, workflow, heartbeat, federation-nodes, federation-runs, federation-run
     ...args: string   # Additional arguments passed to the command
 ] {
     match $command {
@@ -19,15 +18,12 @@ def main [
         "workflows" => { cmd-workflows }
         "workflow" => { cmd-workflow $args }
         "heartbeat" => { cmd-heartbeat $args }
-        "agent-runs" => { cmd-agent-runs }
-        "agent-run" => { cmd-agent-run $args }
-        "submit-agent" => { cmd-submit-agent $args }
         "federation-nodes" => { cmd-federation-nodes }
         "federation-runs" => { cmd-federation-runs }
         "federation-run" => { cmd-federation-run $args }
         _ => {
             print $"(ansi red)Error:(ansi reset) Unknown command '($command)'"
-            print "Available: info, health, runs, run, submit, steps, workflows, workflow, heartbeat, agent-runs, agent-run, submit-agent, federation-nodes, federation-runs, federation-run"
+            print "Available: info, health, runs, run, submit, steps, workflows, workflow, heartbeat, federation-nodes, federation-runs, federation-run"
             exit 1
         }
     }
@@ -179,48 +175,6 @@ def cmd-heartbeat [args: list<string>] {
     }
     let resp = (api-post $"/api/runs/($run_id)/steps/($step_id)/heartbeat" $body)
     $resp
-}
-
-# GET /api/agent_runs — list agent runs
-def cmd-agent-runs [] {
-    let resp = (api-get "/api/agent_runs")
-    $resp | get data
-}
-
-# GET /api/agent_runs/:id — show agent run detail
-def cmd-agent-run [args: list<string>] {
-    if ($args | is-empty) {
-        print $"(ansi red)Error:(ansi reset) Agent run ID required"
-        print "Usage: runex.nu agent-run <id>"
-        exit 1
-    }
-    let id = ($args | first)
-    let resp = (api-get $"/api/agent_runs/($id)")
-    $resp | get data
-}
-
-# POST /api/agent_runs — submit a workflow as an agent run
-def cmd-submit-agent [args: list<string>] {
-    if ($args | is-empty) {
-        print $"(ansi red)Error:(ansi reset) Workflow path required"
-        print "Usage: runex.nu submit-agent <workflow_path> [params_json]"
-        exit 1
-    }
-    let workflow_path = ($args | first)
-    let params = if ($args | length) > 1 {
-        try {
-            $args | get 1 | from json
-        } catch {
-            print $"(ansi red)Error:(ansi reset) Invalid JSON in params argument"
-            print "Params must be a valid JSON object, e.g. '{\"KEY\":\"val\"}'"
-            exit 1
-        }
-    } else {
-        {}
-    }
-    let body = {workflow_path: $workflow_path, params: $params}
-    let resp = (api-post "/api/agent_runs" $body)
-    $resp | get data
 }
 
 # GET /api/federation/nodes — list federation nodes

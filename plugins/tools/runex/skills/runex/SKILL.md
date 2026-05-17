@@ -8,7 +8,7 @@ license: MIT
 
 Runex is a single-binary Elixir workflow orchestrator. It parses TOML (primary) and YAML workflow definitions, builds a DAG of steps, and executes them via pluggable drivers (`shell, mise, nushell, runex, wasm, container, flame, workflow`). It runs in standalone mode (SQLite, default — no configuration required) or federated mode (Postgres + libcluster) for multi-node deployments.
 
-Current documented version: **0.0.6** (`mix.exs @version`). Legacy templates for older deployments remain under `templates/0.1.0/` and `scripts/0.1.0/`.
+Current documented version: **0.0.7** (`mix.exs @version`). Legacy templates for older deployments remain under `templates/0.1.0/` and `scripts/0.1.0/`.
 
 ## When to Use This Skill
 
@@ -19,88 +19,83 @@ Activate when:
 - Inspecting run status or step logs for debugging
 - Configuring workflow path resolution (`RUNEX_WORKFLOW_PATH`, `RUNEX_WORKFLOWS_DIR`) or bundle search (`RUNEX_BUNDLE_DIRS`)
 - Calling the step heartbeat endpoint from long-running steps
-- Working with agent runs (decoupled from workflow lifecycle) or federation endpoints
+- Working with federation endpoints (multi-node Postgres deployments)
 
 ## Install
 
 Mise is the recommended install path. It manages the version, pins reproducibly, and uses the GitHub releases backend.
 
-A ready-to-copy pin lives at `templates/0.0.6/mise.toml` in this skill — copy it into the target repo's `mise.toml` (or merge under `[tools]`) and run `mise install`.
+A ready-to-copy pin lives at `templates/0.0.7/mise.toml` in this skill — copy it into the target repo's `mise.toml` (or merge under `[tools]`) and run `mise install`.
 
 **Global pin (one-time, any project):**
 ```sh
-mise use -g github:vinnie357/runex@0.0.6
+mise use -g github:vinnie357/runex@0.0.7
 ```
 
 **Per-project pin (recommended for repos that run Runex):**
 ```sh
-cp templates/0.0.6/mise.toml <your-repo>/mise.toml   # then: cd <your-repo> && mise install
+cp templates/0.0.7/mise.toml <your-repo>/mise.toml   # then: cd <your-repo> && mise install
 ```
 
 The template's contents:
 ```toml
 [tools]
-"github:vinnie357/runex" = "0.0.6"
+"github:vinnie357/runex" = "0.0.7"
 ```
 
 ## Scripts
 
-This skill provides versioned Nushell scripts for direct API interaction. Current scripts are in `scripts/0.0.6/`.
+This skill provides versioned Nushell scripts for direct API interaction. Current scripts are in `scripts/0.0.7/`.
 
 ### runex.nu — API Client
 
 ```bash
 # Server info, health, readiness
-nu scripts/0.0.6/runex.nu info
-nu scripts/0.0.6/runex.nu health
+nu scripts/0.0.7/runex.nu info
+nu scripts/0.0.7/runex.nu health
 
 # Workflows and runs
-nu scripts/0.0.6/runex.nu workflows
-nu scripts/0.0.6/runex.nu workflow 1
-nu scripts/0.0.6/runex.nu runs
-nu scripts/0.0.6/runex.nu run 42
-nu scripts/0.0.6/runex.nu steps 42
-nu scripts/0.0.6/runex.nu submit "bundles/core/workflows/tool-verify.toml" '{"TOOLS":"mise,nu,git"}'
+nu scripts/0.0.7/runex.nu workflows
+nu scripts/0.0.7/runex.nu workflow 1
+nu scripts/0.0.7/runex.nu runs
+nu scripts/0.0.7/runex.nu run 42
+nu scripts/0.0.7/runex.nu steps 42
+nu scripts/0.0.7/runex.nu submit "bundles/core/workflows/tool-verify.toml" '{"TOOLS":"mise,nu,git"}'
 
 # Step heartbeat (extends long-running step deadlines)
-nu scripts/0.0.6/runex.nu heartbeat 42 7
-nu scripts/0.0.6/runex.nu heartbeat 42 7 60000   # extend by 60s
-
-# Agent runs (decoupled from workflow lifecycle)
-nu scripts/0.0.6/runex.nu agent-runs
-nu scripts/0.0.6/runex.nu agent-run 12
-nu scripts/0.0.6/runex.nu submit-agent "bundles/core/workflows/run-agent.toml" '{"SESSION":"foo"}'
+nu scripts/0.0.7/runex.nu heartbeat 42 7
+nu scripts/0.0.7/runex.nu heartbeat 42 7 60000   # extend by 60s
 
 # Federation (requires Postgres + libcluster)
-nu scripts/0.0.6/runex.nu federation-nodes
-nu scripts/0.0.6/runex.nu federation-runs
-nu scripts/0.0.6/runex.nu federation-run 99
+nu scripts/0.0.7/runex.nu federation-nodes
+nu scripts/0.0.7/runex.nu federation-runs
+nu scripts/0.0.7/runex.nu federation-run 99
 ```
 
 ### bundles.nu — Bundle Discovery + Distribution
 
 ```bash
 # Local bundle filesystem operations
-nu scripts/0.0.6/bundles.nu list
-nu scripts/0.0.6/bundles.nu show bundles/core
-nu scripts/0.0.6/bundles.nu validate bundles/core
-nu scripts/0.0.6/bundles.nu pack bundles/core
+nu scripts/0.0.7/bundles.nu list
+nu scripts/0.0.7/bundles.nu show bundles/core
+nu scripts/0.0.7/bundles.nu validate bundles/core
+nu scripts/0.0.7/bundles.nu pack bundles/core
 
 # Server-side bundle catalog
-nu scripts/0.0.6/bundles.nu bundles               # GET /api/bundles
-nu scripts/0.0.6/bundles.nu reload                # POST /api/bundles/reload
-nu scripts/0.0.6/bundles.nu import core.tar.gz    # multipart upload
-nu scripts/0.0.6/bundles.nu pull core 0.0.1       # JSON pull via BUNDLE_SOURCES
+nu scripts/0.0.7/bundles.nu bundles               # GET /api/bundles
+nu scripts/0.0.7/bundles.nu reload                # POST /api/bundles/reload
+nu scripts/0.0.7/bundles.nu import core.tar.gz    # multipart upload
+nu scripts/0.0.7/bundles.nu pull core 0.0.1       # JSON pull via BUNDLE_SOURCES
 ```
 
 ### debug.nu — Step Log Inspection
 
 ```bash
-nu scripts/0.0.6/debug.nu steps 42
-nu scripts/0.0.6/debug.nu log 42 7
-nu scripts/0.0.6/debug.nu failures 42
-nu scripts/0.0.6/debug.nu watch 42 --interval 5
-nu scripts/0.0.6/debug.nu heartbeat-status 42 7   # last heartbeat ts + timeout state
+nu scripts/0.0.7/debug.nu steps 42
+nu scripts/0.0.7/debug.nu log 42 7
+nu scripts/0.0.7/debug.nu failures 42
+nu scripts/0.0.7/debug.nu watch 42 --interval 5
+nu scripts/0.0.7/debug.nu heartbeat-status 42 7   # last heartbeat ts + timeout state
 ```
 
 ## Configuration
@@ -162,7 +157,7 @@ Bundles can ship as GitHub Release assets and be pulled into a Runex node on dem
 - Call `POST /api/bundles/import` with `{"name": "...", "version": "..."}`
 - Run `bundles.nu pull <name> <version>`
 
-The server resolves the asset URL, downloads, extracts into the bundle cache, and registers it. See the **Bundle Endpoints** section of `templates/0.0.6/api.md` for the multipart vs JSON pull modes.
+The server resolves the asset URL, downloads, extracts into the bundle cache, and registers it. See the **Bundle Endpoints** section of `templates/0.0.7/api.md` for the multipart vs JSON pull modes.
 
 ## Version Detection
 
@@ -172,7 +167,7 @@ Scripts and templates are versioned under `scripts/<version>/` and `templates/<v
 ls scripts/ | get name
 ```
 
-The current documented version is `0.0.6` (matches Runex `mix.exs @version`). `0.1.0` remains for older deployments — the API endpoints it documented are still wire-compatible with current Runex, but it predates heartbeat, agent_runs, federation, and the expanded driver set.
+The current documented version is `0.0.7` (matches Runex `mix.exs @version`). `0.1.0` remains for older deployments — the API endpoints it documented are still wire-compatible with current Runex, but it predates heartbeat, federation, and the expanded driver set. Runex 0.0.7 dropped the `agent_runs` subsystem that briefly existed in 0.0.6 (deleted per YAGNI — no callers materialized).
 
 ## mise Tasks Integration
 
@@ -187,10 +182,10 @@ mise run ci       # Run full CI suite
 ## References
 
 For detailed information:
-- **[templates/0.0.6/mise.toml](templates/0.0.6/mise.toml)** — Ready-to-copy mise pin for Runex `0.0.6`
-- **[templates/0.0.6/api.md](templates/0.0.6/api.md)** — Full API reference with request/response shapes (heartbeat, agent_runs, federation, bundles)
+- **[templates/0.0.7/mise.toml](templates/0.0.7/mise.toml)** — Ready-to-copy mise pin for Runex `0.0.7`
+- **[templates/0.0.7/api.md](templates/0.0.7/api.md)** — Full API reference with request/response shapes (heartbeat, federation, bundles)
 - **[references/bundles.md](references/bundles.md)** — Bundle authoring guide with step schema and per-driver examples
 - **[references/debugging.md](references/debugging.md)** — Step log inspection, heartbeat debugging, troubleshooting
 
 Legacy:
-- **[templates/0.1.0/api.md](templates/0.1.0/api.md)** — API reference snapshot for older Runex deployments (no heartbeat/agent_runs/federation)
+- **[templates/0.1.0/api.md](templates/0.1.0/api.md)** — API reference snapshot for older Runex deployments (no heartbeat/federation)
