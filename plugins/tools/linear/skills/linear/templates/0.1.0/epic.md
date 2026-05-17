@@ -25,9 +25,7 @@ slug: [epic-slug]
 > Domain-specific skills only.
 > Core skills (anti-fabrication, git, tdd, twelve-factor, security, mise, nushell) are always loaded.
 
-```yaml
-skills: [skill-1, skill-2]
-```
+skill-1, skill-2
 
 ## Repos
 
