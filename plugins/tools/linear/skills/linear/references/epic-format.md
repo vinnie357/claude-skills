@@ -44,16 +44,14 @@ Bad: "Make auth work better"
 
 ### `## Skills`
 
-Domain-specific skills needed for this epic. Listed as a comma-separated list or YAML array.
+Domain-specific skills needed for this epic. Listed as a comma-separated list.
 
 Core skills are always loaded and must NOT be listed:
 - anti-fabrication, git, tdd, twelve-factor, security, mise, nushell
 
 Only list domain-specific extras:
 
-```yaml
-skills: [elixir, oauth, security]
-```
+elixir, oauth, security
 
 Skills must exist in the marketplace at: https://github.com/vinnie357/claude-skills/blob/main/.claude-plugin/marketplace.json
 
@@ -215,7 +213,7 @@ automatically. All auth endpoints pass OWASP top-10 checks.
 
 ## Skills
 
-skills: [elixir, oauth, security]
+elixir, oauth, security
 
 ## Repos
 
