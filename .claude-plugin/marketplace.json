@@ -128,7 +128,7 @@
       "source": "./plugins/tools/runex",
       "strict": true,
       "description": "Runex workflow engine: API, bundles, step logs, and debugging",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "category": "tools",
       "keywords": ["runex", "workflow", "orchestration", "elixir", "bundles"],
       "license": "MIT"
