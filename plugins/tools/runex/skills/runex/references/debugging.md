@@ -11,6 +11,8 @@ Patterns for inspecting and troubleshooting Runex workflow runs.
 
 ## Step Log Inspection
 
+Default Runex port is 4000. Some operator setups (notably VantageEx co-deployment) use 4001 to avoid colliding with VantageEx on 4000 — adjust the `http://localhost:4001` examples accordingly if your deployment is on 4001.
+
 ### Basic Flow
 
 1. Submit a workflow and capture the run ID:
@@ -104,6 +106,40 @@ If a step fails because a tool is not found (e.g., `nu: command not found`):
 
 Params matching patterns like `password`, `secret`, `token`, `key`, or `url` are automatically masked in step output. If debugging requires seeing these values, check the actual environment rather than step logs.
 
+## Long-Running Steps and Heartbeats
+
+Long-running steps may timeout before completing. To prevent premature timeout kill, a step can call `POST /api/runs/:run_id/steps/:step_id/heartbeat` which extends the deadline by `timeout_extension`.
+
+### Sending a Heartbeat
+
+```bash
+curl -s -X POST http://localhost:4001/api/runs/$RUN_ID/steps/$STEP_ID/heartbeat | jq '.'
+```
+
+Success returns:
+```json
+{
+  "data": {
+    "step_run_id": 42,
+    "deadline": "2025-05-16T12:34:56.000000Z",
+    "extensions_used": 1
+  }
+}
+```
+
+A 404 response means the step does not exist or is not in running status.
+
+### Checking Heartbeat State
+
+```bash
+curl -s http://localhost:4001/api/runs/$RUN_ID/steps | jq '.data[] | {step_id: .id, last_heartbeat_at, extensions_used, deadline}'
+```
+
+Response includes:
+- `last_heartbeat_at` -- timestamp of most recent heartbeat (null if none sent)
+- `extensions_used` -- count of successful heartbeats sent
+- `deadline` -- current deadline (extended by heartbeat, resets on restart)
+
 ## Health Check Validation
 
 Before debugging workflow issues, confirm Runex is healthy:
@@ -151,3 +187,5 @@ curl -X POST http://localhost:4001/api/runs \
 | Bundle not found | Path resolution miss | Check `RUNEX_WORKFLOWS_DIR`, verify bundle directory exists |
 | Step output is masked | Sensitive param pattern match | Expected behavior for password/secret/token/key/url params |
 | Too many Postgres conns | Zombie connections | Check with `pg_stat_activity` query |
+| Heartbeat returns 404 | run_id or step_id mismatch | Verify both exist via `GET /api/runs/:id/steps`; step IDs are per-run, not global |
+| Federation node not visible | libcluster/DNS misconfig OR not running Postgres | Check `RUNEX_DATABASE_URL` points at Postgres; verify `DNS_CLUSTER_QUERY` resolves; federation needs Postgres + libcluster (SQLite mode = no federation) |
