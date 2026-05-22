@@ -64,6 +64,33 @@ bees ready                       # Find next issue
 
 ---
 
+## Tier-Aware Dispatch
+
+See `/core:agent-loop` "Five-Tier Decomposition Pipeline" for stage definitions and `/core:bees` "Tier labels for the five-tier pipeline" for label vocabulary.
+
+On `bees ready` pickup, route by tier label. `team:*` labels take precedence over `complexity:trivial` when both present.
+
+```bash
+LABELS=$(bees show <id> --json | jq -r '.labels | join(",")')
+case "$LABELS" in
+  *team:opus-planner*|*team:opus-review*)        MODEL=opus    ;;
+  *team:sonnet-test*|*team:sonnet-impl*)         MODEL=sonnet  ;;
+  *team:haiku-ci*|*complexity:trivial*)          MODEL=haiku   ;;
+  *) MODEL=unlabeled ;;
+esac
+```
+
+Unlabeled issue → comment + `bees update --status blocked` + escalate. Do not guess tier.
+
+Dispatch each stage as a separate `Task` invocation (no shared context across tiers). Name the stage in the spawn prompt (`You are P2 — test author for bees issue <id>`).
+
+Inter-stage verification before dispatching the next tier:
+- P3 dispatch: P2 issue closed AND test commit on branch.
+- P5 dispatch: P4 reported green AND `git diff <P2-sha>..HEAD -- <test-paths>` is empty.
+- Verification failure → comment + escalate, do not auto-correct.
+
+---
+
 ### Automated Workflow (Direct Commits)
 
 Use for non-code tasks or when PRs aren't required.
@@ -130,7 +157,7 @@ Continue until `bees ready --json` returns empty.
 
 Before dispatching work, activate any suggested skills from the `skill:` labels. Load the corresponding skill context so domain-specific knowledge is available during execution.
 
-Match issue pattern to action:
+Issues with `team:*` labels route via "Tier-Aware Dispatch" above. Untiered or `complexity:trivial` issues use the pattern-match table below.
 
 | Pattern | Action |
 |---------|--------|
