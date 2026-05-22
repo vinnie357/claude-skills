@@ -265,6 +265,8 @@ If a skill defines or modifies agent behavior (dispatch patterns, model selectio
 
 Skill updates that only edit markdown skip P2 (test author) — content-grep tests on markdown are tautological. Updates touching agent definitions (`agents/*.md` with dispatch logic) follow the full five-tier pipeline since those files are executable specifications.
 
+The pipeline runs inside ONE bees issue per skill update slice. The Sub-team Leader (or bees-worker acting as one) spawns the five stages as separate Task invocations; intermediate artifacts go to bees comments on that issue and git commits on the feature branch. Skill updates do not produce five chained bees rows.
+
 ## Best Practices
 
 ### Evaluation-Driven Development

@@ -64,30 +64,56 @@ bees ready                       # Find next issue
 
 ---
 
-## Tier-Aware Dispatch
+## Complexity-Aware Dispatch
 
-See `/core:agent-loop` "Five-Tier Decomposition Pipeline" for stage definitions and `/core:bees` "Tier labels for the five-tier pipeline" for label vocabulary.
+See `/core:agent-loop` "Five-Tier Decomposition Pipeline" for stage definitions and `/core:bees` "Complexity labels" for the bees-side vocabulary.
 
-On `bees ready` pickup, route by tier label. `team:*` labels take precedence over `complexity:trivial` when both present.
+On `bees ready` pickup, route by complexity label. The bees-worker IS the Sub-team Leader for that issue — it owns the pipeline dispatch internally.
 
 ```bash
 LABELS=$(bees show <id> --json | jq -r '.labels | join(",")')
 case "$LABELS" in
-  *team:opus-planner*|*team:opus-review*)        MODEL=opus    ;;
-  *team:sonnet-test*|*team:sonnet-impl*)         MODEL=sonnet  ;;
-  *team:haiku-ci*|*complexity:trivial*)          MODEL=haiku   ;;
-  *) MODEL=unlabeled ;;
+  *complexity:complex*) MODE=pipeline ;;
+  *complexity:trivial*) MODE=solo     ;;
+  *)                    MODE=unlabeled ;;
 esac
 ```
 
-Unlabeled issue → comment + `bees update --status blocked` + escalate. Do not guess tier.
+Unlabeled issue → classify (see "Complexity classification" below) or comment + `bees update --status blocked` + escalate. Do not guess.
 
-Dispatch each stage as a separate `Task` invocation (no shared context across tiers). Name the stage in the spawn prompt (`You are P2 — test author for bees issue <id>`).
+### Pipeline mode (complexity:complex)
 
-Inter-stage verification before dispatching the next tier:
-- P3 dispatch: P2 issue closed AND test commit on branch.
-- P5 dispatch: P4 reported green AND `git diff <P2-sha>..HEAD -- <test-paths>` is empty.
-- Verification failure → comment + escalate, do not auto-correct.
+Spawn five sequential `Task` invocations from the bees-worker process. Each is a separate Agent with no shared context. Name the stage in the spawn prompt — these are dispatch-time identifiers, not bees labels:
+
+| Stage | Model | Spawn prompt opens with |
+|-------|-------|-------------------------|
+| P1 planner   | opus   | `You are team:opus-planner for bees issue <id>. Stage P1 — write test list + spec.` |
+| P2 test author | sonnet | `You are team:sonnet-test for bees issue <id>. Stage P2 — write failing tests against P1's spec. Do NOT read implementation.` |
+| P3 implementer | sonnet | `You are team:sonnet-impl for bees issue <id>. Stage P3 — make tests pass. Do NOT modify test files.` |
+| P4 CI runner   | haiku  | `You are team:haiku-ci for bees issue <id>. Stage P4 — run mise run ci, paste verbatim output.` |
+| P5 reviewer    | opus   | `You are team:opus-review for bees issue <id>. Stage P5 — verify tests exercise AC, no overfit.` |
+
+Intermediate artifacts go to bees comments on the SAME issue and git commits on the feature branch. Do NOT create new bees issues for stage progression.
+
+Between dispatches the bees-worker verifies the previous stage's artifact before spawning the next:
+- Before P3: P2 stage left a test-only commit on the branch (`git log --oneline` shows it).
+- Before P4: P3's commit doesn't touch test files (`git diff <P2-sha>..HEAD -- <test-paths>` is empty).
+- Before P5: P4 reported green CI in its bees comment.
+- Verification failure → comment on the issue + escalate, do not auto-correct.
+
+### Solo mode (complexity:trivial)
+
+Dispatch one haiku Agent following the 9-step Agent Worker Execution Order in `/core:agent-loop`. Single Task invocation, no pipeline.
+
+### Complexity classification (unlabeled issues)
+
+If no `complexity:*` label is present, apply the threshold from `/core:agent-loop` "When to apply":
+- Multi-file change touching the issue body's referenced files
+- Public API surface (HTTP, exported, schema)
+- Cross-repo work
+- Explicit acceptance criteria
+
+Any hit → label `complexity:complex` and proceed in pipeline mode. None hit → label `complexity:trivial` and proceed in solo mode. If classification is ambiguous, comment + block + escalate; do not guess.
 
 ---
 
@@ -157,7 +183,7 @@ Continue until `bees ready --json` returns empty.
 
 Before dispatching work, activate any suggested skills from the `skill:` labels. Load the corresponding skill context so domain-specific knowledge is available during execution.
 
-Issues with `team:*` labels route via "Tier-Aware Dispatch" above. Untiered or `complexity:trivial` issues use the pattern-match table below.
+Issues with `complexity:*` labels route via "Complexity-Aware Dispatch" above. Untiered issues that classify as trivial use the pattern-match table below.
 
 | Pattern | Action |
 |---------|--------|
