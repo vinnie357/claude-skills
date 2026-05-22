@@ -470,22 +470,21 @@ priority:high, priority:medium, priority:low
 status:wip, status:blocked, status:review
 sprint:42, epic:auth
 skill:git, skill:security, skill:rust
-team:opus-planner, team:sonnet-test, team:sonnet-impl, team:haiku-ci, team:opus-review
-complexity:trivial, complexity:standard
+complexity:trivial, complexity:complex
 ```
 
-### Tier labels for the five-tier pipeline
+### Complexity labels (drives the pipeline decision)
 
-For issue topology see `/core:agent-loop` "Five-Tier Decomposition Pipeline". The label tells the dispatcher which model to spawn:
+Bees issues carry one of two complexity labels. The label tells the picker whether to dispatch a single agent or the full five-tier pipeline:
 
-- `team:opus-planner` / `team:opus-review` → opus
-- `team:sonnet-test` / `team:sonnet-impl` → sonnet
-- `team:haiku-ci` → haiku
-- `complexity:trivial` (no `team:*`) → haiku, single-agent
+- `complexity:trivial` → dispatch one haiku worker (see "Workflow Examples")
+- `complexity:complex` → dispatch the five-tier pipeline internally (see `/core:agent-loop` "Five-Tier Decomposition Pipeline")
 
-Apply with `bees update <id> --labels "..."` not `bees label add` — only `bees update --labels` syncs the priority field with the `priority:pN` label.
+Apply with `bees update <id> --labels "..."`, not `bees label add` — only `bees update --labels` keeps the priority field synced with the `priority:pN` label.
 
-A complex epic decomposes into FIVE chained bees issues per slice (one per stage), with `bees dep add` enforcing P1→P2→P3→P4→P5 order.
+Bees never carries `team:*` labels. The five tier names (`team:opus-planner`, `team:sonnet-test`, `team:sonnet-impl`, `team:haiku-ci`, `team:opus-review`) are dispatch-time strings the Sub-team Leader puts inside each Task spawn prompt. They identify the stage being dispatched, not the bees row.
+
+One bees issue == one slice. A complex slice still gets ONE bees issue; the five pipeline stages produce intermediate artifacts (bees comments on the same issue, git commits, PR comments), not five chained bees rows.
 
 ### Dependencies
 

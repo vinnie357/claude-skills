@@ -69,13 +69,15 @@ For complex issues, the Sub-team Leader spawns five distinct Agent invocations i
 
 Apply for multi-file changes, public API surfaces (HTTP/exported/schema), cross-repo work, or any issue carrying explicit acceptance criteria. Single-agent stays acceptable for one-liners, mechanical refactors, status checks, and log diagnosis. When in doubt, decompose.
 
+Fan-out happens at the Sub-team Leader, not at the epic decomposer or the bees-worker. Decomposition produces one bees issue per slice; the leader picking up the issue is the one that spawns the five stages.
+
 ### Orchestration rules
 
 - Each stage is a separate Agent invocation (no SendMessage continuations between tiers).
 - The leader verifies stage transitions before dispatching the next: test commit present before P3, test files unmodified before P5.
 - P4 reports verbatim CI output; on red the leader dispatches a fresh P3 (no chat continuity).
 - P5 reads `git diff main...HEAD`, tests, and the acceptance criteria; approves with one line or rejects with a structured findings list.
-- bees issues carry tier labels (`team:opus-planner`...`team:opus-review`). The dispatcher reads these. See `/core:bees`.
+- bees issues carry a single `complexity:complex` or `complexity:trivial` label, not tier labels. The Sub-team Leader picks up the issue, reads complexity, and (for complex) dispatches the five stages internally — each Task spawn prompt names its tier (`team:opus-planner` ... `team:opus-review`) as dispatch-time metadata. Tier labels never land on bees rows. See `/core:bees`.
 
 ### Avoiding pipeline collapse
 
