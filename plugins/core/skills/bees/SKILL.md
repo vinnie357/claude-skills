@@ -470,7 +470,22 @@ priority:high, priority:medium, priority:low
 status:wip, status:blocked, status:review
 sprint:42, epic:auth
 skill:git, skill:security, skill:rust
+team:opus-planner, team:sonnet-test, team:sonnet-impl, team:haiku-ci, team:opus-review
+complexity:trivial, complexity:standard
 ```
+
+### Tier labels for the five-tier pipeline
+
+For issue topology see `/core:agent-loop` "Five-Tier Decomposition Pipeline". The label tells the dispatcher which model to spawn:
+
+- `team:opus-planner` / `team:opus-review` → opus
+- `team:sonnet-test` / `team:sonnet-impl` → sonnet
+- `team:haiku-ci` → haiku
+- `complexity:trivial` (no `team:*`) → haiku, single-agent
+
+Apply with `bees update <id> --labels "..."` not `bees label add` — only `bees update --labels` syncs the priority field with the `priority:pN` label.
+
+A complex epic decomposes into FIVE chained bees issues per slice (one per stage), with `bees dep add` enforcing P1→P2→P3→P4→P5 order.
 
 ### Dependencies
 

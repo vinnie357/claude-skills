@@ -259,6 +259,12 @@ Refine based on real-world usage and evaluation data:
 
 For description optimization techniques, see `references/evaluation-guide.md`.
 
+## Five-tier authoring pipeline
+
+If a skill defines or modifies agent behavior (dispatch patterns, model selection, multi-agent coordination), cross-link `/core:agent-loop` "Five-Tier Decomposition Pipeline" — the canonical decomposition for complex tasks.
+
+Skill updates that only edit markdown skip P2 (test author) — content-grep tests on markdown are tautological. Updates touching agent definitions (`agents/*.md` with dispatch logic) follow the full five-tier pipeline since those files are executable specifications.
+
 ## Best Practices
 
 ### Evaluation-Driven Development

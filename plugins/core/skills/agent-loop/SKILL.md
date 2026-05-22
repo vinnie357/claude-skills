@@ -30,6 +30,8 @@ Every agent, regardless of tier, follows these four phases:
 
 ## 6-Tier Prompt Hierarchy
 
+These six tiers describe authority — who reports to whom across an epic. For the orthogonal axis of how a single issue flows through staged agents, see "Five-Tier Decomposition Pipeline" below.
+
 | Tier | Role | Scope | Default Model | Reference |
 |------|------|-------|---------------|-----------|
 | 0 | Epic Author | Write machine-executable epics | human | `references/epic-authoring.md` |
@@ -48,6 +50,36 @@ haiku -> sonnet -> opus
 ```
 
 Maximum 2 promotions per agent. If opus fails, escalate to the upstream tier (sub-lead to lead, lead to user).
+
+## Five-Tier Decomposition Pipeline
+
+The 6-tier hierarchy above describes WHO reports to whom (authority). The five-tier pipeline below describes HOW one work item flows through five sequential agents (process). They are orthogonal: a Sub-team Leader (tier 2 authority) dispatches a five-tier pipeline (process) to deliver one issue.
+
+For complex issues, the Sub-team Leader spawns five distinct Agent invocations in order. No shared context across tiers — each tier is adversarial against the next.
+
+| Pipeline Stage | Model | Responsibility | Forbidden |
+|----------------|-------|----------------|-----------|
+| P1 Test Planner | opus | Translate acceptance criteria into ordered test list + edge cases | Writing code or tests |
+| P2 Test Author | sonnet | Write failing tests against P1's spec | Reading impl source; modifying after handoff |
+| P3 Implementer | sonnet | Make tests pass | Modifying test files; reading P2's chat context |
+| P4 CI Runner | haiku | Run CI, capture verbatim output, report green/red | Judging correctness; touching code |
+| P5 Reviewer | opus | Verify tests exercise AC, no overfit, no missed edges | Authoring fixes (sends back to P2 or P3 with findings) |
+
+### When to apply
+
+Apply for multi-file changes, public API surfaces (HTTP/exported/schema), cross-repo work, or any issue carrying explicit acceptance criteria. Single-agent stays acceptable for one-liners, mechanical refactors, status checks, and log diagnosis. When in doubt, decompose.
+
+### Orchestration rules
+
+- Each stage is a separate Agent invocation (no SendMessage continuations between tiers).
+- The leader verifies stage transitions before dispatching the next: test commit present before P3, test files unmodified before P5.
+- P4 reports verbatim CI output; on red the leader dispatches a fresh P3 (no chat continuity).
+- P5 reads `git diff main...HEAD`, tests, and the acceptance criteria; approves with one line or rejects with a structured findings list.
+- bees issues carry tier labels (`team:opus-planner`...`team:opus-review`). The dispatcher reads these. See `/core:bees`.
+
+### Avoiding pipeline collapse
+
+Single agents tend to merge planning + test-writing + implementation into one pass, defeating the adversarial separation. The leader prompt MUST explicitly name the stage (`You are P2 — test author for issue <id>`) and forbid out-of-stage activity.
 
 ## Core Skills (Mandatory)
 
