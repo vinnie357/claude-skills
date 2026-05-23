@@ -1,9 +1,10 @@
 # Source: https://docs.docker.com/ai/sandboxes/get-started/
-# sbx ships as platform-native packages — install via brew/winget/apt per SKILL.md.
-# mise github backend is left commented out because docker/sbx-releases ships
-# platform installers, not a single cross-platform binary mise can extract.
-# [tools]
-# sbx = "github:docker/sbx-releases"
+# Verified 2026-05-22: mise github backend extracts the platform tarball
+# (DockerSandboxes-darwin.tar.gz / DockerSandboxes-linux.tar.gz), preserves
+# the bin/sbx + libexec/ layout, and verifies SLSA provenance during install.
+
+[tools]
+"github:docker/sbx-releases" = "0.30.0"
 
 [env]
 # SBX_API_KEY = "op://Vault/Item/credential"  # or set via `sbx login`

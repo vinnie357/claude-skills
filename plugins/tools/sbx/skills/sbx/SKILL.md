@@ -37,6 +37,22 @@ curl -fsSL https://get.docker.com | sudo REPO_ONLY=1 sh
 sudo apt-get install docker-sbx
 ```
 
+### mise (macOS, Linux)
+
+mise's github backend extracts the platform tarball, preserves the `bin/sbx` + `libexec/` layout, and verifies SLSA provenance. See `templates/mise.toml`.
+
+```toml
+[tools]
+"github:docker/sbx-releases" = "0.30.0"
+```
+
+```bash
+mise install
+sbx version
+```
+
+Apple silicon and Linux x86_64 are confirmed. Windows is not packaged as a tarball asset — use `winget` above.
+
 ## Authenticate
 
 ```bash
