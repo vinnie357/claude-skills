@@ -1,0 +1,22 @@
+# Source: https://docs.docker.com/ai/sandboxes/get-started/
+# Verified 2026-05-22: mise github backend extracts the platform tarball
+# (DockerSandboxes-darwin.tar.gz / DockerSandboxes-linux.tar.gz), preserves
+# the bin/sbx + libexec/ layout, and verifies SLSA provenance during install.
+
+[tools]
+"github:docker/sbx-releases" = "0.30.0"
+
+[env]
+# SBX_API_KEY = "op://Vault/Item/credential"  # or set via `sbx login`
+
+[tasks."sbx:up"]
+description = "Launch a Claude sandbox with worktree isolation"
+run = "sbx run claude --branch auto"
+
+[tasks."sbx:ls"]
+description = "List sandboxes"
+run = "sbx ls"
+
+[tasks."sbx:diagnose"]
+description = "Gather sbx diagnostics"
+run = "sbx diagnose"

@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.10"
+    "version": "1.0.11"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.9",
+      "version": "0.4.10",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -62,7 +62,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.5",
+      "version": "0.2.6",
       "category": "development",
       "keywords": ["git", "documentation", "code-review", "tools", "beads", "bees", "container", "tdd", "agent-loop"]
     },
@@ -141,6 +141,16 @@
       "version": "0.1.4",
       "category": "language",
       "keywords": ["rust", "systems-programming", "memory-safety"]
+    },
+    {
+      "name": "sbx",
+      "source": "./plugins/tools/sbx",
+      "strict": true,
+      "description": "Docker Sandboxes (sbx CLI): run AI coding agents in isolated microVMs with hypervisor-level isolation",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": ["docker", "sandbox", "sbx", "microvm", "ai-agents", "isolation"],
+      "license": "MIT"
     },
     {
       "name": "slidev",

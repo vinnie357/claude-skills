@@ -1,0 +1,26 @@
+# Pinned runtimes for the sandbox VM. Claude runs `mise install` after the
+# sandbox boots; mise reads this file from the mounted workspace.
+
+[tools]
+erlang = "27.2"
+elixir = "1.18.1-otp-27"
+
+[env]
+MIX_ENV = "dev"
+DATABASE_URL = "ecto://postgres:postgres@localhost:5432/app_dev"
+PHX_HOST = "localhost"
+PORT = "4000"
+
+[tasks."setup"]
+description = "First-run setup inside the sandbox"
+run = """
+mix local.hex --force
+mix local.rebar --force
+mix deps.get
+docker compose up -d postgres
+mix ecto.setup
+"""
+
+[tasks."dev"]
+description = "Start Phoenix with Tidewave"
+run = "mix phx.server"

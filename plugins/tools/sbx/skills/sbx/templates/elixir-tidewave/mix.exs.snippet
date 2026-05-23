@@ -1,0 +1,12 @@
+# Add these deps to your existing mix.exs `defp deps do [...] end` block.
+
+defp deps do
+  [
+    {:phoenix, "~> 1.7"},
+    {:phoenix_live_view, "~> 1.0"},
+    {:ecto_sql, "~> 3.12"},
+    {:postgrex, "~> 0.20"},
+    {:jason, "~> 1.4"},
+    {:tidewave, "~> 0.5", only: :dev},
+  ]
+end

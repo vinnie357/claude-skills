@@ -279,6 +279,9 @@ This file documents the sources used to create the core plugin skills.
 - **Purpose**: Source for optional spec-driven flows integrated into /core:agent-loop (team-leader, agent-worker, validator, epic-authoring edits)
 - **Date Accessed**: 2026-04-17
 
+### mise Sandboxing
+- https://mise.jdx.dev/sandboxing.html — mise sandboxing (experimental). Extracted: allow/deny flags, task-level config, Landlock/Seatbelt platform support, limitations. Accessed 2026-05-22.
+
 ## Plugin Information
 
 - **Name**: core
