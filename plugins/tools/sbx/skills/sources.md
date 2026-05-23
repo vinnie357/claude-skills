@@ -27,3 +27,14 @@
 - **Source**: https://github.com/docker/sbx-releases
   - Extracted: release history reference; no version number fabricated from this source
   - Accessed 2026-05-22
+
+- **Source**: https://github.com/docker/sbx-releases/releases/download/v0.30.0/DockerSandboxes-darwin.tar.gz (and `-linux.tar.gz`)
+  - Extracted: archive layout (`bin/sbx` + `libexec/` runtime tree + `completions/`); verified mise github backend installs and extracts the tarball correctly with SLSA provenance verification
+  - Accessed 2026-05-22
+
+### Third-party
+
+- **Source**: https://www.msbiro.net/posts/docker-sandboxes-ai-agents/ — Matteo Bisi, 2026-04-07
+  - Extracted: `sbx policy allow network -g <host>` syntax, `sbx policy ls` (both confirmed against upstream usage page), `sbx exec -it` flag, interactive dashboard keyboard shortcuts (confirmed against upstream), `.sbx/` worktree directory + gitignore recommendation, `--branch` as recommended pattern for reviewable agent edits
+  - Note: `sbx secret` subcommand mentioned in the blog is NOT confirmed against upstream docs; omitted from this skill per anti-fabrication policy
+  - Accessed 2026-05-22

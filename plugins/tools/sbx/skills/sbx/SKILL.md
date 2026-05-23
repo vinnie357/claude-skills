@@ -78,15 +78,20 @@ sbx create claude
 
 ## Branch isolation
 
-`--branch auto` creates a Git worktree for the sandbox, keeping branch changes isolated from the main working tree.
+`--branch auto` creates a Git worktree for the sandbox, keeping branch changes isolated from the main working tree. Worktrees live under `.sbx/` in the repo root. Add `.sbx/` to `.gitignore` (or global gitignore) to keep it out of `git status`.
 
 ```bash
-# Auto-create a worktree branch
-sbx run claude --branch auto
+# Auto-create a worktree branch (with trailing path)
+sbx run claude --branch auto .
 
 # Target an existing branch
 sbx run claude --branch my-feature
+
+# Suggested gitignore entry
+echo '.sbx/' >> .gitignore
 ```
+
+`--branch` is the recommended pattern for any agent that writes code — it keeps every agent edit on a reviewable branch the operator can diff and merge deliberately.
 
 ## Sandbox lifecycle
 
@@ -116,18 +121,48 @@ sbx cp my-sandbox:/workspace/output.txt ./output.txt
 ## Forward ports
 
 ```bash
+# Publish host port 8080 → sandbox port 3000
 sbx ports my-sandbox --publish 8080:3000
-```
 
-Maps host port 8080 to container port 3000 inside the sandbox.
+# Remove an existing publish
+sbx ports my-sandbox --unpublish 8080:3000
+```
 
 ## Exec into a running sandbox
 
 ```bash
-sbx exec my-sandbox bash
+sbx exec -it my-sandbox bash
 ```
 
-Opens an interactive shell inside the running sandbox.
+`-it` keeps the shell interactive. Without it, `exec` runs the command and exits.
+
+## Network policy
+
+`sbx` ships a deny-by-default network policy. Add explicit allow rules per host or wildcard:
+
+```bash
+# Allow a global host for all sandboxes
+sbx policy allow network -g registry.npmjs.org
+
+# Inspect current policy
+sbx policy ls
+```
+
+`**` matches multiple subdomain levels in the rule grammar.
+
+## Interactive dashboard
+
+Running `sbx` with no subcommand opens a terminal dashboard. Key shortcuts:
+
+| Key | Action |
+|-----|--------|
+| `c` | Create a sandbox |
+| `s` | Start or stop the selected sandbox |
+| `Enter` | Attach to the agent session |
+| `x` | Open a shell (same as `sbx exec`) |
+| `r` | Remove the selected sandbox |
+| `Tab` | Switch between sandbox and network governance panels |
+| `?` | Show all shortcuts |
 
 ## Security boundary
 
@@ -160,12 +195,20 @@ sbx diagnose
 
 For release history, see https://github.com/docker/sbx-releases.
 
+## Docker inside a sandbox
+
+Each sandbox runs its own Docker daemon, so the agent can spin up service containers (Postgres, Redis, etc.) inside the VM without touching the host's Docker. The workspace dir is mounted into the VM, so a `compose.yaml` in the repo works as-is.
+
+See `templates/elixir-tidewave/` for a worked example: Phoenix app + Postgres container + Tidewave runtime introspection, all inside a single sandbox where Claude is the running agent.
+
 ## Reference
 
-- `references/commands.md` — all 11 subcommands with confirmed flags and canonical invocations
+- `references/commands.md` — confirmed subcommands and flags with canonical invocations
 - `references/security-model.md` — four-layer isolation model, network policy, credential injection, workspace caveat
+- `templates/mise.toml` — mise github backend pin for sbx
+- `templates/elixir-tidewave/` — Docker-in-sbx workflow with Phoenix + Postgres + Tidewave
 
-Related: `/core:container` — Apple Container CLI (lightweight Linux VMs on Apple silicon via Virtualization.framework; different layer from sbx microVMs).
+Related: `/core:container` — Apple Container CLI (lightweight Linux VMs on Apple silicon via Virtualization.framework; different layer from sbx microVMs). `/elixir:tidewave` — Tidewave MCP setup detail used by the elixir-tidewave template.
 
 ## Anti-fabrication
 

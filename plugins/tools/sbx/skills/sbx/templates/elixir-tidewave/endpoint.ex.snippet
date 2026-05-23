@@ -1,0 +1,23 @@
+# Merge into lib/<app>_web/endpoint.ex
+#
+# The Tidewave plug is the entire MCP integration — no separate child spec
+# is required. Localhost-only by default, which is the right setting when
+# Claude runs inside the same sbx VM as the Phoenix app.
+
+defmodule AppWeb.Endpoint do
+  use Phoenix.Endpoint, otp_app: :app
+
+  if Mix.env() == :dev do
+    plug Tidewave
+  end
+
+  # ... rest of your existing endpoint plugs ...
+end
+
+# If you also want to attach a host-side MCP client by forwarding port 4000:
+#
+#   if Mix.env() == :dev do
+#     plug Tidewave, allow_remote_access: true
+#   end
+#
+# Pair this with `sbx ports <sandbox-name> --publish 4000:4000`.
