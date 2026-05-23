@@ -1,0 +1,21 @@
+# Source: https://docs.docker.com/ai/sandboxes/get-started/
+# sbx ships as platform-native packages — install via brew/winget/apt per SKILL.md.
+# mise github backend is left commented out because docker/sbx-releases ships
+# platform installers, not a single cross-platform binary mise can extract.
+# [tools]
+# sbx = "github:docker/sbx-releases"
+
+[env]
+# SBX_API_KEY = "op://Vault/Item/credential"  # or set via `sbx login`
+
+[tasks."sbx:up"]
+description = "Launch a Claude sandbox with worktree isolation"
+run = "sbx run claude --branch auto"
+
+[tasks."sbx:ls"]
+description = "List sandboxes"
+run = "sbx ls"
+
+[tasks."sbx:diagnose"]
+description = "Gather sbx diagnostics"
+run = "sbx diagnose"

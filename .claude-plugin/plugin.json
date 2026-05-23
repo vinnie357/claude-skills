@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -77,6 +77,7 @@
     "./plugins/languages/rust/skills/async",
     "./plugins/languages/rust/skills/testing",
     "./plugins/languages/rust/skills/troubleshooting",
+    "./plugins/tools/sbx/skills/sbx",
     "./plugins/tools/slidev/skills/slidev",
     "./plugins/tools/slidev/skills/syntax",
     "./plugins/tools/slidev/skills/code",
