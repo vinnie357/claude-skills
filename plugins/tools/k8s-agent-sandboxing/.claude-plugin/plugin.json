@@ -1,0 +1,31 @@
+{
+  "name": "k8s-agent-sandboxing",
+  "version": "0.1.0",
+  "description": "Kubernetes-native agent sandboxing with Kata, gVisor, and Apple Container microVM isolation for Claude Code workloads on kind, GKE, and kina",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": [
+    "kubernetes",
+    "agent-sandbox",
+    "kata",
+    "gvisor",
+    "kina",
+    "apple-container",
+    "microvm",
+    "claude-code",
+    "sandboxing",
+    "gke",
+    "kind"
+  ],
+  "skills": [
+    "./skills/k8s-agent-sandbox",
+    "./skills/kata-on-kind",
+    "./skills/kata-on-gke",
+    "./skills/kina-microvm",
+    "./skills/claude-code-on-sandbox",
+    "./skills/agent-substrate-overview"
+  ]
+}

@@ -1,0 +1,39 @@
+# Standalone NetworkPolicy: default-deny egress + allowlist for api.anthropic.com.
+#
+# Apply this when the SandboxTemplate uses networkPolicyManagement: Unmanaged,
+# or as a cluster-wide baseline that affects every pod with the matching label.
+# When the SandboxTemplate uses networkPolicyManagement: Managed, the controller
+# installs an equivalent policy from the template's embedded networkPolicy
+# block — do NOT apply both, or they'll conflict.
+#
+# 0.0.0.0/0:443 is a placeholder. In production, resolve api.anthropic.com and
+# pin to the resulting CIDRs. See claude-code-on-sandbox references/network-policy.md.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: claude-code-anthropic-egress
+spec:
+  podSelector:
+    matchLabels:
+      app: claude-code
+  policyTypes:
+    - Egress
+  egress:
+    # DNS to CoreDNS in kube-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # HTTPS to Anthropic — narrow to resolved CIDRs in prod
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
