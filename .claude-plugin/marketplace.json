@@ -128,7 +128,7 @@
       "source": "./plugins/tools/qa",
       "strict": true,
       "description": "QA team that validates a running application against Gherkin user stories using Playwright and Tidewave",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "tools",
       "keywords": ["qa", "gherkin", "playwright", "tidewave", "tdd", "user-stories", "bdd"],
       "license": "MIT"
