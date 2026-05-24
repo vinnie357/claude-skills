@@ -189,6 +189,7 @@ Team leaders structure agent prompts with these sections:
 /core:anti-fabrication
 /core:git
 /core:tdd
+/core:twelve-factor
 /core:security
 /core:mise
 /core:nushell
