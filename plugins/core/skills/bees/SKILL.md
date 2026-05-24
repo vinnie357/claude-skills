@@ -509,6 +509,35 @@ bees comment add <id> "Completed initial implementation"
 bees comment list <id>
 ```
 
+### Claude-teams-aware bee format
+
+Bees that an agent loop picks up directly need structured labels and a structured description body. Single-paragraph bees are appropriate for operator-only notes; agent-targeted bees follow this shape:
+
+**Labels** (apply via `bees update <id> --labels "..."` to keep priority in sync):
+- `team:*` — the agent team that owns the work (e.g., `team:opus-planner`, `team:sonnet-impl`)
+- `skill:<plugin>:<skill>` — domain skills the worker loads (e.g., `skill:elixir:phoenix`)
+- `model:<model>` — initial model assignment (`model:haiku`, `model:sonnet`, `model:opus`)
+- `complexity:trivial` OR `complexity:complex` — pipeline-decision label
+- `priority:p<N>` — keeps `bees ready` queue order
+
+**Description sections** (markdown H2 or H3):
+- `## CRITICAL` — must-not-violate constraints (one bullet per line)
+- `## Objective` — what success looks like
+- `## Context` — existing code, prior commits, related PRs
+- `## Acceptance criteria` — bullet list, testable
+- `## Deliverables` — concrete artifacts (files, PRs, commits)
+- `## Load skills` — exact skill names the worker invokes
+
+### Single-writer constraint
+
+The SQLite database under `.bees/bees.db` is single-writer. Concurrent workers MUST NOT run `bees create`, `bees close`, `bees update`, `bees label add`, or `bees dep add` directly — concurrent writes raise `SQLITE_CONSTRAINT` or `daemon.lock` failures that lose work.
+
+Workers collect proposed writes in their final report (a `## BEES REQUESTS` section). The lead applies the queued writes through a single serial writer — the `bees-manager` agent (see `agents/bees-manager.md`).
+
+### `bees ready` as canonical queue
+
+`bees ready` (run from the repo root that owns the `.bees/` directory) is the canonical ordering of "what an agent picks up next". Edit the queue order via `bees` (`priority:pN` label OR `bees dep add`), never by mutating storage out-of-band. Downstream systems that synchronize bee state to other trackers read `bees ready` order; raw-database edits skip the synchronization layer and leave consumers stale.
+
 ## Troubleshooting
 
 ### Database Issues
