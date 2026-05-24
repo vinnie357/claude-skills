@@ -845,3 +845,7 @@ mix test --max-cases 1
 - **Mock at boundaries**: Mock external services, not internal modules
 - **Property-based testing**: Use StreamData for algorithmic code
 - **Embrace the database**: Use Ecto sandbox for fast, isolated database tests
+
+## References
+
+- `references/os-subprocess-adapter.md` — Elixir @callback + Mox shape for wrapping `System.cmd` / `Port.open` calls behind a mockable seam; config wiring per environment

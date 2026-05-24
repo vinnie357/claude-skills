@@ -326,6 +326,7 @@ For deeper theory and worked examples:
 - `references/beck-tdd.md` — Kent Beck's canonical TDD: Fake It, Triangulation, test isolation
 - `references/goos-outside-in.md` — Freeman & Pryce's GOOS: double-loop TDD, walking skeleton, outside-in design
 - `references/ci-discipline.md` — `mise run ci` before every commit; CI green = local AND remote; verbatim output as evidence; no pre-existing carve-outs; post-merge main verification; docs-first TDD; no fabricated time estimates
+- `references/os-subprocess-boundary.md` — OS subprocess calls are external boundaries; introduce a behaviour/interface, real adapter for dev/prod, mock for tests; do NOT gate tests on `find_executable`
 
 ## Key Principles
 
