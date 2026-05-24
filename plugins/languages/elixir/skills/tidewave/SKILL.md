@@ -22,6 +22,32 @@ Current version: `~> 0.5` (v0.5.6 released 2026-03-13 — adds `:extra_apps` plu
 
 Why: MCP tool calls return results pinned to the exact versions in the project's `mix.lock`, complete in a single round-trip, and skip HTML→markdown conversion and page chrome — significantly fewer tokens per lookup than WebFetch, and the answer is guaranteed to match the running app rather than whatever version is on hexdocs.pm today.
 
+## Using tidewave in tier prompts
+
+When a worker in a staged pipeline interacts with unfamiliar dependencies, the lead's prompt to that worker MUST explicitly direct the worker to verify dep APIs via tidewave MCP tools before stubbing or implementing.
+
+Add this block to Tier 2 (test author) and Tier 3 (implementer) prompts when the work touches a dep not already exercised in the codebase:
+
+```text
+## Module docs via tidewave (PREFERRED over WebFetch or guessing)
+
+For unfamiliar deps, verify the actual API surface via tidewave MCP before stubbing or implementing:
+
+- `mcp__tidewave-<app>__search_package_docs` (q: "<ModuleName>") — keyword search across installed package docs
+- `mcp__tidewave-<app>__get_docs` (module: "<Module>", function: "<func>") — full docstrings for a specific function
+
+Particularly important for: <list the specific deps this tier touches>.
+
+Tidewave hits the running BEAM's loaded modules — it returns what is ACTUALLY in the dep, not what the model remembers from training data. Guessing produces code that does not compile or behaves wrong; tidewave produces code matching the real API surface.
+```
+
+The lead lists the SPECIFIC dep names in the prompt — abstract "use tidewave" instructions are ignored. Naming the dep (`Cloak`, `Slipstream`, `Phoenix.Token`, `Mox`, etc.) and the exact MCP tool names triggers the worker to call them.
+
+This applies whenever a tier worker touches a dependency that:
+- Is new to the codebase (not already imported / used in `lib/`).
+- Has changed API across a recent major version.
+- The worker would otherwise stub from training-data memory.
+
 ## Installation
 
 ### New Projects (via Igniter)

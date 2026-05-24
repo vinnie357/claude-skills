@@ -295,3 +295,4 @@ Epics WITHOUT a `spec:` field behave exactly as today — all spec-driven steps 
 - `references/fix-agent.md` -- CI failure remediation, test fixing, escalation
 - `references/epic-authoring.md` -- User guide for writing machine-executable epics
 - `references/leader-spawn-example.md` -- Worked Phoenix-endpoint Team Leader spawn prompt with explicit `/core:*` + `/elixir:*` skill list
+- `references/dep-doc-introspection.md` — Lead-authored prompts for staged pipelines must name the runtime-introspection tools AND the specific deps the worker touches, not abstract "use the introspection tools"
