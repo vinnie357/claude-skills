@@ -1,0 +1,36 @@
+# Plugin-root mise.toml for the agent-sandboxing plugin.
+#
+# Pins the tools the slash-command scripts depend on, and exposes named tasks
+# that wrap the scripts. Operators can use these tasks directly via
+# `mise run -C <plugin-root> <task>` without going through a slash command.
+#
+# Tool pins use the mise registry SHORT NAME where available; the github
+# backend covers nu/jq (see /core:mise "GitHub Backend"). kubectl is NOT pinned
+# here because the operator's cluster context typically dictates kubectl
+# version compatibility — let the host system manage it.
+
+[tools]
+"github:nushell/nushell" = "latest"
+"github:jqlang/jq" = "latest"
+
+[tasks.render-claim]
+description = "Render a SandboxClaim YAML from templates/SandboxClaim.session.yaml"
+run = "nu scripts/render-claim.nu"
+
+[tasks.wait-bound]
+description = "Poll a SandboxClaim until status.phase == Bound (or timeout)"
+run = "nu scripts/wait-bound.nu"
+
+[tasks.list-claims]
+description = "List SandboxClaims with phase, template, age"
+run = "nu scripts/list-claims.nu"
+
+[tasks.install-controller]
+description = "Install kubernetes-sigs/agent-sandbox v0.4.6 controller + extensions"
+run = """
+VERSION=${VERSION:-v0.4.6}
+kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/manifest.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/extensions.yaml
+kubectl wait --for=condition=Available deploy/agent-sandbox-controller -n agent-sandbox-system --timeout=5m
+kubectl get crd | grep agents.x-k8s.io
+"""

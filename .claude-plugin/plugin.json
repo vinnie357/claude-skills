@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -104,5 +104,13 @@
     "./plugins/languages/zig/skills/testing",
     "./plugins/languages/zig/skills/c-interop",
     "./plugins/languages/zig/skills/troubleshooting"
+  ],
+  "commands": [
+    "./plugins/tools/agent-sandboxing/commands/bootstrap.md",
+    "./plugins/tools/agent-sandboxing/commands/provision.md",
+    "./plugins/tools/agent-sandboxing/commands/exec.md",
+    "./plugins/tools/agent-sandboxing/commands/reap.md",
+    "./plugins/tools/agent-sandboxing/commands/status.md",
+    "./plugins/tools/agent-sandboxing/commands/build-image.md"
   ]
 }

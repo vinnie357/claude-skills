@@ -1,7 +1,7 @@
 {
   "name": "agent-sandboxing",
-  "version": "0.1.0",
-  "description": "Agent sandboxing for AI coding agents: microVM and kernel-isolated execution environments. Currently covers the kubernetes-sigs/agent-sandbox path on kind, GKE, and kina (Kubernetes-in-Apple-Containers), with Kata, gVisor, and Apple Container microVM substrates. Designed to expand to non-k8s sandboxing paths.",
+  "version": "0.2.0",
+  "description": "Agent sandboxing for AI coding agents: microVM and kernel-isolated execution environments. Currently covers the kubernetes-sigs/agent-sandbox path on kind, GKE, and kina (Kubernetes-in-Apple-Containers), with Kata, gVisor, and Apple Container microVM substrates. Ships 6 skills + 6 slash commands + nushell scripts. Designed to expand to non-k8s sandboxing paths.",
   "author": {
     "name": "vinnie357"
   },
@@ -27,5 +27,13 @@
     "./skills/kina-microvm",
     "./skills/claude-code-on-sandbox",
     "./skills/agent-substrate-overview"
+  ],
+  "commands": [
+    "./commands/bootstrap.md",
+    "./commands/provision.md",
+    "./commands/exec.md",
+    "./commands/reap.md",
+    "./commands/status.md",
+    "./commands/build-image.md"
   ]
 }
