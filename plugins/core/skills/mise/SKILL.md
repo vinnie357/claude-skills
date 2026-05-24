@@ -948,3 +948,7 @@ mise config migrate
 - **Task automation**: Centralize common development tasks
 - **Cross-platform**: Same config works on all platforms
 - **Zero setup for team**: Clone and `mise install` to get started
+
+## References
+
+- `references/transitive-runtime-deps.md` — `mise exec` does NOT auto-install transitive deps (Elixir-needs-Erlang failure mode); prefer portable secret-generation commands (`openssl`, `python3`, `/dev/urandom`)
