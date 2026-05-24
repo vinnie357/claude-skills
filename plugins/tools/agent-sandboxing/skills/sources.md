@@ -1,6 +1,6 @@
 # Sources
 
-Citations for the `k8s-agent-sandboxing` plugin skills. Each entry lists the upstream source, what was extracted from it, and the date of last verification.
+Citations for the `agent-sandboxing` plugin skills. Each entry lists the upstream source, what was extracted from it, and the date of last verification.
 
 ## kubernetes-sigs/agent-sandbox
 

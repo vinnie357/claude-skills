@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.12"
+    "version": "1.0.13"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.11",
+      "version": "0.4.12",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -94,13 +94,13 @@
       "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing", "community-health", "open-source"]
     },
     {
-      "name": "k8s-agent-sandboxing",
-      "source": "./plugins/tools/k8s-agent-sandboxing",
+      "name": "agent-sandboxing",
+      "source": "./plugins/tools/agent-sandboxing",
       "strict": true,
-      "description": "Kubernetes-native agent sandboxing with Kata, gVisor, and Apple Container microVM isolation for Claude Code workloads on kind, GKE, and kina",
+      "description": "Agent sandboxing for AI coding agents: microVM and kernel-isolated execution. Currently covers the kubernetes-sigs/agent-sandbox path on kind, GKE, and kina. Designed to grow to non-k8s sandboxing paths.",
       "version": "0.1.0",
       "category": "tools",
-      "keywords": ["kubernetes", "agent-sandbox", "kata", "gvisor", "kina", "apple-container", "microvm", "claude-code", "sandboxing", "gke", "kind"],
+      "keywords": ["agent-sandbox", "sandboxing", "microvm", "kata", "gvisor", "kina", "apple-container", "kubernetes", "gke", "kind", "claude-code"],
       "license": "MIT"
     },
     {
