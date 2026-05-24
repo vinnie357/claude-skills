@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.16"
+    "version": "1.0.17"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.15",
+      "version": "0.4.16",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -53,7 +53,7 @@
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills: plugin marketplace management and validation",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "category": "tools",
       "keywords": ["claude-code", "marketplace", "validation", "teams", "benchmark", "skill-update", "output-styles", "statusline"]
     },
@@ -62,7 +62,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.6",
+      "version": "0.2.7",
       "category": "development",
       "keywords": ["git", "documentation", "code-review", "tools", "beads", "bees", "container", "tdd", "agent-loop"]
     },

@@ -1,6 +1,6 @@
 ---
 name: agent-loop
-description: Generic epic-to-PR agent workflow with 4-phase execution and 6-tier prompt hierarchy. Use when spawned to work an epic, issue, or task as part of an agent team, orchestrating multi-agent workflows, or decomposing work into issues and tasks.
+description: Generic epic-to-PR agent workflow with 4-phase execution and 6-tier prompt hierarchy. Use when coordinating any non-trivial feature delivery, picking up an epic in a fresh session (decomposing path) or with pre-existing issues (dispatching path), implementing a multi-step task that benefits from plan→test→implement→validate phases, asking clarifying questions before decomposing, forming a team and assigning models per tier, or orchestrating multi-agent workflows. Loads on casual feature requests too — not only when the word "epic" appears.
 license: MIT
 ---
 
@@ -28,6 +28,33 @@ Every agent, regardless of tier, follows these four phases:
 | 3 | Validation | Run strictest CI suite, iterate with fix agent until clean |
 | 4 | Submit | Create PR, wait for CI, report to upstream, clean up after merge |
 
+## Phase 1.5: Decomposition Gate
+
+Between Phase 1 (pre-flight) and Phase 2 (spawn), the Team Leader checks two deterministic signals — no file searching:
+
+1. **bees:** `bees list --epic <slug>` — does the epic already have issues?
+2. **`DECOMPOSITION_PATH` env var:** is it set AND does the file it points at exist? This is the canonical signal an upstream process sets to hand off a pre-computed proposal.
+
+| State | bees | `DECOMPOSITION_PATH` | Action |
+|-------|------|----------------------|--------|
+| A | Has issues | Unset, OR set+missing | Skip Phase 1.5a. Spot-check each issue (AC, skill labels, dep edges). Flag gaps, proceed. |
+| B | Empty | Unset, OR set+missing | Run Phase 1.5a (clarifying questions), then decompose into bees. |
+| C | Empty | Set + file exists | Consume the proposal verbatim — `bees create` one issue per proposed item with AC, skill labels, and dep edges as written. Topological order (deps before dependents); map `depends_on` titles to bee IDs returned by prior `bees create` calls as you go. If any cycle is detected in the dep graph (2-cycle X↔Y, 3-cycle A→B→C→A, or longer), halt and report all cycle members — create zero issues. No clarifying questions. Spot-check after, proceed. |
+| D | Has issues | Set + file exists | Resume gap — diff proposal titles vs existing bees titles. Materialize each missing proposed item with the same rules as State C (topological order, cycle detection). Spot-check the complete set, proceed. Never re-ask, never re-decompose. |
+
+**Robustness:**
+- `DECOMPOSITION_PATH` empty string (`""`) is treated identically to unset — no log line, no warning, just proceed as State A or B per the bees-state column.
+- If `DECOMPOSITION_PATH` is set to a non-empty value but the file is missing, emit exactly one line: `agent-loop: DECOMPOSITION_PATH=<value> not found; proceeding as State <B|A>`. Proceed as B (bees empty) or A (bees has issues). Do not retry, do not search, do not crash.
+- Never search for proposal files outside `DECOMPOSITION_PATH`. Env unset or empty = no proposal, full stop.
+
+**Proposal file format:** this skill mandates only the consumption rules above; the file's on-disk schema is defined by whatever upstream process produces it. A minimum interoperable shape is a JSON array of issues each carrying `title`, `acceptance_criteria` (list), `labels` (list), and `depends_on` (list of titles or stable local keys that resolve to other entries in the same file).
+
+### Phase 1.5a: Clarifying Questions (State B only)
+
+When the lead is the decomposer with no upstream proposal, call AskUserQuestion before any bees writes. Single call, max 4 questions, 2–4 options each.
+
+Skip Phase 1.5a only when the scope is fully implied by the request and the agent does not have to assume any architectural choice. Qualifies: "rename foo to bar in file X", "tail the deploy log". Does NOT qualify: "add caching", "make it faster", "improve error handling", or anything that forks on a strategy decision the user owns.
+
 ## 6-Tier Prompt Hierarchy
 
 These six tiers describe authority — who reports to whom across an epic. For the orthogonal axis of how a single issue flows through staged agents, see "Five-Tier Decomposition Pipeline" below.
@@ -35,11 +62,29 @@ These six tiers describe authority — who reports to whom across an epic. For t
 | Tier | Role | Scope | Default Model | Reference |
 |------|------|-------|---------------|-----------|
 | 0 | Epic Author | Write machine-executable epics | human | `references/epic-authoring.md` |
-| 1 | Team Leader | Decompose epic into issues, spawn agents | sonnet | `references/team-leader.md` |
+| 1 | Team Leader | Four-state gate (spot-check / consume proposal / ask+decompose / resume gap); spawn agents | opus | `references/team-leader.md` |
 | 2 | Sub-team Leader | Decompose issue into tasks, manage workers | sonnet | `references/sub-team-leader.md` |
 | 3 | Agent Worker | Execute a single task with TDD | haiku | `references/agent-worker.md` |
 | 4 | Validator | Run CI, report all failures, never fix | haiku | `references/validator.md` |
 | 5 | Fix Agent | Receive failures, fix code, re-run tests | haiku | `references/fix-agent.md` |
+
+## Model overrides (env-var convention)
+
+Model defaults per tier are exactly that — defaults. Each tier honors an env var so a deployment can swap models when a new family ships, without changing the spawn script (12-factor config):
+
+| Tier | Env var | Default |
+|------|---------|---------|
+| 1 Team Leader | `AGENT_LOOP_LEAD_MODEL` | `opus` |
+| 2 Sub-team Leader | `AGENT_LOOP_SUBLEAD_MODEL` | `sonnet` |
+| 3 Agent Worker | `AGENT_LOOP_WORKER_MODEL` | `haiku` |
+| 4 Validator | `AGENT_LOOP_VALIDATOR_MODEL` | `haiku` |
+| 5 Fix Agent | `AGENT_LOOP_FIX_MODEL` | `haiku` |
+
+**Contract:** these env vars are read by the script that constructs the agent's spawn prompt — whichever process actually invokes the Agent / Task tool to launch a worker. Whoever launches that process is responsible for setting the env vars (a shell command, a CI job, a parent Claude session, an external orchestrator — any of these qualify). The spawn script reads `$AGENT_LOOP_*` and passes the resolved model to the Task tool invocation (`subagent_type`/`model` argument). The model name does NOT appear as a literal in the prompt body — that would defeat the override.
+
+Empty-string env var (`AGENT_LOOP_LEAD_MODEL=""`) is treated identically to unset, falling through to the default. This lets orchestrators emit an empty value to mean "use default" without special-casing.
+
+The escalation chain is also overridable: `AGENT_LOOP_ESCALATION_CHAIN` (comma-separated names; default `haiku,sonnet,opus`).
 
 ## Model Escalation
 
@@ -144,6 +189,7 @@ Team leaders structure agent prompts with these sections:
 /core:anti-fabrication
 /core:git
 /core:tdd
+/core:twelve-factor
 /core:security
 /core:mise
 /core:nushell
@@ -176,47 +222,7 @@ Require each spawned agent to quote one sentence from each loaded skill in its f
 
 ### Leader spawn — concrete example
 
-Team leader's Task-tool prompt for an Elixir worker on a Phoenix endpoint:
-
-```
-## Load skills
-/core:anti-fabrication
-/core:git
-/core:tdd
-/core:security
-/core:mise
-/core:nushell
-/elixir:phoenix-framework
-/elixir:elixir-testing
-/elixir:style
-
-## Working directory
-cd /Users/vinnie/github/runex
-
-## Bees issue
-runex-142: add /api/workflows/import endpoint
-
-## Context
-WorkflowController already exposes /export at lib/runex_web/controllers/workflow_controller.ex:14. Mirror that pattern for import. Existing serializer Runex.Workflow.serialize/1 at lib/runex/workflow.ex:28 — reuse it inverse for deserialize.
-
-## What to implement
-- POST /api/workflows/import accepting JSON body
-- New action import/2 in WorkflowController
-- Reuse Runex.Workflow.deserialize/1 (already exists at line 41)
-- Tests in test/runex_web/controllers/workflow_controller_test.exs
-
-## Rules
-- TDD: failing test first
-- async: true on all tests
-- Mock Runex.WorkflowStore.put/2
-
-## Execution order
-Follow the 9-step Agent Worker Execution Order. After step 2 (write tests),
-quote one sentence from each loaded skill and post your test code before
-proceeding to step 3.
-```
-
-Compact. Names files and functions to reuse. Anchors the proof-of-loading checkpoint inside the execution order.
+See `references/leader-spawn-example.md` for a worked Phoenix-endpoint Task-tool prompt. The mandatory `/core:*` skill list at the top of any spawn prompt is enumerated in "Core Skills (Mandatory)" above — never use globs in spawn prompts (they don't expand).
 
 ## Model Selection
 
@@ -247,7 +253,7 @@ test -n "$(op item get KEY --vault Vault --fields credential 2>/dev/null)" && ec
 
 - **JSON parsing**: Use `jq`, not `python3 -c "import json..."`
 - **Scripting**: Nushell (`.nu`), not bash — cross-platform, structured data
-- **Infrastructure**: Runex workflows, not direct SSH
+- **Infrastructure**: parameterized workflow tools, not direct SSH
 - **Tool management**: mise, not brew — portable across macOS and Linux
 - **Issue tracking**: bees, not beads
 
@@ -288,3 +294,4 @@ Epics WITHOUT a `spec:` field behave exactly as today — all spec-driven steps 
 - `references/validator.md` -- Strictest CI per language, structured failure reporting
 - `references/fix-agent.md` -- CI failure remediation, test fixing, escalation
 - `references/epic-authoring.md` -- User guide for writing machine-executable epics
+- `references/leader-spawn-example.md` -- Worked Phoenix-endpoint Team Leader spawn prompt with explicit `/core:*` + `/elixir:*` skill list

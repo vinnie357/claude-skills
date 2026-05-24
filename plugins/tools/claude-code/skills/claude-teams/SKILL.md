@@ -62,3 +62,34 @@ For SDK setup, agent definitions, and session management, see `references/agent-
 Proven patterns for file ownership, task decomposition, scaling, and quality gates.
 
 For architecture guidance and case studies, see `references/patterns.md`.
+
+## Orchestration primitives
+
+`/core:agent-loop` defines the decomposition + delegation flow. Three Claude Code primitives compose with it for long-running or recurring work:
+
+| Primitive | Use when |
+|---|---|
+| `/loop <prompt>` | You want a self-pacing tick: monitor agents, poll the tracker, advance the queue. Auto-paces via ScheduleWakeup. |
+| Routines | Cron-style scheduled remote agents. Use for daily/weekly autonomous runs. |
+| Channels | Event-driven (webhook/integration) entry points. Use when an external system kicks the loop. |
+
+There is no `/workflows` slash command in Claude Code. For multi-step orchestration, compose the above with `/core:agent-loop`.
+
+### /loop example — shepherd a running epic
+
+After dispatching a team for an epic, the operator session runs:
+
+```
+/loop /shepherd
+```
+
+where `/shepherd` is a project-defined command (not shipped with this plugin — define it in your project's `.claude/commands/`) that, each tick:
+
+1. Reads bees/tracker state for the epic's issues
+2. Promotes ready issues to in_progress
+3. Notifies the operator if any agent transitioned to a review or needs_help state
+4. Halts and pings via PushNotification when the cohort is complete
+
+The `/loop` harness auto-paces via ScheduleWakeup (default 270s — stays inside the prompt-cache TTL). The operator session is hands-off until the loop fires a notification.
+
+This is the recommended composition for long-running multi-agent work: `/core:agent-loop` does the per-spawn discipline; `/loop` does the queue advancement.
