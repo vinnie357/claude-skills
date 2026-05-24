@@ -28,11 +28,19 @@ macos-x64 = { asset_pattern = "bees-macos-x86_64.tar.gz" }
 
 [tasks.test]
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality", "test:skill-extract"]
 
 [tasks."test:all"]
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality", "test:skill-extract"]
+
+[tasks."test:skill-extract"]
+description = "Content-grep tests for the VIN-313 skill-extraction sweep (18 bees)"
+run = """
+#!/usr/bin/env nu
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "skill-extract" "skill-extract-sweep.nu")
+"""
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
