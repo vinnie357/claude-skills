@@ -243,14 +243,6 @@ op item get "KEY" --vault Vault --fields credential --reveal
 test -n "$(op item get KEY --vault Vault --fields credential 2>/dev/null)" && echo "set" || echo "empty"
 ```
 
-## Tool Preferences
-
-- **JSON parsing**: Use `jq`, not `python3 -c "import json..."`
-- **Scripting**: Nushell (`.nu`), not bash — cross-platform, structured data
-- **Infrastructure**: parameterized workflow tools, not direct SSH
-- **Tool management**: mise, not brew — portable across macOS and Linux
-- **Issue tracking**: bees, not beads
-
 ## The Layered Model
 
 - **Epic** -- what the user writes. Objective, skills, constraints. No implementation details.
