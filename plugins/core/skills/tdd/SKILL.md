@@ -325,6 +325,7 @@ Many end-to-end tests, few unit tests. Invert the pyramid — most tests should 
 For deeper theory and worked examples:
 - `references/beck-tdd.md` — Kent Beck's canonical TDD: Fake It, Triangulation, test isolation
 - `references/goos-outside-in.md` — Freeman & Pryce's GOOS: double-loop TDD, walking skeleton, outside-in design
+- `references/ci-discipline.md` — `mise run ci` before every commit; CI green = local AND remote; verbatim output as evidence; no pre-existing carve-outs; post-merge main verification; docs-first TDD; no fabricated time estimates
 
 ## Key Principles
 
