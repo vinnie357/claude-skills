@@ -14,7 +14,7 @@ Agent Substrate is an Apache-2.0 Kubernetes runtime for agent-like workloads tha
 - Reading a Substrate `ActorTemplate` / `WorkerPool` YAML and wanting to know the field semantics.
 - Looking at the `demos/claude-code-multiplex/` example to understand Substrate's Claude Code integration shape.
 
-If the operational decision is already "use Substrate," read the upstream README directly — this skill is intentionally not a step-by-step install guide because Substrate's APIs change too fast to pin a reliable recipe.
+If the operational decision is already "use Substrate," read the upstream README directly — this skill is intentionally not a step-by-step install guide because Substrate is at v0.0.0 with API churn between commits, so pinning a recipe here would go stale.
 
 ## What Substrate is
 
@@ -60,7 +60,7 @@ Substrate's `demos/claude-code-multiplex/` ships a working example:
 - Each agent is a container built from `workload/` (Dockerfile + Python wrapper around Claude Code) and referenced by `sha256` digest in `claude-code-multiplex.yaml.tmpl`.
 - A Go dashboard in `ui/` calls the `ateapi` gRPC + Kubernetes API.
 
-Substrate is **not** an MCP server — it's a workload host. Claude Code packaged as an OCI container is just another actor.
+Substrate is **not** an MCP server — it's a workload host. Claude Code packaged as an OCI container becomes an actor like any other Substrate workload.
 
 ## Install summary (do not paste verbatim — read upstream first)
 

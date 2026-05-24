@@ -31,7 +31,7 @@ Both give the operator "agent workloads are kernel-isolated from the host." The 
 
 **Per-pod NetworkPolicy still works.** kina nodes run a standard kubelet + CNI (PTP by default, optional Cilium). `SandboxTemplate.networkPolicy` with `networkPolicyManagement: Managed` installs a standard NetworkPolicy that the CNI enforces — same as on any cluster.
 
-**Tenancy decisions matter.** Because pods on a kina node share a kernel, multi-tenant separation between SandboxClaims should pin claims to separate nodes. Easiest: one node per concurrent claim (run kina with multiple worker nodes). Otherwise, two claims for two different tenants on the same node share kernel state and could read each other via syscall-based escape if a kernel CVE is exploited.
+**Tenancy decisions matter.** Because pods on a kina node share a kernel, multi-tenant separation between SandboxClaims requires pinning claims to separate nodes. The direct approach: one node per concurrent claim (run kina with multiple worker nodes). Without that, two claims for two different tenants on the same node share kernel state and can read each other via syscall-based escape if a kernel CVE is exploited.
 
 ## Sizing kina nodes
 
@@ -49,4 +49,4 @@ The microVM size determines pod-level resource limits transitively. Defaults are
 | Microvm boot time per pod | ~3–5s | (0 — node-warmed) |
 | Cold-start for first SandboxClaim | seconds (kata start) | seconds (Pod schedule only) |
 
-For laptop dev where you're running one Claude Code session at a time, kina's "share-the-VM-kernel-between-pods" tradeoff is fine. For production with mutually-distrusting tenants, pair with multi-node clusters or use `kata-on-gke`.
+For laptop dev where the operator runs one Claude Code session at a time, kina's "share-the-VM-kernel-between-pods" tradeoff is acceptable — there is no cross-tenant attack surface to worry about. For production with mutually-distrusting tenants, pair with multi-node clusters or use `kata-on-gke`.

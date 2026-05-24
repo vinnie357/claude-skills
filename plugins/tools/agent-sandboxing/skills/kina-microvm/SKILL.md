@@ -1,6 +1,6 @@
 ---
 name: kina-microvm
-description: Run microVM-isolated Kubernetes workloads on Apple Silicon using kina, the Kubernetes-in-Apple-Containers analogue of kind. Use when developing kubernetes-sigs/agent-sandbox workloads on macOS where Kata Containers cannot run, when each k8s node should be an Apple Container microVM, or when applying SandboxTemplates without a per-pod runtimeClassName because the cluster itself is the microVM isolation tier.
+description: Run microVM-isolated Kubernetes workloads on Apple Silicon using kina, the Kubernetes-in-Apple-Containers analogue of kind. Use when developing kubernetes-sigs/agent-sandbox workloads on macOS where Kata Containers cannot run, when each k8s node must be an Apple Container microVM, or when applying SandboxTemplates without a per-pod runtimeClassName because the cluster itself is the microVM isolation tier.
 license: MIT
 ---
 
@@ -30,13 +30,13 @@ Apple Container is the macOS-native analogue: a microVM runtime that uses Virtua
 | `kind` + `kata-deploy` (Linux only) | Docker container per node | microVM per pod via `kata-qemu` |
 | `kina` (macOS) | Apple Container microVM per node | Node IS the microVM; pods share that VM's kernel |
 
-The kina model gives macOS developers microVM isolation at a different granularity. For agent-sandbox, this still means the cluster is hardware-isolated from the host macOS — same security posture as kata-on-kind, just at a different layer.
+The kina model gives macOS developers microVM isolation at a different granularity. For agent-sandbox, the cluster is hardware-isolated from the host macOS — the security posture matches kata-on-kind, with the isolation boundary placed at the node layer instead of the pod layer.
 
 See `references/cluster-is-vm.md` for the implications when authoring SandboxTemplates.
 
 ## Prerequisites
 
-- macOS 26+ (Apple Silicon or Intel). macOS 15.6 may work with limitations.
+- macOS 26+ (Apple Silicon or Intel). kina's README documents limitations on macOS 15.6 — verify by running `kina` against the older version before depending on it.
 - Apple Container 0.5.0+. **Currently kina is pinned at 0.5.0+ while Apple Container is at 0.10.0** — verify compatibility before depending on it (see "Version drift" below).
 - `kubectl` on the host.
 - `mise` if you want kina's task automation.

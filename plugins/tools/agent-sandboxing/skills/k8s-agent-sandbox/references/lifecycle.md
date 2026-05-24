@@ -25,7 +25,7 @@ Pending → Bound → Terminating → (deleted)
 
 ## Per-claim env injection
 
-`spec.env` on the claim is appended to every container in the template. Use this to inject secrets that should not live in the template (e.g. per-tenant API keys):
+`spec.env` on the claim is appended to every container in the template. Use this to inject secrets that must not live in the template (e.g. per-tenant API keys):
 
 ```yaml
 spec:

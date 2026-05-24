@@ -99,7 +99,7 @@ If you don't want to dedicate a whole pool to Kata, run a mixed cluster: one Ubu
 
 ## Upgrading the kata-pool
 
-GKE node-pool upgrades replace nodes. After an upgrade, kata-deploy's DaemonSet auto-reinstalls Kata on the new nodes — but there's a brief window where SandboxClaims may fail to schedule. Plan upgrades outside peak hours, or run a SandboxWarmPool that absorbs the gap.
+GKE node-pool upgrades replace nodes. After an upgrade, kata-deploy's DaemonSet reinstalls Kata on the new nodes — but during the reinstall window, SandboxClaims targeting the upgraded pool are unschedulable until the new nodes report the `kata-qemu` RuntimeClass. Plan upgrades outside peak hours, or run a SandboxWarmPool that absorbs the gap.
 
 ## Tearing down
 

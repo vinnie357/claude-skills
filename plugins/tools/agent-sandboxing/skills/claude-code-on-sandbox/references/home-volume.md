@@ -12,7 +12,7 @@ Claude Code stores auth state, session history, settings, and per-project contex
 
 Allocate one PVC per persistent identity (per operator, per tenant, per long-running session). Storage class depends on the cluster:
 
-- **GKE**: `standard-rwo` for single-node access (Block) or `standard-rwx` for multi-pod access (Filestore). For a single SandboxClaim at a time, `standard-rwo` is fine and cheaper.
+- **GKE**: `standard-rwo` for single-node access (Block) or `standard-rwx` for multi-pod access (Filestore). For a single SandboxClaim at a time, pick `standard-rwo` — Block storage is cheaper per GiB and ReadWriteOnce matches the single-claim access pattern.
 - **kind + local-path-provisioner**: `standard` (the default with `kind`).
 - **kina**: kina ships a PTP CNI by default; check `kubectl get sc` and use whichever default StorageClass kina installs.
 
@@ -104,4 +104,4 @@ For a SandboxWarmPool that recycles pods, mount the PVC `readOnly: false` so the
 
 ## On kina
 
-kina's storage layer is Apple Container's volume mechanism. The PVC binding works the same as kind, but performance characteristics differ — Apple Container volumes are typically slower than native ext4 on Linux. For dev work, fine. For benchmarking session-load times, expect higher latency than kind on Linux.
+kina's storage layer is Apple Container's volume mechanism. The PVC binding works the same as kind, but performance characteristics differ — Apple Container volumes are slower than native ext4 on Linux (measure with `dd if=/dev/zero of=/tmp/test bs=1M count=100 oflag=direct` inside the pod to compare). For dev work, the latency difference is below the session-load threshold. For benchmarking session-load times, expect higher latency than kind on Linux.
