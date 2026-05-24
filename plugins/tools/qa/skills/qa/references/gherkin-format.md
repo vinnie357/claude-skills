@@ -4,7 +4,27 @@ The dialect `/qa` accepts, the parsing rules, and the rejection criteria.
 
 ## File Layout
 
-User stories live at `docs/user-stories/<slug>.md` in the target repo. One story per file. The slug is kebab-case and becomes the file name.
+User stories live at `docs/user-stories/<persona>/<slug>.md` in the target repo. One story per file. The slug is kebab-case and becomes the file name. The persona segment selects which role the story belongs to; allowed values come from the repo's `.qa/personas.toml` allowlist (default set: `{owner, editor, viewer, cross-persona, administrator}`).
+
+The legacy flat layout `docs/user-stories/<slug>.md` (no persona segment) is accepted for backward compatibility — existing flat stories continue to lint clean — but new stories should use the persona-aware path so worker dispatch and visibility-conditioned validation can reason about role.
+
+Slug uniqueness is scoped per-persona: `owner/cell-create.md` and `editor/cell-create.md` are distinct stories that both exist simultaneously.
+
+## Persona taxonomy
+
+Allowed personas come from `<REPO_ROOT>/.qa/personas.toml`:
+
+```toml
+[personas.owner]
+description = "Creates and owns the resource; controls sharing."
+
+[personas.editor]
+description = "Edits content; cannot share."
+
+# … one table per allowed persona name.
+```
+
+If the file is missing, the parser falls back to the default set above so first-run UX still works. When the file exists, persona names not listed in it are rejected at path-resolution time (rule #2 below).
 
 The file is a markdown document with **at least one** fenced Gherkin block:
 
@@ -69,7 +89,7 @@ Tags (lines starting with `@`) are tolerated but currently ignored — they have
 The `qa-lead` aborts (no workers spawned) if any of the following hold. Each rejection includes the rule number in the error report so the user can fix the file.
 
 1. File does not exist at the resolved path.
-2. Path is outside `docs/user-stories/` in the target repo.
+2. Path is outside `docs/user-stories/` in the target repo. Within `docs/user-stories/`, two depths are accepted: `docs/user-stories/<slug>.md` (legacy flat) and `docs/user-stories/<persona>/<slug>.md` (persona-aware, recommended). Deeper nesting is rejected. The `<persona>` segment must be in the repo's allowlist (`.qa/personas.toml` or the default set).
 3. No ```gherkin fenced block present.
 4. Zero `Feature:` lines, or more than one.
 5. Zero `Scenario:` / `Scenario Outline:` blocks.

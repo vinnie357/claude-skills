@@ -1,8 +1,11 @@
 # <Feature title — human readable>
 
+**Persona**: `<persona>`
+
 <Optional prose explaining the feature, the user, and why this scenario matters. Not parsed by `/qa`.>
 
 ```gherkin
+@persona:<persona>
 Feature: <one-line feature title>
 
   Background:
