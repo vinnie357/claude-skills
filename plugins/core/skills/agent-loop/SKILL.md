@@ -39,12 +39,15 @@ Between Phase 1 (pre-flight) and Phase 2 (spawn), the Team Leader checks two det
 |-------|------|----------------------|--------|
 | A | Has issues | Unset, OR set+missing | Skip Phase 1.5a. Spot-check each issue (AC, skill labels, dep edges). Flag gaps, proceed. |
 | B | Empty | Unset, OR set+missing | Run Phase 1.5a (clarifying questions), then decompose into bees. |
-| C | Empty | Set + file exists | Consume the proposal verbatim — `bees create` one issue per proposed item with AC, skill labels, and dep edges as written. Topological order (deps before dependents); map `depends_on` titles to bee IDs returned by prior `bees create` calls as you go. If a cycle is detected (X→Y, Y→X), halt and report cycle members — create zero issues. No clarifying questions. Spot-check after, proceed. |
+| C | Empty | Set + file exists | Consume the proposal verbatim — `bees create` one issue per proposed item with AC, skill labels, and dep edges as written. Topological order (deps before dependents); map `depends_on` titles to bee IDs returned by prior `bees create` calls as you go. If any cycle is detected in the dep graph (2-cycle X↔Y, 3-cycle A→B→C→A, or longer), halt and report all cycle members — create zero issues. No clarifying questions. Spot-check after, proceed. |
 | D | Has issues | Set + file exists | Resume gap — diff proposal titles vs existing bees titles. Materialize each missing proposed item with the same rules as State C (topological order, cycle detection). Spot-check the complete set, proceed. Never re-ask, never re-decompose. |
 
 **Robustness:**
-- If `DECOMPOSITION_PATH` is set but the file is missing, emit exactly: `agent-loop: DECOMPOSITION_PATH=<value> not found; proceeding as State <B|A>`. Proceed as B (bees empty) or A (bees has issues). Do not retry, do not search, do not crash.
-- Never search for proposal files outside `DECOMPOSITION_PATH`. Env unset = no proposal, full stop.
+- `DECOMPOSITION_PATH` empty string (`""`) is treated identically to unset — no log line, no warning, just proceed as State A or B per the bees-state column.
+- If `DECOMPOSITION_PATH` is set to a non-empty value but the file is missing, emit exactly one line: `agent-loop: DECOMPOSITION_PATH=<value> not found; proceeding as State <B|A>`. Proceed as B (bees empty) or A (bees has issues). Do not retry, do not search, do not crash.
+- Never search for proposal files outside `DECOMPOSITION_PATH`. Env unset or empty = no proposal, full stop.
+
+**Proposal file format:** this skill mandates only the consumption rules above; the file's on-disk schema is defined by whatever upstream process produces it. A minimum interoperable shape is a JSON array of issues each carrying `title`, `acceptance_criteria` (list), `labels` (list), and `depends_on` (list of titles or stable local keys that resolve to other entries in the same file).
 
 ### Phase 1.5a: Clarifying Questions (State B only)
 
@@ -77,7 +80,9 @@ Model defaults per tier are exactly that — defaults. Each tier honors an env v
 | 4 Validator | `AGENT_LOOP_VALIDATOR_MODEL` | `haiku` |
 | 5 Fix Agent | `AGENT_LOOP_FIX_MODEL` | `haiku` |
 
-**Contract:** these env vars are read by the script that constructs the agent's spawn prompt — whichever process actually invokes the Agent / Task tool to launch a worker. Whoever launches that process is responsible for setting the env vars (a shell command, a CI job, a parent Claude session, an external orchestrator — any of these qualify). The spawn script reads `$AGENT_LOOP_*` and interpolates into its prompt template. Never write a literal model name into the prompt.
+**Contract:** these env vars are read by the script that constructs the agent's spawn prompt — whichever process actually invokes the Agent / Task tool to launch a worker. Whoever launches that process is responsible for setting the env vars (a shell command, a CI job, a parent Claude session, an external orchestrator — any of these qualify). The spawn script reads `$AGENT_LOOP_*` and passes the resolved model to the Task tool invocation (`subagent_type`/`model` argument). The model name does NOT appear as a literal in the prompt body — that would defeat the override.
+
+Empty-string env var (`AGENT_LOOP_LEAD_MODEL=""`) is treated identically to unset, falling through to the default. This lets orchestrators emit an empty value to mean "use default" without special-casing.
 
 The escalation chain is also overridable: `AGENT_LOOP_ESCALATION_CHAIN` (comma-separated names; default `haiku,sonnet,opus`).
 

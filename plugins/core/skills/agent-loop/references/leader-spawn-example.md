@@ -9,6 +9,7 @@ The explicit skill list at the top is mandatory — never use `/core:*` globs in
 /core:anti-fabrication
 /core:git
 /core:tdd
+/core:twelve-factor
 /core:security
 /core:mise
 /core:nushell
