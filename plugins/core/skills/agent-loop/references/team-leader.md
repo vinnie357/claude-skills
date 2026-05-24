@@ -19,7 +19,7 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
 3. **If the epic carries a `spec:` field** (e.g., `spec: docs/specs/<slug>.allium`): confirm the spec file exists at that path. If the epic is a refactor and no `spec:` is set, run `/allium:distill` to capture a behavioral baseline before decomposition. Skip this step entirely if neither condition applies.
 4. **Decomposition gate** — probe two deterministic signals (no file searching):
    - `bees list --epic <slug>` (or the project's tracker equivalent) — does the epic already have issues?
-   - `DECOMPOSITION_PATH` env var — set AND file exists? This is the canonical handoff signal a spawning bundle sets. Never search the workspace for proposal files.
+   - `DECOMPOSITION_PATH` env var — set AND file exists? This is the canonical handoff signal an upstream process sets. Never search the workspace for proposal files.
 
    Match the state and take the action:
    - **State A (bees has issues, no proposal):** spot-check each issue for acceptance criteria, skill labels, and dependency edges. Flag gaps to the user. Skip Phase 1.5a, proceed to step 5 (branch) and Phase 2.

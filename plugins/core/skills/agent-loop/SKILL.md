@@ -33,7 +33,7 @@ Every agent, regardless of tier, follows these four phases:
 Between Phase 1 (pre-flight) and Phase 2 (spawn), the Team Leader checks two deterministic signals — no file searching:
 
 1. **bees:** `bees list --epic <slug>` — does the epic already have issues?
-2. **`DECOMPOSITION_PATH` env var:** is it set AND does the file it points at exist? This is the canonical signal a spawning bundle sets to hand off a pre-computed proposal.
+2. **`DECOMPOSITION_PATH` env var:** is it set AND does the file it points at exist? This is the canonical signal an upstream process sets to hand off a pre-computed proposal.
 
 | State | bees | `DECOMPOSITION_PATH` | Action |
 |-------|------|----------------------|--------|
@@ -65,21 +65,19 @@ These six tiers describe authority — who reports to whom across an epic. For t
 | 4 | Validator | Run CI, report all failures, never fix | haiku | `references/validator.md` |
 | 5 | Fix Agent | Receive failures, fix code, re-run tests | haiku | `references/fix-agent.md` |
 
-## Model overrides (bundle parameter convention)
+## Model overrides (env-var convention)
 
-Model defaults per tier are exactly that — defaults. Each tier honors a bundle-parameter env var so a deployment can swap models when a new family ships, without changing bundle code (12-factor config):
+Model defaults per tier are exactly that — defaults. Each tier honors an env var so a deployment can swap models when a new family ships, without changing the spawn script (12-factor config):
 
-| Tier | Env var (bundle param) | Default |
-|------|------------------------|---------|
+| Tier | Env var | Default |
+|------|---------|---------|
 | 1 Team Leader | `AGENT_LOOP_LEAD_MODEL` | `opus` |
 | 2 Sub-team Leader | `AGENT_LOOP_SUBLEAD_MODEL` | `sonnet` |
 | 3 Agent Worker | `AGENT_LOOP_WORKER_MODEL` | `haiku` |
 | 4 Validator | `AGENT_LOOP_VALIDATOR_MODEL` | `haiku` |
 | 5 Fix Agent | `AGENT_LOOP_FIX_MODEL` | `haiku` |
 
-**Contract:** these env vars live in the **bundle subprocess's environment**, set by the orchestrator that invokes the bundle (e.g., a Runex workflow runner passing them as workflow params; or `mise run` injecting them; or a shell-level `AGENT_LOOP_LEAD_MODEL=opus my-bundle.sh` invocation). The bundle's script reads `$AGENT_LOOP_*` and interpolates into its prompt template — never write a literal model name into the prompt.
-
-The orchestrator's own process environment is not consulted directly by the bundle. The orchestrator decides the values (from operator config, app config, deployment env — its choice) and passes them through as bundle parameters. This keeps bundles portable: any orchestrator that respects the param convention can drive the same bundle without code changes.
+**Contract:** these env vars are read by the script that constructs the agent's spawn prompt — whichever process actually invokes the Agent / Task tool to launch a worker. Whoever launches that process is responsible for setting the env vars (a shell command, a CI job, a parent Claude session, an external orchestrator — any of these qualify). The spawn script reads `$AGENT_LOOP_*` and interpolates into its prompt template. Never write a literal model name into the prompt.
 
 The escalation chain is also overridable: `AGENT_LOOP_ESCALATION_CHAIN` (comma-separated names; default `haiku,sonnet,opus`).
 
@@ -249,7 +247,7 @@ test -n "$(op item get KEY --vault Vault --fields credential 2>/dev/null)" && ec
 
 - **JSON parsing**: Use `jq`, not `python3 -c "import json..."`
 - **Scripting**: Nushell (`.nu`), not bash — cross-platform, structured data
-- **Infrastructure**: Runex workflows, not direct SSH
+- **Infrastructure**: parameterized workflow tools, not direct SSH
 - **Tool management**: mise, not brew — portable across macOS and Linux
 - **Issue tracking**: bees, not beads
 
