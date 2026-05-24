@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.13",
+  "version": "0.4.14",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -67,6 +67,7 @@
     "./plugins/tools/github/skills/workflows",
     "./plugins/tools/github/skills/act",
     "./plugins/tools/github/skills/community-health",
+    "./plugins/tools/agent-sandboxing/skills/sandbox",
     "./plugins/tools/agent-sandboxing/skills/k8s-agent-sandbox",
     "./plugins/tools/agent-sandboxing/skills/kata-on-kind",
     "./plugins/tools/agent-sandboxing/skills/kata-on-gke",
