@@ -849,3 +849,5 @@ mix test --max-cases 1
 ## References
 
 - `references/os-subprocess-adapter.md` — Elixir @callback + Mox shape for wrapping `System.cmd` / `Port.open` calls behind a mockable seam; config wiring per environment
+
+- `references/elixir-tdd-discipline.md` — Elixir-specific TDD defaults: `@cmd_mod` compile-time seam, `async: true` everywhere, mock external boundaries (HTTP / OS / time / third-party APIs), no `:integration` tags, no log noise, no error-swallowing `else _ -> :ok`
