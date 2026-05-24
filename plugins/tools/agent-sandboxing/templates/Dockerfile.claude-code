@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1.7
+#
+# Claude Code workload image for kubernetes-sigs/agent-sandbox SandboxTemplates.
+# Mise-driven so the image stays consistent with the rest of the marketplace.
+# See /core:mise and the claude-code-on-sandbox skill for the usage pattern.
+
+FROM debian:12-slim AS base
+
+ARG MISE_VERSION=2026.5.0
+ENV MISE_DATA_DIR=/opt/mise \
+    CLAUDE_CONFIG_DIR=/home/agent/.claude \
+    PATH=/opt/mise/shims:/home/agent/.local/bin:$PATH
+
+# System packages: TLS roots, git, jq, iptables for init-firewall.sh, sudo for
+# privileged setup steps if the SandboxTemplate adds NET_ADMIN/NET_RAW caps.
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt/lists \
+    apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      git \
+      gnupg \
+      iproute2 \
+      iptables \
+      jq \
+      sudo
+
+RUN useradd -m -u 1000 -s /bin/bash agent
+USER agent
+WORKDIR /home/agent
+
+# Install mise as the agent user.
+RUN curl -fsSL https://mise.run | sh
+
+COPY --chown=agent:agent mise.toml /home/agent/mise.toml
+
+# mise install uses a BuildKit cache mount so repeated builds reuse downloaded
+# tool tarballs. uid=1000 is critical — mise runs as the agent user.
+RUN --mount=type=cache,uid=1000,target=/home/agent/.cache/mise \
+    /home/agent/.local/bin/mise install
+
+# Default entrypoint runs `claude --print --output-format json`. Override per
+# SandboxClaim by setting the container's command/args.
+ENTRYPOINT ["/home/agent/.local/bin/mise", "exec", "--", "claude"]
+CMD ["--print", "--output-format", "json"]

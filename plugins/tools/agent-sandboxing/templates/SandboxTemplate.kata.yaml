@@ -1,0 +1,59 @@
+# SandboxTemplate for Claude Code on Kata Containers.
+#
+# Pair with kata-on-kind (local Linux) or kata-on-gke (production GKE).
+# The runtimeClassName: kata-qemu requires the cluster to have kata-deploy
+# installed and the RuntimeClass registered. Verify with:
+#   kubectl get runtimeclass kata-qemu
+#
+# API version: verify with `kubectl api-resources | grep agents` after
+# installing kubernetes-sigs/agent-sandbox. Upstream README shows v1alpha1;
+# docs/api.md documents v1beta1. Use whichever the installed CRDs report.
+
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: claude-code-kata
+spec:
+  networkPolicyManagement: Managed
+  networkPolicy:
+    policyTypes: [Egress]
+    egress:
+      # DNS to CoreDNS
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+        ports:
+          - protocol: UDP
+            port: 53
+          - protocol: TCP
+            port: 53
+      # HTTPS — narrow to resolved api.anthropic.com CIDRs in production
+      - to:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+        ports:
+          - protocol: TCP
+            port: 443
+  podTemplate:
+    spec:
+      runtimeClassName: kata-qemu
+      # On GKE: include the nodeSelector to gate to the Kata pool.
+      # nodeSelector:
+      #   agent-sandbox.x-k8s.io/kata: "true"
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: claude
+          image: REGISTRY/claude-code:TAG
+          # ANTHROPIC_API_KEY is injected per-claim via SandboxClaim.spec.env
+          # so the template stays generic. See SandboxClaim.session.yaml.
+          volumeMounts:
+            - name: claude-home
+              mountPath: /home/agent/.claude
+      volumes:
+        - name: claude-home
+          persistentVolumeClaim:
+            claimName: claude-home

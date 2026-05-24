@@ -1,0 +1,28 @@
+# Per-session SandboxClaim.
+#
+# Substitute ${SESSION_ID} via envsubst or sed before applying:
+#   SESSION_ID=$(uuidgen | tr 'A-Z' 'a-z' | tr -d '-' | head -c 12)
+#   sed "s/\${SESSION_ID}/${SESSION_ID}/" SandboxClaim.session.yaml | kubectl apply -f -
+#
+# sandboxTemplateRef.name should match one of:
+#   - claude-code-kata    (kata-on-kind, kata-on-gke)
+#   - claude-code-gvisor  (GKE managed Agent Sandbox, or any cluster with gvisor RuntimeClass)
+#   - claude-code-kina    (kina-microvm)
+
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxClaim
+metadata:
+  name: session-${SESSION_ID}
+spec:
+  sandboxTemplateRef:
+    name: claude-code-kata
+  lifecycle:
+    shutdownPolicy: Delete
+    # Optional: hard timeout. Omit for "live until kubectl delete".
+    # shutdownTime: "2026-05-23T23:59:00Z"
+  env:
+    - name: ANTHROPIC_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: anthropic
+          key: api-key

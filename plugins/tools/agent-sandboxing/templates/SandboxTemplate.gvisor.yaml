@@ -1,0 +1,50 @@
+# SandboxTemplate for Claude Code on gVisor.
+#
+# Pairs with GKE managed Agent Sandbox (gvisor-only) or any cluster with the
+# gvisor RuntimeClass installed. Identical to SandboxTemplate.kata.yaml except
+# for runtimeClassName.
+
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: claude-code-gvisor
+spec:
+  networkPolicyManagement: Managed
+  networkPolicy:
+    policyTypes: [Egress]
+    egress:
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+        ports:
+          - protocol: UDP
+            port: 53
+          - protocol: TCP
+            port: 53
+      - to:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+        ports:
+          - protocol: TCP
+            port: 443
+  podTemplate:
+    spec:
+      runtimeClassName: gvisor
+      # On GKE managed Agent Sandbox, also pin the node selector:
+      # nodeSelector:
+      #   sandbox.gke.io/runtime: gvisor
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: claude
+          image: REGISTRY/claude-code:TAG
+          volumeMounts:
+            - name: claude-home
+              mountPath: /home/agent/.claude
+      volumes:
+        - name: claude-home
+          persistentVolumeClaim:
+            claimName: claude-home

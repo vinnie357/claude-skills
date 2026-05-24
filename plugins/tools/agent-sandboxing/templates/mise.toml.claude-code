@@ -1,0 +1,10 @@
+# Companion mise.toml for templates/Dockerfile.claude-code.
+#
+# Uses the mise registry SHORT NAME `claude-code` (not the explicit
+# `npm:@anthropic-ai/claude-code` backend prefix). The registry maps the short
+# name to the npm package internally; the short form keeps the template clean.
+# See /core:mise for the discipline.
+
+[tools]
+node = "lts"
+claude-code = "latest"

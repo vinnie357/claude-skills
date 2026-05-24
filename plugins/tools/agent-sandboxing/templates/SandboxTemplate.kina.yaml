@@ -1,0 +1,50 @@
+# SandboxTemplate for Claude Code on kina (macOS Apple Container nodes).
+#
+# Pairs with the kina-microvm skill. Critically omits runtimeClassName because
+# kina nodes are ALREADY Apple Container microVMs — there is no Kata-equivalent
+# per-pod RuntimeClass. The cluster itself is the microVM isolation tier.
+#
+# Adding runtimeClassName: apple-container (or similar) WILL fail. There is no
+# such RuntimeClass.
+
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: claude-code-kina
+spec:
+  networkPolicyManagement: Managed
+  networkPolicy:
+    policyTypes: [Egress]
+    egress:
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+        ports:
+          - protocol: UDP
+            port: 53
+          - protocol: TCP
+            port: 53
+      - to:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+        ports:
+          - protocol: TCP
+            port: 443
+  podTemplate:
+    spec:
+      # No runtimeClassName — see comment above.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: claude
+          image: REGISTRY/claude-code:TAG
+          volumeMounts:
+            - name: claude-home
+              mountPath: /home/agent/.claude
+      volumes:
+        - name: claude-home
+          persistentVolumeClaim:
+            claimName: claude-home
