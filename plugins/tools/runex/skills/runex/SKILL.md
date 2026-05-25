@@ -189,3 +189,4 @@ For detailed information:
 
 Legacy:
 - **[templates/0.1.0/api.md](templates/0.1.0/api.md)** — API reference snapshot for older Runex deployments (no heartbeat/federation)
+- `references/bundle-build-rules.md` — bundle layout, tool resolution via `mise exec`, build-in-temp-dir, Burrito cache cleanup, runtime expectations (CLI-first, SQLite default, explicit bundle import, no API keys in params)

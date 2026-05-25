@@ -861,3 +861,7 @@ spec:
 > "A twelve-factor app never relies on implicit existence of state on the filesystem. Even if a process has written something to disk, it must assume that file won't be available on the next request."
 
 Design applications from day one to be cloud-native, scalable, and maintainable. The investment in following these principles pays dividends in operational simplicity and development velocity.
+
+## References
+
+- `references/infrastructure-conventions.md` — NGINX upstream over community ingress; Kustomize + Helm layout; single universal secret store; IaC over manual UI; bind all interfaces in prod

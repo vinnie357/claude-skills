@@ -54,6 +54,20 @@ case fetch_user(id) do
 end
 ```
 
+## Logger over IO.puts
+
+All application output goes through `Logger`. Do NOT use `IO.puts/1`, `IO.write/1`, or `:io.format/2` from application code. Logger respects log levels, supports metadata, and routes through the configured backends (console, file, structured log shippers). `IO.puts` writes directly to stdout regardless of log level and bypasses backend configuration.
+
+```elixir
+# WRONG — IO.puts("worker started")
+
+# CORRECT
+Logger.info("worker started")
+Logger.info("worker started", worker_id: id, module: __MODULE__)
+```
+
+Flush concerns at shutdown go through Logger configuration (`Logger.flush/0` in an `at_exit`, or the `:logger_std_h` flush settings), not by bypassing Logger to write directly. The only legitimate use of `IO` in app code is reading from / writing to a specific IO device the user requested (e.g., a CLI tool's stdout output, where the OUTPUT IS the contract).
+
 ## Bang Functions: When to Avoid
 
 ### The Convention

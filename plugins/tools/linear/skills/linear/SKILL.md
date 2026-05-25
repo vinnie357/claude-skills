@@ -194,6 +194,44 @@ The user authors the epic description in Linear. The epic body uses markdown sec
 
 For the full epic specification with examples and anti-patterns, read `references/epic-format.md`.
 
+## Epic Body Format Rules
+
+Epic bodies use plain markdown for every section. Parsers that ingest epic bodies (including the `/linear:audit-epics` command and downstream consumers) capture YAML fences as garbage labels.
+
+### No YAML fences in epic bodies
+
+WRONG:
+
+````markdown
+## Skills
+
+```yaml
+- skill1
+- skill2
+```
+````
+
+CORRECT:
+
+```markdown
+## Skills
+
+- skill1
+- skill2
+```
+
+`Skills`, `Repos`, and `Constraints` sections all use plain bullet lists. Code fences in these sections produce empty or junk labels in the parser output.
+
+### Skill-label discipline
+
+Skill labels listed in the epic body must exist in the claude-skills marketplace at `https://github.com/vinnie357/claude-skills/blob/main/.claude-plugin/marketplace.json`. The audit command checks this; missing labels are flagged.
+
+Core skills are implicit and MUST NOT be listed in epic bodies: `anti-fabrication`, `git`, `tdd`, `twelve-factor`, `security`, `mise`, `nushell`. Listing them adds noise without value — every epic loads them by default.
+
+### Initial state
+
+New epics start in `Backlog`. Labels are team-scoped; missing skill labels auto-create on first use via `issueLabelCreate`.
+
 ## Workflow States
 
 Linear uses typed workflow states. VantageEx maps these to its lifecycle:

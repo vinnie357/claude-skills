@@ -922,3 +922,8 @@ def main [] {
 - **Cross-platform**: Write scripts that work on all platforms
 - **Interactive and scriptable**: Same syntax works in REPL and scripts
 - **Clear errors**: Nu provides helpful error messages for debugging
+
+## References
+
+- `references/shell-interop.md` "Runex HTTP API response shape via nushell" — `.data` unwrap pattern, INT-to-string coercion for IDs, terminal-status set, `$env.HOME`, parens-in-interpolation, `sort-by -r` instability, `out+err>` instead of `2>&1`
+- `references/shell-interop.md` "Bash logical-operator silent error mask" — `cmd1 && cmd2 || cmd3` is NOT if/else; use `if/else` to propagate exit codes; detection grep for the pattern

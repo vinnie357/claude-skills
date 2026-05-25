@@ -36,6 +36,65 @@ lib/
     endpoint.ex
 ```
 
+## Runtime configuration
+
+`config/runtime.exs` runs at every boot (dev, test, prod). Three settings have caused production outages when configured incorrectly:
+
+### Phoenix Endpoint `:ip` bind config
+
+The Endpoint's `:ip` bind tuple MUST be set at the TOP LEVEL of `runtime.exs`, env-driven, with a default of `{0, 0, 0, 0}` (all IPv4 interfaces). Do NOT gate it inside `if port = System.get_env("PORT") do ... end`, and do NOT override it later in a prod-only block that hardcodes `{0,0,0,0,0,0,0,0}` (IPv6 wildcard).
+
+CORRECT:
+
+```elixir
+# config/runtime.exs (top level, unconditional)
+bind_address =
+  case System.get_env("BIND_ADDRESS", "0.0.0.0") do
+    "0.0.0.0" -> {0, 0, 0, 0}
+    "::" -> {0, 0, 0, 0, 0, 0, 0, 0}
+    other -> other |> String.to_charlist() |> :inet.parse_address() |> elem(1)
+  end
+
+config :<app>, <App>Web.Endpoint, http: [ip: bind_address, port: ...]
+```
+
+WRONG (gates on PORT):
+
+```elixir
+if port = System.get_env("PORT") do
+  config :<app>, <App>Web.Endpoint, http: [ip: {0, 0, 0, 0}, port: ...]
+end
+# Without PORT, Phoenix falls back to its default 127.0.0.1 — unreachable.
+```
+
+WRONG (later prod block clobbers env-driven setting):
+
+```elixir
+# Top-level env-driven config OK ...
+if config_env() == :prod do
+  config :<app>, <App>Web.Endpoint, http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, ...]
+end
+# IPv6 wildcard binds *:port IPv6 only — IPv4-only overlay networks (Tailscale on macOS) cannot reach it.
+```
+
+Default to IPv4 because most overlay networks route IPv4 first on macOS. Add IPv6 only when the deployment target explicitly requires it.
+
+### PHX_HOST matches the public DNS name
+
+Set `PHX_HOST` to the externally-resolvable hostname the load balancer presents to the browser. LiveView's websocket upgrade matches Origin against `PHX_HOST`; a mismatch causes the LiveView socket to fail with `403` and the page reverts to a dead static render.
+
+### Dev-server restart after `lib/**/*.ex` changes
+
+Phoenix live reload covers `.heex` / `.html.eex` templates and `assets/` reliably. It does NOT reliably pick up changes to:
+
+- `lib/**/*.ex` — compiled Elixir modules
+- `mix.exs` or any dependency change
+- `config/*.exs`, especially `runtime.exs`
+- NIFs, native deps, BEAM-level plugins
+- DB migrations that change already-loaded schema
+
+After any of those changes, restart the dev server (kill + relaunch the `mise run dev` session or equivalent). `/api/info`-style endpoints report the `git_sha` at server-start time, NOT the currently-compiled-in-memory code, and cannot distinguish stale-dev from fresh-dev. Restart is the only reliable signal.
+
 ## Context-Driven Design
 
 Organize business logic into contexts (bounded domains):
@@ -492,6 +551,29 @@ end
 - Validate file uploads (type, size, content)
 - Use prepared statements (Ecto does this automatically)
 - Implement proper authentication and authorization
+
+## OpenAPI Contract-First
+
+Define the OpenAPI spec for any HTTP API surface BEFORE implementing the controller. Clients (and Tier 2 test authors) generate from the spec; the implementation makes the spec true.
+
+In Elixir, use `open_api_spex` for spec definitions:
+
+```elixir
+defmodule <App>Web.UserSpec do
+  alias OpenApiSpex.{Schema, Operation}
+
+  @user_schema %Schema{
+    type: :object,
+    required: [:id, :email],
+    properties: %{
+      id: %Schema{type: :integer},
+      email: %Schema{type: :string, format: :email}
+    }
+  }
+end
+```
+
+Wire the spec to the controller via `@spec` macros and serve it at `/api/openapi`. Tests assert response shapes against the spec rather than against hand-rolled JSON expectations; client SDKs regenerate from the spec on every spec change.
 
 ## Tidewave MCP Dev Tools
 

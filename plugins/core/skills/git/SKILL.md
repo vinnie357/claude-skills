@@ -106,6 +106,43 @@ Never use regular merge or rebase merge for PRs. Squash merge keeps main history
 
 **Examples:** `feature/user-authentication`, `fix/456-null-pointer-error`, `chore/update-dependencies`
 
+## Remote and Authentication Conventions
+
+### SSH-form remote URLs for operations
+
+Use SSH-form remote URLs (`git@github.com:<owner>/<repo>.git`), not HTTPS, for any worker that performs `git push`, `git fetch`, or other operations. SSH key-based auth bypasses OAuth scope checks that HTTPS push enforces, so it works reliably across container hosts and CI runners that do not carry GitHub-aware credential helpers.
+
+```bash
+# Convert an https remote to ssh form
+git remote set-url origin git@github.com:<owner>/<repo>.git
+```
+
+### No git worktrees for agent isolation
+
+Do not use `git worktree add` to create isolated workspaces for parallel agents. Worktrees share the parent repository's object database and branch lock; concurrent operations across worktrees corrupt the index and break checkouts.
+
+Use one of these instead:
+- **Shallow clone**: `git clone --depth 50 --reference /<canonical-path>/<repo> --dissociate /tmp/agent-<id>/<repo>` — separate object DB, fast.
+- **Plain `cp -R`**: of the canonical clone into a temp dir — slower but no shared state at all.
+
+### GitHub Releases on private repositories require authentication
+
+Anonymous `curl` against `https://github.com/<owner>/<repo>/releases/...` for a PRIVATE repository returns HTTP 404, not 401. Always authenticate (`gh auth login` or `Authorization: token <gh-token>` header) before fetching release assets from a private repo. Anonymous-first probes silently report "not found" when the real problem is "not authenticated".
+
+### Layered GitHub authentication
+
+Prefer the layered auth chain over a single static `GITHUB_TOKEN` env var:
+
+1. `gh` keychain (primary on operator boxes — `gh auth login`).
+2. Scoped Personal Access Tokens for unattended hosts (containers, CI runners), with the minimum scopes the workflow needs.
+3. Per-node OAuth for federated deployments.
+
+A single `GITHUB_TOKEN` env var blanket-deployed across hosts loses scope granularity and rotation independence. Use `gh auth refresh -h github.com -s workflow` to add the `workflow` scope when CI scripts need it.
+
+### Prefer git-backed substrate
+
+Default to git-backed designs (local, private, or GitHub) for any system that needs an audit trail, replicability, or merge semantics. Git provides commit-level history, signature verification, hooks, and a uniform protocol across local files, private servers, and public hosts. Build atop git before introducing a new storage layer.
+
 ## GitHub PR Commands
 
 ```bash
@@ -133,3 +170,5 @@ For detailed command references and advanced topics, see:
 - **[commands.md](references/commands.md)** — Branch management, staging, committing, viewing changes, stashing, remote operations, tags, aliases
 - **[advanced.md](references/advanced.md)** — Rebasing, merge strategies, conflict resolution, interactive rebase, history management, cherry-picking, bisect, submodules
 - **[troubleshooting.md](references/troubleshooting.md)** — Common issues (wrong branch, sensitive data, recover deleted branch, bad merge) and best practices
+- **[shallow-clone-remotes.md](references/shallow-clone-remotes.md)** — When `origin` is a file-based local clone: add `github` remote, push there, verify with `gh api`
+- **[build-source-staleness.md](references/build-source-staleness.md)** — Before submitting a build chain that clones from a local source cache: `git pull` not `git fetch`. Verify via `git rev-parse HEAD`, not `git rev-parse origin/<branch>`

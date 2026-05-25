@@ -33,6 +33,16 @@ Before creating:
 - Confirm slug is kebab-case and under 30 chars
 - Confirm at least one repo is specified
 
+## Body Format Rules
+
+Apply the format rules from the `/linear` skill's "Epic Body Format Rules" section to the body you produce in the next step:
+
+- Plain markdown only — no YAML fences in any section.
+- Skill labels must exist in the marketplace; core skills (anti-fabrication, git, tdd, twelve-factor, security, mise, nushell) are implicit and not listed.
+- Initial state is `Backlog`.
+
+See `plugins/tools/linear/skills/linear/SKILL.md` "Epic Body Format Rules" for the canonical wording.
+
 ## Create in Linear
 
 Use the Linear MCP tools (preferred) or the GraphQL API to:

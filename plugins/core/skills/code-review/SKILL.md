@@ -592,3 +592,7 @@ Before submitting code for review:
 - **Explain reasoning**: Help author learn, don't just dictate
 - **Approve good code**: Don't let perfect be enemy of good
 - **Collaborate**: You're on the same team
+
+## References
+
+- `references/no-todos-scan.md` — Scan PR diffs for new `TODO`/`FIXME`/`XXX`/`HACK`/`KLUDGE`/`DEFERRED` markers; treat as BLOCKER, not nit
