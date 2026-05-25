@@ -7,7 +7,7 @@
 - [Required Sections](#required-sections)
 - [Optional Sections](#optional-sections)
 - [Title and Slug](#title-and-slug)
-- [Description Sections (ADR-027)](#description-sections-adr-027)
+- [Description Sections](#description-sections)
 - [Instructions Flow](#instructions-flow)
 - [Anti-Patterns](#anti-patterns)
 - [Example Epic](#example-epic)
@@ -16,7 +16,7 @@
 
 VantageEx parses Linear issue descriptions programmatically. The epic body uses markdown `## Section` headers that VantageEx reads at pick time and on every poll. Sections must use exact header names — the parser matches on these strings.
 
-Source: ADR-027 (Epic Messaging), ADR-016 (Layered Tasking), ADR-025 (Epic Lifecycle).
+The epic format follows the VantageEx epic messaging convention, the VantageEx layered tasking model, and the VantageEx epic lifecycle.
 
 ## Three-Level Hierarchy
 
@@ -64,11 +64,11 @@ Target repositories this epic touches:
 - vinnie357/runex
 ```
 
-May be a single repo or multiple. ADR-023 supports multi-repo epics with parallel execution.
+May be a single repo or multiple. The VantageEx multi-repo epic support enables parallel execution across repos.
 
 ## Optional Sections
 
-### `## Instructions` (ADR-027)
+### `## Instructions`
 
 User guidance added when re-queuing an epic from `needs_help` state. Takes priority over general conventions.
 
@@ -126,6 +126,25 @@ Written by the agent when a PR is submitted. Contains the pull request URL.
 - VantageEx reads this section to track PR state
 - Written once at submission time
 
+### `## Agents` (Optional)
+
+Per-epic agent priority list — ordered, comma-separated agent types the picker walks when dispatching.
+
+- Allowed values (v1): `claude`, `codex`, `antigravity`, `local`
+- Missing section defaults to `[claude]`
+- Picker walks the list in order; for each type it checks (a) driver registered, (b) usage under cap. First match wins.
+- Types without a registered driver are logged and skipped
+- Per-account scoping is opaque in v1 (single account per type); per-issue `account_id` is a follow-up
+
+Example:
+
+```markdown
+## Agents
+
+claude, local
+```
+
+
 ## Title and Slug
 
 ### Title
@@ -148,7 +167,7 @@ The slug determines the feature branch name: `feature/<epic-slug>`
 
 Max 80 characters when combined with role prefix: `<epic-slug>/_team/leader-<model>`
 
-## Description Sections (ADR-027)
+## Description Sections
 
 Two communication channels:
 
