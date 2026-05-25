@@ -1,6 +1,6 @@
 {
   "name": "linear",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Linear project management: MCP/GraphQL API, VantageEx epic authoring, auditing, and grooming",
   "author": {
     "name": "vinnie357"
@@ -10,5 +10,10 @@
   "keywords": ["linear", "project-management", "epics", "graphql", "vantageex", "mcp"],
   "skills": [
     "./skills/linear"
+  ],
+  "commands": [
+    "./commands/plan-epic.md",
+    "./commands/audit-epics.md",
+    "./commands/groom-epics.md"
   ]
 }

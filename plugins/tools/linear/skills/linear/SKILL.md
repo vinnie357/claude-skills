@@ -182,7 +182,8 @@ The user authors the epic description in Linear. The epic body uses markdown sec
 |---------|---------|--------|
 | `## Instructions` | User guidance added at re-queue (ADR-027) | User or dashboard |
 | `## Constraints` | Boundaries (defaults: `mise run ci`, no attribution, squash merge) | User |
-| `## Team` | Lead model, default model, escalation policy | User |
+| `## Agents` | Priority-ordered agent CLIs from `{claude, codex, antigravity, local}` (default `[claude]`) | User |
+| `## Team` | Claude model layer: lead, default, escalation (applies when Agents resolves to `claude`) | User |
 | `## Escalation` | Failure and ambiguity policies | User |
 | `## PR` | Pull request URL when submitted | Agent |
 

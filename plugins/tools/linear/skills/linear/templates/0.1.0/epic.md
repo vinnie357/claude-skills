@@ -33,6 +33,21 @@ skill-1, skill-2
 
 - org/repo-name
 
+## Agents (Optional)
+
+> Priority-ordered list of agent CLIs that may run this epic.
+> Defaults to `claude` if omitted.
+>
+> Canonical values: `claude`, `codex`, `antigravity`, `local`.
+> `gemini` access goes through `antigravity` (Google's CLI runs Gemini).
+>
+> Comma-separated. Lowercase. First entry is preferred; later entries are
+> fallbacks when the preferred agent's quota is exhausted.
+
+```
+agents: claude, codex
+```
+
 ## Constraints (Optional)
 
 > Real boundaries only. Defaults apply if omitted:
