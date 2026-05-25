@@ -6,11 +6,9 @@ Pairs with the [Migrations](../SKILL.md#migrations) and
 [When raw SQL IS appropriate](../SKILL.md#when-raw-sql-is-appropriate)
 sections in the parent skill.
 
-The template was extracted from a 2026-05-25 audit of `vantageex`
-(47 migrations, 2 real `Ecto.Migration.execute/1` raw-SQL violations
-surfaced). It runs as a two-phase agent dispatch — a cheap haiku indexer
+The template runs as a two-phase agent dispatch — a cheap haiku indexer
 followed by an opus reviewer with this skill loaded — and reuses across
-repos by swapping the app namespace.
+any Ecto-using repo by swapping the app namespace.
 
 ## When to run
 
@@ -21,16 +19,20 @@ repos by swapping the app namespace.
 
 ## Inputs
 
-- `<repo>` — absolute path to the repo root (e.g. `/Users/vinnie/github/runex`).
+- `<repo_root>` — absolute path to the repo root.
 - `<app_namespace>` — the Elixir module namespace whose live schemas
-  must NOT be `alias`ed inside migrations (e.g. `Vantageex`, `Runex`).
+  must NOT be `alias`ed inside migrations (e.g. `MyApp`).
 - `<date>` — `YYYY-MM-DD`, used in output filenames.
-- `<output_dir>` — relative to `<repo>`. Prefer `research/` if the
-  repo already uses it; fall back to `docs/audits/` or `priv/repo/audits/`.
+- `<output_dir>` — relative to `<repo_root>`. Common choices: `research/`,
+  `docs/audits/`, or `priv/repo/audits/`. Pick whichever the repo already
+  uses for ad-hoc reports.
+- `<migrations_dir>` — usually `priv/repo/migrations/`. Repos with
+  multiple Ecto repos have `priv/<name>_repo/migrations/`; run the audit
+  once per directory.
 
 ## Pre-flight grep (lead runs this before dispatch)
 
-Run from `<repo>/priv/repo/migrations/`. Captures the baseline so you
+Run from `<repo_root>/<migrations_dir>/`. Captures the baseline so you
 can spot-check Phase A's report.
 
 ```bash
@@ -48,8 +50,8 @@ grep -nl "Ecto.Adapters.SQL" *.exs 2>/dev/null || echo "(none)"
 echo "=== Raw SQL via repo.query / Repo.query ==="
 grep -nlE "repo\(\)\.query|repo\.query|Repo\.query" *.exs 2>/dev/null || echo "(none)"
 
-echo "=== Live-schema aliases (replace <App> with the repo's namespace) ==="
-grep -nl "alias <App>\." *.exs 2>/dev/null || echo "(none)"
+echo "=== Live-schema aliases (replace <AppNamespace> with the repo's namespace) ==="
+grep -nl "alias <AppNamespace>\." *.exs 2>/dev/null || echo "(none)"
 
 echo "=== flush() — DDL + data in same migration ==="
 grep -nl "flush()" *.exs 2>/dev/null || echo "(none)"
@@ -61,12 +63,14 @@ echo "=== @disable_ddl_transaction (CONCURRENTLY indexes) ==="
 grep -nl "@disable_ddl_transaction" *.exs 2>/dev/null || echo "(none)"
 ```
 
-**Known pitfall (real bug from the vantageex run):** the naïve pattern
+**Known pitfall — paren-less `execute`:** the naïve pattern
 `grep -l "execute("` reports zero hits even when `execute """..."""`
-heredocs and `execute "UPDATE ..."` paren-less calls exist. Always use
-`grep -nE "execute[ (\"]"` (paren OR space OR opening quote). The audit
-that produced this template missed 4 real `execute` calls because of
-the bad pattern; only Phase B's independent re-grep caught them.
+heredocs and `execute "UPDATE ..."` paren-less calls exist. Elixir
+permits omitting parens on function calls, so both heredoc-string and
+plain-string forms are common in real migrations. Always use
+`grep -nE "execute[ (\"]"` (paren OR space OR opening quote) — the
+extra two characters catch a whole class of violations the simpler
+pattern misses.
 
 ## Phase A — Haiku indexer
 
@@ -75,10 +79,10 @@ mechanical; judgment belongs to Phase B.
 
 ### Deliverable
 
-A markdown file at `<repo>/<output_dir>/migrations-audit-<date>.md`:
+A markdown file at `<repo_root>/<output_dir>/migrations-audit-<date>.md`:
 
 ```markdown
-# <App> Migrations Audit — Phase A index (<date>)
+# <AppNamespace> Migrations Audit — Phase A index (<date>)
 
 ## Summary
 - Total migrations: N
@@ -108,7 +112,7 @@ A markdown file at `<repo>/<output_dir>/migrations-audit-<date>.md`:
   | `raw-sql-execute` | `execute(`, `execute "`, or `execute """` |
   | `raw-sql-adapter` | `Ecto.Adapters.SQL` |
   | `raw-sql-repo-query` | `repo().query`, `repo.query`, or `Repo.query` |
-  | `alias-live-schema` | `alias <App>.` (literal `alias`, not `defmodule`) |
+  | `alias-live-schema` | `alias <AppNamespace>.` (literal `alias`, not `defmodule`) |
   | `flush-data-mix` | `flush()` |
   | `fragment` | `fragment(` |
   | `no-down` | `def up` exists but no `def down` AND not `def change` |
@@ -118,28 +122,33 @@ A markdown file at `<repo>/<output_dir>/migrations-audit-<date>.md`:
 ### Indexer discipline (prevents hallucinated flags)
 
 Before emitting any flag, the indexer MUST run `grep -n <pattern> <file>`
-and cite the line number in its report. The 2026-05-25 vantageex audit
-saw the haiku indexer hallucinate `alias-live-schema` flags on two files
-that contained no `alias` lines at all — it confused
-`defmodule MigrationEpic do` (the GOOD local-snapshot pattern) with an
-alias of the live schema. The fix in the prompt:
+and cite the line number in its report. Haiku indexers have been
+observed hallucinating `alias-live-schema` flags on files that contain
+no `alias` lines at all — confusing the GOOD local-snapshot pattern
+`defmodule MigrationUser do ... use Ecto.Schema ... end` with an alias
+of the live schema. Bake this distinction into the prompt:
 
-> "`defmodule X do` inside a migration is the local-snapshot pattern
-> (good). Only flag `alias-live-schema` for literal `alias <App>.X`
-> lines that you have grep-verified."
+> "`defmodule X do ... use Ecto.Schema` inside a migration is the
+> local-snapshot pattern (good). Only flag `alias-live-schema` for
+> literal `alias <AppNamespace>.X` lines that you have grep-verified
+> by line number."
+
+Similarly, the indexer should grep-verify EVERY flag (not just
+alias-live-schema) and include the matching line number in the
+flag-table column. No line number, no flag.
 
 ## Phase B — Opus reviewer with `/elixir:ecto`
 
 One opus Agent. Skill loads: `/core:anti-fabrication`, `/elixir:ecto`,
-`/elixir:style`. Receives the Phase A output path. Both skills must be
-quoted-back as proof of loading before the audit work begins.
+`/elixir:style`. Receives the Phase A output path. All three skills
+must be quoted-back as proof of loading before the audit work begins.
 
 ### Deliverable
 
-A markdown file at `<repo>/<output_dir>/migrations-audit-<date>-findings.md`:
+A markdown file at `<repo_root>/<output_dir>/migrations-audit-<date>-findings.md`:
 
 ```markdown
-# <App> Migrations Audit — Phase B findings (<date>)
+# <AppNamespace> Migrations Audit — Phase B findings (<date>)
 
 ## Headline verdict
 [ONE of: `clean` | `minor follow-ups` | `remediation needed`]
@@ -198,7 +207,7 @@ files sampled; independent re-grep results.]
 - **`pass-with-note`** — passes, but a future migration touching this
   area should use a cleaner pattern. No remediation needed.
 - **`fail`** — violates `/elixir:ecto` and warrants either a
-  remediation bee / issue or a documented "we accept this" decision.
+  remediation issue or a documented "we accept this" decision.
 
 ## Orchestration
 
@@ -206,15 +215,14 @@ Dispatched serially (Phase B depends on Phase A's output). Per
 `/core:agent-loop`'s lead-never-runs-shell rule, both phases go to
 spawned Agents — the lead reads the outputs and reports verdicts to
 the operator. The lead does NOT modify migrations inline; remediation
-is filed as a separate epic.
+is filed as a separate issue.
 
 ## Reusability across repos
 
-Substitute `<App>` (the Elixir namespace) and `<repo>` (the path) and
-the template runs unchanged. Verified for `vantageex` (2026-05-25). For
-`runex`: `<App>=Runex`, `<repo>=/Users/vinnie/github/runex`. The
-pre-flight grep, the indexer schema, and the reviewer skill loads do
-not change between repos.
+Substitute `<AppNamespace>` (the Elixir namespace) and `<repo_root>`
+(the path) and the template runs unchanged. The pre-flight grep, the
+indexer schema, and the reviewer skill loads do not change between
+repos.
 
 If a repo has multiple Ecto repos (e.g. `priv/main_repo/migrations/`
 AND `priv/event_repo/migrations/`), run the audit once per repo dir
