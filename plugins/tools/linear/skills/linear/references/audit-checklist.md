@@ -42,6 +42,16 @@ Structured validation checks for VantageEx epic compatibility. Each check has a 
 - **Check**: Description contains `## Repos` section with at least one repository
 - **Remediation**: Add a `## Repos` section listing target repositories
 
+### Agents Valid
+- **Severity**: warning
+- **Check**: If `## Agents` section is present, every entry is in the canonical set `{claude, codex, antigravity, local}`
+- **Remediation**: Replace unknown values with canonical agents. `gemini` should be written as `antigravity` (the Google CLI runs Gemini).
+
+### Agents Section Non-Empty
+- **Severity**: info
+- **Check**: If a `## Agents` header is present, the body lists at least one agent identifier
+- **Remediation**: Either remove the empty `## Agents` header (the default `[claude]` will apply) or list at least one agent.
+
 ## Team Checks
 
 ### Team Defined

@@ -131,6 +131,7 @@ Written by the agent when a PR is submitted. Contains the pull request URL.
 Per-epic agent priority list — ordered, comma-separated agent types the picker walks when dispatching.
 
 - Allowed values (v1): `claude`, `codex`, `antigravity`, `local`
+- `gemini` access goes through `antigravity` (the Google CLI runs Gemini under the hood) — write `antigravity`, not `gemini`
 - Missing section defaults to `[claude]`
 - Picker walks the list in order; for each type it checks (a) driver registered, (b) usage under cap. First match wins.
 - Types without a registered driver are logged and skipped
