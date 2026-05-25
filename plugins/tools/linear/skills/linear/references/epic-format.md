@@ -126,6 +126,26 @@ Written by the agent when a PR is submitted. Contains the pull request URL.
 - VantageEx reads this section to track PR state
 - Written once at submission time
 
+### `## Agents` (Optional)
+
+Per-epic agent priority list — ordered, comma-separated agent types the picker walks when dispatching.
+
+- Allowed values (v1): `claude`, `codex`, `antigravity`, `local`
+- Missing section defaults to `[claude]` (matches pre-VIN-311 behavior)
+- Picker walks the list in order; for each type it checks (a) driver registered, (b) usage under cap. First match wins.
+- Types without a registered Runex driver are logged and skipped (e.g. `codex pending VIN-281`)
+- Per-account scoping is opaque in v1 (single account per type); per-issue `account_id` is a follow-up
+
+Example:
+
+```markdown
+## Agents
+
+claude, local
+```
+
+See ADR-069 (agent-usage-quotas-and-priority-list) for the picker gate and adapter contract.
+
 ## Title and Slug
 
 ### Title
