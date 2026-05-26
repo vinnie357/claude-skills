@@ -276,6 +276,7 @@ Without measurement, this is fabrication. Ecto's overhead vs raw SQL is microsec
 ## References
 
 - `references/migrations.md` — local snapshot schema deep dive, common DDL recipes, reversible migrations, `@disable_ddl_transaction` rules
+- `references/migrations-audit.md` — repeatable two-phase (haiku indexer + opus reviewer) template for auditing a repo's migrations for `/elixir:ecto` compliance; reuses across repos by swapping the app namespace
 - `references/changesets.md` — `cast_assoc`, `validate_*` catalog, custom validations, `prepare_changes/2`
 - HexDocs: [Ecto](https://hexdocs.pm/ecto/), [Ecto.Changeset](https://hexdocs.pm/ecto/Ecto.Changeset.html), [Ecto.Query](https://hexdocs.pm/ecto/Ecto.Query.html), [Ecto.Multi](https://hexdocs.pm/ecto/Ecto.Multi.html), [Ecto.Migration](https://hexdocs.pm/ecto_sql/Ecto.Migration.html)
 - `/elixir:tidewave` — runtime introspection of schemas via `mcp__tidewave__get_ecto_schemas` and live API doc lookup
