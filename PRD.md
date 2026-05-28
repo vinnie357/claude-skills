@@ -39,6 +39,13 @@ Claude is a general-purpose assistant, but many users have specialized, repeatab
 
 ### Persona: Developer / AI Engineer
 
+Builds AI-powered tools and custom Claude workflows. Wants to encode repeatable patterns once and measure whether skills actually improve output quality. Highest-value entry points from Anthropic's reference repo:
+
+- **skill-creator** — the meta-skill for building, testing, and iterating on skills with an eval loop and benchmark viewer
+- **claude-api** — opinionated guide for building apps with the Anthropic SDK (Python/TypeScript/Go/etc.), defaults to Opus 4.6 + adaptive thinking + streaming
+- **mcp-builder** — guide for creating MCP servers that expose external APIs as Claude tools (FastMCP / TypeScript MCP SDK)
+- **webapp-testing** — Playwright-based toolkit for testing local web apps, capturing screenshots, and debugging UI behavior
+
 | ID | As a... | I want to... | So that... | Priority |
 |----|---------|--------------|------------|----------|
 | US-001 | developer | install a skill from the reference repo into my Claude Code project | Claude follows specialized workflows without me re-explaining them | Must Have |
@@ -48,6 +55,13 @@ Claude is a general-purpose assistant, but many users have specialized, repeatab
 | US-005 | developer | package a skill into a `.skill` file | I can share or install it easily | Should Have |
 
 ### Persona: Power User / Non-Engineer
+
+Knows what they want Claude to do but doesn't want to write code or YAML. Wants to install pre-built skills and describe new ones conversationally. Highest-value entry points:
+
+- **skill-creator** — conversational skill builder; handles the SKILL.md authoring, test runs, and eval viewer so the user only needs to give feedback
+- **document-skills plugin bundle** (`docx`, `pdf`, `pptx`, `xlsx`) — install once via `/plugin install document-skills@anthropic-agent-skills`, get document creation across all major formats
+- **brand-guidelines** — applies Anthropic visual style to any artifact; good template for building a company-specific brand skill
+- **internal-comms** — communication drafting skill; useful model for encoding writing style preferences
 
 | ID | As a... | I want to... | So that... | Priority |
 |----|---------|--------------|------------|----------|
@@ -64,23 +78,41 @@ This persona works primarily in Node.js/TypeScript frontends and automates tasks
 - **security** — pre-commit hook via gitleaks that blocks commits containing secrets/API keys; auto-detects Docker/Colima/Apple Container runtime
 - **git-operations** — conventional commits, branch management, conflict resolution
 - **tdd** — test-first discipline, red-green-refactor, walking skeleton pattern
-- **claude-code tools** (claude-hooks, claude-commands, claude-plugins, claude-statusline, claude-teams) — Claude Code-specific configuration and workflow skills
+- **container** — Docker patterns for JS apps; natural companion to twelve-factor (multi-stage builds, non-root users, health checks)
+- **accessibility** — WCAG/a11y guidance for frontend; catches common violations before they ship
+- **code-review** — automated code review discipline and checklist conventions
+- **mise** — version manager for Node/runtime toolchains; common in JS/bash workflows
+- **webapp-testing** (Anthropic repo) — Playwright-based UI testing for the frontends being built
+- **claude-code tools** (claude-hooks, claude-commands, claude-plugins, claude-statusline, claude-teams) — compose hooks + commands together to automate Claude Code configuration for the whole team
 
 | ID | As a... | I want to... | So that... | Priority |
 |----|---------|--------------|------------|----------|
 | US-011 | JS/bash developer | load a twelve-factor skill | Claude enforces env-var config, stateless processes, and stdout logging in all my Node.js code without me repeating the rules | Must Have |
 | US-012 | JS/bash developer | use the infrastructure-conventions reference | Claude knows to use nginx.org ingress (not community), Kustomize+Helm layout, and 1Password as the secret store for my k8s deploys | Must Have |
 | US-013 | JS/bash developer | install the security skill with its pre-commit hook | Every `git commit` is automatically scanned for leaked API keys/secrets before they hit git history | Must Have |
-| US-014 | JS/bash developer | browse Vinny's community skills repo for conventions I care about (git, tdd, container, accessibility) | I can assemble a personal skill set that encodes my preferred workflows without writing them from scratch | Should Have |
-| US-015 | JS/bash developer | compose skills from multiple repos (Anthropic reference + community) | My Claude Code setup reflects both standard Anthropic patterns and my team's specific conventions | Should Have |
-| US-016 | JS/bash developer | use claude-code-specific skills (hooks, commands, plugins, statusline) | I can automate Claude Code configuration and extend it with team-specific commands | Nice to Have |
+| US-014 | JS/bash developer | use the container skill alongside twelve-factor | Claude generates correct multi-stage Dockerfiles with non-root users and health check endpoints without me specifying every detail | Must Have |
+| US-015 | JS/bash developer | use the accessibility skill on frontend components | Claude flags WCAG violations inline instead of me running a separate audit tool after the fact | Should Have |
+| US-016 | JS/bash developer | use webapp-testing (Playwright) for UI verification | I can ask Claude to run and screenshot the app to confirm frontend changes work before I push | Should Have |
+| US-017 | JS/bash developer | browse Vinny's community skills repo for conventions (git, tdd, code-review, mise) | I can assemble a personal skill set from existing community work rather than writing conventions from scratch | Should Have |
+| US-018 | JS/bash developer | compose skills from multiple repos (Anthropic reference + community) | My Claude Code setup reflects both standard Anthropic patterns and my team's specific conventions in one plugin install | Should Have |
+| US-019 | JS/bash developer | wire up claude-hooks + claude-commands together as a team plugin | My whole team gets the same Claude Code behavior without each person configuring it manually | Nice to Have |
 
 ### Persona: Enterprise / Document Workflow User
+
+Produces business documents at scale — reports, decks, spreadsheets — and needs consistent formatting and brand compliance without manual cleanup. Highest-value entry points from Anthropic's reference repo:
+
+- **docx** — create and edit Word documents; source-available, production-grade (powers Claude.ai's document feature)
+- **pdf** — PDF extraction and creation; same production-grade provenance as docx
+- **pptx** — PowerPoint creation and editing with slide layout awareness
+- **xlsx** — Excel creation with formula and data model support
+- **brand-guidelines** — enforces Anthropic brand colors and typography; fork as a template for company-specific style rules
+- **doc-coauthoring** — collaborative document editing patterns; useful for workflows where Claude drafts and humans revise
 
 | ID | As a... | I want to... | So that... | Priority |
 |----|---------|--------------|------------|----------|
 | US-009 | enterprise user | use docx/pdf/pptx/xlsx skills to create and edit documents | Claude produces well-formatted files matching our templates | Must Have |
 | US-010 | enterprise user | apply brand guidelines consistently across artifacts | All Claude-generated outputs match company visual standards | Should Have |
+| US-017 | enterprise user | use doc-coauthoring skill for draft-and-revise workflows | Claude and I can iterate on a document without losing formatting or structure | Should Have |
 
 ---
 
