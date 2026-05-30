@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.17",
+  "version": "0.4.18",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -36,6 +36,7 @@
     "./plugins/tools/claude-code/skills/claude-skills-benchmark",
     "./plugins/tools/claude-code/skills/skill-update",
     "./plugins/tools/claude-code/skills/claude-statusline",
+    "./plugins/tools/claude-code/skills/claude-workflows",
     "./plugins/core/skills/git",
     "./plugins/core/skills/mise",
     "./plugins/core/skills/nushell",
@@ -112,6 +113,9 @@
     "./plugins/tools/agent-sandboxing/commands/exec.md",
     "./plugins/tools/agent-sandboxing/commands/reap.md",
     "./plugins/tools/agent-sandboxing/commands/status.md",
-    "./plugins/tools/agent-sandboxing/commands/build-image.md"
+    "./plugins/tools/agent-sandboxing/commands/build-image.md",
+    "./plugins/tools/linear/commands/plan-epic.md",
+    "./plugins/tools/linear/commands/audit-epics.md",
+    "./plugins/tools/linear/commands/groom-epics.md"
   ]
 }

@@ -1,13 +1,13 @@
 {
   "name": "claude-code",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Claude Code-specific skills for plugin marketplace management, validation, and component creation",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["claude-code", "marketplace", "validation", "plugin-management", "commands", "agents", "skills", "hooks", "teams", "output-styles", "statusline"],
+  "keywords": ["claude-code", "marketplace", "validation", "plugin-management", "commands", "agents", "skills", "hooks", "teams", "output-styles", "statusline", "workflows"],
   "skills": [
     "./skills/plugin-marketplace",
     "./skills/claude-plugins",
@@ -19,6 +19,7 @@
     "./skills/claude-output-styles",
     "./skills/claude-skills-benchmark",
     "./skills/skill-update",
-    "./skills/claude-statusline"
+    "./skills/claude-statusline",
+    "./skills/claude-workflows"
   ]
 }
