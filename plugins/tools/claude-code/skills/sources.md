@@ -257,6 +257,45 @@ This file documents the sources used to create the claude-code plugin skills.
   - Trust gate + `disableAllHooks` shared with hooks
 - **Used In**: skills/claude-statusline/SKILL.md, skills/claude-statusline/references/input-schema.md
 
+## Claude Workflows Skill
+
+### Claude Code Workflows Documentation
+- **URL**: https://code.claude.com/docs/en/workflows
+- **Purpose**: Usage and CLI framing for dynamic workflows — triggering, approval flow, the `/workflows` TUI, resume behavior, availability, and disabling
+- **Date Accessed**: 2026-05-30
+- **Key Topics**:
+  - Three trigger paths: "workflow" keyword, `/effort ultracode`, saved/bundled workflows (`/deep-research`)
+  - Subagents-vs-skills-vs-workflows comparison (scale, where intermediate results live, repeatability, interruption)
+  - `/workflows` TUI keybindings and per-phase agent/token/time monitoring
+  - In-session resume (cached agent replay) vs fresh-on-relaunch
+  - Concurrency cap (up to 16 agents), 1000-agent lifetime cap, no mid-run user input
+  - Spawned agents run `acceptEdits` and inherit the session tool allowlist
+  - Availability (v2.1.154+, paid plans, API/Bedrock/Vertex/Foundry) and disabling (`/config`, `disableWorkflows`, `CLAUDE_CODE_DISABLE_WORKFLOWS=1`)
+- **Used In**: skills/claude-workflows/SKILL.md, skills/claude-workflows/references/managing-runs.md
+
+### Introducing Dynamic Workflows in Claude Code (Blog)
+- **URL**: https://claude.com/blog/introducing-dynamic-workflows-in-claude-code
+- **Purpose**: Motivation and user-facing framing — what dynamic workflows are and the problems they target
+- **Date Accessed**: 2026-05-30
+- **Key Concepts**:
+  - JavaScript orchestration scripts running tens-to-hundreds of parallel subagents in one background run
+  - Targets legacy codebases, large migrations, and work needing multiple verification passes
+  - The script holds the loop/branching/intermediate results; Claude's context holds only the final answer
+- **Used In**: skills/claude-workflows/SKILL.md
+
+### Claude Code Workflow Tool Contract
+- **URL**: (internal tool definition surfaced in the Claude Code session)
+- **Purpose**: Authoritative script API — the `meta` block and the `agent()`/`pipeline()`/`parallel()`/`phase()`/`log()`/`workflow()` hooks, plus `args`/`budget` globals, schema, isolation, model overrides, and resume. The public docs pages are deliberately light on these internals.
+- **Date Accessed**: 2026-05-30
+- **Key Topics**:
+  - `meta` pure-literal requirement (`name`, `description`, `phases`)
+  - `pipeline()` (no barrier, default) vs `parallel()` (barrier) semantics
+  - Structured output via JSON-Schema `schema`; `isolation: 'worktree'`; `model` inherit-by-default
+  - Orchestration patterns: adversarial verify, perspective-diverse verify, judge panel, loop-until-dry/count/budget, multi-modal sweep, completeness critic
+  - Constraints: JS not TS; `Date.now()`/`Math.random()`/argless `new Date()` throw
+  - Resume via `{ scriptPath, resumeFromRunId }`
+- **Used In**: skills/claude-workflows/SKILL.md, skills/claude-workflows/references/script-api.md, skills/claude-workflows/references/patterns.md
+
 ## Project Context
 
 ### Overall Goals
