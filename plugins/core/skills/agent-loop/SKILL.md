@@ -123,6 +123,7 @@ Fan-out happens at the Sub-team Leader, not at the epic decomposer or the bees-w
 - P4 reports verbatim CI output; on red the leader dispatches a fresh P3 (no chat continuity).
 - P5 reads `git diff main...HEAD`, tests, and the acceptance criteria; approves with one line or rejects with a structured findings list.
 - bees issues carry a single `complexity:complex` or `complexity:trivial` label, not tier labels. The Sub-team Leader picks up the issue, reads complexity, and (for complex) dispatches the five stages internally — each Task spawn prompt names its tier (`team:opus-planner` ... `team:opus-review`) as dispatch-time metadata. Tier labels never land on bees rows. See `/core:bees`.
+- The five stages run as Task spawns by default. When Claude Code workflows are available and the operator opts in, encode them as one workflow script instead — the stage gates become deterministic assertions. See "Optional: workflow execution substrate" below and `references/workflows-execution.md`.
 
 ### Avoiding pipeline collapse
 
@@ -286,6 +287,14 @@ Epics may include a `spec:` field pointing to a `.allium` behavioral spec file (
 
 Epics WITHOUT a `spec:` field behave exactly as today — all spec-driven steps are no-ops. Requires the upstream allium plugin: `/plugin install allium@juxt`. See `/allium:allium` for full integration details.
 
+## Optional: workflow execution substrate
+
+Claude Code dynamic workflows are an optional runtime for the five-tier pipeline. When available and opted-in, the Sub-team Leader encodes one issue's pipeline as a workflow script instead of dispatching five Task spawns — the adversarial separation and stage gates (`test files unmodified before P5`, `mise run ci` green before review) become deterministic script assertions, model escalation becomes a retry ladder, and the validator↔fix iteration becomes a bounded loop. `isolation: 'worktree'` gives each parallel implementer its own tree, replacing the shallow-clone workaround for working-tree contention.
+
+The boundary: decomposition, Phase 1.5a clarifying questions, and merge approval stay in the interactive loop — a workflow has no mid-run user input. The workflow executes already-decomposed issues (gate States A/C/D); it never decomposes them.
+
+Workflows are a research preview on paid plans. When disabled, the default Task-spawn path applies unchanged. See `references/workflows-execution.md` and the `/claude-code:claude-workflows` skill.
+
 ## References
 
 - `references/team-leader.md` -- Epic decomposition, team formation, orchestration
@@ -299,3 +308,4 @@ Epics WITHOUT a `spec:` field behave exactly as today — all spec-driven steps 
 - `references/no-todos.md` — Implementer worker prompts forbid TODO/FIXME/XXX/HACK/KLUDGE/DEFERRED markers; pre-commit grep + escalate-to-lead-or-implement-now rule
 - `references/dispatch-discipline.md` — Spawn-prompt rules: explicit model, specialized subagent types, lead delegates all execution, fresh-main branch creation, no polling loops, host-inspection for tool-state claims, search ADRs before proposing architecture
 - `references/secret-provisioning.md` — Tier 1 plans for new-env-var features include symmetric provisioning (generation cmd, secret-store creation, prod deploy diff, dev environment diff); Tier 5 BLOCKER check
+- `references/workflows-execution.md` — optional Claude Code workflow substrate for the five-tier pipeline: pipeline-as-script, stage-gate assertions, escalation ladder, loop-until-green, nested `workflow()` for teams-of-teams, `isolation: 'worktree'`; the decomposition/merge boundary that stays interactive

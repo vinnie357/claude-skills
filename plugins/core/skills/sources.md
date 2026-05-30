@@ -279,6 +279,18 @@ This file documents the sources used to create the core plugin skills.
 - **Purpose**: Source for optional spec-driven flows integrated into /core:agent-loop (team-leader, agent-worker, validator, epic-authoring edits)
 - **Date Accessed**: 2026-04-17
 
+## Agent Loop — Workflow Execution Substrate
+
+- **URL**: https://code.claude.com/docs/en/workflows and https://claude.com/blog/introducing-dynamic-workflows-in-claude-code
+- **Purpose**: Source for the optional Claude Code dynamic-workflows substrate documented in references/workflows-execution.md — five-tier pipeline as a script, stage-gate assertions, escalation ladder, loop-until-green, nested workflow() for teams-of-teams, worktree isolation, and the decomposition/merge boundary that stays interactive
+- **Date Accessed**: 2026-05-30
+- **Key Topics**:
+  - `pipeline()` no-barrier staging vs `parallel()` barrier; `agent()` opts (`phase`, `schema`, `model`, `isolation`)
+  - `workflow()` one-level nesting matching the two-tier authority model
+  - No mid-run user input — decomposition, clarifying questions, and merge approval stay in the interactive loop
+  - `acceptEdits` + inherited tool allowlist; concurrency `min(16, cores-2)`; 1000-agent lifetime cap; JS not TS
+  - Cross-references the `/claude-code:claude-workflows` skill for the full script API
+
 ### mise Sandboxing
 - https://mise.jdx.dev/sandboxing.html — mise sandboxing (experimental). Extracted: allow/deny flags, task-level config, Landlock/Seatbelt platform support, limitations. Accessed 2026-05-22.
 
