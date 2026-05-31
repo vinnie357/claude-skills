@@ -43,11 +43,13 @@ container run [FLAGS] IMAGE [COMMAND] [ARGS...]
 | `--tmpfs` | | Mount a tmpfs filesystem |
 | `--cidfile` | | Write container ID to file |
 | `--publish-socket` | | Publish a socket |
-| `--init` | | Run an init process in the container (0.10.0+) |
+| `--init` | | Run an init process in the container (0.11.0+) |
 | `--init-image` | | Init image for VM (0.10.0+ selection support) |
 | `--kernel` | | Custom kernel for VM |
 | `--virtualization` | | Virtualization backend |
 | `--runtime` | | Container runtime (0.10.0+) |
+| `--cap-add` | | Add a Linux capability (0.12.0+) |
+| `--cap-drop` | | Drop a Linux capability (0.12.0+) |
 | `--scheme` | | Image scheme |
 | `--progress` | | Progress output (`none`, `ansi`) (0.7.0+) |
 | `--gid` | | Group ID |
@@ -66,7 +68,7 @@ Create a container without starting it.
 container create [FLAGS] IMAGE [COMMAND] [ARGS...]
 ```
 
-Accepts all the same flags as `container run` except `--detach`. Includes `--read-only` (0.8.0+), `--cpus`/`--memory` (0.9.0+), `--init`/`--init-image`/`--runtime` (0.10.0+), and all DNS flags.
+Accepts all the same flags as `container run` except `--detach`. Includes `--read-only` (0.8.0+), `--cpus`/`--memory` (0.9.0+), `--init`/`--init-image`/`--runtime` (0.10.0+), `--cap-add`/`--cap-drop` (0.12.0+), and all DNS flags.
 
 ### `container start`
 
@@ -170,7 +172,7 @@ container prune
 
 ### `container export`
 
-Create an image from a container's changes. (0.10.0+)
+Create an OCI layout tar from a container. (0.10.0+; 0.11.0+ supports stopped containers)
 
 ```
 container export [FLAGS] CONTAINER
@@ -220,6 +222,8 @@ Push an image to a registry.
 ```
 container image push IMAGE
 ```
+
+**Note (0.12.3+)**: Prints the image reference to stdout on success, enabling scripting/automation to capture the pushed reference.
 
 ### `container image save`
 
@@ -374,8 +378,9 @@ container network create [FLAGS] NAME
 |------|-------------|
 | `--subnet` | Subnet in CIDR format (e.g., `10.0.0.0/24`) (0.6.0+) |
 | `--labels` | Labels for the network (0.5.0+) |
+| `--mtu` | MTU for the network attachment (0.11.0+) |
 
-**Note**: Full IPv6 support in 0.8.0+. Host-only and isolated network capabilities in 0.9.0+ (verify flag syntax with `container network create --help`).
+**Note**: Full IPv6 support in 0.8.0+. Host-only and isolated network capabilities in 0.9.0+ (verify flag syntax with `container network create --help`). MTU network attachment option added in 0.11.0+.
 
 ### `container network delete`
 
@@ -424,6 +429,7 @@ container volume create [FLAGS] [NAME]
 | `--size` | `-s` | Size limit (e.g., `10G`) |
 | `--label` | | Label for the volume |
 | `--opt` | | Driver-specific options (e.g., `type=tmpfs`) |
+| `--journal` | | Enable journaling for the volume (0.12.0+) |
 
 ### `container volume delete`
 
@@ -585,6 +591,8 @@ Create a DNS entry.
 container system dns create NAME IP
 ```
 
+**Security (0.12.3+)**: Path/rule injection is prevented — inputs are sanitized.
+
 ### `container system dns delete`
 
 Delete a DNS entry.
@@ -612,3 +620,40 @@ container system kernel set [FLAGS] PATH
 | Flag | Description |
 |------|-------------|
 | `--force` | Force set (0.5.0+ only) |
+
+## Environment Variables (0.11.0+)
+
+| Variable | Description |
+|----------|-------------|
+| `CONTAINER_DEFAULT_PLATFORM` | Sets the default image platform (e.g., `linux/arm64`). Applies to `image pull`, `container run`, and `container build` when `--platform` is not specified. |
+
+## Output Formats (0.12.0+)
+
+Commands that accept `--format` support these values:
+
+| Format | Description |
+|--------|-------------|
+| `json` | JSON output (0.10.0+) |
+| `yaml` | YAML output (0.12.0+) |
+
+Progress output modes (0.12.0+):
+
+| Mode | Description |
+|------|-------------|
+| `plain` | Plain text progress output |
+| `color` | Colored progress output |
+| (auto) | Automatically falls back to `plain` when stderr is not a TTY |
+
+## Build Secrets (0.11.0+)
+
+Build secrets can be passed to build steps without baking them into image layers. Use the `--secret` flag with `container build`:
+
+```bash
+container build --secret id=mysecret,src=/path/to/secret -t myimage:latest .
+```
+
+Reference the secret in a Dockerfile using `RUN --mount=type=secret`.
+
+## Plugin Configuration (0.12.0+)
+
+TOML-based plugin configuration files are supported. Plugin config files allow per-plugin settings without modifying the main container configuration.

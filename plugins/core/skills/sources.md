@@ -212,7 +212,7 @@ This file documents the sources used to create the core plugin skills.
 - **URL**: https://github.com/apple/container/releases
 - **Purpose**: Version tracking, breaking changes between releases, installation packages
 - **Date Accessed**: 2026-02-21
-- **Key Topics**: Version migration (0.4.1 through 0.9.0), breaking changes, new features, CVE fixes
+- **Key Topics**: Version migration (0.4.1 through 0.12.3), breaking changes, new features, CVE fixes
 
 ### Apple Container Release 0.6.0
 - **URL**: https://github.com/apple/container/releases/tag/0.6.0
@@ -239,6 +239,34 @@ This file documents the sources used to create the core plugin skills.
 - **Purpose**: Version 0.10.0 release notes
 - **Date Accessed**: 2026-03-24
 - **Key Topics**: VM init image selection, container export, runtime flag, registry list, --format on system status, --init flag, generic ClientContainer, SandboxService bundle creation, multiple network plugins, minimum memory validation, SELinux kernel panic fix, env var duplication fix, Containerization 0.26.2
+
+### Apple Container Release 0.11.0
+- **URL**: https://github.com/apple/container/releases/tag/0.11.0
+- **Purpose**: Version 0.11.0 release notes (non-breaking)
+- **Date Accessed**: 2026-05-31
+- **Key Topics**: container export for stopped containers, build secrets, --init flag, CONTAINER_DEFAULT_PLATFORM env var, mtu network attachment option, system properties container.cpus/container.memory/build.cpus/build.memory, Dockerfile-specific ignore files, ARG-parsing and docker-ignore bug fixes
+
+### Apple Container Release 0.12.0
+- **URL**: https://github.com/apple/container/releases/tag/0.12.0
+- **Purpose**: Version 0.12.0 release notes (BREAKING: reduced default capability set)
+- **Date Accessed**: 2026-05-31
+- **Key Topics**: BREAKING reduced default Linux capability set, --cap-add/--cap-drop flags, builder-shim gRPC protocol change, plain/color progress modes, YAML output format, TOML plugin config files, SSH_AUTH_SOCK passthrough, kernel kata-3.28.0, journal option for volume create, single-file-mount fix
+
+### Apple Container Release 0.12.1
+- **URL**: https://github.com/apple/container/releases/tag/0.12.1
+- **Purpose**: Version 0.12.1 release notes (non-breaking, compat fix)
+- **Date Accessed**: 2026-05-31
+- **Key Topics**: macOS 15 (Sequoia) compatibility for network list and network delete
+
+### Apple Container Release 0.12.3
+- **URL**: https://github.com/apple/container/releases/tag/0.12.3
+- **Purpose**: Version 0.12.3 release notes (security release; no 0.12.2 was published)
+- **Date Accessed**: 2026-05-31
+- **Key Topics**: HTTP downgrade prevention in registry commands, path/rule injection prevention in system dns, ImagePush prints image reference to stdout on success
+
+## Update history
+
+- 2026-05-31: updated container skill from 0.10.0 to Apple Container 0.12.3 (added 0.11.0/0.12.0/0.12.3 templates, capability-model breaking change, security fixes)
 
 ## TDD Skill
 
