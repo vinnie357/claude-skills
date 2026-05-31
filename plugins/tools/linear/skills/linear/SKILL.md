@@ -229,6 +229,32 @@ Skill labels listed in the epic body must exist in the claude-skills marketplace
 
 Core skills are implicit and MUST NOT be listed in epic bodies: `anti-fabrication`, `git`, `tdd`, `twelve-factor`, `security`, `mise`, `nushell`. Listing them adds noise without value — every epic loads them by default.
 
+### Self-contained content
+
+Epic bodies are self-contained. Workers pick up epics on any machine; local-filesystem paths (`~/.claude/plans/...`, `/Users/<name>/...`) resolve only on the author's system and fail everywhere else.
+
+WRONG — points at a local file:
+
+```markdown
+See `~/.claude/plans/foo.md` for the design context.
+```
+
+CORRECT — embed the content inline under a `## Design context` (or similarly named) section, or link to another epic by URL:
+
+```markdown
+## Design context
+
+[full design content pasted here]
+```
+
+```markdown
+## Instructions
+
+Design rationale lives in the paired docs epic [VIN-316](https://linear.app/...).
+```
+
+When a design plan is too large for a single body, split into paired epics (docs + implementation) linked by URL. Each epic carries its own self-contained context; cross-references between epics use URLs, never filesystem paths.
+
 ### Initial state
 
 New epics start in `Backlog`. Labels are team-scoped; missing skill labels auto-create on first use via `issueLabelCreate`.
