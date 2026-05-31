@@ -204,12 +204,21 @@ When an epic lands in `needs_help`:
 
 Previous instructions are visible in the comment thread for history.
 
+## Self-Contained Bodies
+
+Epic bodies are read by workers on any machine. Local-filesystem paths (e.g. `~/.claude/plans/foo.md`, `/Users/<name>/...`) resolve only on the author's system and fail elsewhere.
+
+- **Embed**, do not reference. When the epic depends on a design plan, ADR draft, or research note authored locally, paste the content into the epic body under a `## Design context` (or similarly named) section.
+- **Cross-link by URL**, not path. When two epics relate, link by Linear issue URL (`https://linear.app/<workspace>/issue/<KEY>`), never by filesystem path.
+- **Split when too large**. When design context exceeds a comfortable body length, split into paired epics — one docs epic, one implementation epic — each self-contained and linked to its partner by URL.
+
 ## Anti-Patterns
 
 Do NOT include in epics:
 
 - **Implementation details** — let agents decide HOW
-- **File paths** — let agents discover the codebase
+- **Local filesystem paths as the source of truth** — `~/.claude/plans/...`, `/Users/<name>/...`, and similar host-specific paths break on every machine except the author's. Embed the content or link by URL instead.
+- **File paths to codebase locations** — let agents discover the codebase
 - **Step-by-step instructions** — that is what skills are for
 - **Acceptance criteria per issue** — the team leader writes those during decomposition
 - **Model assignments per task** — the system optimizes this

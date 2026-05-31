@@ -32,6 +32,7 @@ Before creating:
 - Confirm objective is 2-3 sentences
 - Confirm slug is kebab-case and under 30 chars
 - Confirm at least one repo is specified
+- Confirm the body is self-contained: no local-filesystem paths (`~/.claude/...`, `/Users/<name>/...`) used as the source of truth. Embed design plans inline under a `## Design context` section, or link to other epics by Linear URL.
 
 ## Body Format Rules
 
@@ -40,6 +41,7 @@ Apply the format rules from the `/linear` skill's "Epic Body Format Rules" secti
 - Plain markdown only — no YAML fences in any section.
 - Skill labels must exist in the marketplace; core skills (anti-fabrication, git, tdd, twelve-factor, security, mise, nushell) are implicit and not listed.
 - Initial state is `Backlog`.
+- Bodies are self-contained: embed design context inline, cross-link other epics by Linear URL, never reference local-filesystem paths.
 
 See `plugins/tools/linear/skills/linear/SKILL.md` "Epic Body Format Rules" for the canonical wording.
 
