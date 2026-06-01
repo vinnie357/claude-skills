@@ -17,7 +17,7 @@ Activate when:
 - Managing container images (pull, push, tag, save, load)
 - Configuring container networks and volumes
 - Managing the container system service
-- Migrating between Apple Container versions (0.5.x to 0.10.x)
+- Migrating between Apple Container versions (0.5.x to 0.12.x)
 
 ## What is Apple Container?
 
@@ -26,7 +26,7 @@ Apple Container is a macOS-native tool for running Linux containers as lightweig
 - **Swift-based**: Built on Apple's Virtualization.framework
 - **OCI-compatible**: Produces and runs standard OCI container images
 - **Apple silicon only**: Requires Apple silicon Mac (M1 or later)
-- **Pre-1.0**: Currently at version 0.10.0, breaking changes expected between minor versions
+- **Pre-1.0**: Currently at version 0.12.3, breaking changes expected between minor versions
 - **Lightweight VMs**: Each container runs as a lightweight Linux VM
 
 ## Prerequisites
@@ -79,6 +79,15 @@ container system property set <key> <value>
 # Clear a property
 container system property clear <key>
 ```
+
+Configurable default CPU/memory properties (0.11.0+):
+
+| Property | Description |
+|----------|-------------|
+| `container.cpus` | Default CPU count for new containers |
+| `container.memory` | Default memory for new containers |
+| `build.cpus` | Default CPU count for image builds |
+| `build.memory` | Default memory for image builds |
 
 ### System DNS
 
@@ -155,11 +164,15 @@ container run -e API_URL=http://host.docker.internal:3000 myapp:latest
 # Run with custom init image (0.10.0+)
 container run --init-image custom-init:latest -d --name app myapp:latest
 
-# Run with init process (0.10.0+)
-container run --init -d --name app myapp:latest
-
 # Run with runtime selection (0.10.0+)
 container run --runtime myruntime -d --name app myapp:latest
+
+# Run with init process (0.11.0+)
+container run --init -d --name app myapp:latest
+
+# Run with reduced/custom capabilities (0.12.0+)
+container run --cap-add NET_ADMIN myimage:latest
+container run --cap-drop ALL --cap-add NET_BIND_SERVICE myimage:latest
 ```
 
 ### Manage Running Containers
@@ -208,7 +221,7 @@ container prune
 ### Export Container (0.10.0+)
 
 ```bash
-# Create an image from a running container
+# Create an image from a running container (0.10.0+: running; 0.11.0+: stopped containers also supported)
 container export <name-or-id> -o exported.tar
 
 # Export with a tag
@@ -279,6 +292,12 @@ When pulling or building images, specify the target platform:
 ```
 
 Architecture aliases (0.8.0+): `amd64`=`x86_64`, `arm64`=`aarch64`
+
+**Default platform (0.11.0+)**: Set `CONTAINER_DEFAULT_PLATFORM` to avoid specifying `--platform` on every pull/build:
+
+```bash
+export CONTAINER_DEFAULT_PLATFORM=linux/arm64
+```
 
 ## Build
 
@@ -369,7 +388,7 @@ container network delete mynetwork
 container network prune
 ```
 
-**Network capabilities (0.8.0+)**: Full IPv6 support. Host-only and isolated network modes available in 0.9.0+ (verify flag syntax with `container network create --help`).
+**Network capabilities (0.8.0+)**: Full IPv6 support. Host-only and isolated network modes available in 0.9.0+ (verify flag syntax with `container network create --help`). `mtu` network attachment option available in 0.11.0+.
 
 ### Multi-Container Networking
 
@@ -401,6 +420,9 @@ container volume create --label env=prod mydata
 
 # Create with driver options
 container volume create --opt type=tmpfs mydata
+
+# Create with journaling (0.12.0+)
+container volume create --journal mydata
 
 # List volumes
 container volume list
@@ -445,7 +467,7 @@ container registry list
 
 **Note**: In 0.5.0, the keychain ID changed from `com.apple.container` to `com.apple.container.registry`. Re-login is required after upgrading from 0.4.x.
 
-## Version Differences (0.5.0 to 0.10.0)
+## Version Differences (0.5.0 to 0.12.x)
 
 ### Breaking Changes
 
@@ -458,6 +480,8 @@ container registry list
 | 0.10.0 | ClientContainer reworked as generic client | Update API consumers for generic client interface |
 | 0.10.0 | Bundle creation moved to SandboxService | Move bundle creation code from main container ops |
 | 0.10.0 | Multiple network plugins support | Review network configuration for multi-plugin model |
+| **0.12.0** | **Default Linux capability set REDUCED** | **Delete & recreate all existing containers; use `--cap-add` to restore needed capabilities** |
+| 0.12.0 | Builder-shim gRPC protocol changed | Incompatible with pre-0.12.0 clients — update all builder clients |
 
 ### New Features by Release
 
@@ -469,9 +493,19 @@ container registry list
 
 **0.9.0**: Resource limits (`--cpus`/`--memory`), `host.docker.internal`, host-only/isolated networks, `--dns` on build, `--force` on image delete, zstd compression, container prune improvements, enhanced image inspection, Kata 3.26.0 kernel
 
-**0.10.0**: `--init-image` selection, `container export`, `--runtime` flag, `container registry list`, `--format` on `system status`, `--init` flag, minimum memory validation, multiple network plugins, SELinux kernel panic fix, env var duplication fix
+**0.10.0**: `--init-image` selection, `container export`, `--runtime` flag, `container registry list`, `--format` on `system status`, minimum memory validation, multiple network plugins, SELinux kernel panic fix, env var duplication fix
 
-### Migration Checklist (0.5.x to 0.10.0)
+**0.11.0**: `container export` for stopped containers, build secrets, `--init` flag for run/create, `CONTAINER_DEFAULT_PLATFORM` env var, `mtu` network attachment option, system properties `container.cpus`/`container.memory`/`build.cpus`/`build.memory`, Dockerfile-specific ignore files, ARG-parsing and docker-ignore bug fixes
+
+> **⚠ BREAKING — 0.12.0 capability change:** The default Linux capability set was **reduced**. Users MUST delete and recreate existing containers to apply the new defaults. Use `--cap-add` to restore capabilities; use `--cap-drop` to further restrict them. See [0.12.0 template](templates/0.12.0/commands.md) for details.
+
+**0.12.0**: `--cap-add`/`--cap-drop` on run/create, plain/color progress modes (auto-plain when stderr non-TTY), YAML output format, TOML plugin config files, `SSH_AUTH_SOCK` passthrough, kernel kata-3.28.0, `journal` option for `volume create`, single-file-mount fix, improved `image save` error messaging
+
+**0.12.1**: macOS 15 (Sequoia) compat — `network list` and `network delete` now work on macOS 15
+
+**0.12.3** (security): HTTP downgrade prevention in registry commands, path/rule injection prevention in `system dns`, `image push` prints image reference to stdout on success
+
+### Migration Checklist (0.5.x to 0.12.x)
 
 1. Replace `--disable-progress-updates` with `--progress none` in scripts
 2. Update any paths referencing `.build` directory to `builder`
@@ -481,6 +515,9 @@ container registry list
 6. Update API consumers for generic ClientContainer interface (0.10.0)
 7. Move bundle creation code from main container operations to SandboxService (0.10.0)
 8. Review network configurations for multiple network plugins model (0.10.0)
+9. **0.12.0 REQUIRED**: Delete and recreate all existing containers (reduced default capability set)
+10. **0.12.0 REQUIRED**: Update builder clients (gRPC protocol changed, incompatible with older clients)
+11. Add `--cap-add` flags to any containers that require elevated capabilities (0.12.0+)
 
 ### Dependencies
 
@@ -493,7 +530,7 @@ container registry list
 | 0.9.0 | 0.24.0 | Kata 3.26.0 |
 | 0.10.0 | 0.26.2 | |
 
-See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0, 0.10.0).
+See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0, 0.10.0, 0.11.0, 0.12.0, 0.12.3).
 
 ## Scripts
 
