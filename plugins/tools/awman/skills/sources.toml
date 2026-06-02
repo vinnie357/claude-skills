@@ -1,0 +1,24 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "awman"
+last_full_check = "2026-06-02"
+
+# ----------------------------------------------------------------------------
+# awman CLI/TUI — tracked via GitHub releases.
+# Renamed from amux (prettysmartdev/amux) → awman (prettysmartdev/awman).
+# ----------------------------------------------------------------------------
+[[sources]]
+skill = "awman"
+name = "awman"
+url = "https://github.com/prettysmartdev/awman"
+releases_url = "https://github.com/prettysmartdev/awman/releases"
+check_method = "github-releases"
+github_repo = "prettysmartdev/awman"
+current_version = "0.9.1"
+version_constraint = "pre-1.0"
+last_checked = "2026-06-02"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "Pre-1.0 CLI; minor bumps carry breaking changes (e.g. 0.9.1 dropped Markdown workflows, renamed headless→api). Create a versioned templates/X.Y.Z/commands.md on each update. Renamed from amux as of 0.9.x."

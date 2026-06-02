@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.20"
+    "version": "1.0.21"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.20",
+      "version": "0.4.21",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -29,13 +29,13 @@
       "license": "MIT"
     },
     {
-      "name": "amux",
-      "source": "./plugins/tools/amux",
+      "name": "awman",
+      "source": "./plugins/tools/awman",
       "strict": true,
-      "description": "amux: parallel AI code agent sessions with container isolation, worktrees, and a headless REST API",
-      "version": "0.1.0",
+      "description": "awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API",
+      "version": "0.2.0",
       "category": "tools",
-      "keywords": ["amux", "agents", "workflows", "tmux", "claude-code", "container"],
+      "keywords": ["awman", "agents", "workflows", "tmux", "claude-code", "container"],
       "license": "MIT"
     },
     {

@@ -1,0 +1,10 @@
+{
+  "name": "awman",
+  "version": "0.2.0",
+  "description": "awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API",
+  "author": { "name": "vinnie357" },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["awman", "agents", "workflows", "tmux", "claude-code", "container"],
+  "skills": ["./skills/awman"]
+}
