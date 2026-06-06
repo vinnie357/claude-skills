@@ -57,6 +57,8 @@ State B is plan-absent. The lead PRODUCES the decomposition itself from the epic
 
 Reserve AskUserQuestion ONLY for a genuine architectural fork the user owns that cannot be responsibly defaulted, or a hard blocker: missing repository, missing credential, or contradictory acceptance criteria with no clear winner. A preference question — "approach A or B?" — is NOT a blocker; pick the reasonable default, record the choice, proceed.
 
+When you do escalate, group related questions into a single AskUserQuestion call (max 4 questions, 2–4 options each) — never one question at a time. Once you have judged a decision to be a genuine fork the user owns, do not guess — ask. This phase does not apply at all to single-file mechanical refactors, status checks, or log diagnosis.
+
 This rule applies in every context. A host that runs without a human supplies the plan (State C fires); when no plan exists the default is still proceed-on-reasonable-default.
 
 ## 6-Tier Prompt Hierarchy
