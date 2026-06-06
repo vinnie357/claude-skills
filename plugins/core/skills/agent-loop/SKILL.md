@@ -38,7 +38,7 @@ Between Phase 1 (pre-flight) and Phase 2 (spawn), the Team Leader checks two det
 | State | bees | `DECOMPOSITION_PATH` | Action |
 |-------|------|----------------------|--------|
 | A | Has issues | Unset, OR set+missing | Skip Phase 1.5a. Spot-check each issue (AC, skill labels, dep edges). Flag gaps, proceed. |
-| B | Empty | Unset, OR set+missing | Run Phase 1.5a (clarifying questions), then decompose into bees. |
+| B | Empty | Unset, OR set+missing | Run Phase 1.5a — produce the decomposition from the epic objective + AC, record assumptions, decompose into bees. Ask only on a genuine fork or hard blocker. |
 | C | Empty | Set + file exists | Consume the proposal verbatim — `bees create` one issue per proposed item with AC, skill labels, and dep edges as written. Topological order (deps before dependents); map `depends_on` titles to bee IDs returned by prior `bees create` calls as you go. If any cycle is detected in the dep graph (2-cycle X↔Y, 3-cycle A→B→C→A, or longer), halt and report all cycle members — create zero issues. No clarifying questions. Spot-check after, proceed. |
 | D | Has issues | Set + file exists | Resume gap — diff proposal titles vs existing bees titles. Materialize each missing proposed item with the same rules as State C (topological order, cycle detection). Spot-check the complete set, proceed. Never re-ask, never re-decompose. |
 
@@ -49,11 +49,17 @@ Between Phase 1 (pre-flight) and Phase 2 (spawn), the Team Leader checks two det
 
 **Proposal file format:** this skill mandates only the consumption rules above; the file's on-disk schema is defined by whatever upstream process produces it. A minimum interoperable shape is a JSON array of issues each carrying `title`, `acceptance_criteria` (list), `labels` (list), and `depends_on` (list of titles or stable local keys that resolve to other entries in the same file).
 
-### Phase 1.5a: Clarifying Questions (State B only)
+### Phase 1.5a: Default to proceeding (State B only)
 
-When the lead is the decomposer with no upstream proposal, call AskUserQuestion before any bees writes. Single call, max 4 questions, 2–4 options each.
+The operative question is plan presence, not who is at the keyboard. A decomposition plan is PRESENT when any of these hold: `DECOMPOSITION_PATH` is set and the file exists, OR bees already has issues, OR an upstream proposal exists. States A / C / D are plan-present — consume, spot-check, or resume and proceed; never ask clarifying questions there.
 
-Skip Phase 1.5a only when the scope is fully implied by the request and the agent does not have to assume any architectural choice. Qualifies: "rename foo to bar in file X", "tail the deploy log". Does NOT qualify: "add caching", "make it faster", "improve error handling", or anything that forks on a strategy decision the user owns.
+State B is plan-absent. The lead PRODUCES the decomposition itself from the epic objective and acceptance criteria, records its assumptions as a bees comment (auditable trail), and proceeds. Default to proceeding on the most reasonable interpretation.
+
+Reserve AskUserQuestion ONLY for a genuine architectural fork the user owns that cannot be responsibly defaulted, or a hard blocker: missing repository, missing credential, or contradictory acceptance criteria with no clear winner. A preference question — "approach A or B?" — is NOT a blocker; pick the reasonable default, record the choice, proceed.
+
+When you do escalate, group related questions into a single AskUserQuestion call (max 4 questions, 2–4 options each) — never one question at a time. Once you have judged a decision to be a genuine fork the user owns, do not guess — ask. This phase does not apply at all to single-file mechanical refactors, status checks, or log diagnosis.
+
+This rule applies in every context. A host that runs without a human supplies the plan (State C fires); when no plan exists the default is still proceed-on-reasonable-default.
 
 ## 6-Tier Prompt Hierarchy
 
@@ -291,7 +297,7 @@ Epics WITHOUT a `spec:` field behave exactly as today — all spec-driven steps 
 
 Claude Code dynamic workflows are an optional runtime for the five-tier pipeline. When available and opted-in, the Sub-team Leader encodes one issue's pipeline as a workflow script instead of dispatching five Task spawns — the adversarial separation and stage gates (`test files unmodified before P5`, `mise run ci` green before review) become deterministic script assertions, model escalation becomes a retry ladder, and the validator↔fix iteration becomes a bounded loop. `isolation: 'worktree'` gives each parallel implementer its own tree, replacing the shallow-clone workaround for working-tree contention.
 
-The boundary: decomposition, Phase 1.5a clarifying questions, and merge approval stay in the interactive loop — a workflow has no mid-run user input. The workflow executes already-decomposed issues (gate States A/C/D); it never decomposes them.
+The boundary: decomposition, any Phase 1.5a escalation (the rare fork-or-blocker AskUserQuestion), and merge approval stay in the interactive loop — a workflow has no mid-run user input. The workflow executes already-decomposed issues (gate States A/C/D); it never decomposes them.
 
 Workflows are a research preview on paid plans. When disabled, the default Task-spawn path applies unchanged. See `references/workflows-execution.md` and the `/claude-code:claude-workflows` skill.
 

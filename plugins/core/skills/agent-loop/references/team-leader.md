@@ -39,9 +39,11 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
    - Respect dependency ordering: do not start issue B if it depends on A
 8. Report plan before spawning any agents
 
-## Phase 1.5a: Clarifying Questions (State B only)
+## Phase 1.5a: Default to proceeding (State B only)
 
-When the lead is the decomposer AND no upstream proposal exists (State B from step 4), call AskUserQuestion before creating any bees issues. Required checklist:
+State B is the plan-absent state — bees is empty AND no upstream proposal exists (from step 4). The decision axis is plan presence, not who is at the keyboard.
+
+When no plan is present, the lead PRODUCES the decomposition itself from the epic objective and acceptance criteria, records its assumptions as a bees comment on the epic (auditable trail), and proceeds. Default to proceeding on the most reasonable interpretation. Before decomposing, confirm:
 
 - [ ] Epic objective is concrete (no "improve X" without measurable outcome)
 - [ ] Acceptance criteria are testable
@@ -49,11 +51,13 @@ When the lead is the decomposer AND no upstream proposal exists (State B from st
 - [ ] Repos/paths are explicit
 - [ ] Model assignments are appropriate (opus for the lead via `AGENT_LOOP_LEAD_MODEL`, haiku/sonnet for workers per task complexity)
 
-Group related questions into a single AskUserQuestion call (max 4 questions, 2–4 options each). Skip this phase ONLY for: single-file mechanical refactors, status checks, log diagnosis. When in doubt, ask.
+When a checklist item is underspecified, fill it with the most reasonable default and record that choice. Escalate via AskUserQuestion ONLY for a genuine architectural fork the user owns that cannot be responsibly defaulted, or a hard blocker: missing repository, missing credential, or contradictory acceptance criteria with no clear winner. A preference question ("approach A or B?") is NOT a blocker — pick the reasonable default, record the rationale, proceed.
 
-Never guess at user intent. Asking costs one prompt cycle; guessing wrong costs an entire epic loop.
+When you do escalate, group related questions into a single AskUserQuestion call (max 4 questions, 2–4 options each) — never one question at a time. Once you have judged a decision to be a genuine fork the user owns, do not guess — ask. This phase does not apply at all to single-file mechanical refactors, status checks, or log diagnosis.
 
-**State A / C / D analogues:** in State A, clarifying questions happened in a prior session; in State C/D, they happened during the upstream decomposition pass. In all three, the lead's substitute is the spot-check in step 4 — verify each issue is well-formed, flag gaps, do not re-interrogate.
+This rule applies in every context. A host that runs without a human supplies the plan (State C fires); when no plan exists the default is still proceed-on-reasonable-default.
+
+**State A / C / D analogues:** in State A, a plan already exists in bees; in State C/D, an upstream proposal supplies it. In all three, the lead's job is the spot-check in step 4 — verify each issue is well-formed, flag gaps, do not re-decompose and do not re-interrogate.
 
 ## Before-spawn checklist
 
