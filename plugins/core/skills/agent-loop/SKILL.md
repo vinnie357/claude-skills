@@ -51,9 +51,19 @@ Between Phase 1 (pre-flight) and Phase 2 (spawn), the Team Leader checks two det
 
 ### Phase 1.5a: Clarifying Questions (State B only)
 
-When the lead is the decomposer with no upstream proposal, call AskUserQuestion before any bees writes. Single call, max 4 questions, 2–4 options each.
+State B behavior depends on whether a human is attached to the session:
+
+**Interactive session (human present):** Call AskUserQuestion before any bees writes. Single call, max 4 questions, 2–4 options each.
 
 Skip Phase 1.5a only when the scope is fully implied by the request and the agent does not have to assume any architectural choice. Qualifies: "rename foo to bar in file X", "tail the deploy log". Does NOT qualify: "add caching", "make it faster", "improve error handling", or anything that forks on a strategy decision the user owns.
+
+When in doubt, ask. Asking costs one prompt cycle; guessing wrong costs an entire epic loop.
+
+**Autonomous loop (no human attached):** Default to proceeding — select the most reasonable decomposition from the epic objective and acceptance criteria, record the assumption as a bees comment (auditable), and decompose without pausing for input.
+
+Reserve AskUserQuestion in autonomous mode ONLY for a genuine architectural fork the user owns that cannot be responsibly defaulted (e.g., contradictory acceptance criteria with no clear winner, missing repository or credential that blocks all forward paths). A preference question — "should I use approach A or B?" — is NOT a hard blocker; pick A, record the choice, proceed.
+
+The signal for "human attached" is the runtime context: an interactive terminal session has a human present; an autonomous dispatch (no TTY, triggered by a workflow or scheduler) does not.
 
 ## 6-Tier Prompt Hierarchy
 

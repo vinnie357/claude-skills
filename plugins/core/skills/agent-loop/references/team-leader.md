@@ -41,7 +41,11 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
 
 ## Phase 1.5a: Clarifying Questions (State B only)
 
-When the lead is the decomposer AND no upstream proposal exists (State B from step 4), call AskUserQuestion before creating any bees issues. Required checklist:
+When the lead is the decomposer AND no upstream proposal exists (State B from step 4), apply the rule that matches the session context:
+
+### Interactive session (human present)
+
+Call AskUserQuestion before creating any bees issues. Required checklist:
 
 - [ ] Epic objective is concrete (no "improve X" without measurable outcome)
 - [ ] Acceptance criteria are testable
@@ -52,6 +56,14 @@ When the lead is the decomposer AND no upstream proposal exists (State B from st
 Group related questions into a single AskUserQuestion call (max 4 questions, 2–4 options each). Skip this phase ONLY for: single-file mechanical refactors, status checks, log diagnosis. When in doubt, ask.
 
 Never guess at user intent. Asking costs one prompt cycle; guessing wrong costs an entire epic loop.
+
+### Autonomous loop (no human attached)
+
+Default to proceeding. Select the most reasonable decomposition from the epic objective and acceptance criteria. Record each significant assumption as a bees comment on the epic (auditable trail). Do not pause for input.
+
+Call AskUserQuestion ONLY when a genuine hard blocker exists — contradictory acceptance criteria with no clear winner, or a missing repository or credential that blocks ALL forward paths. A preference question ("should I use approach A or B?") is NOT a hard blocker: pick A, record the rationale, proceed.
+
+The "autonomous" signal: no TTY, session launched by a workflow or scheduler with no human at the terminal.
 
 **State A / C / D analogues:** in State A, clarifying questions happened in a prior session; in State C/D, they happened during the upstream decomposition pass. In all three, the lead's substitute is the spot-check in step 4 — verify each issue is well-formed, flag gaps, do not re-interrogate.
 
