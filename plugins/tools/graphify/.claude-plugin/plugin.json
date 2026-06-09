@@ -1,0 +1,15 @@
+{
+  "name": "graphify",
+  "version": "0.1.0",
+  "description": "Graphify knowledge-graph tool: build a queryable graph of a codebase and query it instead of reading raw files",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["graphify", "knowledge-graph", "codebase", "code-search", "tree-sitter", "agents", "context"],
+  "skills": [
+    "./skills/graphify",
+    "./skills/graphify-agents"
+  ]
+}
