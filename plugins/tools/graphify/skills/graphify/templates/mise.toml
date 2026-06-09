@@ -1,0 +1,43 @@
+# Graphify knowledge-graph tool — copy into your project's mise.toml (or ~/.config/mise/config.toml).
+#
+# graphify ships on PyPI as the package `graphifyy` (double-y); the CLI command is `graphify`.
+# mise installs PyPI packages through its `pipx` backend, which needs an installer present.
+# This template uses `uv` as that installer (lighter than pipx) and enables uvx mode so a
+# single `mise install` resolves uv first, then graphifyy. Verified end-to-end on
+# mise 2026.5.15 (macOS arm64): `mise install` → `graphify --version` → graphify 0.8.36.
+
+[settings.pipx]
+uvx = true                    # use uv (not pipx) as the pipx-backend installer
+
+[tools]
+python = "3.12"               # graphify requires Python >= 3.10
+uv = "latest"                 # installer the pipx backend invokes
+"pipx:graphifyy" = "0.8.36"   # package is `graphifyy`; CLI command is `graphify`
+
+[tasks."graphify:build"]
+description = "Build/refresh the knowledge graph for a path (default: current dir) → graphify-out/graph.json + graph.html"
+run = "graphify ."
+
+[tasks."graphify:update"]
+description = "Re-extract code via AST only (no LLM) and update the graph"
+run = "graphify update ."
+
+[tasks."graphify:query"]
+description = "Natural-language BFS query over the graph (pass the question, e.g. mise graphify:query -- 'how is auth wired?')"
+run = "graphify query"
+
+[tasks."graphify:explain"]
+description = "Plain-language explanation of a node and its neighbors (pass the node name)"
+run = "graphify explain"
+
+[tasks."graphify:graphml"]
+description = "Export the graph as GraphML (Gephi/yEd)"
+run = "graphify . --graphml"
+
+[tasks."graphify:benchmark"]
+description = "Measure token reduction vs reading the raw corpus"
+run = "graphify benchmark"
+
+[tasks."graphify:verify"]
+description = "Verify graphify is installed and print its version"
+run = "graphify --version"
