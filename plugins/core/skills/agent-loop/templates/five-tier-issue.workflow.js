@@ -11,8 +11,19 @@
 //     "testFiles": ["test/health_test.exs"],
 //     "skills": ["/core:anti-fabrication", "/core:tdd", "/core:git"],
 //     "escalationChain": ["haiku", "sonnet", "opus"],
+//     "stageModels": {
+//       "plan":   "opus",    // P1 — doctrine default: opus
+//       "test":   "sonnet",  // P2 — doctrine default: sonnet
+//       "impl":   "sonnet",  // P3 — doctrine default: sonnet
+//       "ci":     "haiku",   // P4 — doctrine default: haiku
+//       "review": "opus"     // P5 — doctrine default: opus
+//     },
 //     "repo": "/absolute/path/to/repo"
 //   }
+//
+// Doctrine defaults above are from the Five-Tier Decomposition Pipeline table in
+// plugins/core/skills/agent-loop/SKILL.md. The caller supplies them — no model
+// name is hardcoded in this script (12-factor rule: config comes from args).
 //
 // Constraints (from /claude-code:claude-workflows): plain JavaScript only;
 // Date.now(), Math.random(), and argless new Date() throw — pass timestamps
@@ -196,16 +207,35 @@ function reviewPrompt(a) {
 }
 
 // ---------------------------------------------------------------------------
-// Escalation ladder — haiku → sonnet → opus by default; the chain comes from
-// args so no model name is hardcoded. Returns null when the whole chain fails.
+// Escalation ladder — starts at the stage's designated model and escalates
+// through the suffix of args.escalationChain from that model onward.
+// Falls back to the full chain when the stage model is not found in the chain
+// (e.g. an opus start yields ['opus'] — no promotion, escalate upstream on
+// failure, matching doctrine). Each model is attempted twice before promoting.
+// Returns null when the whole ladder fails.
 // ---------------------------------------------------------------------------
 
-async function withEscalation(prompt, opts) {
-  for (const model of args.escalationChain) {
-    try {
-      return await agent(prompt, { ...opts, model })
-    } catch (e) {
-      log(`${opts.phase || 'stage'}: failed on ${model}, promoting`)
+function ladderFor(stageModel) {
+  const idx = args.escalationChain.indexOf(stageModel)
+  return idx === -1 ? args.escalationChain.slice() : args.escalationChain.slice(idx)
+}
+
+async function withEscalation(prompt, opts, stageModel) {
+  const ladder = ladderFor(stageModel)
+  for (let i = 0; i < ladder.length; i++) {
+    const model = ladder[i]
+    const isLast = i === ladder.length - 1
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await agent(prompt, { ...opts, model })
+      } catch (e) {
+        if (!isLast || attempt === 0) {
+          log(`${opts.phase || 'stage'}: failed on ${model} (attempt ${attempt + 1})`)
+        }
+      }
+    }
+    if (!isLast) {
+      log(`${opts.phase || 'stage'}: promoting from ${model} to ${ladder[i + 1]}`)
     }
   }
   return null
@@ -223,15 +253,15 @@ function escalate(reason, extra) {
 log(`five-tier-issue: starting ${args.issueId}`)
 
 // P1 — test planner
-const plan = await withEscalation(planPrompt(args), { phase: 'Plan', schema: TEST_PLAN })
+const plan = await withEscalation(planPrompt(args), { phase: 'Plan', schema: TEST_PLAN }, args.stageModels.plan)
 if (!plan) return escalate('P1 planner failed across escalation chain')
 
 // P2 — test author (frozen on commit)
-const testSha = await withEscalation(testAuthorPrompt(args, plan), { phase: 'Test', schema: COMMIT })
+const testSha = await withEscalation(testAuthorPrompt(args, plan), { phase: 'Test', schema: COMMIT }, args.stageModels.test)
 if (!testSha) return escalate('P2 test author failed across escalation chain', { plan })
 
 // P3 — implementer (separate invocation; cannot modify test files)
-const impl = await withEscalation(implPrompt(args, testSha), { phase: 'Impl', schema: COMMIT })
+const impl = await withEscalation(implPrompt(args, testSha), { phase: 'Impl', schema: COMMIT }, args.stageModels.impl)
 if (!impl) return escalate('P3 implementer failed across escalation chain', { testSha })
 
 // Stage gate: adversarial diff boundary, enforced not narrated.
@@ -248,12 +278,12 @@ if (!touched || touched.nonEmpty) {
 }
 
 // P4 — CI runner + bounded validator/fix loop (3 cycles, then escalate)
-let ci = await agent(ciPrompt(args), { phase: 'CI', schema: CI_RESULT })
+let ci = await agent(ciPrompt(args), { phase: 'CI', schema: CI_RESULT, model: args.stageModels.ci })
 let cycles = 0
 while (ci && !ci.green && cycles < 3) {
   log(`CI red — fix cycle ${cycles + 1} of 3`)
-  await withEscalation(fixPrompt(args, ci.output), { phase: 'CI', schema: COMMIT })
-  ci = await agent(ciPrompt(args), { phase: 'CI', schema: CI_RESULT })
+  await withEscalation(fixPrompt(args, ci.output), { phase: 'CI', schema: COMMIT }, args.stageModels.ci)
+  ci = await agent(ciPrompt(args), { phase: 'CI', schema: CI_RESULT, model: args.stageModels.ci })
   cycles++
 }
 if (!ci || !ci.green) {
@@ -261,7 +291,7 @@ if (!ci || !ci.green) {
 }
 
 // P5 — reviewer
-const review = await withEscalation(reviewPrompt(args), { phase: 'Review', schema: VERDICT })
+const review = await withEscalation(reviewPrompt(args), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
 if (!review) return escalate('P5 reviewer failed across escalation chain', { testSha, impl, ci })
 
 log(`five-tier-issue: ${args.issueId} → ${review.approved ? 'done' : 'rework'}`)

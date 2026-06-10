@@ -8,7 +8,7 @@ The work is already decomposed — issues exist in bees (gate States A, C, or D)
 
 Then check two deterministic signals, mirroring the Phase 1.5 gate. Both are required:
 
-1. **Capability:** the `Workflow` tool is present in the session's toolset. Presence is the whole check — it already encodes the requirements (research preview, Claude Code v2.1.154+, paid plans). Do not probe versions, plans, or config flags separately.
+1. **Capability:** the `Workflow` tool is present in the session's toolset. Presence is the deterministic capability signal. The version, plan, and configuration requirements behind that availability are documented in the `/claude-code:claude-workflows` skill (managing-runs reference). Do not probe versions, plans, or config flags separately.
 2. **Opt-in:** at least one of the three trigger forms from the `/claude-code:claude-workflows` skill ("How to trigger a workflow") holds:
    - the operator's request contains the word "workflow", or
    - `/effort ultracode` is active for the session, or
@@ -79,12 +79,22 @@ The schema enforces structure, not truth — an agent can still fabricate a quot
 The `haiku → sonnet → opus`, max-two-promotions rule and the overridable `AGENT_LOOP_ESCALATION_CHAIN` map to a loop. The chain is read by the process that launches the workflow and passed in via `args` — the model name never appears as a literal in the prompt body.
 
 ```javascript
-async function withEscalation(prompt, opts) {
-  for (const model of args.escalationChain) {        // e.g. ['haiku','sonnet','opus']
-    try { return await agent(prompt, { ...opts, model }) }
-    catch (e) { log(`escalating from ${model}`) }
+async function withEscalation(prompt, opts, stageModel) {
+  // Start at stageModel's position in the chain; fall back to full chain if not found.
+  const idx = args.escalationChain.indexOf(stageModel)
+  const ladder = idx === -1 ? args.escalationChain.slice() : args.escalationChain.slice(idx)
+  for (let i = 0; i < ladder.length; i++) {
+    const model = ladder[i]
+    const isLast = i === ladder.length - 1
+    for (let attempt = 0; attempt < 2; attempt++) {  // two attempts per model before promoting
+      try { return await agent(prompt, { ...opts, model }) }
+      catch (e) {
+        if (!isLast || attempt === 0) log(`escalating: ${model} attempt ${attempt + 1} failed`)
+        // no log on final attempt of the last model — nothing follows
+      }
+    }
   }
-  return { status: 'escalate', reason: 'opus failed' } // hand back to the lead
+  return null // hand back to the lead; caller checks for null and surfaces an escalate result
 }
 ```
 
@@ -118,6 +128,7 @@ The two-tier authority boundary (Team Leader manages the epic, Sub-team Leader r
 ```javascript
 // args.issues: [{ id, deps: [issueIds], ...pipelineArgs }]
 const completed = new Set()
+const escalations = []
 const merged = []
 let pending = args.issues
 
@@ -132,20 +143,28 @@ while (pending.length > 0) {
 
   let progressed = false
   ready.forEach((issue, idx) => {
-    const res = results[idx]    // a failed thunk resolves to null — treat as not-completed
-    if (res) merged.push(res)
+    const res = results[idx]    // a failed thunk resolves to null — stays pending
     if (res && res.status === 'done') {
+      // Issue complete — unblocks dependents in the next wave.
       completed.add(issue.id)
+      merged.push(res)
       progressed = true
+    } else if (res) {
+      // Non-done result (rework / escalate) — remove from pending so it is not
+      // re-dispatched; surface to the lead for handling outside the workflow.
+      // The hard boundary: this script surfaces the condition; the lead escalates.
+      escalations.push({ issue, result: res })
     }
+    // null (failed thunk) — issue stays in pending; stalled-wave guard below
+    // terminates the loop if no progress was made.
   })
-  pending = pending.filter(i => !completed.has(i.id))
+  pending = pending.filter(i => !completed.has(i.id) && !escalations.some(e => e.issue.id === i.id))
   if (!progressed) {                              // stalled-wave guard: nothing new completed
     log(`no progress this wave; stranded issues: ${pending.map(i => i.id).join(', ')}`)
     break
   }
 }
-return merged
+return { merged, escalations }
 ```
 
 The per-wave `parallel()` barrier is required, not incidental: each wave's completions are the input to the next readiness computation, so the barrier is the dependency edge itself.
