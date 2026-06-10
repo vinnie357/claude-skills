@@ -216,14 +216,22 @@ def main [--update-baseline] {
             if $name != $dir_name { $failed = ($failed | append "name_dir") }
 
             # 14. Link integrity: asset paths mentioned in SKILL.md prose must exist.
-            # Only validated when the path's top-level dir exists inside the skill,
-            # so mentions of other repos' scripts/ etc. are not false positives.
+            # references/ and agents/ are skill-spec dirs — their links must ALWAYS
+            # resolve (a git checkout has no empty dirs, so a dir-exists guard would
+            # make results environment-dependent). scripts/ templates/ hooks/ are
+            # only validated when the dir exists inside the skill, so mentions of
+            # other repos' scripts/ etc. are not false positives.
+            # Leading boundary so a longer cross-plugin path like
+            # plugins/core/skills/bees/agents/foo.md does not match on its
+            # agents/foo.md substring.
             let link_paths = ($stripped
-                | parse --regex '(?P<path>(?:references|templates|scripts|agents|hooks)/[A-Za-z0-9._/-]+\.[A-Za-z0-9]{1,6})'
+                | parse --regex '(?m)(?:^|[\s`(\[<"])(?P<path>(?:references|templates|scripts|agents|hooks)/[A-Za-z0-9._/-]+\.[A-Za-z0-9]{1,6})'
                 | get path | uniq)
             let broken_links = ($link_paths | where {|p|
                 let top = ($p | split row "/" | first)
-                (($skill_dir | path join $top) | path exists) and (not (($skill_dir | path join $p) | path exists))
+                let dir_gated = $top in ["scripts" "templates" "hooks"]
+                let in_scope = (not $dir_gated) or (($skill_dir | path join $top) | path exists)
+                $in_scope and (not (($skill_dir | path join $p) | path exists))
             })
             if ($broken_links | is-not-empty) { $failed = ($failed | append "links") }
 
