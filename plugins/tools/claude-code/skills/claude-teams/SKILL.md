@@ -65,15 +65,16 @@ For architecture guidance and case studies, see `references/patterns.md`.
 
 ## Orchestration primitives
 
-`/core:agent-loop` defines the decomposition + delegation flow. Three Claude Code primitives compose with it for long-running or recurring work:
+`/core:agent-loop` defines the decomposition + delegation flow. Four Claude Code primitives compose with it for long-running or recurring work:
 
 | Primitive | Use when |
 |---|---|
 | `/loop <prompt>` | You want a self-pacing tick: monitor agents, poll the tracker, advance the queue. Auto-paces via ScheduleWakeup. |
 | Routines | Cron-style scheduled remote agents. Use for daily/weekly autonomous runs. |
 | Channels | Event-driven (webhook/integration) entry points. Use when an external system kicks the loop. |
+| Workflows | Fan-out exceeds one turn, the orchestration itself must be repeatable, or results need independent verification passes — see `/claude-code:claude-workflows`. |
 
-There is no `/workflows` slash command in Claude Code. For multi-step orchestration, compose the above with `/core:agent-loop`.
+Workflows require explicit opt-in and run in the background; `/core:agent-loop` "Optional: workflow execution substrate" defines how the five-tier pipeline maps onto them.
 
 ### /loop example — shepherd a running epic
 
