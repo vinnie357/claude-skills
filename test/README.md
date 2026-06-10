@@ -9,10 +9,15 @@ Validation scripts for the claude-skills marketplace and plugins.
 Validates marketplace.json and all plugin.json files:
 
 ```bash
+mise run ci
+# or
 mise test
 # or
 mise test:all
 ```
+
+`mise run ci` is the canonical CI gate (matches the workspace-wide convention);
+it depends on `test`, which runs every validation below.
 
 This runs both `test:marketplace` and `test:plugins` in parallel.
 
@@ -83,10 +88,33 @@ mise list-plugins
 - Name is kebab-case format
 - Skill paths exist if specified
 
+### Skill Quality Gate (ratchet baseline)
+
+`mise test:skills-quality` runs 17 static checks per skill (description triggers,
+name/directory match, 500-line cap, reference depth, link integrity, orphan
+reference/agent files, cross-skill invocation resolution, version pins vs
+sources.md, anti-fabrication presence, no `allowed-tools`, and more) and
+enforces them against `test/quality-baseline.json`:
+
+- A failing check **not** in the baseline fails the run — new violations cannot land.
+- A baseline entry that now **passes** fails the run until the entry is removed —
+  the baseline only shrinks (ratchet).
+
+Baseline entries are `plugin/skill:check` strings. When you fix a baselined
+violation, regenerate the baseline (and review the diff — it must only remove
+entries):
+
+```bash
+nu test/validate-skills-quality.nu --update-baseline
+```
+
+Do not add baseline entries to make new violations pass; fix the skill instead.
+
 ## Scripts
 
 - **validate-all.nu** - Runs all validations (marketplace + all plugins)
 - **validate-plugin.nu** - Validates a specific plugin
+- **validate-skills-quality.nu** - Skill quality scorecard with ratchet baseline enforcement
 
 ## Exit Codes
 
