@@ -15,6 +15,9 @@ The plugin covers the **Kubernetes-orchestrated** path (multi-pod, per-session l
 ```
 Need to sandbox an AI agent
 │
+├─ Single host, macOS, TRUSTED workload needing a Linux dev environment?
+│   └─→ /core:container                   (container machine, 1.0.0+ — host home mounted; NOT agent isolation)
+│
 ├─ Single host, no Kubernetes?
 │   └─→ /sbx:sbx                          (Docker microVMs, sbx CLI)
 │
@@ -42,6 +45,7 @@ For every k8s path: also load `/agent-sandboxing:k8s-agent-sandbox` (controller 
 | Hardware microVM (KVM) | Kata Containers | Linux + nested virt | `kata-on-kind`, `kata-on-gke` |
 | Hardware microVM (Virtualization.framework) | Apple Container, node-level | macOS Apple Silicon | `kina-microvm` |
 | Hardware microVM (KVM/Docker) | sbx CLI, single-host | Linux + macOS | `/sbx:sbx` (sibling plugin) |
+| Hardware microVM, host-integrated | Apple Container `machine` (1.0.0+) | macOS Apple Silicon | `/core:container` — dev convenience tier, NOT isolation (host home mounted) |
 | Userspace kernel | gVisor | Anywhere (no nested virt needed) | `k8s-agent-sandbox` (gVisor variant) |
 | Process-level (none) | runc default | Anywhere | Not recommended for untrusted agents |
 
@@ -90,4 +94,5 @@ Both isolate untrusted agent code from the host. Both are valid; pick the one wh
 - This is an index. **Don't repeat sub-skill content here** — link and route. If you find yourself pasting Kata install commands into this skill, move them back to `/agent-sandboxing:kata-on-kind`.
 - Don't recommend a substrate without checking the host. `uname -s` first, then route — macOS → kina, Linux → kata-on-kind/gke, otherwise → ask.
 - Don't conflate the isolation tiers. gVisor is userspace kernel (no nested virt); Kata + Apple Container + Docker microVM are all hardware microVMs with different hypervisors. The table above is the authoritative comparison.
+- Don't route untrusted agents to `container machine` (Apple Container 1.0.0+). A machine auto-mounts the host home directory at `/Users/<username>` inside the VM — tight host integration is the opposite of a sandbox boundary. Machines are for trusted Linux dev environments only; see `/core:container`.
 - Don't claim `/sbx:sbx` is part of this plugin. It's a sibling plugin and not installed unless the user has added it.

@@ -50,6 +50,8 @@ container run [FLAGS] IMAGE [COMMAND] [ARGS...]
 | `--runtime` | | Container runtime (0.10.0+) |
 | `--cap-add` | | Add a Linux capability (0.12.0+) |
 | `--cap-drop` | | Drop a Linux capability (0.12.0+) |
+| `--stop-signal` | | Signal sent to stop the container (1.0.0+) |
+| `--shm-size` | | Shared-memory size, e.g., `1g` (1.0.0+) |
 | `--scheme` | | Image scheme |
 | `--progress` | | Progress output (`none`, `ansi`) (0.7.0+) |
 | `--gid` | | Group ID |
@@ -148,6 +150,15 @@ Show detailed information about a container.
 
 ```
 container inspect CONTAINER
+```
+
+### `container cp`
+
+Copy files between the host and a container. (1.0.0+)
+
+```
+container cp CONTAINER:SRC_PATH DEST_PATH
+container cp SRC_PATH CONTAINER:DEST_PATH
 ```
 
 ### `container stats`
@@ -553,34 +564,21 @@ container system df
 
 ### `container system property list`
 
-List all system properties. (0.5.0+ consolidated)
+List the merged system configuration. (0.5.0+ consolidated; read-only view of `config.toml` in 1.0.0+)
 
 ```
-container system property list
+container system property list [--format json]
+container system property ls
 ```
 
-### `container system property get`
+### `container system property get` / `set` / `clear`
 
-Get a system property value.
-
-```
-container system property get KEY
-```
-
-### `container system property set`
-
-Set a system property value.
+**REMOVED in 1.0.0.** A TOML configuration file at `~/.config/container/config.toml` (fallback `<installRoot>/etc/container/config.toml`) replaces the UserDefaults-backed properties. Edit the file, then restart the service with `container system stop && container system start`. Pre-1.0.0 syntax:
 
 ```
-container system property set KEY VALUE
-```
-
-### `container system property clear`
-
-Clear a system property.
-
-```
-container system property clear KEY
+container system property get KEY     # removed in 1.0.0
+container system property set KEY VALUE   # removed in 1.0.0
+container system property clear KEY   # removed in 1.0.0
 ```
 
 ### `container system dns create`
@@ -621,6 +619,51 @@ container system kernel set [FLAGS] PATH
 |------|-------------|
 | `--force` | Force set (0.5.0+ only) |
 
+## Machine Management (1.0.0+)
+
+Long-lived Linux environments with tight host integration. Subcommand alias: `m`.
+
+### `container machine create`
+
+Create a machine from an image. The image requires `/sbin/init`; an optional first-boot script `/etc/machine/create-user.sh` receives `CONTAINER_UID`, `CONTAINER_GID`, `CONTAINER_USER`, `CONTAINER_HOME`, and `CONTAINER_MACHINE_ID`.
+
+```
+container machine create IMAGE --name NAME
+```
+
+### `container machine run`
+
+Open an interactive shell, or run a single command. Host home directory is mounted at `/Users/<username>` inside the machine.
+
+```
+container machine run [-n NAME] [-- COMMAND [ARGS...]]
+```
+
+### `container machine set-default`
+
+Set the default machine so `-n` is optional afterward.
+
+```
+container machine set-default NAME
+```
+
+### `container machine ls` / `inspect` / `stop` / `rm`
+
+```
+container machine ls
+container machine inspect NAME
+container machine stop NAME
+container machine rm NAME
+```
+
+### `container machine set`
+
+Update machine resources. Stop and run the machine to apply.
+
+```
+container machine set -n NAME cpus=N memory=SIZE
+```
+
 ## Environment Variables (0.11.0+)
 
 | Variable | Description |
@@ -643,6 +686,8 @@ Progress output modes (0.12.0+):
 | `plain` | Plain text progress output |
 | `color` | Colored progress output |
 | (auto) | Automatically falls back to `plain` when stderr is not a TTY |
+
+**Note (1.0.0)**: The structured (JSON, YAML, TOML) output shape was cleaned up for `container`, `image`, `network`, and `volume` `ls` and `inspect`. Scripts parsing pre-1.0.0 shapes require updates.
 
 ## Build Secrets (0.11.0+)
 

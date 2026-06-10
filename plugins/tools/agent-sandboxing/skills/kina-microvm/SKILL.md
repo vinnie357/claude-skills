@@ -37,7 +37,7 @@ See `references/cluster-is-vm.md` for the implications when authoring SandboxTem
 ## Prerequisites
 
 - macOS 26+ (Apple Silicon or Intel). kina's README documents limitations on macOS 15.6 — verify by running `kina` against the older version before depending on it.
-- Apple Container 0.5.0+. **Currently kina is pinned at 0.5.0+ while Apple Container is at 0.10.0** — verify compatibility before depending on it (see "Version drift" below).
+- Apple Container 0.5.0+. **Currently kina is pinned at 0.5.0+ while Apple Container is at 1.0.0** — verify compatibility before depending on it (see "Version drift" below).
 - `kubectl` on the host.
 - `mise` if you want kina's task automation.
 
@@ -52,7 +52,7 @@ container --version
 
 ## Version drift (kina ↔ apple-container)
 
-kina's README says it requires "Apple Container 0.5.0+" and "automatically detects and validates" the installed version. Apple Container has moved to 0.10.0. **Before depending on kina in any plugin workflow, verify it actually runs against the installed `container` version.**
+kina's README says it requires "Apple Container 0.5.0+" and "automatically detects and validates" the installed version. Apple Container has moved to 1.0.0 — a major release with breaking CLI changes (`container system property get/set/clear` removed in favor of a TOML config file; structured `ls`/`inspect` output shape changed), which raises the drift risk for kina's 0.5.0+ pin. **Before depending on kina in any plugin workflow, verify it actually runs against the installed `container` version.**
 
 ```bash
 container --version
@@ -64,7 +64,7 @@ kina --help 2>&1 | head -5
 If kina errors with an unsupported-version message:
 
 1. Check the kina repo for a newer release that handles the latest Apple Container.
-2. If none exists, file an issue (or PR) at https://github.com/vinnie357/kina asking for compatibility with Apple Container 0.x.
+2. If none exists, file an issue (or PR) at https://github.com/vinnie357/kina asking for compatibility with Apple Container 1.x.
 3. Pin to a known-good Apple Container version in your local dev setup (`brew tap apple/container@<version>` if Apple ships that, otherwise install the matching `.pkg` from the GitHub releases page).
 
 Do NOT proceed with the rest of this skill until `kina --help` and `kina create` work end-to-end. The plugin must not claim a working macOS path on an untested version pair.
