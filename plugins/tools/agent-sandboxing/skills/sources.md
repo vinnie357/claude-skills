@@ -53,10 +53,10 @@ Citations for the `agent-sandboxing` plugin skills. Each entry lists the upstrea
 ## kina
 
 - **URL**: https://github.com/vinnie357/kina (local: `~/github/kina`)
-- **Status**: in active development; tracks Apple Container 0.5.0+ (latest container is 0.10.0 — version-drift caveat documented in `kina-microvm` skill)
+- **Status**: in active development; tracks Apple Container 0.5.0+ (latest container is 1.0.0 — major release with breaking CLI changes; version-drift caveat documented in `kina-microvm` skill)
 - **Used in**: `kina-microvm`
 - **Extracted**: Rust CLI commands (`kina create|delete|list|status`), cluster-as-microVM model (no per-pod `runtimeClassName`), mise tasks shape, dependency on Apple Container runtime.
-- **Date accessed**: 2026-05-23
+- **Date accessed**: 2026-06-10
 
 ## Anthropic devcontainer reference image
 

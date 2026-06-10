@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.22",
+      "version": "0.4.23",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
@@ -62,7 +62,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.11",
+      "version": "0.2.12",
       "category": "development",
       "keywords": ["git", "documentation", "code-review", "tools", "beads", "bees", "container", "tdd", "agent-loop"]
     },
@@ -108,7 +108,7 @@
       "source": "./plugins/tools/agent-sandboxing",
       "strict": true,
       "description": "Agent sandboxing for AI coding agents: 7 skills (including a sandbox index for progressive disclosure) + 6 slash commands for microVM and kernel-isolated execution on Kubernetes (kind+Kata, GKE+Kata, kina+Apple Container). Designed to grow to non-k8s sandboxing paths.",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "category": "tools",
       "keywords": ["agent-sandbox", "sandboxing", "microvm", "kata", "gvisor", "kina", "apple-container", "kubernetes", "gke", "kind", "claude-code"],
       "license": "MIT"
