@@ -211,8 +211,8 @@ This file documents the sources used to create the core plugin skills.
 ### Apple Container Releases
 - **URL**: https://github.com/apple/container/releases
 - **Purpose**: Version tracking, breaking changes between releases, installation packages
-- **Date Accessed**: 2026-02-21
-- **Key Topics**: Version migration (0.4.1 through 0.12.3), breaking changes, new features, CVE fixes
+- **Date Accessed**: 2026-06-10
+- **Key Topics**: Version migration (0.4.1 through 1.0.0), breaking changes, new features, CVE fixes
 
 ### Apple Container Release 0.6.0
 - **URL**: https://github.com/apple/container/releases/tag/0.6.0
@@ -264,9 +264,28 @@ This file documents the sources used to create the core plugin skills.
 - **Date Accessed**: 2026-05-31
 - **Key Topics**: HTTP downgrade prevention in registry commands, path/rule injection prevention in system dns, ImagePush prints image reference to stdout on success
 
+### Apple Container Release 1.0.0
+- **URL**: https://github.com/apple/container/releases/tag/1.0.0
+- **Purpose**: Version 1.0.0 release notes (BREAKING: TOML config replaces system properties, structured output shape changes, v0 XPC API compat removal)
+- **Date Accessed**: 2026-06-10
+- **Key Topics**: Version 1.0.0 (current), container machine command, container cp, --stop-signal, --shm-size, image variant support, system df accounting fixes, XPC-connection-as-lease IP-leak fix
+
+### Apple Container Machine Documentation
+- **URL**: https://github.com/apple/container/blob/main/docs/container-machine.md
+- **Purpose**: Official guide for the container machine feature (1.0.0+)
+- **Date Accessed**: 2026-06-10
+- **Key Topics**: Machine lifecycle (create/run/set-default/ls/inspect/stop/rm/set), m alias, host home auto-mount at /Users/<username>, custom image requirements (/sbin/init), create-user.sh first-boot env vars
+
+### Apple Container System Configuration Tutorial
+- **URL**: https://github.com/apple/container/blob/main/docs/tutorials/container-system-config-tutorial.md
+- **Purpose**: Official tutorial for the TOML configuration system that replaces UserDefaults-backed system properties in 1.0.0
+- **Date Accessed**: 2026-06-10
+- **Key Topics**: config.toml location and precedence (user file over installRoot file), TOML tables (container/dns/build/kernel/network/registry/vminit), apply via system restart, read-only property list view
+
 ## Update history
 
 - 2026-05-31: updated container skill from 0.10.0 to Apple Container 0.12.3 (added 0.11.0/0.12.0/0.12.3 templates, capability-model breaking change, security fixes)
+- 2026-06-10: updated container skill from 0.12.3 to Apple Container 1.0.0 (container machine section, TOML config replaces system properties, container cp, structured-output breaking change; added 1.0.0 template and version-history reference; de-orphaned command-reference.md)
 
 ## TDD Skill
 

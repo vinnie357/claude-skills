@@ -1,6 +1,6 @@
 ---
 name: container
-description: Guide for using Apple Container CLI to run Linux containers on Apple silicon Macs (macOS 26+). Use when managing OCI containers, building images, configuring networks/volumes, or working with container system services on macOS.
+description: Guide for using Apple Container CLI to run Linux containers on Apple silicon Macs (macOS 26+). Use when managing OCI containers, building images, configuring networks/volumes, running long-lived Linux machines with container machine, or working with container system services on macOS.
 license: MIT
 ---
 
@@ -17,7 +17,8 @@ Activate when:
 - Managing container images (pull, push, tag, save, load)
 - Configuring container networks and volumes
 - Managing the container system service
-- Migrating between Apple Container versions (0.5.x to 0.12.x)
+- Running long-lived Linux machine environments with `container machine` (1.0.0+)
+- Migrating between Apple Container versions (0.5.x to 1.0.0)
 
 ## What is Apple Container?
 
@@ -26,7 +27,7 @@ Apple Container is a macOS-native tool for running Linux containers as lightweig
 - **Swift-based**: Built on Apple's Virtualization.framework
 - **OCI-compatible**: Produces and runs standard OCI container images
 - **Apple silicon only**: Requires Apple silicon Mac (M1 or later)
-- **Pre-1.0**: Currently at version 0.12.3, breaking changes expected between minor versions
+- **Stable 1.0**: Currently at version 1.0.0 (released 2026-06-09); 0.x minor releases carried frequent breaking changes — see Version Differences below when upgrading
 - **Lightweight VMs**: Each container runs as a lightweight Linux VM
 
 ## Prerequisites
@@ -62,32 +63,40 @@ container system logs
 container system df
 ```
 
-### System Properties
+### System Configuration (TOML, 1.0.0+)
 
-Configure system-level settings (consolidated in 0.5.0):
+> **⚠ BREAKING — 1.0.0:** A TOML configuration file replaces the UserDefaults-backed system properties. `container system property get`, `set`, and `clear` are REMOVED. Migrate stored property values into `config.toml`, then restart the service.
+
+Configuration lives at `~/.config/container/config.toml`, with a package-shipped fallback at `<installRoot>/etc/container/config.toml` (first match wins; missing keys fall back to built-in defaults):
 
 ```bash
-# List all properties
-container system property list
-
-# Get a specific property
-container system property get <key>
-
-# Set a property
-container system property set <key> <value>
-
-# Clear a property
-container system property clear <key>
+mkdir -p ~/.config/container
+touch ~/.config/container/config.toml
 ```
 
-Configurable default CPU/memory properties (0.11.0+):
+```toml
+[container]
+cpus = 8
+memory = "4g"
 
-| Property | Description |
-|----------|-------------|
-| `container.cpus` | Default CPU count for new containers |
-| `container.memory` | Default memory for new containers |
-| `build.cpus` | Default CPU count for image builds |
-| `build.memory` | Default memory for image builds |
+[dns]
+domain = "test"
+```
+
+Top-level tables: `[container]`, `[dns]`, `[build]`, `[kernel]`, `[network]`, `[registry]`, `[vminit]`.
+
+Apply changes by restarting the service:
+
+```bash
+container system stop
+container system start
+```
+
+`container system property list` (alias `ls`) remains as a read-only view of the merged configuration:
+
+```bash
+container system property list --format json
+```
 
 ### System DNS
 
@@ -173,6 +182,12 @@ container run --init -d --name app myapp:latest
 # Run with reduced/custom capabilities (0.12.0+)
 container run --cap-add NET_ADMIN myimage:latest
 container run --cap-drop ALL --cap-add NET_BIND_SERVICE myimage:latest
+
+# Run with a custom stop signal (1.0.0+)
+container run --stop-signal SIGTERM -d --name app myapp:latest
+
+# Run with a shared-memory size (1.0.0+)
+container run --shm-size 1g -d --name app myapp:latest
 ```
 
 ### Manage Running Containers
@@ -211,6 +226,10 @@ container logs --follow <name-or-id>
 # Inspect container details
 container inspect <name-or-id>
 
+# Copy files between host and container (1.0.0+)
+container cp <name-or-id>:/path/in/container ./local-path
+container cp ./local-file <name-or-id>:/path/in/container
+
 # Container resource stats
 container stats
 
@@ -237,6 +256,53 @@ container create --name myapp nginx:latest
 # Start it later
 container start myapp
 ```
+
+## Container Machines (1.0.0+)
+
+Machines are long-lived Linux environments with tight host integration — a full Linux system with init support, not an ephemeral application container. Use machines for "edit on the Mac, build inside Linux" workflows, running system services under systemd, and testing across multiple distributions. The subcommand alias is `m` (`container m ls` = `container machine ls`).
+
+> **Isolation caveat:** A machine auto-mounts the host home directory at `/Users/<username>` inside the VM. That tight host integration makes machines a development convenience, NOT an isolation boundary for untrusted workloads — run untrusted agents in regular containers or a dedicated sandboxing substrate instead.
+
+```bash
+# Create a machine from an image
+container machine create alpine:latest --name dev
+
+# Run a single command in the machine
+container machine run -n dev uname -a
+container machine run -n dev -- cat /proc/cpuinfo
+
+# Open an interactive shell
+container machine run -n dev
+
+# Set a default machine, then omit -n
+container machine set-default dev
+container machine run
+
+# List, inspect, stop, delete
+container machine ls
+container machine inspect dev
+container machine stop dev
+container machine rm dev
+
+# Resize CPUs/memory (stop, then run to apply)
+container machine set -n dev cpus=4 memory=8G
+container machine stop dev
+container machine run -n dev -- nproc
+```
+
+The machine maps the host user automatically: the host home directory is mounted at `/Users/<username>` inside the machine and the machine user matches the host UID/GID.
+
+### Custom Machine Images
+
+Machine images require `/sbin/init` (a process supervisor such as systemd). An optional first-boot script at `/etc/machine/create-user.sh` receives `CONTAINER_UID`, `CONTAINER_GID`, `CONTAINER_USER`, `CONTAINER_HOME`, and `CONTAINER_MACHINE_ID`:
+
+```bash
+# Build a custom machine image, then create a machine from it
+container build -t local/ubuntu-machine:latest .
+container machine create local/ubuntu-machine:latest --name ubuntu
+```
+
+See [templates/1.0.0/commands.md](templates/1.0.0/commands.md) and the [upstream machine guide](https://github.com/apple/container/blob/main/docs/container-machine.md) for the full machine reference.
 
 ## Image Management
 
@@ -467,7 +533,7 @@ container registry list
 
 **Note**: In 0.5.0, the keychain ID changed from `com.apple.container` to `com.apple.container.registry`. Re-login is required after upgrading from 0.4.x.
 
-## Version Differences (0.5.0 to 0.12.x)
+## Version Differences (0.5.0 to 1.0.0)
 
 ### Breaking Changes
 
@@ -482,55 +548,22 @@ container registry list
 | 0.10.0 | Multiple network plugins support | Review network configuration for multi-plugin model |
 | **0.12.0** | **Default Linux capability set REDUCED** | **Delete & recreate all existing containers; use `--cap-add` to restore needed capabilities** |
 | 0.12.0 | Builder-shim gRPC protocol changed | Incompatible with pre-0.12.0 clients — update all builder clients |
-
-### New Features by Release
-
-**0.6.0**: Multiple `--tag` on build, `--network none`, `network create --subnet`, anonymous volumes, `volume prune`, Containerfile fallback, DNS list `--format`/`--quiet`
-
-**0.7.0**: `--rosetta` flag, image download progress, stdio save/load, Dockerfile from stdin, `container stats`, port range publishing, `--mac-address`, `system df`, `image prune -a`, `exec -d` (detached), network creationDate
-
-**0.8.0**: `--read-only` for run/create, architecture aliases (amd64/arm64/x86_64/aarch64), `network prune`, full IPv6, volume relative paths, env vars from named pipes, CVE-2026-20613 fix
-
-**0.9.0**: Resource limits (`--cpus`/`--memory`), `host.docker.internal`, host-only/isolated networks, `--dns` on build, `--force` on image delete, zstd compression, container prune improvements, enhanced image inspection, Kata 3.26.0 kernel
-
-**0.10.0**: `--init-image` selection, `container export`, `--runtime` flag, `container registry list`, `--format` on `system status`, minimum memory validation, multiple network plugins, SELinux kernel panic fix, env var duplication fix
-
-**0.11.0**: `container export` for stopped containers, build secrets, `--init` flag for run/create, `CONTAINER_DEFAULT_PLATFORM` env var, `mtu` network attachment option, system properties `container.cpus`/`container.memory`/`build.cpus`/`build.memory`, Dockerfile-specific ignore files, ARG-parsing and docker-ignore bug fixes
+| **1.0.0** | **TOML config file replaces UserDefaults-backed system properties** | **Move `property set` values into `~/.config/container/config.toml`; `property get/set/clear` are removed** |
+| 1.0.0 | Structured (JSON/YAML/TOML) output shape changed for `container`/`image`/`network`/`volume` `ls` and `inspect` | Update scripts that parse structured output |
+| 1.0.0 | Application major version 0 XPC API compatibility removed | Update XPC API consumers |
 
 > **⚠ BREAKING — 0.12.0 capability change:** The default Linux capability set was **reduced**. Users MUST delete and recreate existing containers to apply the new defaults. Use `--cap-add` to restore capabilities; use `--cap-drop` to further restrict them. See [0.12.0 template](templates/0.12.0/commands.md) for details.
 
-**0.12.0**: `--cap-add`/`--cap-drop` on run/create, plain/color progress modes (auto-plain when stderr non-TTY), YAML output format, TOML plugin config files, `SSH_AUTH_SOCK` passthrough, kernel kata-3.28.0, `journal` option for `volume create`, single-file-mount fix, improved `image save` error messaging
+### Required Migrations
 
-**0.12.1**: macOS 15 (Sequoia) compat — `network list` and `network delete` now work on macOS 15
+1. **0.12.0**: Delete and recreate all existing containers (reduced default capability set); add `--cap-add` for containers needing elevated capabilities
+2. **0.12.0**: Update builder clients (gRPC protocol changed, incompatible with older clients)
+3. **1.0.0**: Move `container system property set` values into `~/.config/container/config.toml`, then restart the service
+4. **1.0.0**: Update automation that parses `ls`/`inspect` structured output (shape changed)
 
-**0.12.3** (security): HTTP downgrade prevention in registry commands, path/rule injection prevention in `system dns`, `image push` prints image reference to stdout on success
+The full per-release feature history, the complete 0.5.x-to-1.0.0 migration checklist, and the dependency matrix live in [references/version-history.md](references/version-history.md). The exhaustive per-command flag reference lives in [references/command-reference.md](references/command-reference.md).
 
-### Migration Checklist (0.5.x to 0.12.x)
-
-1. Replace `--disable-progress-updates` with `--progress none` in scripts
-2. Update any paths referencing `.build` directory to `builder`
-3. Review subnet configurations (allocation defaults changed in 0.8.0)
-4. Update API consumers for client API reorganization (0.8.0)
-5. Test build workflows with updated dependencies
-6. Update API consumers for generic ClientContainer interface (0.10.0)
-7. Move bundle creation code from main container operations to SandboxService (0.10.0)
-8. Review network configurations for multiple network plugins model (0.10.0)
-9. **0.12.0 REQUIRED**: Delete and recreate all existing containers (reduced default capability set)
-10. **0.12.0 REQUIRED**: Update builder clients (gRPC protocol changed, incompatible with older clients)
-11. Add `--cap-add` flags to any containers that require elevated capabilities (0.12.0+)
-
-### Dependencies
-
-| Version | Containerization | Other |
-|---------|-----------------|-------|
-| 0.5.0 | 0.9.1 | Builder shim 0.6.1 |
-| 0.6.0 | 0.12.1 | |
-| 0.7.0 | 0.16.0 | Builder shim 0.7.0 |
-| 0.8.0 | 0.21.1 | |
-| 0.9.0 | 0.24.0 | Kata 3.26.0 |
-| 0.10.0 | 0.26.2 | |
-
-See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0, 0.10.0, 0.11.0, 0.12.0, 0.12.3).
+See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0, 0.10.0, 0.11.0, 0.12.0, 0.12.3, 1.0.0).
 
 ## Scripts
 
@@ -748,9 +781,10 @@ container builder start
 
 ## Key Principles
 
-- **Pre-1.0 software**: Breaking changes expected between minor versions
+- **Stable 1.0**: The CLI surface stabilized at 1.0.0; the 0.x-to-1.0.0 migration is breaking (TOML config, structured-output shape)
 - **Apple silicon only**: No Intel Mac support
 - **macOS 26+ required**: Not available on earlier macOS versions
 - **OCI-compatible**: Standard container images work as expected
 - **Lightweight VMs**: Each container is an isolated lightweight VM
 - **System service**: Start the system service before running containers
+- **Verify, never fabricate**: Confirm flags against `container <cmd> --help` before scripting them — see /core:anti-fabrication
