@@ -26,6 +26,10 @@ linux-arm64 = { asset_pattern = "bees-linux-aarch64.tar.gz" }
 macos-arm64 = { asset_pattern = "bees-macos-aarch64.tar.gz" }
 macos-x64 = { asset_pattern = "bees-macos-x86_64.tar.gz" }
 
+[tasks.ci]
+description = "Full CI gate (workspace `mise run ci` convention) — runs all validation tests"
+depends = ["test"]
+
 [tasks.test]
 description = "Run all validation tests (Claude native + custom)"
 depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality"]
