@@ -8,7 +8,7 @@
 
 # Resolve the repo root relative to this script's location
 def repo-root [] {
-    $env.FILE_PWD | path join ".." ".." ".." ".." ".." ".." ".." | path expand
+    $env.FILE_PWD | path join ".." ".." ".." ".." ".." ".." | path expand
 }
 
 # Load marketplace.json
