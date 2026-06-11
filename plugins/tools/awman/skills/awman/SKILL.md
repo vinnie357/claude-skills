@@ -12,8 +12,8 @@ awman is a Rust CLI and TUI for running AI coding agents (Claude Code, Codex, Op
 
 awman was previously named **amux**. See "Migrating from amux" below.
 
-Source: https://github.com/prettysmartdev/awman (accessed 2026-06-02)
-License: Apache-2.0 | Latest at research time: v0.9.1 (2026-05-28)
+Source: https://github.com/prettysmartdev/awman (accessed 2026-06-11)
+License: Apache-2.0 | Latest at research time: v0.10.0 (2026-06-11)
 
 ## When to Use This Skill
 
@@ -28,29 +28,36 @@ Activate when:
 
 ## Prerequisites
 
-- A container runtime: **Docker** (Linux, macOS, Windows) or **Apple Containers** (macOS 26+). Set via global `runtime` config key. The two runtimes are mutually exclusive.
-- Runtime running and healthy before any `awman` session starts.
+A container runtime, set via the global-only `runtime` config key (`awman config set --global runtime <value>`, then `awman ready`):
+
+| `runtime` value | Platforms | Requirements |
+|-----------------|-----------|--------------|
+| `docker` (default) | Linux, macOS, Windows | Docker daemon |
+| `apple-containers` | macOS 26+ | native `container` CLI |
+| `docker-sbx-experimental` | macOS arm64, Windows x86_64 | `sbx` CLI (`brew install docker/tap/sbx` + `sbx login`) |
+
+`docker-sbx-experimental` (new in 0.10.0) runs each session in a dedicated microVM — private kernel, filesystem, and Docker daemon. It does **not** honor `dir()`, skill, or context overlays; networking goes through an HTTP/HTTPS proxy (raw TCP/UDP blocked); sandboxes persist between sessions. The runtime must be running and healthy before any `awman` session starts.
 
 ## Install
 
 Mise is the recommended install path. It manages the version, pins reproducibly, and uses the GitHub releases backend — no extra dependencies.
 
-A ready-to-copy pin lives at `templates/0.9.1/mise.toml` in this skill — copy it into the target repo's `mise.toml` (or merge under `[tools]`) and run `mise install`.
+A ready-to-copy pin lives at `templates/0.10.0/mise.toml` in this skill — copy it into the target repo's `mise.toml` (or merge under `[tools]`) and run `mise install`.
 
 **Global pin (one-time, any project):**
 ```sh
-mise use -g github:prettysmartdev/awman@0.9.1
+mise use -g github:prettysmartdev/awman@0.10.0
 ```
 
 **Per-project pin (recommended for repos that run awman):**
 ```sh
-cp templates/0.9.1/mise.toml <your-repo>/mise.toml   # then: cd <your-repo> && mise install
+cp templates/0.10.0/mise.toml <your-repo>/mise.toml   # then: cd <your-repo> && mise install
 ```
 
 The template's contents:
 ```toml
 [tools]
-"github:prettysmartdev/awman" = "0.9.1"
+"github:prettysmartdev/awman" = "0.10.0"
 ```
 
 **Verify:**
@@ -89,9 +96,9 @@ awman config show
 | `awman init [--aspec] [--agent <name>]` | Scaffold project: writes `.awman/config.json` and per-agent Dockerfiles |
 | `awman ready [--refresh]` | Verify environment; `--refresh` re-audits and rebuilds the agent Dockerfile |
 | `awman chat [--agent <name>] [--auto] [--yolo]` | Interactive agent session in a TUI tab |
-| `awman exec prompt "<text>"` | One-off prompt without a persistent session |
-| `awman exec workflow <path> [--work-item <nnnn>] [--yolo] [--worktree]` | Run a multi-step workflow file |
-| `awman new spec\|workflow\|skill [--interview]` | Scaffold a work item, workflow, or custom skill |
+| `awman exec prompt "<text>" [--issue <ref>]` | One-off prompt without a persistent session |
+| `awman exec workflow <path> [--work-item <nnnn> \| --issue <ref>] [--yolo] [--worktree]` | Run a multi-step workflow file |
+| `awman new spec\|workflow\|skill [--interview] [--issue <ref>]` | Scaffold a work item, workflow, or custom skill |
 | `awman specs amend <nnnn>` | Update an existing work item |
 | `awman status [--watch]` | Session/workflow dashboard |
 | `awman config show\|get\|set [--global]` | Inspect/modify merged config |
@@ -99,13 +106,17 @@ awman config show
 | `awman remote run\|session` | Drive a remote awman api server |
 | `awman` (no args) | Open the TUI |
 
-See `templates/0.9.1/commands.md` for the full v0.9.1 command surface with flags and examples.
+See `templates/0.10.0/commands.md` for the full v0.10.0 command surface with flags and examples.
+
+## GitHub Issue Integration (0.10.0)
+
+`--issue <ref>` on `new spec`, `exec workflow`, and `exec prompt` fetches a GitHub issue and injects it. Reference forms: bare number (`--issue 84`, requires a GitHub `origin` remote), shorthand (`--issue owner/repo#84`), or full URL. Auth resolution: `gh` CLI → `GITHUB_TOKEN` → unauthenticated REST (public repos, 60 requests/hour). For `exec workflow` the issue populates the `{{work_item_*}}` template variables exactly as `--work-item` does; `--issue` and `--work-item` are mutually exclusive.
 
 ## Agents
 
 Supported agents: `claude`, `codex`, `opencode`, `maki`, `gemini`, `antigravity`, `copilot`, `crush`, `cline`.
 
-Each agent has a Dockerfile in `.awman/Dockerfile.<agent>` (seeded from upstream templates). Customize the Dockerfile to add tools or environment configuration for that agent.
+Each agent has a Dockerfile in `.awman/Dockerfile.<agent>` (seeded from upstream templates). Customize the Dockerfile to add tools or environment configuration for that agent. The project base image path is configurable via the per-repo `dockerfile` config key (default `Dockerfile.dev`) as of 0.10.0.
 
 **Selection precedence** (highest wins):
 1. Per-step `agent:` field in the workflow file
@@ -130,9 +141,13 @@ awman reads one `config.json` per scope:
 | `~/.awman/config.json` | Global | Manually or `awman config set --global` | No |
 | `GITROOT/.awman/config.json` | Per-repo | `awman init` | Yes |
 
-Per-repo takes precedence on overlapping scalar keys. `overlays.skills` and `overlays.directories` merge **additively** across scopes. The repo `.awman/` directory also holds per-agent Dockerfiles seeded by `awman init`. Always use `awman config show` to see merged values rather than hand-editing the JSON.
+Per-repo takes precedence on overlapping scalar keys. The `overlays` string array merges **additively** across all sources (global config, repo config, `AWMAN_OVERLAYS`, `--overlay` flags, workflow steps); other list fields replace. The repo `.awman/` directory also holds per-agent Dockerfiles seeded by `awman init`. XDG base-directory environment variables are honored as of 0.10.0. Always use `awman config show` to see merged values rather than hand-editing the JSON.
 
 See `references/config.md` for the full per-key schema (type, default, scope, merge behavior).
+
+## Overlays
+
+Overlay specs grant agent containers access to host resources: `dir(HOST:CONTAINER[:ro|rw])`, `ssh()`, `env(VAR)`, `skill(*)`/`skill(NAME)`, and — new in 0.10.0 — `context(global|repo|workflow[:ro])`. Context overlays combine a persistent host directory (`~/.awman/context/...`) with automatic system-prompt injection, giving agents a durable shared workspace across sessions; they default to `rw` so agents accumulate knowledge — pass `:ro` to lock them. On host-path conflicts, `:ro` always overrides `:rw`. See `references/config.md` for the full overlay grammar.
 
 ## API Mode
 
@@ -148,7 +163,9 @@ See `references/api.md` for the full endpoint table and curl examples.
 
 Workflows are TOML (`.toml`) or YAML (`.yml`/`.yaml`) files authored via `awman new workflow [--interview]` and executed via `awman exec workflow <path>`. **Markdown (`.md`) workflows are no longer supported as of 0.9.1.**
 
-Step fields are lowercase only: `name` and `prompt` are required; `depends_on`, `agent`, and `model` are optional. Template variables available in prompts: `{{work_item_number}}` (zero-padded 4-digit), `{{work_item}}` (bare number), `{{work_item_content}}` (full file), `{{work_item_section:[Name]}}` (named section).
+Step fields are lowercase only: `name` and `prompt` are required; `depends_on`, `agent`, `model`, and `overlays` are optional. Template variables available in prompts: `{{work_item_number}}` (zero-padded 4-digit), `{{work_item}}` (bare number), `{{work_item_content}}` (full file or fetched issue), `{{work_item_section:[Name]}}` (named section).
+
+New in 0.10.0, workflows support **setup and teardown phases** with typed steps (`clone_repo`, `checkout_create_branch`, `run_shell`, `commit_changes`, `push_branch`, `create_pull_request`, …), including `poll_ci` (block until the branch's GitHub Actions run completes; `interval_secs`/`max_retries`) and per-step `on_failure` blocks that launch a remediation agent and retry the step up to `max_attempts` times.
 
 See `references/workflows.md` for grammar in both formats and worked examples.
 
@@ -158,7 +175,10 @@ See `references/workflows.md` for grammar in both formats and worked examples.
 - **Markdown workflows dropped in 0.9.1.** Only TOML and YAML are accepted; other extensions are rejected.
 - **API server is HTTPS by default.** Local curl needs `--dangerously-skip-tls` (server side) or trusting the self-signed cert.
 - **Commands queue, not reject.** A busy session enqueues new commands in FIFO order rather than returning 403; a closing session returns HTTP 409.
-- **`runtime` is global-only.** No per-repo selection between Docker and Apple Containers.
+- **`runtime` is global-only.** No per-repo runtime selection.
+- **`docker-sbx-experimental` skips all overlays.** `dir()`, skills, and context mounts are not honored; networking is proxy-only; sandboxes persist between sessions and lose port mappings on stop.
+- **`--issue` and `--work-item` are mutually exclusive.** Bare `--issue <N>` requires a GitHub `origin` remote — use `owner/repo#N` or a URL otherwise.
+- **Context overlays default to `rw`.** Use `context(SCOPE:ro)` to stop agents from modifying accumulated knowledge.
 - **Frequent release cadence.** Re-run `awman --version` when output looks unexpected. Pin in mise to control when you upgrade.
 - **Lowercase keys only in workflow files.** Uppercase variants are parse errors.
 
@@ -168,8 +188,9 @@ See `references/workflows.md` for grammar in both formats and worked examples.
 - `references/workflows.md` — Workflow grammar in TOML and YAML
 - `references/config.md` — Per-key config schema for both scopes
 - `references/command-reference.md` — Full CLI surface with flags and examples
-- `templates/0.9.1/commands.md` — Immutable v0.9.1 command snapshot
+- `templates/0.10.0/commands.md` — Immutable v0.10.0 command snapshot
+- `templates/0.9.1/commands.md` — Immutable v0.9.1 command snapshot (previous version)
 
 ## Anti-Fabrication
 
-Run `awman --version` and `awman config show` before asserting that any documented behavior matches the installed binary. awman is pre-1.0 and minor bumps carry breaking changes. Every command form in this skill traces to upstream docs sourced from https://github.com/prettysmartdev/awman (accessed 2026-06-02). Mark any behavior not confirmed by that source as "requires verification against awman v0.9.1 source." Apply `/core:anti-fabrication` rules to all outputs produced with this skill active.
+Run `awman --version` and `awman config show` before asserting that any documented behavior matches the installed binary. awman is pre-1.0 and minor bumps carry breaking changes. Every command form in this skill traces to upstream docs sourced from https://github.com/prettysmartdev/awman (accessed 2026-06-11). Mark any behavior not confirmed by that source as "requires verification against awman v0.10.0 source." Apply `/core:anti-fabrication` rules to all outputs produced with this skill active.

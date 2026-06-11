@@ -3,7 +3,7 @@
 
 [meta]
 plugin = "awman"
-last_full_check = "2026-06-02"
+last_full_check = "2026-06-11"
 
 # ----------------------------------------------------------------------------
 # awman CLI/TUI — tracked via GitHub releases.
@@ -16,9 +16,9 @@ url = "https://github.com/prettysmartdev/awman"
 releases_url = "https://github.com/prettysmartdev/awman/releases"
 check_method = "github-releases"
 github_repo = "prettysmartdev/awman"
-current_version = "0.9.1"
+current_version = "0.10.0"
 version_constraint = "pre-1.0"
-last_checked = "2026-06-02"
+last_checked = "2026-06-11"
 update_priority = "medium"
 breaking_changes_likely = true
-notes = "Pre-1.0 CLI; minor bumps carry breaking changes (e.g. 0.9.1 dropped Markdown workflows, renamed headless→api). Create a versioned templates/X.Y.Z/commands.md on each update. Renamed from amux as of 0.9.x."
+notes = "Pre-1.0 CLI; minor bumps carry breaking changes (e.g. 0.9.1 dropped Markdown workflows, renamed headless→api). 0.10.0 was additive (no config migration). Create a versioned templates/X.Y.Z/commands.md on each update. Renamed from amux as of 0.9.x. Docs tree renumbered in 0.10.0 (workflows now 05, new 11-github-integration.md, 12-runtimes.md)."

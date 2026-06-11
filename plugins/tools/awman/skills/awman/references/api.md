@@ -1,9 +1,9 @@
 # awman REST API
 
-Reference for the awman REST API server as of v0.9.1.
+Reference for the awman REST API server as of v0.10.0.
 
 Source: https://github.com/prettysmartdev/awman/blob/main/docs/09-api-mode.md and
-docs/10-remote-mode.md — accessed 2026-06-02.
+docs/10-remote-mode.md — accessed 2026-06-11.
 
 **Prefer `awman remote` over raw curl** when driving the server from a shell. The `awman remote` CLI carries auth, sets the session header, and formats output — raw curl is appropriate only when integrating from external systems that cannot invoke awman.
 
@@ -22,7 +22,7 @@ awman api logs                                                       # tail logs
 awman api kill                                                       # graceful shutdown (30s grace)
 ```
 
-The plaintext API key prints once on first `awman api start`; only its SHA-256 hash is stored at `~/.awman/api/api_key.hash`. Save the key — it is not recoverable.
+The plaintext API key prints once on first `awman api start`; only its SHA-256 hash is stored at `~/.awman/api/api_key.hash`. Save the key — it is not recoverable. The default port is configurable via the `api.port` global config key (`awman config set --global api.port <n>`); `--port` overrides it per start.
 
 ### TLS
 
