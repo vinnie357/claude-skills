@@ -1,10 +1,10 @@
 # awman Configuration Reference
 
-Reference for awman configuration files and keys as of v0.9.1.
+Reference for awman configuration files and keys as of v0.10.0.
 
-Source: https://github.com/prettysmartdev/awman/blob/main/docs/07-configuration.md — accessed 2026-06-02.
+Source: https://github.com/prettysmartdev/awman/blob/main/docs/07-configuration.md and docs/08-overlays.md — accessed 2026-06-11.
 
-**Never hand-edit the JSON files.** Use `awman config set` to write values and `awman config show` to inspect the merged effective configuration.
+**Never hand-edit the JSON files.** Use `awman config set` to write values and `awman config show` to inspect the merged effective configuration. Keys marked "edit file" below are the exception — they are not settable via the CLI.
 
 ---
 
@@ -20,63 +20,108 @@ awman reads one `config.json` per scope. The same filename lives in two director
 | **Wins on conflict?** | No | Yes — per-repo takes precedence |
 | **Scope** | All awman projects on this machine | This Git repository only |
 
-The per-repo `.awman/` directory also holds per-agent Dockerfiles (`Dockerfile.claude`, `Dockerfile.codex`, …) seeded by `awman init`. The Dockerfiles are safe to commit and customize — they define the container each agent runs in.
+The per-repo `.awman/` directory also holds per-agent Dockerfiles (`Dockerfile.claude`, `Dockerfile.codex`, …) seeded by `awman init`. The Dockerfiles are safe to commit and customize — they define the container each agent runs in. The project base image path is configurable via the per-repo `dockerfile` key (default `Dockerfile.dev`).
 
-> **Migrating from amux:** the old split between `aspec/.amux.json` and `.amux/config.json` is gone. awman uses a single per-repo `GITROOT/.awman/config.json`, and config migrates automatically on first run.
+XDG base-directory environment variables are honored as of 0.10.0.
 
-If you are unsure which value awman is using, run `awman config show` — it displays the merged effective config.
+> **Migrating from amux:** the old split between `aspec/.amux.json` and `.amux/config.json` is gone. awman uses a single per-repo `GITROOT/.awman/config.json`, and config migrates automatically on first run. No migration is required from 0.9.1 to 0.10.0.
+
+If you are unsure which value awman is using, run `awman config show` — it displays the merged effective config. As of 0.10.0, `awman config` works even when the configured runtime is not installed.
 
 ---
 
 ## Global-only keys
 
-Written by `awman config set --global`; apply to all awman projects on this machine.
+Stored in `$HOME/.awman/config.json`; apply to all awman projects on this machine.
 
-| Key | Type | Default | Notes |
-|-----|------|---------|-------|
-| `default_agent` | string | `"claude"` | Per-repo `agent` overrides this for a specific project |
-| `runtime` | string | `"docker"` | `"docker"` or the Apple Containers value (macOS 26+). Cannot be set per-repo |
-| `api.workDirs` | array of strings | `[]` | Absolute paths the API server may create sessions in |
-| `api.alwaysNonInteractive` | boolean | `false` | Auto-injects `--non-interactive` into all API-dispatched commands |
-| `api.workers` | integer | `2` | Number of API server worker processes |
-| `remote.defaultAddr` | string | unset | Default server address for `awman remote` |
-| `remote.defaultAPIKey` | string | unset | API key, sent only when the target matches `remote.defaultAddr` |
-| `remote.savedDirs` | array of strings | `[]` | Directories offered in the remote TUI picker |
+| Key | Type | Default | Settable via CLI |
+|-----|------|---------|------------------|
+| `default_agent` | string | unset | Yes |
+| `runtime` | string | `"docker"` | Yes — `docker`, `apple-containers`, or `docker-sbx-experimental` |
+| `workers` | integer | `2` | No (edit file) |
+| `api.workDirs` | array of strings | `[]` | Yes |
+| `api.alwaysNonInteractive` | boolean | `false` | No (edit file) |
+| `api.port` | integer | `9876` | Yes |
+| `auto_agent_auth_accepted` | boolean | unset | No (managed by awman) |
 
 > `headless.*` keys from amux are renamed: `headless.workDirs` → `api.workDirs`, `headless.alwaysNonInteractive` → `api.alwaysNonInteractive`.
 
+### Runtime values
+
+| Value | Platforms | Requirements |
+|-------|-----------|--------------|
+| `docker` (default) | Linux, macOS, Windows | Docker daemon |
+| `apple-containers` | macOS 26+ | native `container` CLI |
+| `docker-sbx-experimental` | macOS arm64, Windows x86_64 | `sbx` CLI (`brew install docker/tap/sbx`) + `sbx login` |
+
+Each runtime maintains separate state; switching does not delete other runtimes' data. Run `awman ready` after switching. `docker-sbx-experimental` does not honor directory, skill, or context overlays; networking is proxy-only; sandboxes persist between sessions.
+
 ---
 
-## Per-repo keys
+## Per-repo-only keys
 
 Stored in `$GITROOT/.awman/config.json`, created by `awman init`. Commit this file.
 
-| Key | Type | Default | Notes |
-|-----|------|---------|-------|
-| `agent` | string | (falls back to `default_agent`) | Default agent for all sessions and workflow steps in this repo |
-| `base_image` | string | from global / `make build` | Base container image for this repo |
-| `workItems.dir` | string | unset | Directory (relative to Git root) where `awman new spec` writes work items |
-| `workItems.template` | string | unset | Path to a work item template used by `awman new spec` |
+| Key | Type | Default | Settable via CLI |
+|-----|------|---------|------------------|
+| `workItems.dir` | string | `aspec/work-items` | Yes |
+| `workItems.template` | string | `<workItems.dir>/0000-template.md` | Yes |
+| `dockerfile` | string | `Dockerfile.dev` | No (edit file) |
 
 ---
 
 ## Both-scope keys
 
-| Key | Type | Default | Merge |
-|-----|------|---------|-------|
-| `terminal_scrollback_lines` | integer | `10000` | Per-repo overrides global |
-| `yoloDisallowedTools` | array of strings | `[]` | Tools blocked even in `--yolo` mode |
-| `envPassthrough` | array of strings | `[]` | Env var names forwarded into the agent container |
-| `overlays.skills` | boolean | `false` | Additive — either scope `true` enables custom-skill mounting |
-| `overlays.directories` | array of objects | `[]` | Additive — both scopes contribute mount entries |
+Per-repo overrides global on scalar conflicts; `overlays` merges additively.
 
-### `overlays.directories` object shape
+| Key | Type | Default | Settable via CLI |
+|-----|------|---------|------------------|
+| `agent` | string | falls back to `default_agent` | Yes |
+| `terminal_scrollback_lines` | integer | `10000` | Yes |
+| `yoloDisallowedTools` | array of strings | `[]` | Yes |
+| `overlays` | array of overlay specs | `[]` | Yes |
+| `agentStuckTimeout` | integer | `30` (seconds) | Yes |
+| `baseImage` | string | unset | No (edit file) |
+| `remote.defaultAddr` | string | unset | Yes |
+| `remote.defaultAPIKey` | string | unset | Yes |
+| `remote.savedDirs` | array of strings | `[]` | No (edit file) |
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `host` | string | Absolute host path (tilde expansion supported) |
-| `container` | string | Mount path inside the container |
-| `permission` | string | `"ro"` (read-only) or `"rw"` (read-write) |
+---
+
+## Overlays
+
+Overlays grant agent containers access to host resources. Each entry in the `overlays` array is a spec string:
+
+| Spec | Effect |
+|------|--------|
+| `dir(HOST:CONTAINER[:ro\|rw])` | Mount a host directory; `~/` expands on both sides; default read-only |
+| `ssh()` | Mount `~/.ssh` read-only (always read-only; for Git auth) |
+| `env(VAR)` | Forward one env var into the container; one call per var; unset vars skip silently; values masked as `***` in logs |
+| `skill(*)` | Mount all skills from `~/.awman/skills/` |
+| `skill(NAME)` | Mount one named skill; missing names error before container launch |
+| `context(SCOPE[:ro])` | Durable context dir + automatic system-prompt injection (0.10.0) |
+
+### Context overlays (0.10.0)
+
+`context()` combines a **directory mount** (persistent files on the host) with **system prompt injection** (agent-specific delivery of context instructions). Default permission is `rw` so agents accumulate knowledge across sessions; pass `:ro` to lock a scope (e.g. `context(repo:ro)`).
+
+| Scope | Location |
+|-------|----------|
+| `global` | `~/.awman/context/global/` |
+| `repo` | `~/.awman/context/repo/{owner}/{repo}/` (maintained automatically) |
+| `workflow` | `~/.awman/context/workflow/` (auto-created per invocation) |
+
+Agents without native system-prompt injection still get the directory mount; reference it manually in prompts.
+
+### Overlay sources and merge order
+
+1. Global config `"overlays": [...]`
+2. Per-repo config `"overlays": [...]`
+3. `AWMAN_OVERLAYS="dir(...),env(...)"` environment variable
+4. CLI: `--overlay "ssh()" --overlay "env(TOKEN)"` (repeatable)
+5. Workflow `overlays = [...]` — workflow-level (all steps) or per-step
+
+All sources combine **additively**. On a host-path conflict, the higher-priority source wins, but `:ro` always overrides `:rw`. Setup/teardown workflow steps support `dir()`, `ssh()`, and `env()` — not `skill()`.
 
 ---
 
@@ -86,7 +131,7 @@ awman reads several `AWMAN_*` environment variables (override config at runtime)
 
 | Variable | Overrides |
 |----------|-----------|
-| `AWMAN_OVERLAYS` | Overlay directory/skill spec |
+| `AWMAN_OVERLAYS` | Overlay spec list (comma-separated) |
 | `AWMAN_REMOTE_ADDR` | `remote.defaultAddr` |
 | `AWMAN_API_KEY` | `remote.defaultAPIKey` / API auth key |
 | `AWMAN_REMOTE_SESSION` | Target session id for `awman remote` |
@@ -98,7 +143,7 @@ awman reads several `AWMAN_*` environment variables (override config at runtime)
 ## Precedence and merge behavior
 
 - **Per-repo wins** on scalar keys (`agent`, `terminal_scrollback_lines`, etc.).
-- **Additive merge** for `overlays.skills` and `overlays.directories` — both scopes contribute; neither replaces the other.
+- **`overlays` merges additively** across all sources; other list fields **replace** (repo replaces global entirely).
 - `awman config show` always reflects the merged effective state. Read its output, not the raw files.
 
 ---
@@ -111,17 +156,11 @@ awman reads several `AWMAN_*` environment variables (override config at runtime)
   "runtime": "docker",
   "terminal_scrollback_lines": 10000,
   "yoloDisallowedTools": ["Bash"],
-  "envPassthrough": ["ANTHROPIC_API_KEY"],
   "api": {
     "workDirs": ["/home/user/my-project"],
-    "workers": 2
+    "port": 9876
   },
-  "overlays": {
-    "skills": true,
-    "directories": [
-      { "host": "~/personal-prompts", "container": "/mnt/prompts", "permission": "ro" }
-    ]
-  }
+  "overlays": ["env(ANTHROPIC_API_KEY)", "context(global)"]
 }
 ```
 
@@ -132,13 +171,7 @@ awman reads several `AWMAN_*` environment variables (override config at runtime)
   "agent": "claude",
   "terminal_scrollback_lines": 10000,
   "yoloDisallowedTools": ["Bash", "computer"],
-  "envPassthrough": ["ANTHROPIC_API_KEY"],
-  "overlays": {
-    "skills": true,
-    "directories": [
-      { "host": "/data/fixtures", "container": "/mnt/fixtures", "permission": "ro" }
-    ]
-  },
+  "overlays": ["ssh()", "dir(/data/fixtures:/mnt/fixtures:ro)", "context(repo)"],
   "workItems": {
     "dir": "docs/work-items",
     "template": "docs/work-items/0000-template.md"
@@ -149,11 +182,11 @@ awman reads several `AWMAN_*` environment variables (override config at runtime)
 ## Setting values via CLI
 
 ```sh
-awman config set agent codex                            # per-repo default agent
-awman config set --global runtime container             # Apple Containers (macOS 26+)
+awman config set agent codex                                  # per-repo default agent
+awman config set --global runtime apple-containers            # Apple Containers (macOS 26+)
+awman config set --global runtime docker-sbx-experimental     # Docker Sandboxes microVMs
 awman config set --global api.workDirs "/home/user/my-project"
-awman config set overlays.skills true                   # enable skills overlay per-repo
-awman config show                                       # verify merged effective config
+awman config show                                             # verify merged effective config
 ```
 
 ---

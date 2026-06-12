@@ -1,8 +1,8 @@
 # awman Command Reference
 
-Exhaustive reference for all awman CLI subcommands, flags, and options as of v0.9.1.
+Exhaustive reference for all awman CLI subcommands, flags, and options as of v0.10.0.
 
-Source: https://github.com/prettysmartdev/awman (README + docs/, accessed 2026-06-02).
+Source: https://github.com/prettysmartdev/awman (README + docs/, accessed 2026-06-11).
 Run `awman <subcommand> --help` to verify flags match the installed binary. Pre-1.0 releases drift between minors.
 
 ---
@@ -55,7 +55,7 @@ awman ready [FLAGS]
 
 ## `awman config`
 
-Inspect and modify awman configuration. Reads from `$HOME/.awman/config.json` (global) and `$GITROOT/.awman/config.json` (per-repo); per-repo wins on conflicts.
+Inspect and modify awman configuration. Reads from `$HOME/.awman/config.json` (global) and `$GITROOT/.awman/config.json` (per-repo); per-repo wins on conflicts. As of 0.10.0, `awman config` works even when the configured runtime is not installed.
 
 ### `awman config show`
 
@@ -86,7 +86,7 @@ awman config set agent codex
 # Set the global default agent
 awman config set --global default_agent claude
 
-# Set the runtime globally (docker or container)
+# Set the runtime globally (docker | apple-containers | docker-sbx-experimental)
 awman config set --global runtime docker
 
 # Add allowlisted API workdirs (comma-separated)
@@ -144,6 +144,7 @@ Submit a single prompt to an agent and return when complete.
 ```sh
 awman exec prompt "Explain the build script"
 awman exec prompt "Add type hints to lib/utils.py" --agent codex --auto
+awman exec prompt "Fix this bug" --issue 84      # prompt text first, then issue content
 ```
 
 ### `awman exec workflow`
@@ -153,9 +154,10 @@ Execute a multi-step workflow file. Adds workflow-only flags `--worktree` and `-
 ```sh
 awman exec workflow ./workflows/refactor.toml
 awman exec workflow ./workflows/implement.toml --work-item 0027 --yolo --worktree
+awman exec workflow ./workflows/implement.toml --issue prettysmartdev/awman#84
 ```
 
-`--work-item <nnnn>` injects template variables (`{{work_item_number}}`, `{{work_item_content}}`, etc.) into step prompts. The worktree is never auto-deleted — a merge/discard/keep dialog appears at completion or abort.
+`--work-item <nnnn>` injects template variables (`{{work_item_number}}`, `{{work_item_content}}`, etc.) into step prompts. `--issue <ref>` (0.10.0) fetches a GitHub issue and populates the same variables — mutually exclusive with `--work-item`. Reference forms: bare number (requires GitHub `origin` remote), `owner/repo#N`, or full URL; auth via `gh` CLI, then `GITHUB_TOKEN`, then unauthenticated (public repos, 60 req/hr). The worktree is never auto-deleted — a merge/discard/keep dialog appears at completion or abort.
 
 ---
 
@@ -164,7 +166,7 @@ awman exec workflow ./workflows/implement.toml --work-item 0027 --yolo --worktre
 Scaffold new project assets.
 
 ```sh
-awman new spec [--interview]                  # Create a numbered work-item file
+awman new spec [--interview] [--issue <ref>]  # Create a numbered work-item file
 awman new workflow [--interview] [--global] [--format yaml]   # Scaffold a workflow file
 awman new skill [--interview]                 # Create a custom skill for the skills overlay
 ```
@@ -172,6 +174,7 @@ awman new skill [--interview]                 # Create a custom skill for the sk
 | Flag | Description |
 |------|-------------|
 | `--interview` | Guided interview mode; awman prompts for structured fields |
+| `--issue <ref>` | (`new spec`, 0.10.0) Use a fetched GitHub issue as spec input; with `--interview`, pre-populates the interview text box |
 | `--global` | Write to the personal (global) library instead of the repo |
 | `--format <toml\|yaml>` | Choose the output format for a new workflow |
 
@@ -278,7 +281,9 @@ awman remote session kill "$SESSION"
 
 | Error | Likely cause |
 |-------|-------------|
-| `runtime not found` | Docker or Apple Containers not running; check `docker info` or `container system status` |
+| `runtime not found` | Configured runtime not running; check `docker info`, `container system status`, or `sbx` login state |
+| sbx error on Linux / Intel Mac | `docker-sbx-experimental` requires macOS arm64 or Windows x86_64; Linux x86_64 is blocked by a virtiofs bug |
+| Overlay missing inside sandbox | `docker-sbx-experimental` does not honor `dir()`, skill, or context overlays |
 | `HTTP 403 on POST /v1/sessions` | `workdir` not in `api.workDirs` / `--workdirs`; add it and retry |
 | `HTTP 401` | Missing or invalid API key on an authenticated endpoint |
 | `HTTP 409 session is closing` | Session is shutting down; create a new session |
