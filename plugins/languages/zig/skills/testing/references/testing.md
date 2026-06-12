@@ -30,13 +30,16 @@ try std.testing.expectApproxEqAbs(expected, actual, tolerance); // float
 ```zig
 test "no memory leaks" {
     const allocator = std.testing.allocator;
-    var list = std.ArrayList(u8).init(allocator);
-    defer list.deinit();
-    try list.append('a');
+    // 0.15+: std.ArrayList is unmanaged — pass the allocator per call
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(allocator);
+    try list.append(allocator, 'a');
     try std.testing.expect(list.items.len == 1);
     // test fails automatically if any allocation is not freed
 }
 ```
+
+On Zig 0.14.x the managed form applies instead: `var list = std.ArrayList(u8).init(allocator); defer list.deinit(); try list.append('a');`
 
 ## Running Tests
 

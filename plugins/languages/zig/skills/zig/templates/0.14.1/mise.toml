@@ -1,8 +1,9 @@
-# Zig development environment with mise
-# Copy these definitions to your project's mise.toml
+# Zig 0.14.x development environment with mise
+# Immutable snapshot for Zig 0.14.x projects — copy to your project's mise.toml
+# For the current release, use templates/0.15.1/mise.toml
 
 [tools]
-zig = "0.14"
+zig = "0.14.1"
 
 [tasks.build]
 description = "Build the project"

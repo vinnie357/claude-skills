@@ -49,7 +49,9 @@ const alloc = fba.allocator();
 ### Debug Allocator
 
 ```zig
-var debug_alloc = std.heap.DebugAllocator(.{}).init(std.heap.page_allocator);
+// init is a default-value constant, not a function; backing allocator
+// defaults to std.heap.page_allocator (override via the field)
+var debug_alloc: std.heap.DebugAllocator(.{}) = .init;
 defer {
     const check = debug_alloc.deinit();
     if (check == .leak) @panic("memory leak detected");

@@ -1,0 +1,24 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "zig"
+last_full_check = "2026-06-12"
+
+# ----------------------------------------------------------------------------
+# Zig toolchain — one upstream covers all seven skills in this plugin
+# (zig, language, build, allocators, testing, c-interop, troubleshooting).
+# ----------------------------------------------------------------------------
+[[sources]]
+skill = "zig"
+name = "zig"
+url = "https://ziglang.org"
+releases_url = "https://ziglang.org/download/"
+check_method = "github-releases"
+github_repo = "ziglang/zig"
+current_version = "0.15.1"
+version_constraint = "pre-1.0"
+last_checked = "2026-06-12"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "Pre-1.0 language; every minor release breaks std and build APIs (0.15: std.Io Writergate, unmanaged ArrayList, usingnamespace/async removed, root_source_file removed from build options). Create a versioned templates/X.Y.Z/mise.toml snapshot on each update and extend skills/zig/references/version-history.md. Release notes: https://ziglang.org/download/<version>/release-notes.html"
