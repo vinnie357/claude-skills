@@ -6,6 +6,11 @@ awman was previously named **amux** (repo `prettysmartdev/amux`). The skill was 
 
 ## Release History
 
+### skill update 0.2.1 → 0.2.2 (2026-06-12)
+- **Source verified**: `docs/08-overlays.md` (https://github.com/prettysmartdev/awman/blob/main/docs/08-overlays.md, accessed 2026-06-12) and `docs/03-agent-sessions.md` (accessed 2026-06-12)
+- **Changes**: Added `envPassthrough` removal notice + `env()` overlay migration example to SKILL.md and references/config.md. Added `gemini` deprecation note with `antigravity` migration guidance. Added env-passthrough worked example (ANTHROPIC_BASE_URL pattern) to SKILL.md Overlays section. Updated example global config in references/config.md to show env passthrough via `overlays` array. Added two items to Known Sharp Edges.
+- **Discrepancy noted**: Upstream `docs/08-overlays.md` "Removed forms" section says `envPassthrough` is "deprecated"; live awman 0.10.0 session returns a hard REMOVAL notice ("the 'envPassthrough' field was removed"). The skill documents the live behavior (removed) and notes the upstream wording discrepancy.
+
 ### v0.10.0 (2026-06-11, skill updated 2026-06-11)
 - **URL**: https://github.com/prettysmartdev/awman/releases/tag/v0.10.0
 - **Summary**: Additive release, no config migration required. New experimental `docker-sbx-experimental` runtime (microVM-per-session via Docker's `sbx` CLI; macOS arm64 / Windows x86_64; no overlay support, proxy-only networking, persistent sandboxes). New `--issue <ref>` GitHub integration on `new spec` / `exec workflow` / `exec prompt` (auth: gh CLI → GITHUB_TOKEN → unauthenticated). Workflow setup/teardown phases gained `poll_ci` steps and `on_failure` remediation blocks with retries. New `context()` overlays (global/repo/workflow scopes, durable on-disk workspace + system-prompt injection). Configurable base Dockerfile (`dockerfile` key, default `Dockerfile.dev`) and XDG base-dir support. Fix: Codex deprecated `--full-auto` flag in yolo mode. Docs tree renumbered: new `01-concepts.md`, `11-github-integration.md`, `12-runtimes.md`; workflows moved `04` → `05`; the standalone headless-mode page was removed.

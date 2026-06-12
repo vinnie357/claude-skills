@@ -33,7 +33,7 @@
       "source": "./plugins/tools/awman",
       "strict": true,
       "description": "awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "category": "tools",
       "keywords": ["awman", "agents", "workflows", "tmux", "claude-code", "container"],
       "license": "MIT"
