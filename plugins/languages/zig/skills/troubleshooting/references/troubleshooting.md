@@ -142,11 +142,33 @@ fn create(alloc: Allocator) !*Thing {
 
 ### "error: FileNotFound" for source files
 
-Check paths are relative to build root:
+Check paths are relative to build root (inside `b.createModule(...)`):
 
 ```zig
 .root_source_file = b.path("src/main.zig"),
 ```
+
+### 0.14 → 0.15 migration errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `no field named 'root_source_file' in struct 'Build.ExecutableOptions'` | Top-level build fields removed in 0.15 | Wrap in `.root_module = b.createModule(.{ .root_source_file = ..., .target = ..., .optimize = ... })` |
+| `no member named 'init' in struct` on `std.ArrayList` | `ArrayList` is unmanaged in 0.15 | `var list: std.ArrayList(T) = .empty;` and pass the allocator to `append`/`deinit` |
+| Compile errors in custom `format` methods; `{}` no longer formats a struct | Format method signature changed in 0.15 | Use `{f}` and `fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void`; build with `-freference-trace` to find every broken format string |
+| `usingnamespace` / `async` / `await` syntax errors | Keywords removed in 0.15 | Restructure with explicit declarations; async moves to the std.Io interface |
+| Program produces no output with new `std.Io` writers | Buffered writer never flushed | Call `try writer.flush()` before exit |
+| Suspected codegen bug in Debug builds (0.15+) | Self-hosted x86_64 backend is the Debug default | Re-test with `-fllvm` to compare against the LLVM backend |
+
+### 0.15 → 0.16 migration errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `@Type` not found | Builtin removed in 0.16 | Use the dedicated builtins: `@Int()`, `@Struct()`, `@Enum()`, `@Union()`, `@Pointer()`, `@Fn()`, `@Tuple()`, `@EnumLiteral()` |
+| `@cImport` deprecation warnings | Moving to the build system in 0.16 | `b.addTranslateC(.{...})` in build.zig + `@import("c")` in source |
+| Filesystem/network/process calls fail to compile, missing `io` argument | 0.16 `std.Io` interface: blocking operations take an `io: Io` parameter | Thread an `Io` instance through (e.g. `var threaded: Io.Threaded = .init_single_threaded; const io = threaded.io();`); `fs.cwd()` → `std.Io.Dir.cwd()`, `std.process.Child` → `std.process.spawn(io, ...)` |
+| `std.Thread.Mutex` / `Condition` / `RwLock` / `Pool` not found | Sync primitives moved under `std.Io` in 0.16 | `std.Io.Mutex`, `std.Io.Condition`, `std.Io.RwLock` (require an `Io`); `std.Thread.Pool` removed — use `io.async`/`Io.Group` |
+| `returning address of expired local variable` | New 0.16 compile error | Return by value or allocate; do not return pointers to locals |
+| `@intFromFloat` deprecation | 0.16 lets `@floor`/`@ceil`/`@round`/`@trunc` produce integers directly | `const n: u8 = @round(value);` |
 
 ### Dependency fetch failures
 

@@ -2,6 +2,34 @@
 
 ## Importing C Headers
 
+### 0.16+: translate-c via the build system
+
+`@cImport` is deprecated in 0.16. Put the includes in a C header and translate it in `build.zig`:
+
+```c
+// src/c.h
+#include <stdio.h>
+#include <stdlib.h>
+```
+
+```zig
+// build.zig
+const translate_c = b.addTranslateC(.{
+    .root_source_file = b.path("src/c.h"),
+    .target = target,
+    .optimize = optimize,
+});
+exe.root_module.addImport("c", translate_c.createModule());
+```
+
+```zig
+// in source
+const c = @import("c");
+const result = c.printf("Hello from C\n");
+```
+
+### 0.15 and earlier: @cImport
+
 ```zig
 const c = @cImport({
     @cInclude("stdio.h");
@@ -68,6 +96,6 @@ const zig_slice = std.mem.span(c_ptr); // []const u8
 
 - Keep C boundaries thin; wrap C APIs in Zig abstractions
 - Use `[:0]const u8` for C string interop
-- Prefer `@cImport` for simple headers; `translate-c` for complex ones
+- On 0.16+, use `b.addTranslateC()` + `@import("c")` (`@cImport` is deprecated); on 0.15 and earlier prefer `@cImport` for simple headers, `translate-c` for complex ones
 - Use `[*c]T` C pointers only at the boundary; convert to Zig pointers internally
 - Be careful with C pointer nullability (`[*c]T` can be null, `*T` cannot)

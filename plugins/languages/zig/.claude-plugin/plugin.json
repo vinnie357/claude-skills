@@ -1,6 +1,6 @@
 {
   "name": "zig",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, testing, and troubleshooting",
   "author": {
     "name": "vinnie357"

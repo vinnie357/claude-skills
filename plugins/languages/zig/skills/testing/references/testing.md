@@ -30,13 +30,16 @@ try std.testing.expectApproxEqAbs(expected, actual, tolerance); // float
 ```zig
 test "no memory leaks" {
     const allocator = std.testing.allocator;
-    var list = std.ArrayList(u8).init(allocator);
-    defer list.deinit();
-    try list.append('a');
+    // 0.15+: std.ArrayList is unmanaged — pass the allocator per call
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(allocator);
+    try list.append(allocator, 'a');
     try std.testing.expect(list.items.len == 1);
     // test fails automatically if any allocation is not freed
 }
 ```
+
+On Zig 0.14.x the managed form applies instead: `var list = std.ArrayList(u8).init(allocator); defer list.deinit(); try list.append('a');`
 
 ## Running Tests
 
@@ -84,6 +87,7 @@ test_step.dependOn(&run_tests.step);
 ## Best Practices
 
 - Use `std.testing.allocator` in every test that allocates memory
+- On 0.16+, use `std.testing.io` for tests that perform I/O (analogous to `std.testing.allocator`)
 - Always `defer` cleanup in tests to prevent leak false positives
 - Use descriptive test names that explain expected behavior
 - Use doctests (named with identifiers) for API documentation
