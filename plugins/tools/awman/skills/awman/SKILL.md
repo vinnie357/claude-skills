@@ -114,7 +114,9 @@ See `templates/0.10.0/commands.md` for the full v0.10.0 command surface with fla
 
 ## Agents
 
-Supported agents: `claude`, `codex`, `opencode`, `maki`, `gemini`, `antigravity`, `copilot`, `crush`, `cline`.
+Supported agents: `claude`, `codex`, `opencode`, `maki`, `antigravity`, `copilot`, `crush`, `cline`.
+
+> **`gemini` is deprecated** by Google upstream. Migrate to `antigravity` (`awman chat --agent antigravity` or `awman config set agent antigravity`). The `gemini` agent name remains accepted but logs a deprecation warning and has degraded system-prompt-injection support.
 
 Each agent has a Dockerfile in `.awman/Dockerfile.<agent>` (seeded from upstream templates). Customize the Dockerfile to add tools or environment configuration for that agent. The project base image path is configurable via the per-repo `dockerfile` config key (default `Dockerfile.dev`) as of 0.10.0.
 
@@ -149,6 +151,31 @@ See `references/config.md` for the full per-key schema (type, default, scope, me
 
 Overlay specs grant agent containers access to host resources: `dir(HOST:CONTAINER[:ro|rw])`, `ssh()`, `env(VAR)`, `skill(*)`/`skill(NAME)`, and — new in 0.10.0 — `context(global|repo|workflow[:ro])`. Context overlays combine a persistent host directory (`~/.awman/context/...`) with automatic system-prompt injection, giving agents a durable shared workspace across sessions; they default to `rw` so agents accumulate knowledge — pass `:ro` to lock them. On host-path conflicts, `:ro` always overrides `:rw`. See `references/config.md` for the full overlay grammar.
 
+### env passthrough example
+
+To make an agent use a local provider or custom endpoint, forward the relevant vars via `env()` overlays:
+
+```json
+{
+  "overlays": [
+    "env(ANTHROPIC_BASE_URL)",
+    "env(ANTHROPIC_API_KEY)"
+  ]
+}
+```
+
+Or one-off via CLI flag (repeatable, or comma-separated in a single flag):
+
+```sh
+awman chat --overlay "env(ANTHROPIC_BASE_URL)" --overlay "env(ANTHROPIC_API_KEY)"
+# or
+awman chat --overlay "env(ANTHROPIC_BASE_URL),env(ANTHROPIC_API_KEY)"
+```
+
+If `ANTHROPIC_BASE_URL` is not set on the host, awman silently omits it — not an error.
+
+> **`envPassthrough` is removed in 0.10.0.** The old `envPassthrough` array config key no longer works; `awman config get envPassthrough` returns a removal notice. Express env forwarding as `env()` overlay entries in the `overlays` array (config file, `AWMAN_OVERLAYS`, or `--overlay` flag) instead. See `references/config.md` for the migration table.
+
 ## API Mode
 
 `awman api start` runs a REST server on port 9876 (configurable via `--port`). It serves **HTTPS with a self-signed certificate by default** — pass `--dangerously-skip-tls` for plain HTTP in trusted local setups. It accepts bearer-token auth. Sessions are restricted to directories in `api.workDirs` (global config) or passed via `--workdirs`.
@@ -179,6 +206,8 @@ See `references/workflows.md` for grammar in both formats and worked examples.
 - **`docker-sbx-experimental` skips all overlays.** `dir()`, skills, and context mounts are not honored; networking is proxy-only; sandboxes persist between sessions and lose port mappings on stop.
 - **`--issue` and `--work-item` are mutually exclusive.** Bare `--issue <N>` requires a GitHub `origin` remote — use `owner/repo#N` or a URL otherwise.
 - **Context overlays default to `rw`.** Use `context(SCOPE:ro)` to stop agents from modifying accumulated knowledge.
+- **`envPassthrough` is removed.** The old config key returns a removal notice. Use `env()` overlay entries in the `overlays` array instead.
+- **`gemini` is deprecated.** Use `antigravity` as the replacement (`awman config set agent antigravity`).
 - **Frequent release cadence.** Re-run `awman --version` when output looks unexpected. Pin in mise to control when you upgrade.
 - **Lowercase keys only in workflow files.** Uppercase variants are parse errors.
 

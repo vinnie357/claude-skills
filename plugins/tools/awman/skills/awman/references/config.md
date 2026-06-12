@@ -90,6 +90,14 @@ Per-repo overrides global on scalar conflicts; `overlays` merges additively.
 
 ## Overlays
 
+> **`envPassthrough` removed in 0.10.0.** The config key `envPassthrough` is gone; querying it via `awman config get envPassthrough` returns a removal notice. Express env forwarding as `env(VAR)` entries in the `overlays` array.
+>
+> **Migration:** replace `"envPassthrough": ["MY_VAR", "OTHER_VAR"]` in your config with:
+> ```json
+> "overlays": ["env(MY_VAR)", "env(OTHER_VAR)"]
+> ```
+> Or use the CLI flag per invocation: `--overlay "env(MY_VAR)"`. The `env()` overlay is silently omitted if the named variable is not set on the host.
+
 Overlays grant agent containers access to host resources. Each entry in the `overlays` array is a spec string:
 
 | Spec | Effect |
@@ -160,9 +168,15 @@ awman reads several `AWMAN_*` environment variables (override config at runtime)
     "workDirs": ["/home/user/my-project"],
     "port": 9876
   },
-  "overlays": ["env(ANTHROPIC_API_KEY)", "context(global)"]
+  "overlays": [
+    "env(ANTHROPIC_API_KEY)",
+    "env(ANTHROPIC_BASE_URL)",
+    "context(global)"
+  ]
 }
 ```
+
+`env(ANTHROPIC_BASE_URL)` forwards a custom API endpoint (e.g. a local provider) into every agent container. If the variable is not set on the host, awman silently omits it — no error. Replace the old `envPassthrough` array with individual `env()` entries like this.
 
 ## Example per-repo config
 
@@ -186,6 +200,7 @@ awman config set agent codex                                  # per-repo default
 awman config set --global runtime apple-containers            # Apple Containers (macOS 26+)
 awman config set --global runtime docker-sbx-experimental     # Docker Sandboxes microVMs
 awman config set --global api.workDirs "/home/user/my-project"
+awman config set overlays "env(ANTHROPIC_BASE_URL)"           # add one overlay (per-repo)
 awman config show                                             # verify merged effective config
 ```
 
