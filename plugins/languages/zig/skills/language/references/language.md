@@ -56,7 +56,7 @@ fn ArrayList(comptime T: type) type {
 ### Key Builtins
 
 - `@typeInfo(T)` - returns tagged union describing the type
-- `@Type(info)` - constructs a type from @typeInfo data
+- `@Type(info)` - constructs a type from @typeInfo data (removed in 0.16: use the dedicated builtins `@Int()`, `@Struct()`, `@Enum()`, `@Union()`, `@Pointer()`, `@Fn()`, `@Tuple()`, `@EnumLiteral()`)
 - `@TypeOf(expr)` - gets the type of an expression
 - `@This()` - self-referential type within struct/union
 - `@compileError(msg)` - emit compile-time error
@@ -249,6 +249,8 @@ std.debug.print("Hello, {s}!\n", .{"World"});
 const file = try std.fs.cwd().openFile("data.txt", .{});
 defer file.close();
 ```
+
+On 0.16+ filesystem access moves to the `std.Io` interface (`std.Io.Dir.cwd()`, methods take an `io` parameter) — load the zig:zig skill for the full version history.
 
 ### errdefer - Executes Only on Error
 

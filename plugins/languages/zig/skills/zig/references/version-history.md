@@ -4,12 +4,66 @@ Version-aware reference for the zig plugin skills. Zig is pre-1.0: every minor
 release carries breaking changes. Run `zig version` before asserting that any
 documented API exists in the installed toolchain.
 
-Sources: https://ziglang.org/download/0.15.1/release-notes.html and
+Sources: https://ziglang.org/download/0.16.0/release-notes.html,
+https://ziglang.org/download/0.15.1/release-notes.html, and
 https://ziglang.org/download/0.14.0/release-notes.html (accessed 2026-06-12).
 
-## 0.15.1 (2025-08-29) — current
+Authoritative release list: https://ziglang.org/download/index.json — GitHub
+tags stop at 0.15.2, so do NOT rely on the GitHub releases API for staleness.
 
-0.15.1 is the supported 0.15 release (0.15.0 was superseded within days).
+## 0.16.0 (2026-04-13) — current
+
+### Language
+
+| Change | Migration |
+|---|---|
+| `@Type` builtin removed | Use dedicated builtins: `@Int()`, `@Struct()`, `@Enum()`, `@Union()`, `@Pointer()`, `@Fn()`, `@Tuple()`, `@EnumLiteral()` (e.g. `@Int(.unsigned, 10)`) |
+| `@cImport` deprecated | Move includes to a C header and use `b.addTranslateC()` in build.zig + `@import("c")` |
+| `@floor`/`@ceil`/`@round`/`@trunc` convert directly to integers | `const n: u8 = @round(value);` — `@intFromFloat` deprecated for this use |
+| Small int-to-float coercion allowed when lossless | `var f: f32 = small_int;` works without `@floatFromInt` |
+| Returning the address of an expired local is a compile error | Return by value or allocate |
+| Packed unions must fill the backing integer; pointers forbidden in packed types | `packed union(u16) {...}`; store `usize` + `@ptrFromInt` |
+| Extern enums require explicit tag types | `enum(u8) { a, b }` not `enum { a, b }` |
+| Runtime vector indexing forbidden | Coerce the vector to an array first |
+| `*u8` and `*align(1) u8` are now distinct types | Annotate alignment where required |
+
+### Standard library — std.Io async architecture lands
+
+All blocking/nondeterministic operations now take an `io: Io` parameter.
+Implementations: `Io.Threaded` (complete), `Io.Evented` (WIP), `Io.Uring`
+(proof-of-concept). Fallback for code without an Io:
+
+```zig
+var threaded: Io.Threaded = .init_single_threaded;
+const io = threaded.io();
+```
+
+| Change | Migration |
+|---|---|
+| Filesystem moves to `std.Io.Dir`/`std.Io.File` | `fs.cwd()` → `std.Io.Dir.cwd()`; `file.read()` → `file.readStreaming(io)` |
+| Process spawning reworked | `std.process.Child.init` → `std.process.spawn(io, .{ .argv = argv })`; `Child.run` → `std.process.run(allocator, io, .{...})` |
+| Sync primitives move under `std.Io` | `std.Thread.Mutex/Condition/RwLock/Semaphore/ResetEvent` → `std.Io.Mutex/Condition/RwLock/Semaphore/Event`; `std.Thread.Pool` and `std.once` removed |
+| Async tasks | `io.async(fn, args)` / `io.concurrent(fn, args)` → `Future(T)` with `.await(io)`/`.cancel(io)`; `Io.Group` for many tasks; built-in cancellation (`error.Canceled`) |
+| Entropy and time | `std.crypto.random.bytes()` → `io.random()`; `std.time.Instant`/`Timer` → `std.Io.Timestamp` |
+| "Juicy main" | `pub fn main(init: std.process.Init) !void` provides `init.arena`, `init.gpa`, `init.io`, `init.minimal.args`; env vars and args are no longer global |
+| `ArenaAllocator` thread-safe and lock-free; `std.heap.ThreadSafeAllocator` removed | Drop the wrapper |
+| Removed: `SegmentedList`, `Io.GenericWriter`/`AnyWriter`/`null_writer`, `Io.CountingReader`, `fs.getAppDataDir`, `*Z`/`*W` path variants | See release notes for per-API replacements |
+| Renamed: `fmt.Formatter` → `fmt.Alt`, `fmt.bufPrintZ` → `bufPrintSentinel`, `fs.File.Mode` → `std.Io.File.Permissions` | Mechanical rename |
+| Stack trace API reworked | `std.debug.captureCurrentStackTrace(options, addr_buf)` / `writeCurrentStackTrace` |
+| `std.testing.io` added | Use in tests that perform I/O, like `std.testing.allocator` |
+
+### Build system and toolchain
+
+| Change | Migration |
+|---|---|
+| `b.addTranslateC()` is the C-import path | See zig:c-interop skill |
+| Unit test timeouts; `--error-style` and `--multiline-errors` flags; project-local package directory; local package overrides | New capabilities, no migration |
+| LLVM 21; new self-hosted ELF linker; x86_64/aarch64/wasm backend improvements | Re-test with `-fllvm` when suspecting backend bugs |
+| Platform changes | Solaris/AIX/z/OS removed; maccatalyst + loongarch32-linux added; glibc 2.43, musl 1.2.5 |
+
+## 0.15.x (0.15.1 2025-08-19, 0.15.2 2025-10-11)
+
+0.15.1 superseded 0.15.0 within days; 0.15.2 is the final 0.15 patch.
 
 ### Language
 
@@ -67,7 +121,7 @@ Removed types: `std.io.BufferedReader/BufferedWriter`, `CountingWriter` (use
 | Top-level `root_source_file` removed from `addExecutable`/`addTest` options | Use `.root_module = b.createModule(.{ .root_source_file = ..., .target = ..., .optimize = ... })` (the 0.14-recommended form) |
 | Self-hosted x86_64 backend is the Debug-mode default | Opt out with `-fllvm` or `use_llvm = true` if you hit backend bugs |
 | `sanitize_c` build option type changed `?bool` → `?std.zig.SanitizeC` | `true` → `.full`, `false` → `.off`; CLI gains `-fsanitize-c=trap|full` |
-| `zig build --watch` fixed on macOS; pairs with `-fincremental` | New `watch` task in `templates/0.15.1/mise.toml` |
+| `zig build --watch` fixed on macOS; pairs with `-fincremental` | New `watch` task in `templates/0.15.2/mise.toml` |
 | `zig init` template includes module + executable; `--minimal`/`-m` flag added | — |
 | `zig test-obj` emits a test object for external harnesses | Build API: `addTest(.{ .emit_object = true, ... })` |
 | `zig objcopy` temporarily removed | Operations error "unimplemented" pending rework (ziglang/zig#24522) |

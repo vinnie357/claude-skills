@@ -1,9 +1,8 @@
-# Zig 0.14.x development environment with mise
-# Immutable snapshot for Zig 0.14.x projects — copy to your project's mise.toml
-# For the current release, use templates/0.16.0/mise.toml
+# Zig 0.15.x development environment (final 0.15 patch) with mise
+# Immutable snapshot for Zig 0.15.x projects — for the current release, use templates/0.16.0/mise.toml
 
 [tools]
-zig = "0.14.1"
+zig = "0.15.2"
 
 [tasks.build]
 description = "Build the project"
@@ -28,6 +27,10 @@ run = "zig build run"
 [tasks.test]
 description = "Run all tests"
 run = "zig build test"
+
+[tasks.watch]
+description = "Rebuild on file changes with incremental compilation (0.15+)"
+run = "zig build --watch -fincremental"
 
 [tasks.fmt]
 description = "Format all Zig source files"

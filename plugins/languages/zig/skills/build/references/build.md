@@ -1,6 +1,6 @@
 # Zig Build System Reference
 
-Documents Zig 0.15.x. The `root_module = b.createModule(...)` form below is
+Documents Zig 0.15+. The `root_module = b.createModule(...)` form below is
 mandatory in 0.15: the old top-level `root_source_file`/`target`/`optimize`
 fields were removed from `ExecutableOptions`/`TestOptions` (deprecated since
 0.14). The error `no field named 'root_source_file' in struct

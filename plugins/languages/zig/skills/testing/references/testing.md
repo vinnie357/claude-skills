@@ -87,6 +87,7 @@ test_step.dependOn(&run_tests.step);
 ## Best Practices
 
 - Use `std.testing.allocator` in every test that allocates memory
+- On 0.16+, use `std.testing.io` for tests that perform I/O (analogous to `std.testing.allocator`)
 - Always `defer` cleanup in tests to prevent leak false positives
 - Use descriptive test names that explain expected behavior
 - Use doctests (named with identifiers) for API documentation

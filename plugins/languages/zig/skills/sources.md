@@ -4,13 +4,13 @@ This file documents the sources used to create the zig plugin skills.
 
 ## Update History
 
-### 2026-06-12 — Zig 0.15.1
+### 2026-06-12 — Zig 0.16.0
 
-- **Release Notes**: https://ziglang.org/download/0.15.1/release-notes.html
-- **Summary**: Updated plugin from 0.14 to 0.15.1. Added versioned templates (`templates/0.14.1/`, `templates/0.15.1/`) and `references/version-history.md` to the zig skill. Key breaking changes documented: std.Io Reader/Writer redesign ("Writergate"), unmanaged `std.ArrayList` default, `usingnamespace` and `async`/`await` removal, top-level `root_source_file` removed from build options, `addLibrary` replacing `addStaticLibrary`/`addSharedLibrary`, `{f}` format specifier, self-hosted x86_64 Debug backend.
+- **Release Notes**: https://ziglang.org/download/0.16.0/release-notes.html and https://ziglang.org/download/0.15.1/release-notes.html
+- **Summary**: Updated plugin from 0.14 to 0.16.0 (current stable, released 2026-04-13). Added versioned templates (`templates/0.14.1/`, `templates/0.15.2/`, `templates/0.16.0/`) and `references/version-history.md` to the zig skill. 0.16 changes documented: std.Io async architecture (io parameter, Future, Io.Threaded), `@cImport` deprecated for `b.addTranslateC()`, `@Type` replaced by dedicated builtins, "juicy main", sync primitives under `std.Io.*`. 0.15 changes documented: std.Io Reader/Writer redesign ("Writergate"), unmanaged `std.ArrayList` default, `usingnamespace`/`async` removal, top-level `root_source_file` removed from build options, `addLibrary` replacing `addStaticLibrary`/`addSharedLibrary`, `{f}` format specifier.
 - **Verified against source**: `lib/std/Build.zig` and `lib/std/heap/debug_allocator.zig` at tag 0.15.1 (DebugAllocator `.init` constant, `root_module`-only options structs).
 - **0.14.0 Release Notes**: https://ziglang.org/download/0.14.0/release-notes.html (build.zig.zon `fingerprint` field, enum-literal `name`, new hash format)
-- **Bootstrap**: Added `sources.toml` for automated staleness checks (`mise sources:check`).
+- **Bootstrap**: Added `sources.toml` for staleness tracking. `check_method` is `manual`: ziglang stopped tagging GitHub releases after 0.15.2, so the GitHub releases API under-reports (it returned 0.15.1 as latest on 2026-06-12 while 0.16.0 was current). Authoritative list: https://ziglang.org/download/index.json.
 
 ## Zig Skill
 

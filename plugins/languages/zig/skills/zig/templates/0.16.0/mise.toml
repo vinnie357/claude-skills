@@ -1,8 +1,8 @@
-# Zig 0.15.x development environment with mise
+# Zig 0.16.x development environment with mise
 # Copy these definitions to your project's mise.toml
 
 [tools]
-zig = "0.15.1"
+zig = "0.16.0"
 
 [tasks.build]
 description = "Build the project"
