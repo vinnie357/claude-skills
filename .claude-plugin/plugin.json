@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.26",
+  "version": "0.4.27",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -20,6 +20,7 @@
   "skills": [
     "./plugins/tools/allium/skills/allium",
     "./plugins/tools/awman/skills/awman",
+    "./plugins/tools/altana/skills/altana",
     "./plugins/tools/ansible/skills/ansible",
     "./plugins/tools/ansible/skills/ansible-inventory",
     "./plugins/tools/ansible/skills/ansible-roles",
@@ -110,6 +111,9 @@
     "./plugins/languages/zig/skills/troubleshooting"
   ],
   "commands": [
+    "./plugins/tools/altana/commands/delegate.md",
+    "./plugins/tools/altana/commands/council.md",
+    "./plugins/tools/altana/commands/harness.md",
     "./plugins/tools/agent-sandboxing/commands/bootstrap.md",
     "./plugins/tools/agent-sandboxing/commands/provision.md",
     "./plugins/tools/agent-sandboxing/commands/exec.md",
