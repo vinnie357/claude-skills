@@ -1,0 +1,17 @@
+{
+  "name": "altana",
+  "version": "0.1.0",
+  "description": "altana CLI wrapper: delegate prompts to sandboxed AI harnesses, run council fan-outs for diverse perspectives, and distribute tasks across harness presets",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["altana", "ai-agents", "harness", "delegate", "council", "sandbox", "awman", "local-llm"],
+  "commands": [
+    "./commands/delegate.md",
+    "./commands/council.md",
+    "./commands/harness.md"
+  ],
+  "skills": ["./skills/altana"]
+}
