@@ -104,6 +104,6 @@ $TMPDIR/altana/<run_id>/<harness-name>.log
 The `log_path` field in the JSON result gives the exact path. Inspect it for:
 - `crash` — look for spawn errors, missing binary, or agent exit codes.
 - `missing_sentinel` — the agent ran but did not emit `=== ALTANA DONE <run_id> ===`; look for truncated output or tool errors.
-- `timeout` — look for partial responses; consider increasing `timeout_s`.
+- `timeout` — look for partial responses; increase `timeout_s` when the task requires more time to complete.
 
 Run `altana doctor` to verify prerequisites are in place before debugging further.

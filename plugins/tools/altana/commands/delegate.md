@@ -1,6 +1,6 @@
 ---
 description: "Delegate a task to a named altana harness and surface the structured JSON result"
-argument-hint: "<harness> <task> [--prompt=<template>] [--write]"
+argument-hint: "<harness> <task> [--prompt <template>] [--write]"
 ---
 
 Run `altana delegate` to send a task to a single named harness preset and return the structured result.
@@ -17,7 +17,7 @@ Run `altana delegate` to send a task to a single named harness preset and return
 
 - `<harness>` — name of a configured harness preset (see `altana list` to enumerate presets).
 - `<task>` — the prompt string to delegate. Wrap in quotes if it contains spaces.
-- `--prompt=<template>` — optional named prompt template from `[prompt.<name>]` in config; wraps the task before dispatch.
+- `--prompt <template>` — optional named prompt template from `[prompt.<name>]` in config; wraps the task before dispatch.
 - `--write` — grant the agent write access to the working directory inside the container (awman executor only).
 
 **JSON result fields:**
@@ -45,13 +45,13 @@ Install altana (see its README — it is a Zig CLI built with `zig 0.16`). After
 
 ```
 /delegate my-claude "explain the failing test in src/parser_test.zig"
-/delegate critique-harness "review src/main.zig" --prompt=critique
+/delegate critique-harness "review src/main.zig" --prompt critique
 /delegate coding-agent "add error handling to the fetch function" --write
 ```
 
 **Task instructions:**
 
-Resolve the argument string: the first positional token is `<harness>`, the remaining text up to the first `--` flag is `<task>`. Reconstruct any `--prompt=` or `--write` flags from the parsed argument.
+Resolve the argument string: the first positional token is `<harness>`, the remaining text up to the first `--` flag is `<task>`. Reconstruct any `--prompt <template>` or `--write` flags from the parsed argument, using space-separated form.
 
 Run: `altana delegate "<harness>" "<task>" [flags]`
 

@@ -39,7 +39,7 @@ Full schema details in `references/config.md`.
 ### delegate
 
 ```
-altana delegate <harness> "<task>" [--prompt=<template>] [--write]
+altana delegate <harness> "<task>" [--prompt <template>] [--write]
 ```
 
 Sends one task to one harness. Exits 0 on `done`, 1 on all other statuses.
@@ -51,7 +51,7 @@ Use `--write` only when the task requires the agent to modify files (awman execu
 ### council
 
 ```
-altana council "<task>" [--harnesses=a,b,c] [--prompt=<template>]
+altana council "<task>" [--harnesses a,b,c] [--prompt <template>]
 ```
 
 Fans the same task out to N harnesses in parallel (read-only). Returns a JSON array in config-declaration order. Each element has the same schema as `delegate` output.
@@ -61,7 +61,7 @@ Council is the diverse-perspectives primitive. The synthesis step (agreements / 
 ### harness
 
 ```
-altana harness "<t1>" "<t2>" ... [--map=idx@harness]
+altana harness "<t1>" "<t2>" ... [--map idx@harness]
 ```
 
 Distributes many tasks across harnesses. Returns a JSON array in task order. Round-robin by default; `--map` pins a specific task index to a named harness.
@@ -142,7 +142,7 @@ Followed by the sentinel line:
 
 altana strips the sentinel before placing the text in `response`. The three sections are consistent across all harnesses, enabling structured synthesis in council mode.
 
-Custom `[prompt.<name>]` templates may include the section headers as instructions to the agent — they are not duplicated; the agent sees them as format guidance.
+Custom `[prompt.<name>]` templates that include the section headers expose them to the agent as format guidance; altana does not duplicate them.
 
 ## Council Synthesis
 
