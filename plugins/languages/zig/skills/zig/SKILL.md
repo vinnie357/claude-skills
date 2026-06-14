@@ -41,7 +41,9 @@ release list — GitHub tags lag behind (they stop at 0.15.2).
 | 0.14.1 | `templates/0.14.1/mise.toml` | Managed `std.ArrayList`, `root_module` introduced (old fields deprecated), `build.zig.zon` `fingerprint` + enum-literal `name` |
 
 The full breaking-change tables and 0.14 → 0.15 migration checklist live in
-`references/version-history.md`.
+`references/version-history.md`. For concrete 0.15 → 0.16 before/after code
+snippets (sync primitives, Reader API, ArrayList, ordered maps, C interop,
+process API, macOS 26 build) see `references/migration-0.16.md`.
 
 ## Quick Start
 

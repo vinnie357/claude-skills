@@ -4,6 +4,12 @@ This file documents the sources used to create the zig plugin skills.
 
 ## Update History
 
+### 2026-06-14 — 0.15→0.16 migration reference
+
+- **Added**: `skills/zig/references/migration-0.16.md` — field-observed 0.15→0.16 breakages with BEFORE/AFTER snippets for 7 areas: sync primitives, Reader API, ArrayList, ordered maps, C interop, process API, macOS 26 build gotcha.
+- **Verified against**: `~/.local/share/mise/installs/zig/0.16.0/lib/std/` — `Io.zig`, `Io/Reader.zig`, `Io/RwLock.zig`, `array_list.zig`, `array_hash_map.zig`, `process.zig`, `c.zig`, `Build/Module.zig`. Access date: 2026-06-14.
+- **Linked from**: `skills/zig/SKILL.md` version table section (one level deep).
+
 ### 2026-06-12 — Zig 0.16.0
 
 - **Release Notes**: https://ziglang.org/download/0.16.0/release-notes.html and https://ziglang.org/download/0.15.1/release-notes.html
