@@ -13,16 +13,17 @@ Pair the hands pattern in `researcher.md` with the dispatch rules in `dispatch-d
 
 ## The pairs
 
-Models are defaults, overridable via the env-var convention in the agent-loop skill body. Hands
-default to the smallest fast model.
+Models are defaults, overridable via the env-var convention in the agent-loop skill body. "Hands"
+means the smallest fast model (`AGENT_LOOP_HANDS_MODEL`, `Explore` for text); the model names below
+are the current defaults, not fixed values.
 
 | Pair | Principal | Hands / partner | Fan-out |
 |------|-----------|-----------------|---------|
-| Plan | Test Planner (opus) | Research hands (haiku) | 1 |
-| Author tests | Test Author (sonnet) | Test Reviewer (opus) + its own haiku hands | 1 |
+| Plan | Test Planner (opus) | Research hands (smallest) | 1 |
+| Author tests | Test Author (sonnet) | Test Reviewer (opus) + its own hands (smallest) | 1 |
 | Implement | Implementor (sonnet) | Test Runner (haiku) | × N slices, parallel by dep wave |
-| Review | Reviewer (opus) | Research hands (haiku) | 1 |
-| Final review | Final Reviewer (opus) | Research hands (haiku) | 1 |
+| Review | Reviewer (opus) | Research hands (smallest) | 1 |
+| Final review | Final Reviewer (opus) | Research hands (smallest) | 1 |
 | Remediate | Implementor (sonnet) | Test Runner (haiku) | per review-finding batch |
 
 ## Reviewers are the best-thinker tier

@@ -320,6 +320,9 @@ if (!testReview) return escalate('Test Reviewer failed across escalation chain',
 if (!testReview.approved) return escalate('tests rejected — re-author needed', { plan, testSha, findings: testReview.findings })
 
 // Implement — one Implementor + Test Runner pair per slice, dispatched by dep wave.
+// isolation:'worktree' keeps parallel implementors from polluting one tree; the workflow
+// runtime reconciles each worktree's commits onto the working branch before the per-slice
+// frozenIntact gate and the Review stage read main...HEAD, so no explicit merge step appears here.
 phase('Impl')
 const done = new Set()
 let remaining = plan.slices.slice()
