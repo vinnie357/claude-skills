@@ -1,12 +1,27 @@
 ---
 name: agent-loop
-description: Generic epic-to-PR agent workflow with 4-phase execution and 6-tier prompt hierarchy. Use when coordinating any non-trivial feature delivery, picking up an epic in a fresh session (decomposing path) or with pre-existing issues (dispatching path), implementing a multi-step task that benefits from plan→test→implement→validate phases, asking clarifying questions before decomposing, forming a team and assigning models per tier, or orchestrating multi-agent workflows. Loads on casual feature requests too — not only when the word "epic" appears.
+description: Generic epic-to-PR agent workflow (codename Forge) with 4-phase execution, a 6-tier hierarchy, and paired-team fan-out. Use when coordinating any feature delivery, working an issue or epic ("work epic <id>", "work issue <id>", "use Forge on the next bees ready item", "forge <id>"), picking up an epic in a fresh session (decomposing path) or with pre-existing issues (dispatching path), implementing a multi-step task that benefits from plan→test→implement→review phases, asking clarifying questions before decomposing, forming a team and assigning models per tier, or orchestrating multi-agent workflows. Loads on casual feature requests too — not only when the word "epic" appears.
 license: MIT
 ---
 
 # Agent Loop
 
 Defines the standard workflow for agents working epics, issues, and tasks through a 4-phase execution model with a 6-tier prompt hierarchy.
+
+## Forge — the default operating model
+
+**Forge** is the name for how this skill works an issue: paired teams of strong-model principals and cheap read-only **hands**, fanned out across the issue's slices, with reviewers on the best-thinker model. Forge is the implied default for all work — the lead applies it without being told to "use the 5/6-tier system."
+
+Activate Forge three ways, all equivalent:
+
+- **Work phrasing** — "work epic <id>", "work issue <id>", or acting on `bees ready` invoke Forge by default.
+- **Mission / spawn prompts** — a team-lead initial prompt or `AGENT_MISSION` says `forge <id>` or "use Forge on the next bees ready item".
+- **`/work` command** — interactive operator sessions run `/work <epic-id>`, `/work <issue-id>`, or `/work ready`, which loads this skill and runs Forge on the target.
+
+Two disciplines make Forge cheap and reliable, detailed in their references:
+
+- **Hands do the searching.** Principals (planners, reviewers) never run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only hands on the smallest fast model, receive a `file:line` index, and `Read` only those lines. See "Delegated research" below and `references/researcher.md`.
+- **Paired teams fan out.** Every issue runs the same paired structure; fan-out width `N` = the planner's slice count (`N=1` for a small issue, same path). See `references/forge.md`.
 
 ## Required plugins
 
@@ -85,6 +100,10 @@ Model defaults per tier are exactly that — defaults. Each tier honors an env v
 | 3 Agent Worker | `AGENT_LOOP_WORKER_MODEL` | `haiku` |
 | 4 Validator | `AGENT_LOOP_VALIDATOR_MODEL` | `haiku` |
 | 5 Fix Agent | `AGENT_LOOP_FIX_MODEL` | `haiku` |
+| Research hands (text) | `AGENT_LOOP_HANDS_MODEL` | smallest fast model (`Explore`) |
+| Research hands (vision) | `AGENT_LOOP_HANDS_VISION_MODEL` | a multimodal-capable model the harness offers |
+
+The two hands vars follow the same contract as the tier vars: the launching process resolves them and passes the model to the spawn; no model name appears as a literal in the prompt body. The vision var is set by capability, not by a fixed name — the available multimodal model shifts with the harness and model family. See `references/researcher.md`.
 
 **Contract:** these env vars are read by the script that constructs the agent's spawn prompt — whichever process actually invokes the Agent / Task tool to launch a worker. Whoever launches that process is responsible for setting the env vars (a shell command, a CI job, a parent Claude session, an external orchestrator — any of these qualify). The spawn script reads `$AGENT_LOOP_*` and passes the resolved model to the Task tool invocation (`subagent_type`/`model` argument). The model name does NOT appear as a literal in the prompt body — that would defeat the override.
 
@@ -104,9 +123,11 @@ Maximum 2 promotions per agent. If opus fails, escalate to the upstream tier (su
 
 ## Five-Tier Decomposition Pipeline
 
-The 6-tier hierarchy above describes WHO reports to whom (authority). The five-tier pipeline below describes HOW one work item flows through five sequential agents (process). They are orthogonal: a Sub-team Leader (tier 2 authority) dispatches a five-tier pipeline (process) to deliver one issue.
+The 6-tier hierarchy above describes WHO reports to whom (authority). The five-tier pipeline below describes HOW one work item flows through five sequential agents (process). They are orthogonal: a Sub-team Leader (tier 2 authority) dispatches a pipeline (process) to deliver one issue.
 
-For complex issues, the Sub-team Leader spawns five distinct Agent invocations in order. No shared context across tiers — each tier is adversarial against the next.
+The five roles below are the linear `N=1` form. **Forge** generalizes them into paired teams — each principal gets cheap read-only hands, the single implementer becomes `N` implementor + test-runner pairs fanned out across the planner's slices, and reviewers run on the best-thinker model. `references/forge.md` is the canonical shape; this table is its one-slice case. The role-to-model defaults and the adversarial separation are identical in both.
+
+For each issue, the Sub-team Leader spawns distinct Agent invocations in order. No shared context across stages — each stage is adversarial against the next.
 
 | Pipeline Stage | Model | Responsibility | Forbidden |
 |----------------|-------|----------------|-----------|
@@ -134,6 +155,12 @@ Fan-out happens at the Sub-team Leader, not at the epic decomposer or the bees-w
 ### Avoiding pipeline collapse
 
 Single agents tend to merge planning + test-writing + implementation into one pass, defeating the adversarial separation. The leader prompt MUST explicitly name the stage (`You are P2 — test author for issue <id>`) and forbid out-of-stage activity.
+
+## Delegated research — the hands pattern
+
+Searching, indexing, and knowledge-gathering run on the smallest fast model, never on a principal's expensive context. Leaders and the costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) do not run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only **hands** (the `Explore` type, `AGENT_LOOP_HANDS_MODEL`) with a specific objective, receive a `file:line` index, and `Read` only the lines that index names. A fresh principal gets its index as a `## Starting index` block in its spawn prompt, so it opens oriented and spawns more focused hands on demand.
+
+Select the hands model by capability, set in config — never a hardcoded name. Text and code research use the smallest fast model; research that requires vision (images, screenshots, rendered web pages, visual PDFs, Playwright or visual MCP output) uses a multimodal-capable model the harness offers (`AGENT_LOOP_HANDS_VISION_MODEL`). See `references/researcher.md` for the hands contract and `references/forge.md` for how hands pair with each role.
 
 ## Core Skills (Mandatory)
 
@@ -233,16 +260,18 @@ See `references/leader-spawn-example.md` for a worked Phoenix-endpoint Task-tool
 
 ## Model Selection
 
-Choose the initial model by task complexity:
+Scale the team to the work — do not switch models per perceived size. Choose by role, not by a trivial-vs-complex guess:
 
-| Task Type | Model | Examples |
-|-----------|-------|---------|
-| Multi-file implementation, design decisions | sonnet | New API endpoint, adapter refactor |
+| Role | Model | Examples |
+|------|-------|---------|
+| Search / index / knowledge-gathering (hands) | smallest fast model (`Explore`) | Pattern discovery, ADR lookup, building a principal's startup index |
+| Vision research (hands) | a harness multimodal model (`AGENT_LOOP_HANDS_VISION_MODEL`) | Screenshots, rendered pages, visual PDFs, Playwright output |
+| Multi-file implementation | sonnet | New API endpoint, adapter refactor |
+| Test planning, architecture design | opus (or `Plan` subagent) | Test-list design, system integration |
+| Reviewing (test reviewer, reviewer, final reviewer) | opus | Plan-conformance, overfit, missed edges |
 | Simple ops, monitoring, status checks | haiku | Deploy monitor, log reader, port check |
-| Research, codebase exploration | Explore subagent | Pattern discovery, ADR review |
-| Architecture design | Plan subagent | API design, system integration |
 
-Default to haiku. Use sonnet when the task requires judgment across multiple files or architectural decisions. The escalation path (haiku → sonnet → opus) applies when an agent fails twice on the same work.
+**Reviewers are the best-thinker tier** — every reviewing role defaults to opus, paired with haiku hands: thinking stays expensive, fetching stays cheap. **Hands are always the smallest model** — a principal that searches on its own context is the waste Forge removes. The escalation path (haiku → sonnet → opus) applies when an agent fails twice on the same work.
 
 ## Secret Safety
 
@@ -299,10 +328,14 @@ Claude Code dynamic workflows are an optional runtime for the five-tier pipeline
 
 The boundary: decomposition, any Phase 1.5a escalation (the rare fork-or-blocker AskUserQuestion), and merge approval stay in the interactive loop — a workflow has no mid-run user input. The workflow executes already-decomposed issues (gate States A/C/D); it never decomposes them.
 
+The Forge shape encodes the same way at larger fan-out: `templates/forge-issue.workflow.js` is the runnable `/forge-issue` workflow — a startup-index hands pass per principal, planner slicing, `pipeline()` implementor + test-runner fan-out, and the remediation pair.
+
 Workflows are a research preview on paid plans. When disabled, the default Task-spawn path applies unchanged. See `references/workflows-execution.md` and the `/claude-code:claude-workflows` skill.
 
 ## References
 
+- `references/forge.md` -- The Forge operating model: paired teams (principal + cheap hands), implementation fan-out (N pairs by slice), reviewers as the best-thinker tier, startup-index handoff, gates between pairs
+- `references/researcher.md` -- The hands pattern: read-only focused research, startup vs on-demand modes, the `file:line` index output contract, capability-based `AGENT_LOOP_HANDS_MODEL` / `AGENT_LOOP_HANDS_VISION_MODEL` selection
 - `references/team-leader.md` -- Epic decomposition, team formation, orchestration
 - `references/sub-team-leader.md` -- Issue decomposition, worker management, model escalation
 - `references/agent-worker.md` -- Task execution with TDD, skill loading, reporting
@@ -315,4 +348,5 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 - `references/dispatch-discipline.md` — Spawn-prompt rules: explicit model, specialized subagent types, lead delegates all execution, fresh-main branch creation, no polling loops, host-inspection for tool-state claims, search ADRs before proposing architecture
 - `references/secret-provisioning.md` — Tier 1 plans for new-env-var features include symmetric provisioning (generation cmd, secret-store creation, prod deploy diff, dev environment diff); Tier 5 BLOCKER check
 - `references/workflows-execution.md` — optional Claude Code workflow substrate for the five-tier pipeline: pipeline-as-script, stage-gate assertions, escalation ladder, loop-until-green, nested `workflow()` for teams-of-teams, `isolation: 'worktree'`; the decomposition/merge boundary that stays interactive
-- `templates/five-tier-issue.workflow.js` — runnable workflow substrate template: complete five-tier pipeline script with stage prompts, per-stage `skillProof` schemas, the diff-boundary gate, the escalation ladder, and the bounded fix loop
+- `templates/five-tier-issue.workflow.js` — runnable workflow substrate template: complete five-tier pipeline script (the `N=1` linear case) with stage prompts, per-stage `skillProof` schemas, the diff-boundary gate, the escalation ladder, and the bounded fix loop
+- `templates/forge-issue.workflow.js` — runnable Forge workflow (`/forge-issue`): startup-index hands pass per principal, planner slicing, `pipeline()` implementor + test-runner fan-out, opus reviewers with haiku hands, and the remediation pair

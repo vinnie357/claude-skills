@@ -1,6 +1,6 @@
 # Workflow Execution Substrate (optional)
 
-Claude Code dynamic workflows are a JavaScript runtime that orchestrates subagents at scale. They are an optional execution substrate for the five-tier decomposition pipeline: when available and opted-in, encode the pipeline as a workflow script so the adversarial separation and stage gates become structural instead of discipline the lead must remember. When unavailable, spawn Task agents exactly as the default path describes. See the `/claude-code:claude-workflows` skill for the full script API.
+Claude Code dynamic workflows are a JavaScript runtime that orchestrates subagents at scale. They are an optional execution substrate for the five-tier decomposition pipeline and its Forge generalization (paired teams + implementor fan-out): when available and opted-in, encode the pipeline as a workflow script so the adversarial separation and stage gates become structural instead of discipline the lead must remember. When unavailable, spawn Task agents exactly as the default path describes. See the `/claude-code:claude-workflows` skill for the full script API, and "Forge: hands-indexed principals and implementor fan-out" below for the fanned-out shape.
 
 ## When this applies
 
@@ -203,6 +203,61 @@ if (budget.total && budget.remaining() > 150_000) {
 ```
 
 Distinct lenses catch failure modes redundant identical reviewers cannot: one prompt asking "is this correct?" three times converges on the same blind spot, while three single-concern prompts each interrogate a different way the implementation can pass CI and still be wrong.
+
+## Forge: hands-indexed principals and implementor fan-out
+
+The five-tier script above is the `N=1` linear case. **Forge** generalizes it: a hands pass feeds
+each principal a startup index, and the single implementer becomes `N` implementor + test-runner
+pairs across the planner's slices. The complete runnable script is `templates/forge-issue.workflow.js`.
+
+Each principal stage is preceded by a hands pass whose index becomes the stage's startup context —
+the same `agentType: 'Explore'` routing as the survey example above, with the model chosen by
+capability:
+
+```javascript
+function handsPass(objective, vision) {
+  const o = { schema: INDEX, model: vision ? args.handsVisionModel : args.handsModel }
+  if (!vision) o.agentType = 'Explore'         // text/code; vision needs a multimodal model, not Explore
+  return agent(handsPrompt(objective, vision), o)
+}
+const planIndex = await handsPass(`Index the specs + target modules for ${args.issueId}.`, false)
+const plan = await agent(planPrompt(args, planIndex), { phase: 'Plan', schema: TEST_PLAN })
+```
+
+The planner returns slices; implementor pairs fan out by dependency wave (the per-wave `parallel()`
+barrier is the dependency edge, exactly as in the epic loop). Each slice runs implementor →
+diff-boundary gate → test runner; `isolation: 'worktree'` keeps parallel implementors from polluting
+one tree:
+
+```javascript
+const ready = remaining.filter(s => (s.deps || []).every(d => done.has(d)))
+const results = await parallel(ready.map(slice => async () => {
+  const impl = await agent(implPrompt(args, slice, testSha),
+    { phase: 'Impl', label: `impl:${slice.id}`, schema: COMMIT, isolation: 'worktree' })
+  // frozenIntact() checks BOTH git diff testSha..HEAD AND git status --porcelain on the test files
+  if (!impl || !(await frozenIntact(slice.testFiles, testSha.sha, 'Impl'))) return { id: slice.id, ok: false }
+  const ci = await agent(ciPrompt(args, slice.id), { phase: 'Impl', schema: CI_RESULT, model: args.stageModels.ci })
+  return { id: slice.id, ok: !!(ci && ci.green) }
+}))
+```
+
+Reviewers run on the best-thinker model (`stageModels.review` / `.final`, opus by default) with
+haiku hands; the Reviewer's findings drive a Remediation pair (implementor + test-runner) bounded at
+three cycles, then a fresh-context Final Reviewer with its own hands index.
+
+### Invoke as `/forge-issue`
+
+Save `forge-issue.workflow.js` to `.claude/workflows/` and trigger it by any of the three forms in
+`/claude-code:claude-workflows` ("How to trigger a workflow"): the operator's request contains
+"workflow", `/effort ultracode` is active, or the operator invokes `/forge-issue` directly. The
+`/work` command (interactive operator front door) loads `/core:agent-loop` and runs Forge, dispatching
+this workflow per issue when the substrate is opted-in.
+
+At the epic level, the nested `workflow()` dep-wave loop is unchanged — swap the per-issue call:
+
+```javascript
+const results = await parallel(ready.map(issue => () => workflow('forge-issue', issue)))
+```
 
 ## Permissions and limits
 

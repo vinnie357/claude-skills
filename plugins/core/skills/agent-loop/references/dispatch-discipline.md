@@ -10,6 +10,14 @@ Every spawn prompt sets `model:` (or the equivalent `subagent_type` argument) ex
 
 When the project ships specialized subagent types (`Explore`, `Plan`, `bees-manager`, `code-review-orchestrator`, etc.), spawn the specialized type rather than `general-purpose`. The specialized types carry tool allowlists and prompt scaffolding tuned to their role.
 
+## Delegate search before you search
+
+Leaders and the costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) do not run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only hands (smallest fast model, the `Explore` type) with a specific objective, consume the returned `file:line` index, and `Read` only the lines that index names. A fresh principal receives its index as a `## Starting index` block in its spawn prompt — it opens oriented, never blind. See `researcher.md` for the hands contract and `forge.md` for how hands pair with each role. Searching is a small-model job; an expensive model spending its context on `Grep` is the waste this rule removes.
+
+## Select model by capability, not by name
+
+Match the model to the task's capability requirement, carried in config — never a hardcoded name. Text and code research run on the smallest fast model (`AGENT_LOOP_HANDS_MODEL`). Research that requires vision — images, screenshots, rendered web pages, visual PDFs, Playwright or visual MCP output — runs on a multimodal-capable model the harness offers (`AGENT_LOOP_HANDS_VISION_MODEL`). The available multimodal model shifts with the harness and model family, so the env var carries it. See `researcher.md`.
+
 ## Tier 1 leads delegate ALL execution
 
 A Tier 1 lead runs zero direct work: no `Bash`, no `Edit`, no `Write`, no `Read` of source files. CI runs through a haiku validator. Fixes run through a sonnet or opus fix-agent. The lead's tool surface is `Read` (the lead's own loaded skills and the spec it is composing), bees state queries, the `Task`/`Agent` spawn tool, and the user-facing message channel.
