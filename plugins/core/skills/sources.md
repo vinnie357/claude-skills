@@ -338,6 +338,18 @@ This file documents the sources used to create the core plugin skills.
   - `acceptEdits` + inherited tool allowlist; concurrency `min(16, cores-2)`; 1000-agent lifetime cap; JS not TS
   - Cross-references the `/claude-code:claude-workflows` skill for the full script API
 
+## Agent Loop — Forge Operating Model
+
+- **URL**: internal doctrine (no external source) — operator-confirmed production learnings, 2026-06-14
+- **Purpose**: Source for the Forge operating model added to /core:agent-loop — the hands pattern (references/researcher.md), paired teams + implementor fan-out (references/forge.md), the AGENT_LOOP_HANDS_MODEL / AGENT_LOOP_HANDS_VISION_MODEL capability-based selection, the /work command, and the forge-issue.workflow.js template
+- **Date Accessed**: 2026-06-14
+- **Key Topics**:
+  - Delegated research: costly principals (planner, reviewers) never run their own Grep/Glob/Read sweeps; cheap read-only hands return a file:line index; principals open with a hands-built startup index
+  - Reviewers are the best-thinker tier (opus) paired with the cheapest hands (haiku); Test Reviewer charter (plan-conformance + non-redundancy before impl)
+  - Universal paired shape: fan-out width N = planner slice count, N=1 for small issues (no trivial-vs-complex threshold)
+  - Capability-based multimodal selection (vision research uses a harness multimodal model), not hardcoded names
+  - Builds on the workflow substrate above (forge-issue.workflow.js generalizes five-tier-issue.workflow.js)
+
 ### mise Sandboxing
 - https://mise.jdx.dev/sandboxing.html — mise sandboxing (experimental). Extracted: allow/deny flags, task-level config, Landlock/Seatbelt platform support, limitations. Accessed 2026-05-22.
 

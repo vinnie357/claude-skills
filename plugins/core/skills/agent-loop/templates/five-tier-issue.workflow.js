@@ -2,6 +2,11 @@
 // five-tier pipeline (P1 plan / P2 test / P3 impl / P4 CI / P5 review).
 // Complete version of the abbreviated example in references/workflows-execution.md.
 //
+// This is the N=1 linear case. Forge (templates/forge-issue.workflow.js) is the
+// canonical shape: it adds hands-built startup indexes per principal and fans the
+// single implementer out to N implementor+test-runner pairs across the planner's
+// slices. Use this script for a one-slice issue; use forge-issue.workflow.js otherwise.
+//
 // Run via the Workflow tool with { scriptPath } pointing at this file, or save
 // to .claude/workflows/ and invoke as /five-tier-issue. Expected args:
 //
