@@ -226,7 +226,7 @@
       "source": "./plugins/languages/zig",
       "strict": true,
       "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, testing, and troubleshooting",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "category": "language",
       "keywords": ["zig", "systems-programming", "comptime", "allocators"],
       "license": "MIT"
