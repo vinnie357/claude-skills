@@ -50,8 +50,8 @@ Phase 4: Submit loop
 - we never commit or pr with attribution
 - we give summary prs without a changes section as git has the diff
 - agents never merge — they report PR URL and wait
-- step order: local CI → commit → gitleaks → push → PR → watch remote CI → notify
-- we wait for ci to pass then ask the user to squash merge and delete the merged branch
+- dual-gate step order (see /core:git Dual-Gate CI Policy): Gate 1 local CI → commit → gitleaks → push → PR → Gate 2 watch remote CI (local + remote green) → notify
+- once both gates are green we ask the user to squash merge and delete the merged branch
 - once merged, close the tracker issue (bees or beads), commit the tracker state, and push
 - we checkout main, pull and delete our merged feature branch
 - we go back to Phase1 to work a new epic

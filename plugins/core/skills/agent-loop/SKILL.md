@@ -188,7 +188,7 @@ Glob patterns like `/core:*` do not expand in Agent prompts. List skill names ex
 - **Commits**: Conventional commits, no attribution, no Co-Authored-By
 - **PRs**: Minimal format (title + bullet list), no templates, no attribution
 - **TDD**: Code without tests is not complete
-- **CI**: `mise run ci` must pass before any PR or merge
+- **CI (dual gate)**: Gate 1 — local `mise run ci` green before every commit; Gate 2 — local + remote `gh pr checks` green before any squash merge (see `/core:git` Dual-Gate CI Policy)
 - **Branches**: One feature branch per epic (`feature/<epic-slug>`)
 - **Merge**: Squash merge only, user approves
 
@@ -199,11 +199,11 @@ Every agent worker (Tier 3) follows these steps:
 1. Create feature branch
 2. Write tests first (TDD)
 3. Implement
-4. Run local CI (`mise run ci`) — fix until 0 failures
+4. **Gate 1** — Run local CI (`mise run ci`) — fix until 0 failures
 5. Commit without attribution
 6. Run gitleaks scan on committed changes — fix if secrets detected
 7. Push, create PR
-8. Watch remote CI (`gh pr checks --watch`) — fix and push until passing
+8. **Gate 2** — Watch remote CI (`gh pr checks --watch`) — fix and push until local + remote are green (merge-ready)
 9. Close bees issue, notify leader of PR status and URL
 
 Agents never merge — they report the PR URL to the team leader.

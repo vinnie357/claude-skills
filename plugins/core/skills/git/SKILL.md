@@ -71,27 +71,41 @@ gh pr create --title "feat(auth): add JWT authentication" --body "- Add JWT gene
 
 ## PR Workflow
 
-1. **Local CI**: `mise run ci` — fix until 0 failures
+1. **Gate 1 — Local CI**: `mise run ci` — fix until 0 failures
 2. **Commit**: Conventional commit, no attribution
 3. **Gitleaks**: Scan committed changes for secrets (`/core:security`)
 4. **Push**: `git push -u origin <branch>`
 5. **Create PR**: `gh pr create` with minimal format (title + bullets)
-6. **Watch CI**: `gh pr checks --watch` (wait for CI to complete)
+6. **Gate 2 — Watch remote CI**: `gh pr checks --watch` (wait for CI to complete)
 7. **After CI passes** (if using bees):
    - `bees close <task-id>`
    - `git add .bees/ && git commit -m "chore(bees): close <task-id>"`
    - `git push`
-8. **Notify**: "CI passed, PR ready for merge review"
+8. **Notify** (Gate 2 satisfied — local + remote green): "CI passed, PR ready for merge review"
 9. **Cleanup** (after user merges):
    - `git checkout main && git pull`
    - `git branch -d <branch>`
 10. **Continue**: `bees ready` for next task
 
+## Dual-Gate CI Policy
+
+Two gates protect main. Neither is optional.
+
+**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push (`/core:security`).
+
+**Gate 2 — Remote (before every squash merge).** Squash-merge a PR only when **both** conditions hold:
+
+1. Local `mise run ci` is green on the branch HEAD being merged, **and**
+2. `gh pr checks` reports every remote check passing.
+
+No `gh pr merge --squash` while either gate is red. The user approves the merge; agents never merge.
+
 ## Merge Strategy
 
-Always squash merge PRs:
+Squash merge only, and only after both Dual-Gate CI gates are green:
 
 ```bash
+gh pr checks <number>          # Gate 2: confirm remote green (local CI already green)
 gh pr merge <number> --squash
 ```
 
