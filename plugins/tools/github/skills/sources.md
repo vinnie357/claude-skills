@@ -178,6 +178,26 @@ This file documents all sources used to create the skills in this plugin.
 - **Purpose**: Cross-platform shell used for installation scripts
 - **Usage**: Platform-agnostic installation automation
 
+## Dependabot Consolidation (dependabot-consolidator)
+
+### Dependabot Documentation
+- **URL**: https://docs.github.com/en/code-security/dependabot
+- **Purpose**: Official Dependabot reference: version updates, security updates, PR structure, and auto-close behavior
+- **Key Topics**:
+  - Dependabot version updates configuration (`dependabot.yml`)
+  - PR author: `app/dependabot`
+  - Pin styles: major tag (`@v4`) vs full commit SHA with trailing `# vX.Y.Z` comment
+  - Auto-close behavior when a superseding PR merges
+
+### Recipe Origin
+- **Source**: kina PR #36 (github.com/vinnie357/kina/pull/36)
+- **Purpose**: Proved the baseline-diff gate discipline — running CI gates on `main` before blaming a bump
+- **Key Learnings**:
+  - Apple Container XPC gate failed on both `main` and branch (pre-existing); not a regression
+  - `scripts/test-cluster.nu:68` harness bug present on both sides; not a regression
+  - `git check-ignore Cargo.lock` needed before deciding whether to update the lockfile
+  - Dependabot does not always auto-close superseded PRs; verify with `gh pr view`
+
 ## Community Health Files
 
 ### Setting Up Your Project for Healthy Contributions
