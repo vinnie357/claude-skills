@@ -51,10 +51,18 @@ Use `--write` only when the task requires the agent to modify files (awman execu
 ### council
 
 ```
-altana council "<task>" [--harnesses a,b,c] [--prompt <template>]
+altana council "<task>" [--harnesses a,b,c] [--rounds N] [--interactive] [--prompt <template>]
 ```
 
-Fans the same task out to N harnesses in parallel (read-only). Returns a JSON array in config-declaration order. Each element has the same schema as `delegate` output.
+Fans the same task out to N harnesses in parallel (read-only). Returns a JSON array in config-declaration order.
+
+**One-shot mode (default):** each array element has the same schema as `delegate` output — a single `response` string per harness. This is the default when `--interactive` is not supplied.
+
+**Interactive mode (`--interactive`):** opens one persistent session per harness and runs R rounds (controlled by `--rounds`, default 2). From round 2 on, each harness sees labeled digests of its peers' prior-round answers and can react. Each result element carries a `rounds` array of `{round, response}` objects instead of a single `response`. Synthesis remains the caller's responsibility in both modes.
+
+Interactive members require a `ready_marker` field in their harness config so altana knows when a turn is complete. See `references/config.md` for details.
+
+Flags must appear after the task string: `altana council "<task>" --interactive --rounds 1 --harnesses a,b`.
 
 Council is the diverse-perspectives primitive. The synthesis step (agreements / disagreements / unique insights / recommendation) belongs in the caller — altana delivers raw results.
 
