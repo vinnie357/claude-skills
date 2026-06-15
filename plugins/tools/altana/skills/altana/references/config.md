@@ -31,11 +31,16 @@ write = false
 # Optional: wall-clock timeout in seconds. Default: 1800.
 timeout_s = 1800
 
+# Optional: string altana waits for to detect that an interactive-council
+# turn is complete. Required when this harness participates in council --interactive.
+# For Claude Code the value is: ← for agents
+ready_marker = "← for agents"
+
 # Optional: environment variables injected into the agent process.
 # op:// values are resolved at dispatch time via the 1Password CLI.
 [harness.my-harness.env]
 ANTHROPIC_BASE_URL = "https://api.anthropic.com"
-ANTHROPIC_API_KEY  = "op://vault-name/item-name/field-name"
+ANTHROPIC_API_KEY  = "op://<vault>/<item>/credential"
 ```
 
 ### Field Reference
@@ -47,6 +52,7 @@ ANTHROPIC_API_KEY  = "op://vault-name/item-name/field-name"
 | `model` | string | no | null | Model ID; omit to trigger picker |
 | `write` | bool | no | `false` | Write access inside container (awman only) |
 | `timeout_s` | integer | no | `1800` | Wall-clock timeout in seconds |
+| `ready_marker` | string | no (required for interactive council) | null | Marker string signaling an interactive-session turn is complete; Claude Code uses `← for agents` |
 | `[harness.<name>.env]` | TOML table | no | empty | Env vars injected into agent process |
 
 ## Prompt Templates
@@ -91,18 +97,54 @@ Format: `op://vault-name/item-name/field-name`
 
 The `op` CLI must be installed, signed in to your account, and reachable on `PATH`. Run `altana doctor` to check op availability.
 
+### Interactive-council member
+
+When a harness participates in `council --interactive`, altana opens a persistent tmux session and polls for `ready_marker` after each turn. The interactive Claude Code loop is significantly slower than a direct API call; set `timeout_s` high (1800 or more) to avoid premature timeouts.
+
+A harness reaching a local model server via an Apple Container network needs the host gateway IP. For the `default` apple-container network (192.168.64.0/24) the gateway is `192.168.64.1`. Discover it at runtime with:
+
+```bash
+container run --rm alpine ip route show default
+```
+
+Example interactive-council member using a local model endpoint:
+
+```toml
+[harness.claude-local]
+agent        = "claude"
+executor     = "awman"
+model        = "local-model-id"
+timeout_s    = 1800
+ready_marker = "← for agents"
+
+[harness.claude-local.env]
+ANTHROPIC_BASE_URL = "http://192.168.64.1:8000"
+ANTHROPIC_API_KEY  = "op://<vault>/<item>/credential"
+```
+
+A harness using a cloud subscription (no API token required) still needs `ready_marker` but does not need `ANTHROPIC_BASE_URL` or `ANTHROPIC_API_KEY`:
+
+```toml
+[harness.claude-cloud]
+agent        = "claude"
+executor     = "awman"
+model        = "claude-sonnet-4-5"
+timeout_s    = 1800
+ready_marker = "← for agents"
+```
+
 ## Example: Multiple Harnesses
 
 ```toml
-# Harness using local model server (e.g. omlx running at host gateway)
+# Harness using local model server (e.g. a local model running at host gateway)
 [harness.local]
 agent     = "claude"
 executor  = "awman"
 timeout_s = 1800
 
 [harness.local.env]
-ANTHROPIC_BASE_URL = "http://192.168.65.1:8000"
-ANTHROPIC_AUTH_TOKEN = "op://my-vault/local-model/token"
+ANTHROPIC_BASE_URL = "http://192.168.64.1:8000"
+ANTHROPIC_API_KEY  = "op://<vault>/<item>/credential"
 
 # Harness calling the upstream API directly (raw executor, no container)
 [harness.upstream]
@@ -112,7 +154,7 @@ model     = "claude-opus-4-5"
 timeout_s = 600
 
 [harness.upstream.env]
-ANTHROPIC_API_KEY = "op://my-vault/anthropic/api-key"
+ANTHROPIC_API_KEY = "op://<vault>/<item>/credential"
 ```
 
-The `ANTHROPIC_AUTH_TOKEN` key is also accepted by the models endpoint and by the interactive picker. `ANTHROPIC_API_KEY` is the standard key for most agent CLIs; check your agent's documentation for which it reads.
+`ANTHROPIC_API_KEY` is the standard env var for most agent CLIs. Check your agent's documentation for which env var it reads; some agents read `ANTHROPIC_AUTH_TOKEN` instead.

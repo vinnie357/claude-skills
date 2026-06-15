@@ -43,7 +43,7 @@
       "source": "./plugins/tools/altana",
       "strict": true,
       "description": "altana CLI wrapper: delegate prompts to sandboxed AI harnesses, run council fan-outs for diverse perspectives, and distribute tasks across harness presets",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "tools",
       "keywords": ["altana", "ai-agents", "harness", "delegate", "council", "sandbox", "awman", "local-llm"],
       "license": "MIT"

@@ -1,6 +1,6 @@
 {
   "name": "altana",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "altana CLI wrapper: delegate prompts to sandboxed AI harnesses, run council fan-outs for diverse perspectives, and distribute tasks across harness presets",
   "author": {
     "name": "vinnie357"

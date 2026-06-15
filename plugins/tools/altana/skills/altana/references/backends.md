@@ -23,13 +23,13 @@ Runs the agent binary inside an Apple Container VM using awman. The agent:
 
 ```bash
 container run --rm alpine ip route show default
-# Example output: default via 192.168.65.1 dev eth0
+# Example output: default via 192.168.64.1 dev eth0
 ```
 
 Use the gateway address in `ANTHROPIC_BASE_URL`:
 
 ```toml
-ANTHROPIC_BASE_URL = "http://192.168.65.1:8000"
+ANTHROPIC_BASE_URL = "http://192.168.64.1:8000"
 ```
 
 The exact address varies per machine — run the command above to discover it rather than copying this example value.
@@ -82,6 +82,8 @@ ANTHROPIC_AUTH_TOKEN = "op://your-vault/your-item/your-field"
 `council` rejects harnesses that have `write = true`. Only read-only presets participate in a council fan-out.
 
 When selecting harnesses for council, prefer presets pointing to different models or executors. Diverse execution environments make disagreement detection meaningful — two harnesses running the same model with the same config add little synthesis value.
+
+`council --interactive` runs a persistent-session, multi-round deliberation where each harness sees labeled digests of its peers' prior-round answers before producing its next response. Interactive members must set `ready_marker` in their harness config — a string altana polls for to detect turn completion. For Claude Code the value is `← for agents`. Set `timeout_s` high (1800 or more) since the interactive loop is slower than a direct API call.
 
 ## Model Discovery
 
