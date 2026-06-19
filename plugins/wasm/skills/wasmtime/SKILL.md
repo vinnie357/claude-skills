@@ -65,6 +65,10 @@ Use WASIp2 for new projects. WASIp1 remains supported for existing code. See [ov
 | [host-rust.md](references/host-rust.md) | Wasmtime Rust API, WASI context setup, Component Model bindgen!, async support, plugin system patterns |
 | [host-elixir.md](references/host-elixir.md) | Wasmex API, GenServer integration, memory access, host callbacks, supervision patterns |
 
+## WebAssembly instrumentation (whamm)
+
+whamm! instruments compiled `.wasm` modules by inserting probes through bytecode rewriting, using a DTrace-inspired `.mm` DSL for profiling, opcode counting, cache simulation, and call graph analysis. Run instrumented modules on wasmtime by preloading the whamm core library: `wasmtime run --env TO_CONSOLE=true --preload whamm_core=whamm_core.wasm out.wasm`. For CLI installation (mise github backend), the `.mm` language, and instrumentation strategies, see the `whamm` and `whamm-dsl` skills in the whamm plugin (`/plugin install whamm@vinnie357`).
+
 ## Common Pitfalls
 
 - **Wrong target triple**: Use `wasm32-wasip2` for Component Model, `wasm32-wasip1` for legacy WASI, `wasm32-unknown-unknown` for bare modules

@@ -1,0 +1,15 @@
+{
+  "name": "whamm",
+  "version": "0.1.0",
+  "description": "whamm! WebAssembly bytecode instrumentation: install via mise, the instr/info CLI, injection strategies, and the DTrace-inspired .mm monitor DSL",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["whamm", "webassembly", "wasm", "instrumentation", "bytecode", "dtrace", "profiling", "wasmtime"],
+  "skills": [
+    "./skills/whamm",
+    "./skills/whamm-dsl"
+  ]
+}
