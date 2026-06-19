@@ -1,0 +1,40 @@
+# whamm — WebAssembly bytecode instrumentation tool
+# Copy these definitions into your project's mise.toml
+# Source: https://github.com/ejrgilbert/whamm/releases  (verified v0.1.0, 2026-03-04)
+
+[tools."github:ejrgilbert/whamm"]
+version = "0.1.0"  # pin; bump intentionally per /claude-code:skill-update
+
+# v0.1.0 ships bare-binary assets for x86_64 only.
+[tools."github:ejrgilbert/whamm".platforms]
+linux-x64   = { asset_pattern = "whamm-linux-x86_64" }
+macos-x64   = { asset_pattern = "whamm-macos-x86_64" }
+# No native arm64 asset in v0.1.0 — the x86_64 macOS binary runs under Rosetta 2.
+# On Apple Silicon without Rosetta, prefer `mise run whamm:build-from-source` below.
+macos-arm64 = { asset_pattern = "whamm-macos-x86_64" }
+
+[tasks."whamm:verify"]
+description = "Confirm whamm is on PATH"
+run = "whamm --help"
+
+[tasks."whamm:instrument"]
+description = "Instrument app.wasm with a .mm script (bytecode rewriting)"
+run = "whamm instr --app {{arg(name='app')}} --script {{arg(name='script')}} -o {{arg(name='out')}}"
+
+[tasks."whamm:run"]
+description = "Run an instrumented module with wasmtime + whamm_core"
+run = "wasmtime run --env TO_CONSOLE=true --preload whamm_core=whamm_core.wasm {{arg(name='out')}}"
+
+# Fallback / required for whamm_core.wasm + Apple Silicon native builds.
+[tasks."whamm:build-from-source"]
+description = "Build whamm + whamm_core.wasm from source (needed for arm64 and for whamm_core)"
+run = """
+#!/usr/bin/env nu
+# requires: rustup, cargo
+git clone https://github.com/ejrgilbert/whamm
+cd whamm
+make release
+print $"whamm binary: (pwd)/target/release/whamm"
+print $"whamm_core:   (pwd)/embedded/release/whamm_core.wasm"
+print "Add target/release to PATH and set WHAMM_HOME to this dir."
+"""
