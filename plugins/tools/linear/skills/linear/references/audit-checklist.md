@@ -115,6 +115,35 @@ Structured validation checks for VantageEx epic compatibility. Each check has a 
 - **Check**: Constraints section (if present) contains meaningful boundaries, not just defaults
 - **Remediation**: Remove constraint section if it only restates defaults (mise run ci, no attribution, squash merge)
 
+## Epic Sizing Checks
+
+### Epic Not Oversized
+- **Severity**: warning
+- **Check**: If the epic has child issues in Linear, count them. Flag if the count exceeds the sizing convention (target: approximately 6–8 issues per epic — an adopted convention, not a measured limit). See the "Epic Sizing Heuristics" section of the epic format specification.
+- **Remediation**: Split the epic into multiple epics, each covering a smaller independently-deliverable scope.
+
+### No Multi-Repo Sprawl
+- **Severity**: warning
+- **Check**: If the `## Repos` section lists three or more repositories and the objective describes large cross-cutting changes affecting all of them, flag as a potential oversized epic.
+- **Remediation**: Consider splitting into repo-scoped epics, each targeting one or two repositories, linked by Linear URL.
+
+## Dependency Ordering Checks
+
+### Dependencies Declared
+- **Severity**: warning
+- **Check**: If the epic has two or more child issues in Linear, verify that at least one `blockedBy` dependency edge exists among them. If no dependency edges are declared and the issues are not logically independent of each other, flag as missing dependency ordering.
+- **Remediation**: Declare `blockedBy` edges in Linear to establish execution order. The epic body's `## Dependencies` section (if present) should guide this. See "Dependency Ordering" in the epic format specification.
+
+### No Dependency Cycles
+- **Severity**: error
+- **Check**: Verify that the dependency edges among the epic's child issues form a valid DAG (no cycles). A cycle exists when issue A directly or transitively depends on itself.
+- **Remediation**: Halt. Remove the cycle by eliminating one or more dependency edges and, if needed, restructuring the issue decomposition.
+
+### Foundational Work First
+- **Severity**: info
+- **Check**: Verify that issues with no incoming dependencies (DAG sources) are not themselves marked as `blockedBy` another issue. A source issue that is also blocked indicates an inconsistent dependency declaration.
+- **Remediation**: Review and correct `blockedBy` edges to ensure foundational work is unblocked and can start immediately.
+
 ## Running an Audit
 
 1. Fetch issues from Linear (by project, state, or specific key)
