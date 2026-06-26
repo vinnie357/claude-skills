@@ -167,10 +167,10 @@
       "name": "rust",
       "source": "./plugins/languages/rust",
       "strict": true,
-      "description": "Rust programming skills: ownership, borrowing, async, best practices",
-      "version": "0.1.4",
+      "description": "Rust programming skills + adversarial-TDD worker agents (rust-test-author, rust-implementer)",
+      "version": "0.1.5",
       "category": "language",
-      "keywords": ["rust", "systems-programming", "memory-safety"]
+      "keywords": ["rust", "systems-programming", "memory-safety", "agents", "tdd"]
     },
     {
       "name": "sbx",
