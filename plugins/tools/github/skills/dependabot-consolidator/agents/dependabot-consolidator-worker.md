@@ -76,11 +76,13 @@ gh pr create --draft --title "chore(deps): consolidated dependabot updates" \
 ## Baseline-diff verification
 
 <paste gate comparison table>
-
-Closes claude-skills-76
 EOF
 )"
 ```
+
+Do NOT hardcode a `Closes #N` / `Closes <tracker>-N` line in the body. Add a closing
+reference ONLY if the CALLER gave you an issue in THIS repo to close — never carry a tracker
+ID from another repo (e.g. a `claude-skills-NN` bee) into the target repo's PR.
 
 ### Hard constraints
 
