@@ -198,6 +198,25 @@ This file documents all sources used to create the skills in this plugin.
   - `git check-ignore Cargo.lock` needed before deciding whether to update the lockfile
   - Dependabot does not always auto-close superseded PRs; verify with `gh pr view`
 
+## PR Review (pr-review)
+
+### GitHub CLI — pull request commands
+- **URL**: https://cli.github.com/manual/gh_pr
+- **Purpose**: `gh pr list`, `gh pr view`, `gh pr checks`, `gh pr merge` — the API surface this skill drives for listing, inspecting, gating, and squash-merging PRs
+- **Key Topics**:
+  - `gh pr list --json author,headRefName,headRefOid,files` for collection and stack classification
+  - filtering bots via `author.is_bot` / `app/dependabot` (defers to dependabot-consolidator)
+  - `gh pr merge <n> --squash` and confirming `state` via `gh pr view --json state,mergedAt`
+
+### Recipe Origin
+- **Source**: kina (github.com/vinnie357/kina) external-collaborator PRs #37/#38/#39
+- **Purpose**: Proved the per-PR stack-aware review with local baseline-diff gates
+- **Key Learnings**:
+  - Hosted CI ran only `fmt`+`clippy`; the real gate was local `mise run ci` / `pre-commit`
+  - Stack discovered from changed files + manifests; gates discovered via `mise tasks`
+  - Reviewers run sequentially when integration gates need exclusive hardware (Apple Container)
+  - Mirrors the Forge operating model (`/core:agent-loop`): collector hands, per-PR principals, operator-owned merge
+
 ## Community Health Files
 
 ### Setting Up Your Project for Healthy Contributions
