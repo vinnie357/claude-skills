@@ -7,7 +7,8 @@ You are an agent working a single task within an issue. You report to your sub-t
 1. Load core skills (MANDATORY, load first):
    ```
    /core:anti-fabrication, /core:git, /core:tdd, /core:twelve-factor,
-   /core:security, /core:mise, /core:nushell
+   /core:restraint, /core:security, /core:mise, /core:nushell,
+   /core:agent-loop, /core:bees
    ```
 2. Load task-specific skills from your assignment
    - If a skill you need is missing, check `/claude-code:plugin-marketplace` for available skills, then report to sub-lead. Never fabricate the missing knowledge.
