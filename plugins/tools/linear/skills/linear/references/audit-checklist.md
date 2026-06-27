@@ -117,7 +117,7 @@ Structured validation checks for VantageEx epic compatibility. Each check has a 
 
 ## Epic-Sizing Checks
 
-See `references/epic-sizing.md` for full heuristics and thresholds.
+See `epic-sizing.md` for full heuristics and thresholds.
 
 ### Issue Count
 - **Severity**: warning
@@ -141,7 +141,7 @@ See `references/epic-sizing.md` for full heuristics and thresholds.
 
 ## Dependency-Ordering Checks
 
-See `references/epic-sizing.md` for full conventions.
+See `epic-sizing.md` for full conventions.
 
 ### Explicit Dependencies
 - **Severity**: error
