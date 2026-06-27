@@ -48,6 +48,16 @@ Fields:
 
 Claude Code ships a built-in `/statusline <description>` command that generates a script and updates settings for you (e.g. `/statusline show model name and context percentage with a progress bar`). Use `/statusline delete` to remove the configuration.
 
+## Prebuilt status-line tools
+
+Writing a script gives full control with zero dependencies. For a turnkey bar without scripting, community tools render the same stdin payload. The most widely used is **ccstatusline** (`sirmalloc/ccstatusline`, MIT) — a Node CLI with an interactive config TUI, powerline themes, gradients, Nerd-Font icons, and widgets for token speed, git PR status, block timers, and more. It needs no install and wires itself into `settings.json`:
+
+```json
+{ "statusLine": { "type": "command", "command": "npx -y ccstatusline@latest" } }
+```
+
+It requires Node/Bun on `PATH` and runs `npx` on each update (slower cold-start than a local script). The rest of this skill covers the hand-rolled path, which stays the right choice when you want no runtime dependency, deterministic latency, or behavior the tool does not expose.
+
 ## Stdin JSON Payload
 
 Every invocation receives a JSON object on stdin containing session metadata. Key top-level fields:

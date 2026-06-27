@@ -257,6 +257,13 @@ This file documents the sources used to create the claude-code plugin skills.
   - Trust gate + `disableAllHooks` shared with hooks
 - **Used In**: skills/claude-statusline/SKILL.md, skills/claude-statusline/references/input-schema.md
 
+### ccstatusline (community tool reference)
+- **URL**: https://github.com/sirmalloc/ccstatusline
+- **Purpose**: Prebuilt npx-run statusline formatter cited as the turnkey alternative to a hand-rolled script
+- **Date Accessed**: 2026-06-26
+- **Key Topics**: `npx -y ccstatusline@latest` integration into the `statusLine` settings block; powerline/theme/Nerd-Font widget rendering of the same stdin payload our skill documents
+- **Used In**: skills/claude-statusline/SKILL.md
+
 ## Claude Workflows Skill
 
 ### Claude Code Workflows Documentation
