@@ -165,9 +165,12 @@ Every agent at every tier loads these before any work:
 /core:git
 /core:tdd
 /core:twelve-factor
+/core:restraint
 /core:security
 /core:mise
 /core:nushell
+/core:agent-loop
+/core:bees
 ```
 
 Domain-specific skills load based on issue/task labels.
@@ -218,9 +221,12 @@ Team leaders structure agent prompts with these sections:
 /core:git
 /core:tdd
 /core:twelve-factor
+/core:restraint
 /core:security
 /core:mise
 /core:nushell
+/core:agent-loop
+/core:bees
 <domain-specific skills based on task>
 
 ## Working directory

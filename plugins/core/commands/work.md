@@ -9,8 +9,15 @@ Work the target with **Forge** — the agent-loop operating model. Target: `$ARG
 
 Invoke the Skill tool for each by exact name before any other step:
 
+- `/core:anti-fabrication`
+- `/core:git`
+- `/core:tdd`
+- `/core:twelve-factor`
+- `/core:restraint`
+- `/core:security`
+- `/core:mise`
+- `/core:nushell`
 - `/core:agent-loop` (carries Forge: paired teams, the hands pattern, fan-out)
-- `/core:anti-fabrication`, `/core:git`, `/core:tdd`, `/core:security`, `/core:mise`, `/core:nushell`
 - `/core:bees` (the tracker)
 - `/claude-code:claude-agents` (always, before spawning) and `/claude-code:claude-teams` (when spawning ≥2 parallel workers)
 

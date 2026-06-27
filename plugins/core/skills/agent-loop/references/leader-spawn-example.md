@@ -2,7 +2,7 @@
 
 A Team Leader's Task-tool prompt for an Elixir worker on a Phoenix endpoint. Use this shape as a template: name real files and functions to reuse, anchor the proof-of-loading checkpoint inside the execution order, no vague "implement X".
 
-The explicit skill list at the top is mandatory — never use `/core:*` globs in spawn prompts, since globs don't expand in Agent prompts. The mandatory core skills (per SKILL.md "Core Skills (Mandatory)") are `/core:anti-fabrication`, `/core:git`, `/core:tdd`, `/core:twelve-factor`, `/core:security`, `/core:mise`, `/core:nushell`. Domain skills are added based on the issue's labels.
+The explicit skill list at the top is mandatory — never use `/core:*` globs in spawn prompts, since globs don't expand in Agent prompts. The mandatory core skills (per SKILL.md "Core Skills (Mandatory)") are `/core:anti-fabrication`, `/core:git`, `/core:tdd`, `/core:twelve-factor`, `/core:restraint`, `/core:security`, `/core:mise`, `/core:nushell`, `/core:agent-loop`, `/core:bees`. Domain skills are added based on the issue's labels.
 
 ```
 ## Load skills
@@ -10,9 +10,12 @@ The explicit skill list at the top is mandatory — never use `/core:*` globs in
 /core:git
 /core:tdd
 /core:twelve-factor
+/core:restraint
 /core:security
 /core:mise
 /core:nushell
+/core:agent-loop
+/core:bees
 /elixir:phoenix-framework
 /elixir:elixir-testing
 /elixir:style

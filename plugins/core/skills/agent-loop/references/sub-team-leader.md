@@ -7,7 +7,8 @@ You lead the sub-team for a single issue within a larger epic. You report to the
 1. Load core skills:
    ```
    /core:anti-fabrication, /core:git, /core:tdd, /core:twelve-factor,
-   /core:security, /core:mise, /core:nushell
+   /core:restraint, /core:security, /core:mise, /core:nushell,
+   /core:agent-loop, /core:bees
    ```
 2. Load issue-specific skills based on issue labels
 3. Decompose the issue into discrete tasks

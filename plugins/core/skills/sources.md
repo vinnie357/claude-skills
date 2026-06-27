@@ -287,6 +287,16 @@ This file documents the sources used to create the core plugin skills.
 - 2026-05-31: updated container skill from 0.10.0 to Apple Container 0.12.3 (added 0.11.0/0.12.0/0.12.3 templates, capability-model breaking change, security fixes)
 - 2026-06-10: updated container skill from 0.12.3 to Apple Container 1.0.0 (container machine section, TOML config replaces system properties, container cp, structured-output breaking change; added 1.0.0 template and version-history reference; de-orphaned command-reference.md)
 
+## Restraint Skill
+
+### ponytail
+- **Author**: DietrichGebert
+- **URL**: https://github.com/DietrichGebert/ponytail
+- **License**: MIT
+- **Purpose**: Source for the least-power ladder, "never lazy about" guardrails, and the ceiling-comment convention (`restraint:` derives from ponytail's `ponytail:`). The agent-loop phase-threading is this skill's own work. Benchmark numbers from ponytail are not reproduced or claimed.
+- **Date Accessed**: 2026-06-27
+- **Key Topics**: Least-power principle, YAGNI, Reuse-First, minimum-viable implementation, inline debt markers
+
 ## TDD Skill
 
 ### Test-Driven Development by Example

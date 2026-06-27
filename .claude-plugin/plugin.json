@@ -53,6 +53,7 @@
     "./plugins/core/skills/container",
     "./plugins/core/skills/tdd",
     "./plugins/core/skills/agent-loop",
+    "./plugins/core/skills/restraint",
     "./plugins/tools/dagu/skills/workflows",
     "./plugins/tools/dagu/skills/webui",
     "./plugins/tools/dagu/skills/rest-api",
