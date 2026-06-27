@@ -32,6 +32,11 @@
 | PR on completed | error | pass/fail/n-a | |
 | Branch convention | warning | pass/fail/n-a | |
 | No implementation details | warning | pass/fail | |
+| Epic not oversized | warning | pass/fail/n-a | Issues: [count] |
+| No multi-repo sprawl | warning | pass/fail/n-a | |
+| Dependencies declared | warning | pass/fail/n-a | |
+| No dependency cycles | error | pass/fail/n-a | |
+| Foundational work first | info | pass/fail/n-a | |
 
 **Remediation**:
 - [Action item 1]

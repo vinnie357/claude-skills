@@ -69,6 +69,18 @@ See `references/epic-sizing.md` for conventions.
 - Check for implementation details (file paths, code blocks outside YAML)
 - Check that constraints are meaningful (not just defaults)
 
+### Epic Sizing Checks
+Run the sizing checks from the audit checklist (`references/audit-checklist.md`):
+- Count child issues in Linear; flag if the count exceeds the sizing convention (see "Epic Sizing Heuristics" in `references/epic-format.md`)
+- Flag if `## Repos` lists three or more repositories with large cross-cutting scope
+
+### Dependency Ordering Checks
+Run the dependency ordering checks from the audit checklist (`references/audit-checklist.md`):
+- Fetch child issues and their `blockedBy` edges from Linear
+- Flag if two or more issues exist but no dependency edges are declared
+- Detect and report dependency cycles; mark as error and halt if any cycle is found
+- Flag if a DAG source issue is itself marked `blockedBy` another issue
+
 ## Generate Report
 
 Use the `templates/0.1.0/audit-report.md` format:

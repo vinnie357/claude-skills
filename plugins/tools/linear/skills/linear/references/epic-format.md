@@ -9,6 +9,8 @@
 - [Title and Slug](#title-and-slug)
 - [Description Sections](#description-sections)
 - [Instructions Flow](#instructions-flow)
+- [Epic Sizing Heuristics](#epic-sizing-heuristics)
+- [Dependency Ordering](#dependency-ordering)
 - [Anti-Patterns](#anti-patterns)
 - [Example Epic](#example-epic)
 
@@ -145,6 +147,24 @@ Example:
 claude, local
 ```
 
+### `## Dependencies` (Optional)
+
+Declares the intended dependency ordering among the issues this epic will decompose into. The team leader uses this section when creating issues in Linear to record formal `blockedBy` edges.
+
+Format: plain prose or a bullet list describing which issues depend on which others. Foundational issues (no incoming dependencies) are listed first.
+
+Example:
+
+```
+## Dependencies
+
+- Set up auth service (foundational — no prerequisites)
+- Add login endpoint → depends on: Set up auth service
+- Add token refresh → depends on: Add login endpoint
+```
+
+Do not declare cycles. See "Dependency Ordering" in this document for rules.
+
 
 ## Title and Slug
 
@@ -211,6 +231,35 @@ Epic bodies are read by workers on any machine. Local-filesystem paths (e.g. `~/
 - **Embed**, do not reference. When the epic depends on a design plan, ADR draft, or research note authored locally, paste the content into the epic body under a `## Design context` (or similarly named) section.
 - **Cross-link by URL**, not path. When two epics relate, link by Linear issue URL (`https://linear.app/<workspace>/issue/<KEY>`), never by filesystem path.
 - **Split when too large**. When design context exceeds a comfortable body length, split into paired epics — one docs epic, one implementation epic — each self-contained and linked to its partner by URL.
+
+## Epic Sizing Heuristics
+
+An epic must decompose into a small set of independently-shippable issues, each completable by a single worker within one session (one feature branch → one PR), without exhausting the worker's time or token budget.
+
+**Adopted convention**: aim for approximately 6–8 issues per epic. This figure is an adopted project convention, not an empirically measured limit. Use it as a planning signal, not an absolute rule.
+
+**When to split**: split an epic into multiple epics when it:
+- Would require more issues than the convention suggests,
+- Spans many repositories with large cross-cutting changes, or
+- Contains sections that can be sequenced as separate deliverables.
+
+**Prefer vertical slices over horizontal layers.** A vertical slice delivers a thin end-to-end capability (e.g., a single feature from UI to database). A horizontal layer delivers a whole tier (e.g., all database migrations). Vertical slices ship incrementally; horizontal layers tend to block downstream work.
+
+Do not describe scope as "simple", "quick", or "straightforward" without verification. Scope assessment requires analysis of the actual codebase.
+
+## Dependency Ordering
+
+Issue dependencies within an epic must be declared explicitly and form a valid directed acyclic graph (DAG).
+
+**Rules**:
+- Order issues topologically: earlier issues must unblock later ones.
+- Place foundational and shared work first; no issue should depend on work that has not yet been created or started.
+- **No cycles**: if a dependency cycle is detected (issue A blocks issue B which blocks issue A), halt decomposition and resolve the cycle before proceeding.
+- Record dependency edges via the tracker's native mechanism (e.g., Linear's `blockedBy` / dependency edges). Do not describe ordering only in comments or prose.
+
+**Declare ordering intent in the epic body** using a `## Dependencies` section (see Optional Sections). The team leader translates this into formal tracker edges during decomposition.
+
+**Anti-pattern**: decomposing all issues as fully parallel (no declared dependencies) when logical sequencing exists. If one issue lays foundations that others require, the dependency must be declared.
 
 ## Anti-Patterns
 

@@ -45,6 +45,8 @@ Before creating:
 - Confirm slug is kebab-case and under 30 chars
 - Confirm at least one repo is specified
 - Confirm the body is self-contained: no local-filesystem paths (`~/.claude/...`, `/Users/<name>/...`) used as the source of truth. Embed design plans inline under a `## Design context` section, or link to other epics by Linear URL.
+- **Sizing check**: confirm the objective's scope can decompose into approximately 6–8 independently-shippable issues (the adopted sizing convention; see "Epic Sizing Heuristics" in `references/epic-format.md`). If the scope appears to require significantly more issues, spans many repositories with large cross-cutting changes, or contains work that could be separately delivered, prompt the user to consider splitting into multiple epics.
+- **Dependency-ordering check**: confirm that the anticipated issues can be ordered topologically (foundational work first, no cycles). If the user has described ordering intent, include a `## Dependencies` section in the epic body; see "Dependency Ordering" in `references/epic-format.md` for format and rules.
 
 ## Body Format Rules
 
@@ -56,6 +58,8 @@ Apply the format rules from the `/linear` skill's "Epic Body Format Rules" secti
 - Bodies are self-contained: embed design context inline, cross-link other epics by Linear URL, never reference local-filesystem paths.
 
 See `plugins/tools/linear/skills/linear/SKILL.md` "Epic Body Format Rules" for the canonical wording.
+
+When the epic's anticipated issue ordering is known, include a `## Dependencies` section in the produced body declaring which issues depend on which others, with foundational issues listed first. The team leader translates this into formal `blockedBy` edges in Linear during decomposition. See "Dependency Ordering" in `references/epic-format.md` for format and rules.
 
 ## Create in Linear
 
