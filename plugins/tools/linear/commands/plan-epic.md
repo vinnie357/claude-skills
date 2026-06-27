@@ -23,6 +23,18 @@ Interactively collect from the user:
 - **Constraints**: Optional. Note that defaults apply (mise run ci, no attribution, squash merge, feature/<slug>)
 - **Team**: Optional. Default: lead=sonnet, default_model=haiku, escalation=haiku->sonnet->opus
 
+## Size & Order
+
+Apply `references/epic-sizing.md` to the issues you intend to create:
+
+- **Decompose** the epic into 3–8 independently completable issues. If the count would exceed 8, split the epic.
+- **Size each issue** to one worker session: ≤ ~10 target files, one deliverable, one subsystem, verifiable by a single acceptance check. Reject multi-deliverable titles (joined by "and/also/then/plus") — split them.
+- **Declare dependencies explicitly** using Linear blocking relations. Never rely on implicit ordering.
+- **Order topologically**: foundation issues (schemas, references, interfaces) first, then core, integration, and verification. No cycles — if a cycle is detected, re-decompose before proceeding.
+- **Keep chains shallow**: dependency depth < 5 levels; do not serialize issues that can run in parallel.
+
+See `references/epic-sizing.md` for thresholds and the full checklist.
+
 ## Validate
 
 Before creating:
