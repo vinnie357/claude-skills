@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.30",
+      "version": "0.4.31",
       "category": "meta",
       "keywords": ["all", "complete", "bundle"],
       "license": "MIT"
