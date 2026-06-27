@@ -81,4 +81,4 @@ This principle binds at every tier — if restraint is not in the plan, the work
 ## References
 
 - `references/agent-loop-phases.md` — what each agent-loop phase owes the ladder
-- `references/attribution.md` — full source credit and the verbatim MIT license notice
+- `references/attribution.md` — source and license
