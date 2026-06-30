@@ -80,6 +80,20 @@ escalation:
   on_ambiguity: ask_user
 ```
 
+## Dependencies (Optional)
+
+> Declare the intended dependency ordering among the issues this epic will decompose into.
+> The team leader records these as `blockedBy` edges in Linear during decomposition.
+>
+> List foundational issues first. Use the format:
+> `issue-title → depends on: other-issue-title`
+> or note `(foundational — no prerequisites)` for starting work.
+>
+> No cycles. See "Dependency Ordering" in `references/epic-format.md` for rules.
+
+- [foundational issue] (foundational — no prerequisites)
+- [dependent issue] → depends on: [foundational issue]
+
 ---
 
 > **That's it.** The team leader handles decomposition into issues and task assignment.

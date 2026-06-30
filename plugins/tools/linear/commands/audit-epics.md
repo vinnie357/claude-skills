@@ -46,9 +46,25 @@ For each issue, run every check from the audit checklist:
 - For needs_help issues: check for blocker documentation
 - Use `gh pr list` and `gh pr view` to cross-reference PR URLs
 
-### Content Quality Checks
-- Check for implementation details (file paths, code blocks outside YAML)
-- Check that constraints are meaningful (not just defaults)
+### Epic-Sizing Checks
+
+See `references/epic-sizing.md` for thresholds.
+
+- Flag epics with > 8 issues — signal to split the epic
+- Flag issues with > ~10 target files — exceeds one worker session
+- Flag multi-deliverable issue titles (joined by "and", "also", "then", "plus") — split them
+- Flag acceptance criteria that cannot be verified in a single worker session
+- Flag issues with cross-subsystem or cross-repo scope — split candidates
+
+### Dependency-Ordering Checks
+
+See `references/epic-sizing.md` for conventions.
+
+- Flag issues with implicit or missing dependency declarations (no blocking relations / bees deps)
+- Flag dependency cycles — halt: re-decompose required before queueing
+- Flag dependency chains deeper than 5 levels — serializes workers unnecessarily
+- Flag independent issues that are serialized without cause — reduces worker fan-out
+- Flag a DAG source issue that is itself marked `blockedBy` another issue — inconsistent foundational ordering
 
 ## Generate Report
 

@@ -299,6 +299,7 @@ For the full state machine and cross-system mapping, read `references/workflow-s
 | `references/graphql-api.md` | Full GraphQL query catalog |
 | `references/epic-format.md` | VantageEx epic specification |
 | `references/audit-checklist.md` | Epic validation checks |
+| `references/epic-sizing.md` | Epic sizing heuristics and dependency-ordering conventions |
 | `references/workflow-states.md` | State machine and cross-system mapping |
 
 ## Templates

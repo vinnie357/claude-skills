@@ -115,6 +115,59 @@ Structured validation checks for VantageEx epic compatibility. Each check has a 
 - **Check**: Constraints section (if present) contains meaningful boundaries, not just defaults
 - **Remediation**: Remove constraint section if it only restates defaults (mise run ci, no attribution, squash merge)
 
+## Epic-Sizing Checks
+
+See `epic-sizing.md` for full heuristics and thresholds.
+
+### Issue Count
+- **Severity**: warning
+- **Check**: Epic has 3–8 issues. Flag if > 8.
+- **Remediation**: Split the epic into two or more independent epics
+
+### Issue Scope
+- **Severity**: warning
+- **Check**: No issue targets > ~10 files; each has one deliverable; each is scoped to one subsystem/repo
+- **Remediation**: Split oversized issues; remove multi-deliverable titles (joined by "and/also/then/plus")
+
+### Acceptance Verifiability
+- **Severity**: warning
+- **Check**: Each issue's acceptance criteria can be verified in a single worker session
+- **Remediation**: Narrow acceptance scope or split the issue
+
+### No Cross-Subsystem Scope
+- **Severity**: info
+- **Check**: No single issue touches multiple subsystems or repos without an explicit split rationale
+- **Remediation**: Split into per-subsystem issues with explicit dependency declarations
+
+## Dependency-Ordering Checks
+
+See `epic-sizing.md` for full conventions.
+
+### Explicit Dependencies
+- **Severity**: error
+- **Check**: Every inter-issue dependency is declared via Linear blocking relations or bees `dep add`; none are implicit
+- **Remediation**: Add blocking relations for all known dependencies; never rely on arrival order
+
+### No Cycles
+- **Severity**: error
+- **Check**: The dependency graph has no cycles
+- **Remediation**: Extract the shared artifact into a new foundation issue; re-declare dependencies
+
+### Topological Order
+- **Severity**: warning
+- **Check**: Foundation issues (schemas, references, interfaces) precede their consumers; issues materialize foundation → core → integration → verification
+- **Remediation**: Reorder issues and add missing blocking relations to reflect topological order
+
+### Chain Depth
+- **Severity**: warning
+- **Check**: No dependency chain exceeds 5 levels from root to leaf
+- **Remediation**: Flatten chains by merging lightweight intermediate issues or parallelizing work
+
+### No False Dependencies
+- **Severity**: info
+- **Check**: Independent issues are not serialized unnecessarily
+- **Remediation**: Remove blocking relations between issues that have no real dependency; let workers fan out
+
 ## Running an Audit
 
 1. Fetch issues from Linear (by project, state, or specific key)
