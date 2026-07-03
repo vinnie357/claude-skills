@@ -1,5 +1,5 @@
 ---
-name: elixir-config
+name: config
 description: Guide for Elixir application configuration. Use when configuring runtime vs compile-time settings, managing config.exs/runtime.exs, or using Application.get_env.
 license: MIT
 ---

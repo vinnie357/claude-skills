@@ -1,5 +1,5 @@
 ---
-name: phoenix-framework
+name: phoenix
 description: Guide for Phoenix web applications. Use when building Phoenix apps, implementing LiveView, designing contexts, setting up channels, or integrating Tidewave MCP dev tools.
 ---
 
@@ -587,7 +587,7 @@ Connect Claude Code: `claude mcp add --transport http tidewave http://localhost:
 
 Tidewave is dev-only — never deploy to production. It only accepts localhost requests by default.
 
-For full setup, MCP tools reference, CLI app, editor configs, LiveView annotations, and troubleshooting, load the `tidewave` skill or see `references/tidewave.md`.
+For full setup, MCP tools reference, CLI app, editor configs, LiveView annotations, and troubleshooting, see `/elixir:tidewave` or `references/tidewave.md`.
 
 ## Key Principles
 

@@ -1,5 +1,5 @@
 ---
-name: elixir-anti-patterns
+name: anti-patterns
 description: Identify and refactor Elixir anti-patterns. Use when reviewing Elixir code for smells, refactoring problematic patterns, or improving code quality.
 ---
 

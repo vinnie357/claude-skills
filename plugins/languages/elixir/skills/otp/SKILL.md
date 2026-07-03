@@ -1,5 +1,5 @@
 ---
-name: elixir-otp-concurrency
+name: otp
 description: Guide for OTP and Elixir concurrency. Use when implementing GenServers, designing supervision trees, or building fault-tolerant concurrent systems.
 ---
 

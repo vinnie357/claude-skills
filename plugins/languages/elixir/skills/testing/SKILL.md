@@ -1,5 +1,5 @@
 ---
-name: elixir-testing
+name: testing
 description: Guide for Elixir testing with ExUnit. Use when writing unit tests, implementing property-based tests, setting up mocks, or organizing test suites.
 ---
 
