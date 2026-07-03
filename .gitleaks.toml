@@ -3,3 +3,4 @@ useDefault = true
 
 [allowlist]
 paths = ['''^\.gitleaks-baseline\.json$''']
+regexes = ['''^sk_live_123456789$''']

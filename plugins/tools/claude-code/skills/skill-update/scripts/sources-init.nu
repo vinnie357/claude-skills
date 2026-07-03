@@ -240,7 +240,7 @@ def main [plugin_name: string, --dry-run] {
     print $"Found ($sources | length) source\(s\):"
     for s in $sources {
         let url_display = if not ($s.url | is-empty) { $s.url } else { "(no URL)" }
-        print $"  [$($s.skill)] ($s.name) — ($url_display)"
+        print $"  [($s.skill)] ($s.name) — ($url_display)"
     }
     print ""
 

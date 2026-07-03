@@ -137,22 +137,7 @@ This validates:
 - Path accessibility (for relative paths)
 - Invalid field detection
 
-### 2. Path Validation
-
-Validate that referenced paths exist:
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-plugin-paths.nu .claude-plugin/plugin.json
-```
-
-Checks:
-- Skills directories exist and contain SKILL.md
-- Command files/directories exist
-- Agent files/directories exist
-- Hooks configuration exists
-- MCP server configuration exists
-
-### 3. Initialization Helper
+### 2. Initialization Helper
 
 Generate a template plugin.json:
 
@@ -418,7 +403,6 @@ For detailed schema specifications and examples, see:
 
 All validation and utility scripts are located in `scripts/`:
 - `validate-plugin.nu`: Complete plugin.json validation
-- `validate-plugin-paths.nu`: Verify all referenced paths exist
 - `init-plugin.nu`: Generate plugin.json template
 - `format-plugin.nu`: Format and sort plugin.json
 
