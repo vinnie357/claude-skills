@@ -116,7 +116,7 @@ def detect-runtime [] {
             return "colima"
         }
         # mise exists, colima can be used
-        print $"(ansi yellow)Found mise (Colima available)(ansi reset)"
+        print $"(ansi yellow)Found mise \(Colima available\)(ansi reset)"
         return "colima"
     }
 

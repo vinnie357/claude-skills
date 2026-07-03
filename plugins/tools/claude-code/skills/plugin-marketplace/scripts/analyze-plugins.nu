@@ -19,7 +19,7 @@ def main [
     exit 0
   }
 
-  print $"(ansi cyan)Found ($plugin_files | length) plugin(s):(ansi reset)"
+  print $"(ansi cyan)Found ($plugin_files | length) plugin\(s\):(ansi reset)"
   print ""
 
   mut suggested_plugins = []
