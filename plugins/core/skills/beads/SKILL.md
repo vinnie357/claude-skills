@@ -61,8 +61,6 @@ linux-x64 = { asset_pattern = "beads_*_linux_amd64.tar.gz" }
 macos-arm64 = { asset_pattern = "beads_*_darwin_arm64.tar.gz" }
 ```
 
-See `templates/multi-arch.md` for platform-specific patterns.
-
 ## Getting Started
 
 ### Initialize Beads
@@ -723,6 +721,10 @@ bd show abc12345678
 
 - `references/skill-catalog.md`: Skill catalog with keyword triggers for task matching
 - `references/teams-integration.md`: Full protocol for mirroring beads tasks into Claude's task list for Agent Teams coordination
+
+## Paired agents
+
+- `agents/beads-worker.md`: Processes beads tasks by polling `bd ready`, executing work, and syncing results. Use for automating task queues or AI-driven workflows.
 
 ## Key Principles
 
