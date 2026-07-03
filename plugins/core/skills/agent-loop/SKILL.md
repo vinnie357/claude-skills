@@ -133,6 +133,8 @@ For each issue, the Sub-team Leader spawns distinct Agent invocations in order. 
 | P4 CI Runner | haiku | Run CI, capture verbatim output, report green/red | Judging correctness; touching code |
 | P5 Reviewer | opus | Verify tests exercise AC, no overfit, no missed edges | Authoring fixes (sends back to P2 or P3 with findings) |
 
+Each stage owes the restraint ladder its phase duty — see `/core:restraint`'s agent-loop-phases reference for the row mapping (P1 → Test planning, P2 → Test authoring, P3 → Implementation, P5 → Review).
+
 ### When to apply
 
 Apply for multi-file changes, public API surfaces (HTTP/exported/schema), cross-repo work, or any issue carrying explicit acceptance criteria. Single-agent stays acceptable for one-liners, mechanical refactors, status checks, and log diagnosis. When in doubt, decompose.
@@ -144,7 +146,7 @@ Fan-out happens at the Sub-team Leader, not at the epic decomposer or the bees-w
 - Each stage is a separate Agent invocation (no SendMessage continuations between tiers).
 - The leader verifies stage transitions before dispatching the next: test commit present before P3, test files unmodified before P5.
 - P4 reports verbatim CI output; on red the leader dispatches a fresh P3 (no chat continuity).
-- P5 reads `git diff main...HEAD`, tests, and the acceptance criteria; approves with one line or rejects with a structured findings list.
+- P5 reads `git diff main...HEAD`, tests, and the acceptance criteria; approves with one line or rejects with a structured findings list. P5 reviews per `/core:code-review`, including its Restraint and Scope checklist item.
 - bees issues carry a single `complexity:complex` or `complexity:trivial` label, not tier labels. The Sub-team Leader picks up the issue, reads complexity, and (for complex) dispatches the five stages internally — each Task spawn prompt names its tier (`team:opus-planner` ... `team:opus-review`) as dispatch-time metadata. Tier labels never land on bees rows. See `/core:bees`.
 - The five stages run as Task spawns by default. When Claude Code workflows are available and the operator opts in, encode them as one workflow script instead — the stage gates become deterministic assertions. See "Optional: workflow execution substrate" below and `references/workflows-execution.md`.
 
@@ -172,6 +174,8 @@ Every agent at every tier loads these before any work:
 /core:agent-loop
 /core:bees
 ```
+
+This block is the canonical copy; every other site listing the mandatory core stack is drift-checked against it by `test/validate-core-list.nu`.
 
 Domain-specific skills load based on issue/task labels.
 
@@ -247,6 +251,8 @@ cd /path/to/repo
 ## Execution order
 <the 9 steps above>
 ```
+
+Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
 
 Key: always reference existing code and functions to reuse. "Implement X" is vague — "add import/2 action to WorkflowController, reuse serialize_workflow/1 from line 28" is machine-executable.
 

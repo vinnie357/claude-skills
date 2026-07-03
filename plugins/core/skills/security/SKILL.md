@@ -394,3 +394,4 @@ The tasks automatically:
 - **Zero tolerance**: Treat all secret exposures as security incidents
 - **Continuous monitoring**: Schedule regular scans of entire history
 - **Clear ownership**: Define who handles secret remediation
+- **No restraint trade-offs**: restraint never trades security or validation for brevity (`/core:restraint` "Never lazy about")

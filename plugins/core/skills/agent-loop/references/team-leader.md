@@ -16,6 +16,7 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
    /core:restraint, /core:security, /core:mise, /core:nushell,
    /core:agent-loop, /core:bees
    ```
+   Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
 2. Create a bees epic that mirrors the upstream epic (same title, objective, slug)
 3. **If the epic carries a `spec:` field** (e.g., `spec: docs/specs/<slug>.allium`): confirm the spec file exists at that path. If the epic is a refactor and no `spec:` is set, run `/allium:distill` to capture a behavioral baseline before decomposition. Skip this step entirely if neither condition applies.
 4. **Decomposition gate** — probe two deterministic signals (no file searching):
@@ -43,6 +44,8 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
 ## Phase 1.5a: Default to proceeding (State B only)
 
 State B is the plan-absent state — bees is empty AND no upstream proposal exists (from step 4). The decision axis is plan presence, not who is at the keyboard.
+
+Planning owes the restraint ladder too — see `/core:restraint`'s agent-loop-phases reference, "Planning" row.
 
 When no plan is present, the lead PRODUCES the decomposition itself from the epic objective and acceptance criteria, records its assumptions as a bees comment on the epic (auditable trail), and proceeds. Default to proceeding on the most reasonable interpretation. Before decomposing, confirm:
 
