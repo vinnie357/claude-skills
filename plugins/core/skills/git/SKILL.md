@@ -1,5 +1,5 @@
 ---
-name: git-operations
+name: git
 description: Guide for Git operations including commits, branches, rebasing, and conflict resolution. Use when working with version control, creating commits, managing branches, or resolving merge conflicts.
 ---
 

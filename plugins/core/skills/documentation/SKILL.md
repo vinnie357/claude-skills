@@ -1,5 +1,5 @@
 ---
-name: documentation-writing
+name: documentation
 description: Guide for writing technical documentation. Use when creating README files, API documentation, guides, or inline code documentation.
 ---
 

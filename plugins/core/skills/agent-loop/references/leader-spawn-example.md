@@ -16,8 +16,8 @@ The explicit skill list at the top is mandatory — never use `/core:*` globs in
 /core:nushell
 /core:agent-loop
 /core:bees
-/elixir:phoenix-framework
-/elixir:elixir-testing
+/elixir:phoenix
+/elixir:testing
 /elixir:style
 
 ## Working directory

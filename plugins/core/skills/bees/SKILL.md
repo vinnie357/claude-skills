@@ -578,3 +578,4 @@ bees sync
 ## Paired agents
 
 - `agents/bees-manager.md`: Serial writer for bees DBs. Use when concurrent workers need to apply queued bees writes through a single SQLite writer to avoid `SQLITE_CONSTRAINT` and `daemon.lock` failures.
+- `agents/bees-worker.md`: Processes bees issues by polling `bees ready`, executing work, and syncing results. Use for automating issue queues or AI-driven workflows.
