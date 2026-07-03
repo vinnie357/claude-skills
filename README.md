@@ -402,7 +402,7 @@ Install it to build your own Claude Code plugins:
 
 ## Testing
 
-The repository includes automated validation tests for the marketplace and all 13 plugins (including the all-skills meta-plugin).
+The repository includes automated validation tests for the marketplace and every plugin (including the all-skills meta-plugin). Run `jq '.plugins | length' .claude-plugin/marketplace.json` for the current plugin count.
 
 ### Requirements
 
@@ -415,7 +415,7 @@ The repository includes automated validation tests for the marketplace and all 1
 # Install mise (if not already installed)
 curl https://mise.run | sh
 
-# Run all tests (validates marketplace + all 13 plugins)
+# Run all tests (validates marketplace + every plugin)
 mise test
 
 # Test specific plugin
@@ -432,7 +432,7 @@ mise test:plugins
 ### What Gets Tested
 
 - **Marketplace validation**: Required fields, plugin entries, JSON structure
-- **Plugin validation** (all 13 plugins including all-skills):
+- **Plugin validation** (every plugin including all-skills):
   - Name matches directory (or root for all-skills)
   - No invalid marketplace-only fields
   - Kebab-case naming
@@ -506,7 +506,7 @@ The repository includes automated CI/CD via GitHub Actions that runs on:
 
 **What gets tested:**
 - Validates marketplace.json schema
-- Validates all plugin.json files (13 plugins)
+- Validates all plugin.json files (every plugin registered in `.claude-plugin/marketplace.json`)
 - Checks skill paths exist
 - Verifies naming conventions
 
@@ -591,6 +591,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 1.0.0 (Current)
 - Tiered marketplace architecture with selective plugin installation
-- 13 plugins: all-skills (meta), claude-code, core, dagu, elixir, github, rust, slidev, tweag, ui, wasm, zig, claudio (external)
-- 61 skills covering multiple programming languages and development tools
+- Tiered marketplace with multiple plugins spanning languages, tools, and workflow domains — see [Available Plugins](#available-plugins) or run `jq '.plugins | length' .claude-plugin/marketplace.json` for the current count
+- Skills covering multiple programming languages and development tools — run `jq '.skills | length' .claude-plugin/plugin.json` for the current total
 - Plugin development tools with Nushell validation scripts
