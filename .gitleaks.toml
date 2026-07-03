@@ -2,4 +2,4 @@
 useDefault = true
 
 [allowlist]
-paths = ['''\.gitleaks-baseline\.json$''']
+paths = ['''^\.gitleaks-baseline\.json$''']
