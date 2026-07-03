@@ -100,7 +100,7 @@ def find-circular-deps [
   plugins: list
   current: string
   visited: list
-]: list {
+] {
   if $current in $visited {
     return ($visited | append $current)
   }

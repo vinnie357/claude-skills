@@ -63,7 +63,7 @@ def extract-date [line: string] {
 # Parse sources.md into structured records
 # Returns list of: { skill, name, url, date }
 def parse-sources-md [md_path: string] {
-    let lines = open $md_path | lines
+    let lines = open --raw $md_path | lines
 
     mut current_skill = "general"
     mut current_source = ""
@@ -167,7 +167,7 @@ def generate-toml [plugin_name: string, sources: list] {
 # Edit check_method and repo/package/crate fields to enable automated version checks.
 # Valid check_method values: github-releases | hex-pm | crates-io | manual
 
-\[meta\]
+[meta]
 plugin       = \"($plugin_name)\"
 generated_at = \"($today)\"
 source_count = ($count)

@@ -333,7 +333,7 @@ All skills MUST adhere to strict anti-fabrication requirements to ensure factual
 
 This repository is organized as a **tiered marketplace** with categorized plugins. Each plugin is independently installable and contains its own set of skills.
 
-**Available Plugins:** `all-skills` is the meta-plugin at root that installs all skills from every other plugin. For the current plugin list and per-plugin skill counts, run `jq '.plugins[].name' .claude-plugin/marketplace.json` (plugin count) and `jq '.skills | length' .claude-plugin/plugin.json` (total skill count) — or see the catalog in `README.md`, which is the source of truth for plugin descriptions.
+**Available Plugins:** `all-skills` is the meta-plugin at root that installs all skills from every other plugin. For the current plugin list and per-plugin skill counts, run `jq '.plugins | length' .claude-plugin/marketplace.json` (plugin count) and `jq '.skills | length' .claude-plugin/plugin.json` (total skill count) — or see the catalog in `README.md`, which is the source of truth for plugin descriptions.
 
 **Note**: The `all-skills` meta-plugin is maintained via `mise update-all-skills` and automatically includes all skills from all other plugins.
 
