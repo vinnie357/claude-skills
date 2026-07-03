@@ -20,6 +20,7 @@ when the trigger condition arises.
    /core:tdd, /core:twelve-factor, /core:restraint, /core:security,
    /core:mise, /core:nushell, /core:agent-loop, /core:bees by exact
    name. Glob patterns like /core:* do not expand in Agent prompts.
+   # Canonical list: /core:agent-loop "Core Skills (Mandatory)"; drift-checked in CI.
 
 3. Every spawned agent's prompt starts with a "## Load skills" block
    listing exact skill names. Require the agent to quote one sentence

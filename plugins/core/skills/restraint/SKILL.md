@@ -54,7 +54,7 @@ These sit outside the ladder. Never simplify them away:
 - Calibration that real hardware needs — a clock drifts, a sensor reads off. Leave the knob, not just less code.
 - Anything explicitly requested. The user insists on the full version → build it, no re-arguing.
 
-Restraint without its check is unfinished. Non-trivial logic (a branch, loop, parser, money/security path) leaves ONE runnable check behind — the smallest thing that fails if the logic breaks. Drive that through `/core:tdd`. Trivial one-liners need no test — YAGNI applies to tests too.
+Restraint without its check is unfinished. Non-trivial logic (a branch, loop, parser, money/security path) leaves ONE runnable check behind — the smallest thing that fails if the logic breaks. Drive that through `/core:tdd`. YAGNI applies to tests; non-trivial logic still leaves one runnable check. — this sentence is shared verbatim with `/core:tdd` as the reconciliation between tdd's thoroughness and restraint's minimalism.
 
 ## The `restraint:` comment
 
@@ -82,3 +82,4 @@ This principle binds at every tier — if restraint is not in the plan, the work
 
 - `references/agent-loop-phases.md` — what each agent-loop phase owes the ladder
 - `references/attribution.md` — source and license
+- `scripts/restraint-audit.nu` — greps `restraint:` markers repo-wide; paired with the `/core:restraint-audit` command

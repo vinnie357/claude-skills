@@ -177,6 +177,13 @@ function authorPrompt(a, plan) {
     JSON.stringify(plan.slices),
     'Run mise run ci and confirm the ONLY failures are the new tests, then commit with a',
     'test: conventional commit and push. The deliberate red is the spec.',
+    'The deliberate red must be assertion failures or missing symbols in the',
+    "PROJECT's own modules — a compile error naming a stdlib or third-party",
+    'API is the test author\'s bug and blocks handoff, not a valid red. If a',
+    'test needs a symbol that does not exist yet, write a throwaway stub',
+    "module satisfying just the referenced symbols, compile the test file",
+    'against the stub (it must build, failing only on assertions), then',
+    'DELETE the stub before committing so the red is real.',
     'STAY IN STAGE: write tests only — no implementation, no review.',
     'Return the commit sha and a one-line summary.',
   ].join('\n')
@@ -227,6 +234,9 @@ function fixPrompt(a, findings, frozen) {
     ...findings.map(f => `- ${f}`),
     `Test files are FROZEN: ${frozen.join(', ')}. Do NOT modify them.`,
     'STAY IN STAGE: fix the findings only — no new features, no test rewrites.',
+    'If the fix cannot land within these prohibitions, ESCALATE — never shim.',
+    'Never vendor, fork, overlay, or redirect the language stdlib or toolchain;',
+    'a removed API means migrate the call site or escalate, not paper over it.',
     'Return the commit sha and a one-line summary.',
   ].join('\n')
 }

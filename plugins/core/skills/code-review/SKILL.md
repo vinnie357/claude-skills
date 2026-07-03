@@ -326,6 +326,18 @@ end
 - Security vulnerabilities are checked
 - Dependency versions are pinned or bounded
 
+### 9. Restraint and Scope
+
+**Does every new symbol earn its place in the diff?**
+
+For each NEW symbol introduced by the diff (function, class, config, dependency), check it against the restraint ladder before approving:
+
+- Does this need to exist at all, or is it speculative scaffolding? (YAGNI)
+- Is it a duplicate of an existing helper, stdlib function, or already-installed dependency? (Reuse-First)
+- Could it be expressed in a smaller form — fewer lines, no new abstraction?
+
+Flag speculative abstractions (interfaces with one implementation, config for values that never change, factories for one product) and unrequested features as findings, not nits. See `/core:restraint`.
+
 ## Review Process
 
 ### Before Reviewing
@@ -592,6 +604,7 @@ Before submitting code for review:
 - **Explain reasoning**: Help author learn, don't just dictate
 - **Approve good code**: Don't let perfect be enemy of good
 - **Collaborate**: You're on the same team
+- **Check restraint**: Every new symbol earns its place on the ladder — see `/core:restraint`
 
 ## References
 

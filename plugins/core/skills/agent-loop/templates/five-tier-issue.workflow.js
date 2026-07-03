@@ -156,6 +156,13 @@ function testAuthorPrompt(a, plan) {
     'new tests, then commit with a test: conventional commit and push.',
     'STAY IN STAGE: do NOT write implementation code, modify lib/src files,',
     'or review work. The deliberate red is the spec.',
+    'The deliberate red must be assertion failures or missing symbols in the',
+    "PROJECT's own modules — a compile error naming a stdlib or third-party",
+    'API is the test author\'s bug and blocks handoff, not a valid red. If a',
+    'test needs a symbol that does not exist yet, write a throwaway stub',
+    "module satisfying just the referenced symbols, compile the test file",
+    'against the stub (it must build, failing only on assertions), then',
+    'DELETE the stub before committing so the red is real.',
     'Return the commit sha and a one-line summary.',
   ].join('\n')
 }
@@ -179,6 +186,7 @@ function ciPrompt(a) {
     `You are P4 — CI runner for issue ${a.issueId} in repo ${a.repo}.`,
     skillBlock(a.skills),
     'Run mise run ci. Capture the verbatim output and report green or red.',
+    'Require a clean working tree before reporting green — a dirty tree green is an illusion.',
     'STAY IN STAGE: run and report only. Do NOT fix failures, edit files,',
     'or commit anything.',
   ].join('\n')
@@ -193,6 +201,9 @@ function fixPrompt(a, output) {
     `Test files are FROZEN: ${a.testFiles.join(', ')}. Do NOT modify them.`,
     'STAY IN STAGE: fix the reported failures only. Do NOT add features,',
     'rewrite tests, or refactor beyond the failures.',
+    'If the fix cannot land within these prohibitions, ESCALATE — never shim.',
+    'Never vendor, fork, overlay, or redirect the language stdlib or toolchain;',
+    'a removed API means migrate the call site or escalate, not paper over it.',
     'Return the commit sha and a one-line summary.',
   ].join('\n')
 }
@@ -250,6 +261,21 @@ function escalate(reason, extra) {
   return { status: 'escalate', issueId: args.issueId, reason, ...extra }
 }
 
+// Diff-boundary gate: the implementer must not have touched the frozen test
+// files, committed OR uncommitted. Re-checked after the fix loop, not only
+// before it — an implementer can make frozen tests pass via uncommitted
+// edits, which a committed-diff-only gate misses.
+async function frozenIntact(testFiles, sha, phase) {
+  const probe = await agent([
+    `In repo ${args.repo}, run BOTH:`,
+    `  git diff ${sha}..HEAD -- ${testFiles.join(' ')}`,
+    `  git status --porcelain -- ${testFiles.join(' ')}`,
+    'Report nonEmpty=true if EITHER produces any output, with the combined text.',
+    'Run and report only — do not edit anything.',
+  ].join('\n'), { phase, label: 'diff-boundary gate', schema: DIFF })
+  return probe && !probe.nonEmpty
+}
+
 // ---------------------------------------------------------------------------
 // Pipeline — sequential; every agent() call is a fresh context, so the
 // adversarial separation between tiers is structural.
@@ -269,17 +295,10 @@ if (!testSha) return escalate('P2 test author failed across escalation chain', {
 const impl = await withEscalation(implPrompt(args, testSha), { phase: 'Impl', schema: COMMIT }, args.stageModels.impl)
 if (!impl) return escalate('P3 implementer failed across escalation chain', { testSha })
 
-// Stage gate: adversarial diff boundary, enforced not narrated.
-const touched = await agent(
-  [
-    `In repo ${args.repo}, run: git diff ${testSha.sha}..HEAD -- ${args.testFiles.join(' ')}`,
-    'Report nonEmpty=true when the diff has any content, with the diff text.',
-    'Run the command and report — do not edit anything.',
-  ].join('\n'),
-  { phase: 'Impl', label: 'diff-boundary gate', schema: DIFF },
-)
-if (!touched || touched.nonEmpty) {
-  return escalate('implementer modified test files (diff boundary violated)', { testSha, impl, touched })
+// Stage gate: adversarial diff boundary, enforced not narrated. Checks both
+// the committed diff AND uncommitted working-tree state (frozenIntact).
+if (!(await frozenIntact(args.testFiles, testSha.sha, 'Impl'))) {
+  return escalate('implementer modified test files (diff boundary violated)', { testSha, impl })
 }
 
 // P4 — CI runner + bounded validator/fix loop (3 cycles, then escalate)
@@ -293,6 +312,12 @@ while (ci && !ci.green && cycles < 3) {
 }
 if (!ci || !ci.green) {
   return escalate('validation stalled after 3 fix cycles', { testSha, impl, ci })
+}
+
+// Re-check the diff-boundary gate after the fix loop, not only before it —
+// a fix cycle can reintroduce a frozen-test edit that the pre-CI check missed.
+if (!(await frozenIntact(args.testFiles, testSha.sha, 'CI'))) {
+  return escalate('fix loop modified test files (diff boundary violated)', { testSha, impl, ci })
 }
 
 // P5 — reviewer

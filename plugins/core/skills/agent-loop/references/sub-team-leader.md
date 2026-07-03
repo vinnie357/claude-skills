@@ -10,6 +10,7 @@ You lead the sub-team for a single issue within a larger epic. You report to the
    /core:restraint, /core:security, /core:mise, /core:nushell,
    /core:agent-loop, /core:bees
    ```
+   Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
 2. Load issue-specific skills based on issue labels
 3. Decompose the issue into discrete tasks
 4. For each task:
@@ -18,6 +19,8 @@ You lead the sub-team for a single issue within a larger epic. You report to the
    - Create tracking for the agent
 
 ## Phase 2: Working
+
+Test planning owes the restraint ladder too — see `/core:restraint`'s agent-loop-phases reference, "Test planning" row.
 
 1. Spawn agents for ALL tasks, including simple ones (no task is "too small")
 2. Each agent receives: task spec, skills, acceptance criteria

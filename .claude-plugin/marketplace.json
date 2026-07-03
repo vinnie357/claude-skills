@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.38",
+      "version": "0.4.39",
       "category": "meta",
       "keywords": [
         "all",
@@ -95,7 +95,7 @@
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills: plugin marketplace management and validation",
-      "version": "0.2.14",
+      "version": "0.2.15",
       "category": "tools",
       "keywords": [
         "claude-code",
@@ -114,7 +114,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.20",
+      "version": "0.2.21",
       "category": "development",
       "keywords": [
         "git",

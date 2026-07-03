@@ -316,6 +316,8 @@ Testing *how* code works rather than *what* it does. Brittle tests that break wh
 
 Adding behavior not driven by a test. Adding tests for scenarios nobody asked for. If it's not on the test list and not an edge case you discovered, you ain't gonna need it.
 
+YAGNI applies to tests; non-trivial logic still leaves one runnable check. — this sentence is shared verbatim with `/core:restraint` as the reconciliation between tdd's thoroughness and restraint's minimalism.
+
 ### Ice Cream Cone
 
 Many end-to-end tests, few unit tests. Invert the pyramid — most tests should be fast unit tests. End-to-end tests verify integration, not logic.
