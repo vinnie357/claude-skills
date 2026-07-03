@@ -280,7 +280,7 @@ Without measurement, this is fabrication. Ecto's overhead vs raw SQL is microsec
 - `references/changesets.md` — `cast_assoc`, `validate_*` catalog, custom validations, `prepare_changes/2`
 - HexDocs: [Ecto](https://hexdocs.pm/ecto/), [Ecto.Changeset](https://hexdocs.pm/ecto/Ecto.Changeset.html), [Ecto.Query](https://hexdocs.pm/ecto/Ecto.Query.html), [Ecto.Multi](https://hexdocs.pm/ecto/Ecto.Multi.html), [Ecto.Migration](https://hexdocs.pm/ecto_sql/Ecto.Migration.html)
 - `/elixir:tidewave` — runtime introspection of schemas via `mcp__tidewave__get_ecto_schemas` and live API doc lookup
-- `/elixir:phoenix-framework` — context-pattern integration (changeset usage in Phoenix contexts)
+- `/elixir:phoenix` — context-pattern integration (changeset usage in Phoenix contexts)
 - `/elixir:style` — bang-vs-non-bang return semantics, idiomatic error returns
 
 ## Anti-fabrication

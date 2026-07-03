@@ -1,5 +1,5 @@
 ---
-name: phoenix-framework
+name: phoenix
 description: Guide for Phoenix web applications. Use when building Phoenix apps, implementing LiveView, designing contexts, setting up channels, or integrating Tidewave MCP dev tools.
 ---
 
