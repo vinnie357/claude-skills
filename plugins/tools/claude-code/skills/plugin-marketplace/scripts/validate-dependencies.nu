@@ -22,7 +22,7 @@ def main [
     exit 1
   }
 
-  if ($marketplace | get -i plugins) == null {
+  if ($marketplace | get -o plugins) == null {
     print $"(ansi red_bold)Error:(ansi reset) No plugins array found"
     exit 1
   }
@@ -35,7 +35,7 @@ def main [
 
   # Check each plugin's dependencies
   for plugin in $marketplace.plugins {
-    if ($plugin | get -i dependencies) == null {
+    if ($plugin | get -o dependencies) == null {
       continue
     }
 
@@ -59,7 +59,7 @@ def main [
   print $"(ansi cyan)Checking for circular dependencies...(ansi reset)"
 
   for plugin in $marketplace.plugins {
-    if ($plugin | get -i dependencies) != null {
+    if ($plugin | get -o dependencies) != null {
       let circular = find-circular-deps $marketplace.plugins $plugin.name []
       if ($circular | length) > 0 {
         $errors = ($errors | append $"Circular dependency detected: ($circular | str join ' -> ')")
@@ -107,7 +107,7 @@ def find-circular-deps [
 
   let plugin = $plugins | where name == $current | first
 
-  if ($plugin | get -i dependencies) == null {
+  if ($plugin | get -o dependencies) == null {
     return []
   }
 
