@@ -1,7 +1,11 @@
 # mise configuration for claude-skills marketplace
 
 [tools]
-"github:nushell/nushell" = { version = "latest", exe = "nu", platforms = '{ linux-arm64 = { asset_pattern = "nu-*-aarch64-unknown-linux-gnu.tar.gz" }', " linux-x64 " = ' { asset_pattern = "nu-*-x86_64-unknown-linux-gnu.tar.gz" }', " macos-arm64 " = ' { asset_pattern = "nu-*-aarch64-apple-darwin.tar.gz" }', " macos-x64 " = ' { asset_pattern = "nu-*-x86_64-apple-darwin.tar.gz" } }' }
+# nushell is pinned deliberately — breaking changes are common between minor
+# pre-1.0 releases and "latest" lets CI absorb them silently. To update: bump
+# the version below, run `mise install`, then `mise test` to confirm the
+# whole suite (including every .nu script this marketplace ships) is green.
+"github:nushell/nushell" = { version = "0.113.1", exe = "nu", platforms = '{ linux-arm64 = { asset_pattern = "nu-*-aarch64-unknown-linux-gnu.tar.gz" }', " linux-x64 " = ' { asset_pattern = "nu-*-x86_64-unknown-linux-gnu.tar.gz" }', " macos-arm64 " = ' { asset_pattern = "nu-*-aarch64-apple-darwin.tar.gz" }', " macos-x64 " = ' { asset_pattern = "nu-*-x86_64-apple-darwin.tar.gz" } }' }
 act = "latest"  # Local GitHub Actions testing
 claude = "latest"  # Self-contained Bun binary; bypasses npm/node toolchain breakage
 
@@ -31,12 +35,12 @@ description = "Full CI gate (workspace `mise run ci` convention) — runs all va
 depends = ["test"]
 
 [tasks.test]
+# test:version-bumps is deliberately NOT a dependency here — it needs a real
+# base ref to diff against, which is only meaningful in the dedicated
+# "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
+# Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality"]
-
-[tasks."test:all"]
-description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:version-bumps", "test:skills-quality"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -53,6 +57,11 @@ print ""
 let claude_path = (do { mise which claude } | complete)
 
 if $claude_path.exit_code != 0 or ($claude_path.stdout | str trim | is-empty) {
+    if ($env.CI? | is-not-empty) {
+        print "❌ mise-managed claude not found in CI - failing"
+        print "   Install via: mise install claude@latest"
+        exit 1
+    }
     print "⚠️  mise-managed claude not found - skipping native validation"
     print "   Install via: mise install claude@latest"
     exit 0
@@ -128,6 +137,21 @@ for plugin in $marketplace.plugins {
         } else {
             $errors = ($errors | append $"Plugin '($name)' source must be string or object")
         }
+    }
+}
+
+# Static version-sync check: every local plugin's plugin.json version must
+# equal its marketplace.json entry version (includes the all-skills root
+# plugin.json at .claude-plugin/plugin.json, source "./").
+for plugin in $marketplace.plugins {
+    if (($plugin.source | describe) | str starts-with "record") { continue }
+    let plugin_dir = ($repo_root | path join ($plugin.source | str replace --regex '^\\./' ''))
+    let plugin_json_path = ($plugin_dir | path join ".claude-plugin" "plugin.json")
+    if not ($plugin_json_path | path exists) { continue }
+    let local_version = (open $plugin_json_path | get -o version)
+    let marketplace_version = ($plugin | get -o version)
+    if $local_version != $marketplace_version {
+        $errors = ($errors | append $"Plugin '($plugin.name)' version mismatch: plugin.json=($local_version), marketplace.json=($marketplace_version)")
     }
 }
 

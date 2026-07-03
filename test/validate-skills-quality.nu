@@ -10,6 +10,30 @@
 #   stale entry (the baseline only shrinks).
 # Regenerate the baseline with: nu test/validate-skills-quality.nu --update-baseline
 
+# Resolve every /plugin:skill token in `content` against the Pass-1 registry
+# (list of {name, dir, invocables}). Unknown (external) plugin namespaces are
+# skipped — only same-marketplace references are checked. Shared by check 16
+# (per-skill SKILL.md + references) and the Pass 2 agents/commands surfaces
+# so invocation resolution has exactly one implementation.
+def find-bad-invocations [content: string, registry: list] {
+    let no_urls = ($content | str replace --regex --all '[a-zA-Z][a-zA-Z0-9+.-]*://[^\s)]+' ' ')
+    # Leading boundary required so image refs like REGISTRY/claude-code:v1
+    # or ghcr.io/anthropics/claude-code:latest do not match.
+    let invocations = ($no_urls
+        | parse --regex '(?m)(?:^|[\s`(\[<"])/(?P<ns>[a-z][a-z0-9-]*):(?P<target>[a-z][a-z0-9-]*)'
+        | select ns target | uniq)
+    mut bad = []
+    for inv in $invocations {
+        let known = ($registry | where name == $inv.ns)
+        if ($known | is-not-empty) {
+            if not ($inv.target in ($known | first | get invocables)) {
+                $bad = ($bad | append $"/($inv.ns):($inv.target)")
+            }
+        }
+    }
+    $bad
+}
+
 # Remove fenced code blocks so code examples don't trip content checks
 # (e.g. a `name: CI` line inside a GitHub Actions YAML example).
 def strip-fences [content: string] {
@@ -252,21 +276,7 @@ def main [--update-baseline] {
             # SKILL.md or references must name a real skill or command of a local
             # plugin. Unknown (external) plugin namespaces are skipped.
             let invocation_content = ($ref_files | each {|f| open --raw $f} | prepend $content | str join "\n")
-            let no_urls = ($invocation_content | str replace --regex --all '[a-zA-Z][a-zA-Z0-9+.-]*://[^\s)]+' ' ')
-            # Leading boundary required so image refs like REGISTRY/claude-code:v1
-            # or ghcr.io/anthropics/claude-code:latest do not match.
-            let invocations = ($no_urls
-                | parse --regex '(?m)(?:^|[\s`(\[<"])/(?P<ns>[a-z][a-z0-9-]*):(?P<target>[a-z][a-z0-9-]*)'
-                | select ns target | uniq)
-            mut bad_invocations = []
-            for inv in $invocations {
-                let known = ($registry | where name == $inv.ns)
-                if ($known | is-not-empty) {
-                    if not ($inv.target in ($known | first | get invocables)) {
-                        $bad_invocations = ($bad_invocations | append $"/($inv.ns):($inv.target)")
-                    }
-                }
-            }
+            let bad_invocations = (find-bad-invocations $invocation_content $registry)
             if ($bad_invocations | is-not-empty) { $failed = ($failed | append "invocations") }
 
             # 17. Version pins agree with sources.md: a "Current stable: X" /
@@ -306,6 +316,125 @@ def main [--update-baseline] {
         }
     }
 
+    # Pass 2: agents/*.md, commands/*.md, hooks/hooks.json — the surfaces a
+    # `claude plugin validate` pass does not cover (bogus hook event names,
+    # agents missing a name, unresolved /plugin:skill invocations). Reuses
+    # the Pass-1 registry and find-bad-invocations (check 16's logic) rather
+    # than a second resolver. Findings feed the same ratchet baseline as the
+    # per-skill checks above.
+    let known_models = ["haiku" "sonnet" "opus"]
+    let known_hook_events = ["PreToolUse" "PostToolUse" "SessionStart" "SessionEnd" "UserPromptSubmit" "Stop" "SubagentStop" "PreCompact" "Notification"]
+    mut surface_results = []
+
+    for plugin in $registry {
+        let plugin_dir = $plugin.dir
+        let plugin_name = $plugin.name
+
+        # Agents: plugin-level agents/ dir plus any skill-level nested agents/
+        # dirs (same file format — cheap to include, so both are in scope).
+        let plugin_level_agents = ($plugin_dir | path join "agents")
+        let plugin_agent_files = if ($plugin_level_agents | path exists) {
+            glob ($plugin_level_agents | path join "*.md")
+        } else { [] }
+        let nested_agent_files = (glob ($plugin_dir | path join "skills" "*" "agents" "*.md"))
+        let agent_files = ($plugin_agent_files | append $nested_agent_files | uniq)
+
+        for f in $agent_files {
+            let content = (open --raw $f)
+            let all_lines = ($content | lines)
+            let fm_lines = if ($all_lines | first | default "" | str trim) == "---" {
+                let rest = ($all_lines | skip 1)
+                let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
+                if ($end_matches | is-not-empty) {
+                    $rest | first ($end_matches | first | get index)
+                } else { [] }
+            } else { [] }
+
+            mut failed = []
+            if not ($fm_lines | any {|line| $line | str starts-with "name:"}) {
+                $failed = ($failed | append "missing_name")
+            }
+            if not ($fm_lines | any {|line| $line | str starts-with "description:"}) {
+                $failed = ($failed | append "missing_desc")
+            }
+            let model_lines = ($fm_lines | where {|line| $line | str starts-with "model:"})
+            if ($model_lines | is-not-empty) {
+                let model_val = ($model_lines | first | str replace "model:" "" | str trim | str trim -c '"' | str trim -c "'" | str downcase)
+                if $model_val not-in $known_models { $failed = ($failed | append "bad_model") }
+            }
+            let bad_invocations = (find-bad-invocations $content $registry)
+            if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
+
+            if ($failed | is-not-empty) {
+                let key_base = $"($plugin_name)/agents/($f | path basename)"
+                $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
+                $surface_results = ($surface_results | append {
+                    plugin: $plugin_name, kind: "agent", file: ($f | path basename), failed: ($failed | str join " ")
+                })
+            }
+        }
+
+        # Commands: plugin-level commands/ dir only (no nested-skill convention observed).
+        let commands_dir = ($plugin_dir | path join "commands")
+        let command_files = if ($commands_dir | path exists) {
+            glob ($commands_dir | path join "*.md")
+        } else { [] }
+
+        for f in $command_files {
+            let content = (open --raw $f)
+            let all_lines = ($content | lines)
+            let fm_lines = if ($all_lines | first | default "" | str trim) == "---" {
+                let rest = ($all_lines | skip 1)
+                let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
+                if ($end_matches | is-not-empty) {
+                    $rest | first ($end_matches | first | get index)
+                } else { [] }
+            } else { [] }
+
+            mut failed = []
+            if not ($fm_lines | any {|line| $line | str starts-with "description:"}) {
+                $failed = ($failed | append "missing_desc")
+            }
+            let bad_invocations = (find-bad-invocations $content $registry)
+            if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
+
+            if ($failed | is-not-empty) {
+                let key_base = $"($plugin_name)/commands/($f | path basename)"
+                $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
+                $surface_results = ($surface_results | append {
+                    plugin: $plugin_name, kind: "command", file: ($f | path basename), failed: ($failed | str join " ")
+                })
+            }
+        }
+
+        # Hooks: plugin-level hooks/hooks.json only.
+        let hooks_path = ($plugin_dir | path join "hooks" "hooks.json")
+        if ($hooks_path | path exists) {
+            mut failed = []
+            let parsed = try {
+                open $hooks_path
+            } catch {
+                null
+            }
+            if $parsed == null {
+                $failed = ($failed | append "bad_wrapper")
+            } else if (($parsed | get -o hooks) == null) {
+                $failed = ($failed | append "bad_wrapper")
+            } else {
+                let bad_events = ($parsed.hooks | columns | where {|e| $e not-in $known_hook_events})
+                if ($bad_events | is-not-empty) { $failed = ($failed | append "bad_event") }
+            }
+
+            if ($failed | is-not-empty) {
+                let key_base = $"($plugin_name)/hooks/hooks.json"
+                $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
+                $surface_results = ($surface_results | append {
+                    plugin: $plugin_name, kind: "hooks", file: "hooks.json", failed: ($failed | str join " ")
+                })
+            }
+        }
+    }
+
     if ($results | is-empty) {
         print "No skills found to validate."
         exit 1
@@ -317,13 +446,34 @@ def main [--update-baseline] {
     print $"Total skills: ($total_skills)"
     print $"Perfect score: ($total_pass)/($total_skills)"
 
+    print ""
+    if ($surface_results | is-empty) {
+        print "agents/commands/hooks surfaces: all clean"
+    } else {
+        print $"agents/commands/hooks surfaces: ($surface_results | length) finding\(s\)"
+        print ($surface_results | table --expand --width 220)
+    }
+
     if $update_baseline {
+        # Shrink-only: the baseline is a ratchet, never a place to stash new
+        # debt. Refuse to add any key that isn't already baselined — the only
+        # thing --update-baseline is allowed to do is drop entries that now
+        # pass (intersect currently-failing with the existing baseline).
+        let new_keys = ($failing_keys | where {|k| $k not-in $baseline} | uniq)
+        if ($new_keys | is-not-empty) {
+            print ""
+            print $"(ansi red_bold)❌ --update-baseline is shrink-only: refusing to add ($new_keys | length) new key\(s\):(ansi reset)"
+            for key in $new_keys { print $"  ($key)" }
+            print "Fix the skill instead of baselining a new violation. A deliberate net-new debt acknowledgment requires editing test/quality-baseline.json by hand and stating why in the PR."
+            exit 1
+        }
+        let shrunk = ($baseline | where {|k| $k in $failing_keys} | uniq | sort)
         {
-            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Entries are pre-existing failures (plugin/skill:check) allowed to keep failing. Do not add entries for new code; fix the skill instead. When a fix lands, the validator requires removing the stale entry. Regenerate: nu test/validate-skills-quality.nu --update-baseline"
-            allowed_failures: ($failing_keys | sort)
+            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Entries are pre-existing failures (plugin/skill:check) allowed to keep failing. Do not add entries for new code; fix the skill instead. When a fix lands, the validator requires removing the stale entry. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — errors instead of adding new keys)."
+            allowed_failures: $shrunk
         } | to json --indent 2 | save -f $baseline_path
         print ""
-        print $"Baseline updated: ($baseline_path) — ($failing_keys | length) allowed failures"
+        print $"Baseline updated \(shrink-only\): ($baseline_path) — ($shrunk | length) allowed failures"
         exit 0
     }
 

@@ -13,6 +13,13 @@
 def main [
   --base: string = "main"  # Base branch to compare against
 ] {
+  let base_check = (do { git rev-parse --verify $"($base)^{commit}" } | complete)
+  if $base_check.exit_code != 0 {
+    print $"(ansi red_bold)❌ Base ref '($base)' does not exist or is not a commit(ansi reset)"
+    print $"  ($base_check.stderr | str trim)"
+    exit 1
+  }
+
   print $"🔍 Checking version bumps against ($base)...\n"
 
   # Get list of changed files (committed, unstaged, and staged)
