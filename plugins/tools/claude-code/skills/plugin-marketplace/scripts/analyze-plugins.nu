@@ -10,6 +10,10 @@ def main [
   print $"(ansi green_bold)Analyzing plugins in:(ansi reset) ($directory)"
   print ""
 
+  # glob always returns absolute paths; expand $directory so `path relative-to`
+  # below compares two absolute paths instead of erroring on a mixed pair.
+  let directory_abs = ($directory | path expand)
+
   # Find all plugin.json files
   let plugin_files = glob $"($directory)/**/plugin.json"
     | where { |f| ($f | str contains ".claude-plugin") }
@@ -27,14 +31,14 @@ def main [
   for file in $plugin_files {
     let plugin = open $file
     let plugin_dir = $file | path dirname | path dirname
-    let rel_path = $plugin_dir | path relative-to $directory
+    let rel_path = $plugin_dir | path relative-to $directory_abs
 
     print $"  Plugin: ($plugin.name)"
     print $"    Path: ($rel_path)"
-    print $"    Version: (($plugin | get -i version) // 'not specified')"
+    print $"    Version: ($plugin | get -o version | default 'not specified')"
 
     # Count skills
-    let skill_count = if ($plugin | get -i skills) != null {
+    let skill_count = if ($plugin | get -o skills) != null {
       $plugin.skills | length
     } else {
       0
@@ -42,7 +46,7 @@ def main [
     print $"    Skills: ($skill_count)"
 
     # Count commands
-    let cmd_count = if ($plugin | get -i commands) != null {
+    let cmd_count = if ($plugin | get -o commands) != null {
       $plugin.commands | length
     } else {
       0
@@ -55,8 +59,8 @@ def main [
       name: $plugin.name
       source: $"./(($rel_path))"
       strict: true
-      description: (($plugin | get -i description) // "Add description here")
-      version: (($plugin | get -i version) // "1.0.0")
+      description: ($plugin | get -o description | default "Add description here")
+      version: ($plugin | get -o version | default "1.0.0")
       category: "development"
       keywords: []
     }

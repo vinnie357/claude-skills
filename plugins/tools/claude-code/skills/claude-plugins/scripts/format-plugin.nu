@@ -50,7 +50,7 @@ def main [
   }
 
   # Remove null fields
-  let final = $formatted | reject -i version description author homepage repository license keywords commands agents hooks mcpServers skills
+  let final = $formatted | reject -o version description author homepage repository license keywords commands agents hooks mcpServers skills
     | merge (if $formatted.version != null { { version: $formatted.version } } else { {} })
     | merge (if $formatted.description != null { { description: $formatted.description } } else { {} })
     | merge (if $formatted.author != null { { author: $formatted.author } } else { {} })

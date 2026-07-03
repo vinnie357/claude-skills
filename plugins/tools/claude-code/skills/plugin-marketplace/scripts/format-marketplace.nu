@@ -20,7 +20,7 @@ def main [
   }
 
   # Sort plugins by name
-  let sorted_plugins = if ($marketplace | get -i plugins) != null {
+  let sorted_plugins = if ($marketplace | get -o plugins) != null {
     $marketplace.plugins | sort-by name
   } else {
     []
@@ -30,7 +30,7 @@ def main [
   let formatted = {
     name: $marketplace.name
     owner: $marketplace.owner
-    metadata: (if ($marketplace | get -i metadata) != null {
+    metadata: (if ($marketplace | get -o metadata) != null {
       $marketplace.metadata
     } else {
       null

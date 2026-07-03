@@ -333,19 +333,7 @@ All skills MUST adhere to strict anti-fabrication requirements to ensure factual
 
 This repository is organized as a **tiered marketplace** with categorized plugins. Each plugin is independently installable and contains its own set of skills.
 
-**Available Plugins:**
-- **all-skills** - Meta-plugin at root that installs all skills from all other plugins
-- **core** - Essential development skills: Git, documentation, code review, accessibility (12 skills)
-- **languages/elixir** - Elixir and Phoenix development (5 skills)
-- **languages/rust** - Rust programming language (1 comprehensive skill)
-- **tools/claude-code** - Plugin marketplace management and validation tools (6 skills)
-- **tools/dagu** - Workflow orchestration (3 skills)
-- **tools/github** - GitHub Actions, Workflows, and act (3 skills)
-- **tools/slidev** - Slidev presentation framework (5 skills)
-- **ui** - UI frameworks and design (1 skill)
-- **wasm** - WebAssembly and Wasmtime (1 skill + 1 agent)
-
-**Total**: 11 plugins with 37 skills covering multiple programming languages, development tools, and best practices.
+**Available Plugins:** `all-skills` is the meta-plugin at root that installs all skills from every other plugin. For the current plugin list and per-plugin skill counts, run `jq '.plugins[].name' .claude-plugin/marketplace.json` (plugin count) and `jq '.skills | length' .claude-plugin/plugin.json` (total skill count) — or see the catalog in `README.md`, which is the source of truth for plugin descriptions.
 
 **Note**: The `all-skills` meta-plugin is maintained via `mise update-all-skills` and automatically includes all skills from all other plugins.
 
@@ -423,13 +411,13 @@ When adding new skills to this repository:
 Before committing changes, validate the marketplace and all plugins:
 
 ```bash
-mise test                    # Validate all (marketplace + 8 plugins including all-skills)
+mise test                    # Validate all (marketplace + every plugin, including all-skills)
 mise test:plugin <name>      # Validate specific plugin
 mise test:marketplace        # Validate marketplace.json only
 mise test:plugins            # Validate all plugin.json files
 ```
 
-Tests validate all 8 plugins (all-skills, claude-code, core, dagu, elixir, github, rust, ui):
+Tests validate every plugin registered in `.claude-plugin/marketplace.json` (including all-skills):
 - Required fields and JSON structure
 - Plugin names match directories (kebab-case)
 - No invalid marketplace-only fields in plugin.json
@@ -480,7 +468,7 @@ The repository includes automated validation via GitHub Actions:
 
 **Validation:**
 - Marketplace.json schema and structure
-- All plugin.json files (8 plugins including all-skills)
+- All plugin.json files (every registered plugin, including all-skills)
 - Skill path verification
 - Naming convention compliance (kebab-case)
 
