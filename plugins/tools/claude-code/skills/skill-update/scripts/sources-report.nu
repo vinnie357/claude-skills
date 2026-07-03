@@ -228,7 +228,7 @@ def main [--plugin: string = ""] {
     print $"| ------ | ----- |"
     print $"| Total sources tracked | ($total) |"
     print $"| Up to date | ($current) |"
-    print $"| Stale (needs update) | ($stale) |"
+    print $"| Stale \(needs update\) | ($stale) |"
     print $"| Manual check required | ($manual) |"
     print $"| Check errors | ($errored) |"
     print ""

@@ -19,7 +19,7 @@ Activate when:
 
 ## What is Nushell?
 
-Current stable: 0.111.0 (pre-1.0, breaking changes possible between minor versions)
+Current stable: 0.113.1 (pre-1.0, breaking changes possible between minor versions)
 
 Nushell is a modern shell that:
 - Treats **data as structured** (not just text streams)

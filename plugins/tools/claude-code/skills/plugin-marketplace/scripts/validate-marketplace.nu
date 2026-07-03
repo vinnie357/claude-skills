@@ -36,7 +36,7 @@ def main [
   } else {
     let name = $marketplace.name
     if not (is-kebab-case $name) {
-      $errors = ($errors | append $"Invalid name format: '($name)' (must be kebab-case)")
+      $errors = ($errors | append $"Invalid name format: '($name)' \(must be kebab-case\)")
     } else if $verbose {
       print $"  ✓ name: ($name)"
     }
@@ -114,7 +114,7 @@ def main [
       if ($plugin | get -o name) == null {
         $errors = ($errors | append $"Plugin entry missing required field: 'name'")
       } else if not (is-kebab-case $plugin.name) {
-        $errors = ($errors | append $"Invalid plugin name: '($plugin.name)' (must be kebab-case)")
+        $errors = ($errors | append $"Invalid plugin name: '($plugin.name)' \(must be kebab-case\)")
       }
 
       if ($plugin | get -o source) == null {

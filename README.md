@@ -457,14 +457,19 @@ This automatically collects all skills from all plugins and updates `.claude-plu
 
 ### Without mise
 
-You can run the Nushell scripts directly:
+You can run the standalone Nushell scripts directly (`test:marketplace` and
+`test:claude` are inline `mise.toml` tasks with no standalone script
+equivalent — run them via `mise run test:marketplace` / `mise run test:claude`):
 
 ```bash
-# All tests
-nu test/validate-all.nu
-
 # Specific plugin
 nu test/validate-plugin.nu elixir
+
+# Skill quality scorecard
+nu test/validate-skills-quality.nu
+
+# Version bump check (requires a base ref to diff against)
+nu test/check-version-bumps.nu --base main
 
 # Update all-skills
 nu .claude-plugin/scripts/update-all-skills.nu
@@ -484,33 +489,12 @@ mise test:skills-quality
 mise test
 ```
 
-This produces a scorecard table:
-
-```
-╭────┬─────────────────────────┬─────────────┬──────┬──────────┬─────────┬──────────┬──────────┬──────────┬───────╮
-│  # │          skill          │   plugin    │ desc │ use_when │  lines  │ lines_ok │ examples │ anti_fab │ score │
-├────┼─────────────────────────┼─────────────┼──────┼──────────┼─────────┼──────────┼──────────┼──────────┼───────┤
-│  0 │ plugin-marketplace      │ claude-code │ Pass │ Pass     │ 487/500 │ Pass     │ Pass     │ FAIL     │ 10/11 │
-│  1 │ anti-fabrication        │ core        │ Pass │ Pass     │ 265/500 │ Pass     │ Pass     │ Pass     │ 11/11 │
-│ .. │ ...                     │ ...         │ ...  │ ...      │ ...     │ ...      │ ...      │ ...      │ ...   │
-╰────┴─────────────────────────┴─────────────┴──────┴──────────┴─────────┴──────────┴──────────┴──────────┴───────╯
-```
-
-**Checks (11 total):**
-
-| Check | Pass Criteria | Source |
-|-------|--------------|--------|
-| desc | Non-empty, max 1024 chars | Anthropic Spec |
-| use_when | Description contains "Use when" triggers | Anthropic Best Practices |
-| third_person | No "I can", "You can" in description | Anthropic Best Practices |
-| kebab_case | Name matches `^[a-z0-9]+(-[a-z0-9]+)*$` | Anthropic Spec |
-| name_length | Name max 64 characters | Anthropic Spec |
-| no_reserved | No "anthropic"/"claude" in name | Anthropic Spec |
-| lines_ok | SKILL.md max 500 lines | Anthropic PDF Guide |
-| examples | Contains code blocks or example sections | Anthropic PDF Guide |
-| ref_depth | No nested references (one level deep only) | Anthropic PDF Guide |
-| anti_fab | Anti-fabrication rules present or referenced | Project Standard |
-| source_doc | Skill documented in plugin's `sources.md` | Project Convention |
+This produces a scorecard table (17 per-skill checks, plus a separate
+agents/commands/hooks surface pass) enforced against a shrink-only ratchet
+baseline (`test/quality-baseline.json`) so pre-existing debt can't regress
+and new debt can't be baselined away. See
+[test/README.md](test/README.md#skill-quality-checks) for the full list of
+check keys and their meanings.
 
 Use `/benchmark-skills` for a more detailed analysis with category classification and quality assessment.
 
