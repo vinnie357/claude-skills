@@ -49,4 +49,4 @@ Default to velocity for non-sensitive changes (config tweaks, image tag bumps); 
 
 Services reachable over a network (overlay or otherwise) bind ALL interfaces in prod (`0.0.0.0` for IPv4, `::` for IPv6), NOT `127.0.0.1`. Loopback binds are dev-only.
 
-For Phoenix endpoints specifically, the unconditional-at-top-level-of-runtime.exs pattern is documented in `/elixir:phoenix` "Runtime configuration" → "Phoenix Endpoint `:ip` bind config". Other frameworks have equivalent settings; the principle (bind all interfaces, env-driven, unconditional) generalizes.
+For Phoenix endpoints specifically, the unconditional-at-top-level-of-runtime.exs pattern is documented in `/elixir:phoenix` (elixir plugin; reference resolves only when installed — the principle stands without it) "Runtime configuration" → "Phoenix Endpoint `:ip` bind config". Other frameworks have equivalent settings; the principle (bind all interfaces, env-driven, unconditional) generalizes.

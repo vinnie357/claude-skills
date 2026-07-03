@@ -67,10 +67,10 @@ All plugin manifests must be located at `.claude-plugin/plugin.json` within the 
 - `author.url`: Personal or organization website
 
 **Component Paths:**
-- `skills`: Array of skill directory paths (relative to plugin root)
-- `commands`: String path or array of command file/directory paths
-- `agents`: String path or array of agent file paths
-- `hooks`: String path to hooks.json or hooks configuration object
+- `skills`: Array of skill directory paths (relative to plugin root) (see `claude-skills` skill)
+- `commands`: String path or array of command file/directory paths (see `claude-commands` skill)
+- `agents`: String path or array of agent file paths (see `claude-agents` skill)
+- `hooks`: String path to hooks.json or hooks configuration object (see `claude-hooks` skill)
 - `mcpServers`: String path to MCP config or configuration object
 
 **Convention-Based Directories** (no `plugin.json` field required):

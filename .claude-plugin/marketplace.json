@@ -13,9 +13,13 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.33",
+      "version": "0.4.34",
       "category": "meta",
-      "keywords": ["all", "complete", "bundle"],
+      "keywords": [
+        "all",
+        "complete",
+        "bundle"
+      ],
       "license": "MIT"
     },
     {
@@ -25,7 +29,12 @@
       "description": "Opinionated Allium integration for /core:agent-loop",
       "version": "0.1.0",
       "category": "tools",
-      "keywords": ["allium", "agent-loop", "tdd", "behavioral-spec"],
+      "keywords": [
+        "allium",
+        "agent-loop",
+        "tdd",
+        "behavioral-spec"
+      ],
       "license": "MIT"
     },
     {
@@ -35,7 +44,14 @@
       "description": "awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API",
       "version": "0.2.2",
       "category": "tools",
-      "keywords": ["awman", "agents", "workflows", "tmux", "claude-code", "container"],
+      "keywords": [
+        "awman",
+        "agents",
+        "workflows",
+        "tmux",
+        "claude-code",
+        "container"
+      ],
       "license": "MIT"
     },
     {
@@ -45,7 +61,16 @@
       "description": "altana CLI wrapper: delegate prompts to sandboxed AI harnesses, run council fan-outs for diverse perspectives, and distribute tasks across harness presets",
       "version": "0.1.1",
       "category": "tools",
-      "keywords": ["altana", "ai-agents", "harness", "delegate", "council", "sandbox", "awman", "local-llm"],
+      "keywords": [
+        "altana",
+        "ai-agents",
+        "harness",
+        "delegate",
+        "council",
+        "sandbox",
+        "awman",
+        "local-llm"
+      ],
       "license": "MIT"
     },
     {
@@ -55,7 +80,14 @@
       "description": "Ansible automation skills: playbooks, inventory, roles, vault secrets, and Molecule testing",
       "version": "0.1.0",
       "category": "tools",
-      "keywords": ["ansible", "automation", "configuration-management", "devops", "playbooks", "molecule"],
+      "keywords": [
+        "ansible",
+        "automation",
+        "configuration-management",
+        "devops",
+        "playbooks",
+        "molecule"
+      ],
       "license": "MIT"
     },
     {
@@ -63,18 +95,40 @@
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills: plugin marketplace management and validation",
-      "version": "0.2.10",
+      "version": "0.2.11",
       "category": "tools",
-      "keywords": ["claude-code", "marketplace", "validation", "teams", "benchmark", "skill-update", "output-styles", "statusline", "workflows"]
+      "keywords": [
+        "claude-code",
+        "marketplace",
+        "validation",
+        "teams",
+        "benchmark",
+        "skill-update",
+        "output-styles",
+        "statusline",
+        "workflows"
+      ]
     },
     {
       "name": "core",
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.17",
+      "version": "0.2.18",
       "category": "development",
-      "keywords": ["git", "documentation", "code-review", "tools", "beads", "bees", "container", "tdd", "agent-loop", "forge", "restraint"]
+      "keywords": [
+        "git",
+        "documentation",
+        "code-review",
+        "tools",
+        "beads",
+        "bees",
+        "container",
+        "tdd",
+        "agent-loop",
+        "forge",
+        "restraint"
+      ]
     },
     {
       "name": "dagu",
@@ -83,7 +137,11 @@
       "description": "Dagu workflow orchestration: workflows, web UI, REST API",
       "version": "0.1.2",
       "category": "tools",
-      "keywords": ["dagu", "workflow", "orchestration"]
+      "keywords": [
+        "dagu",
+        "workflow",
+        "orchestration"
+      ]
     },
     {
       "name": "elixir",
@@ -92,25 +150,55 @@
       "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style",
       "version": "0.1.13",
       "category": "language",
-      "keywords": ["elixir", "phoenix", "otp", "ports", "ecto", "style", "beam"]
+      "keywords": [
+        "elixir",
+        "phoenix",
+        "otp",
+        "ports",
+        "ecto",
+        "style",
+        "beam"
+      ]
     },
     {
       "name": "github",
       "source": "./plugins/tools/github",
       "strict": true,
       "description": "GitHub Actions, Workflows, act local testing, community health files, Dependabot consolidation, and PR review",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "category": "tools",
-      "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing", "community-health", "open-source", "dependabot", "dependencies", "pr-review", "code-review", "collaborator"]
+      "keywords": [
+        "github",
+        "actions",
+        "workflows",
+        "ci-cd",
+        "act",
+        "testing",
+        "community-health",
+        "open-source",
+        "dependabot",
+        "dependencies",
+        "pr-review",
+        "code-review",
+        "collaborator"
+      ]
     },
     {
       "name": "graphify",
       "source": "./plugins/tools/graphify",
       "strict": true,
       "description": "Graphify knowledge-graph tool: build a queryable graph of a codebase and query it instead of reading raw files",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "tools",
-      "keywords": ["graphify", "knowledge-graph", "codebase", "code-search", "tree-sitter", "agents", "context"],
+      "keywords": [
+        "graphify",
+        "knowledge-graph",
+        "codebase",
+        "code-search",
+        "tree-sitter",
+        "agents",
+        "context"
+      ],
       "license": "MIT"
     },
     {
@@ -120,7 +208,19 @@
       "description": "Agent sandboxing for AI coding agents: 7 skills (including a sandbox index for progressive disclosure) + 6 slash commands for microVM and kernel-isolated execution on Kubernetes (kind+Kata, GKE+Kata, kina+Apple Container). Designed to grow to non-k8s sandboxing paths.",
       "version": "0.2.3",
       "category": "tools",
-      "keywords": ["agent-sandbox", "sandboxing", "microvm", "kata", "gvisor", "kina", "apple-container", "kubernetes", "gke", "kind", "claude-code"],
+      "keywords": [
+        "agent-sandbox",
+        "sandboxing",
+        "microvm",
+        "kata",
+        "gvisor",
+        "kina",
+        "apple-container",
+        "kubernetes",
+        "gke",
+        "kind",
+        "claude-code"
+      ],
       "license": "MIT"
     },
     {
@@ -130,7 +230,14 @@
       "description": "Linear project management: MCP/GraphQL API, VantageEx epic authoring, auditing, and grooming",
       "version": "0.1.7",
       "category": "tools",
-      "keywords": ["linear", "project-management", "epics", "graphql", "vantageex", "mcp"],
+      "keywords": [
+        "linear",
+        "project-management",
+        "epics",
+        "graphql",
+        "vantageex",
+        "mcp"
+      ],
       "license": "MIT"
     },
     {
@@ -140,7 +247,13 @@
       "description": "Playwright MCP browser automation for Claude Code",
       "version": "0.1.0",
       "category": "tools",
-      "keywords": ["playwright", "mcp", "browser", "automation", "screenshots"],
+      "keywords": [
+        "playwright",
+        "mcp",
+        "browser",
+        "automation",
+        "screenshots"
+      ],
       "license": "MIT"
     },
     {
@@ -148,9 +261,17 @@
       "source": "./plugins/tools/qa",
       "strict": true,
       "description": "QA team that validates a running application against Gherkin user stories using Playwright and Tidewave",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "category": "tools",
-      "keywords": ["qa", "gherkin", "playwright", "tidewave", "tdd", "user-stories", "bdd"],
+      "keywords": [
+        "qa",
+        "gherkin",
+        "playwright",
+        "tidewave",
+        "tdd",
+        "user-stories",
+        "bdd"
+      ],
       "license": "MIT"
     },
     {
@@ -160,7 +281,13 @@
       "description": "Runex workflow engine: API, bundles, step logs, and debugging",
       "version": "0.1.4",
       "category": "tools",
-      "keywords": ["runex", "workflow", "orchestration", "elixir", "bundles"],
+      "keywords": [
+        "runex",
+        "workflow",
+        "orchestration",
+        "elixir",
+        "bundles"
+      ],
       "license": "MIT"
     },
     {
@@ -170,16 +297,29 @@
       "description": "Rust programming skills + adversarial-TDD worker agents (rust-test-author, rust-implementer)",
       "version": "0.1.5",
       "category": "language",
-      "keywords": ["rust", "systems-programming", "memory-safety", "agents", "tdd"]
+      "keywords": [
+        "rust",
+        "systems-programming",
+        "memory-safety",
+        "agents",
+        "tdd"
+      ]
     },
     {
       "name": "sbx",
       "source": "./plugins/tools/sbx",
       "strict": true,
       "description": "Docker Sandboxes (sbx CLI): run AI coding agents in isolated microVMs with hypervisor-level isolation",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "tools",
-      "keywords": ["docker", "sandbox", "sbx", "microvm", "ai-agents", "isolation"],
+      "keywords": [
+        "docker",
+        "sandbox",
+        "sbx",
+        "microvm",
+        "ai-agents",
+        "isolation"
+      ],
       "license": "MIT"
     },
     {
@@ -189,7 +329,16 @@
       "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
       "version": "0.2.0",
       "category": "tools",
-      "keywords": ["slidev", "presentation", "slides", "markdown", "vite", "branding", "interactive", "strategy"],
+      "keywords": [
+        "slidev",
+        "presentation",
+        "slides",
+        "markdown",
+        "vite",
+        "branding",
+        "interactive",
+        "strategy"
+      ],
       "license": "MIT"
     },
     {
@@ -199,7 +348,14 @@
       "description": "Tweag tools: Topiary universal code formatter and Nickel configuration language",
       "version": "0.1.0",
       "category": "tools",
-      "keywords": ["tweag", "topiary", "nickel", "formatter", "configuration", "tree-sitter"],
+      "keywords": [
+        "tweag",
+        "topiary",
+        "nickel",
+        "formatter",
+        "configuration",
+        "tree-sitter"
+      ],
       "license": "MIT"
     },
     {
@@ -209,16 +365,27 @@
       "description": "UI framework skills: daisyUI components and theming",
       "version": "0.1.2",
       "category": "frontend",
-      "keywords": ["ui", "daisyui", "tailwind"]
+      "keywords": [
+        "ui",
+        "daisyui",
+        "tailwind"
+      ]
     },
     {
       "name": "wasm",
       "source": "./plugins/wasm",
       "strict": true,
       "description": "WebAssembly skills: wasmtime runtime, component model, guest compilation, and host embedding",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "category": "language",
-      "keywords": ["wasm", "webassembly", "wasmtime", "wasi", "component-model", "wit"],
+      "keywords": [
+        "wasm",
+        "webassembly",
+        "wasmtime",
+        "wasi",
+        "component-model",
+        "wit"
+      ],
       "license": "MIT"
     },
     {
@@ -228,7 +395,15 @@
       "description": "whamm! WebAssembly bytecode instrumentation: mise install, the instr/info CLI, injection strategies, and the DTrace-inspired .mm monitor DSL",
       "version": "0.1.0",
       "category": "tools",
-      "keywords": ["whamm", "webassembly", "wasm", "instrumentation", "bytecode", "dtrace", "profiling"],
+      "keywords": [
+        "whamm",
+        "webassembly",
+        "wasm",
+        "instrumentation",
+        "bytecode",
+        "dtrace",
+        "profiling"
+      ],
       "license": "MIT"
     },
     {
@@ -238,7 +413,12 @@
       "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, testing, and troubleshooting",
       "version": "0.1.3",
       "category": "language",
-      "keywords": ["zig", "systems-programming", "comptime", "allocators"],
+      "keywords": [
+        "zig",
+        "systems-programming",
+        "comptime",
+        "allocators"
+      ],
       "license": "MIT"
     },
     {
@@ -250,7 +430,13 @@
       "description": "Comprehensive project analysis and planning system with parallel discovery agents",
       "version": "1.0.0",
       "category": "tools",
-      "keywords": ["project-analysis", "planning", "discovery", "prd", "implementation"],
+      "keywords": [
+        "project-analysis",
+        "planning",
+        "discovery",
+        "prd",
+        "implementation"
+      ],
       "license": "MIT"
     }
   ]

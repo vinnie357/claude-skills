@@ -18,6 +18,8 @@ of skill sets.
 | `.md`, `docs/` only | documentation | `/core:documentation` |
 | `.github/workflows/`, action pins, image digests | gh-actions/security | `/github:workflows`, `/github:actions`, `/core:security` |
 
+Language-skill rows resolve only when the corresponding plugin is installed; otherwise review with the always-load set.
+
 Always-load set (every reviewer, every PR): `/core:git`, `/core:mise`, `/core:security`,
 `/core:anti-fabrication`.
 
