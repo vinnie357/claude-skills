@@ -21,6 +21,8 @@ Invoke the Skill tool for each by exact name before any other step:
 - `/core:bees` (the tracker)
 - `/claude-code:claude-agents` (always, before spawning) and `/claude-code:claude-teams` (when spawning ≥2 parallel workers)
 
+Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
+
 Quote one sentence from `/core:agent-loop` describing Forge as proof of loading.
 
 ## Resolve the target

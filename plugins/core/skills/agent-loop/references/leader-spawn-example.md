@@ -46,4 +46,6 @@ quote one sentence from each loaded skill and post your test code before
 proceeding to step 3.
 ```
 
+Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
+
 Compact. Names files and functions to reuse. Anchors the proof-of-loading checkpoint inside the execution order.
