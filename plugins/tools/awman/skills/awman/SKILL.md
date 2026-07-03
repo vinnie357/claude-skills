@@ -36,7 +36,7 @@ A container runtime, set via the global-only `runtime` config key (`awman config
 | `apple-containers` | macOS 26+ | native `container` CLI |
 | `docker-sbx-experimental` | macOS arm64, Windows x86_64 | `sbx` CLI (`brew install docker/tap/sbx` + `sbx login`) |
 
-`docker-sbx-experimental` (new in 0.10.0) runs each session in a dedicated microVM — private kernel, filesystem, and Docker daemon. It does **not** honor `dir()`, skill, or context overlays; networking goes through an HTTP/HTTPS proxy (raw TCP/UDP blocked); sandboxes persist between sessions. The runtime must be running and healthy before any `awman` session starts.
+`docker-sbx-experimental` (new in 0.10.0) runs each session in a dedicated microVM — private kernel, filesystem, and Docker daemon. It does **not** honor `dir()`, skill, or context overlays; networking goes through an HTTP/HTTPS proxy (raw TCP/UDP blocked); sandboxes persist between sessions. The runtime must be running and healthy before any `awman` session starts. This runtime requires a free Docker account; `sbx login` is a one-time authentication step that must complete before `awman ready` reports the runtime healthy.
 
 ## Install
 

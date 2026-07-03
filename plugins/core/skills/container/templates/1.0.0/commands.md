@@ -18,7 +18,7 @@ Changes from 0.12.3.
 
 - `container machine` (alias `m`) — long-lived Linux environments with tight host integration
 - `container cp` — copy files between host and container
-- `--stop-signal` option on `container run`
+- `-s`/`--signal` option on `container stop`
 - `--shm-size` option for shared-memory sizing
 - Image `variant` support
 - `container help <subcommand>` fixed
@@ -91,13 +91,14 @@ container system property list --format json
 | Command | Description |
 |---------|-------------|
 | `container cp` | **New** — copy files between host and container |
-| `container run` | `--stop-signal` and `--shm-size` options added |
+| `container run` | `--shm-size` option added |
+| `container stop` | `-s`/`--signal` option added |
 
 ```bash
 container cp mycontainer:/var/log/app.log ./app.log
 container cp ./config.yml mycontainer:/etc/app/config.yml
-container run --stop-signal SIGTERM -d --name app myapp:latest
 container run --shm-size 1g -d --name app myapp:latest
+container stop --signal SIGTERM app
 ```
 
 ## Output Formats

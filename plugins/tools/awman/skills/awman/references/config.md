@@ -54,7 +54,7 @@ Stored in `$HOME/.awman/config.json`; apply to all awman projects on this machin
 | `apple-containers` | macOS 26+ | native `container` CLI |
 | `docker-sbx-experimental` | macOS arm64, Windows x86_64 | `sbx` CLI (`brew install docker/tap/sbx`) + `sbx login` |
 
-Each runtime maintains separate state; switching does not delete other runtimes' data. Run `awman ready` after switching. `docker-sbx-experimental` does not honor directory, skill, or context overlays; networking is proxy-only; sandboxes persist between sessions.
+Each runtime maintains separate state; switching does not delete other runtimes' data. Run `awman ready` after switching. `docker-sbx-experimental` does not honor directory, skill, or context overlays; networking is proxy-only; sandboxes persist between sessions. It requires a free Docker account, and `sbx login` (one-time) must complete before `awman ready` reports it healthy.
 
 ---
 
