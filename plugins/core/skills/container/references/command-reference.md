@@ -50,7 +50,6 @@ container run [FLAGS] IMAGE [COMMAND] [ARGS...]
 | `--runtime` | | Container runtime (0.10.0+) |
 | `--cap-add` | | Add a Linux capability (0.12.0+) |
 | `--cap-drop` | | Drop a Linux capability (0.12.0+) |
-| `--stop-signal` | | Signal sent to stop the container (1.0.0+) |
 | `--shm-size` | | Shared-memory size, e.g., `1g` (1.0.0+) |
 | `--scheme` | | Image scheme |
 | `--progress` | | Progress output (`none`, `ansi`) (0.7.0+) |
@@ -87,6 +86,10 @@ Stop one or more running containers.
 ```
 container stop CONTAINER [CONTAINER...]
 ```
+
+| Flag | Description |
+|------|-------------|
+| `-s, --signal` | Signal to send when stopping (e.g. `SIGTERM`) (1.0.0+) |
 
 ### `container kill`
 

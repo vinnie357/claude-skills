@@ -26,7 +26,7 @@ Per-release feature history, the full migration checklist, and the dependency ma
 
 > **⚠ BREAKING — 1.0.0 configuration change:** A TOML configuration file (`~/.config/container/config.toml`) replaces the UserDefaults-backed system properties. `container system property get`, `set`, and `clear` are REMOVED; `property list` remains as a read-only view of the merged configuration. Structured (JSON/YAML/TOML) output shape changed for `container`/`image`/`network`/`volume` `ls` and `inspect`. Application major version 0 XPC API compatibility was removed. See `templates/1.0.0/commands.md` for details.
 
-**1.0.0**: `container machine` (alias `m`) for long-lived Linux environments with tight host integration, `container cp` for host-container file copy, `--stop-signal` on `container run`, `--shm-size`, image `variant` support, `container help <subcommand>` fixed, `system df` accounting fixes, XPC-connection-as-lease fixes IP address leaks
+**1.0.0**: `container machine` (alias `m`) for long-lived Linux environments with tight host integration, `container cp` for host-container file copy, `-s`/`--signal` on `container stop`, `--shm-size` on `container run`, image `variant` support, `container help <subcommand>` fixed, `system df` accounting fixes, XPC-connection-as-lease fixes IP address leaks
 
 ## Migration Checklist (0.5.x to 1.0.0)
 

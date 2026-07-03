@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.37",
+      "version": "0.4.38",
       "category": "meta",
       "keywords": [
         "all",
@@ -42,7 +42,7 @@
       "source": "./plugins/tools/awman",
       "strict": true,
       "description": "awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "category": "tools",
       "keywords": [
         "awman",
@@ -114,7 +114,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.19",
+      "version": "0.2.20",
       "category": "development",
       "keywords": [
         "git",

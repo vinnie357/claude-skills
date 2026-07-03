@@ -183,11 +183,14 @@ container run --init -d --name app myapp:latest
 container run --cap-add NET_ADMIN myimage:latest
 container run --cap-drop ALL --cap-add NET_BIND_SERVICE myimage:latest
 
-# Run with a custom stop signal (1.0.0+)
-container run --stop-signal SIGTERM -d --name app myapp:latest
-
 # Run with a shared-memory size (1.0.0+)
 container run --shm-size 1g -d --name app myapp:latest
+```
+
+Custom stop signals are set on `container stop`, not `container run` (1.0.0+):
+
+```bash
+container stop --signal SIGTERM app
 ```
 
 ### Manage Running Containers
