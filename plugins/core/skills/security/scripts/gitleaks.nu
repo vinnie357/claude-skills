@@ -92,7 +92,7 @@ def detect-runtime [] {
             return "container"
         }
         # Container CLI exists but may need to be started
-        print $"(ansi yellow)Found Apple Container CLI (not running)(ansi reset)"
+        print $"(ansi yellow)Found Apple Container CLI \(not running\)(ansi reset)"
         return "container"
     }
 
@@ -104,7 +104,7 @@ def detect-runtime [] {
             return "docker"
         }
         # Docker CLI exists but daemon may not be running
-        print $"(ansi yellow)Found Docker CLI (daemon not running)(ansi reset)"
+        print $"(ansi yellow)Found Docker CLI \(daemon not running\)(ansi reset)"
         return "docker"
     }
 

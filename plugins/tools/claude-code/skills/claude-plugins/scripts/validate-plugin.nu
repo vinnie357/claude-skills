@@ -202,7 +202,7 @@ def validate-plugin-content [
 
     # Validate kebab-case
     if not ($name =~ '^[a-z0-9]+(-[a-z0-9]+)*$') {
-      $errors = ($errors | append $"Invalid name format: '($name)' (must be kebab-case)")
+      $errors = ($errors | append $"Invalid name format: '($name)' \(must be kebab-case\)")
     }
 
     # Verify name matches expected

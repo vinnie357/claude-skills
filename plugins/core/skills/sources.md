@@ -41,7 +41,7 @@ This file documents the sources used to create the core plugin skills.
 - **URL**: https://github.com/nushell/nushell/releases
 - **Purpose**: Nushell release tracking and changelog
 - **Date Accessed**: 2026-03-25
-- **Key Topics**: Version 0.111.0 (current), release notes, breaking changes
+- **Key Topics**: Version 0.113.1 (current), release notes, breaking changes
 
 ## Documentation Skill
 
