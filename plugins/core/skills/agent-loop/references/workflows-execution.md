@@ -43,18 +43,35 @@ const plan = await agent(planPrompt(args), { phase: 'Plan', schema: TEST_LIST })
 const testSha = await agent(testAuthorPrompt(args, plan), { phase: 'Test', schema: COMMIT })
 const impl = await agent(implPrompt(args, plan, testSha), { phase: 'Impl', schema: COMMIT })
 
-// Stage gate: the adversarial-TDD diff boundary, enforced not narrated
-const touched = await agent(`Return git diff ${testSha.sha}..HEAD -- ${args.testFiles.join(' ')}`, { schema: DIFF })
-if (touched.nonEmpty) return { status: 'escalate', reason: 'implementer modified test files', testSha }
+// Stage gate: the adversarial-TDD diff boundary, enforced not narrated.
+// frozenIntact() checks BOTH git diff testSha..HEAD AND git status --porcelain
+// on the test files — a committed-diff-only check misses uncommitted edits.
+if (!(await frozenIntact(args.testFiles, testSha.sha, 'Impl')))
+  return { status: 'escalate', reason: 'implementer modified test files', testSha }
 
-const ci = await agent('Run mise run ci, return verbatim output and green/red.', { phase: 'CI', schema: CI_RESULT })
+let ci = await agent('Run mise run ci, return verbatim output and green/red.', { phase: 'CI', schema: CI_RESULT })
 if (!ci.green) return { status: 'ci-red', ci }
+
+// Re-check the diff-boundary gate after the fix loop, not only before it —
+// a fix cycle can reintroduce a frozen-test edit the pre-CI check missed.
+if (!(await frozenIntact(args.testFiles, testSha.sha, 'CI')))
+  return { status: 'escalate', reason: 'fix loop modified test files', testSha }
 
 const review = await agent(reviewPrompt(args), { phase: 'Review', schema: VERDICT })
 return { status: review.approved ? 'done' : 'rework', review }
 ```
 
 Each stage prompt still names its tier (`You are P2 — test author for issue <id>`) and forbids out-of-stage activity, per the pipeline-collapse rule. The complete runnable version of this abbreviated example — full stage prompts, per-stage `skillProof` schemas, the diff-boundary gate, the escalation ladder, and the bounded fix loop — is `templates/five-tier-issue.workflow.js` in this skill.
+
+## Gate doctrine: deliberate red, no shims, cache poisoning
+
+Three production-learned gotchas tighten the P2/fix-loop prompts above.
+
+**Deliberate red, tightened.** "The deliberate red is the spec" (P2's stay-in-stage rule) means assertion failures or missing symbols in the *project's own* modules — not a compiler or interpreter error naming a stdlib or third-party API. That second kind is the test author's bug: a test that fails to compile because it references a symbol from an external package is not exercising unwritten behavior, it is broken. When a test genuinely needs a symbol that does not exist yet, use the stub-verification technique: write a throwaway stub module that satisfies just the referenced symbols, compile the test file against the stub to confirm it builds and fails only on assertions, then delete the stub before committing so the checked-in red is real.
+
+**Escalate, never shim.** The fix-loop prompt forbids shimming a failure it cannot resolve within its prohibitions (no new features, no test rewrites) — it must escalate instead. The asymmetry is real: a fix agent facing a removed stdlib API can either migrate the ~30 lines of call sites that used it, or vendor/fork/overlay/redirect the toolchain to keep the old API alive — a shim that has been observed to balloon past 6000 lines in the wild. Never vendor, fork, overlay, or redirect the language stdlib or toolchain from a fix-loop stage; migrate the call site or escalate.
+
+**Toolchain cache poisoning.** Some toolchains key their build cache on a version *string*, not a content hash. Two builds that report the same version string — one from the intended toolchain, one from a since-removed or since-patched toolchain — can share cache entries. A stale or vulnerable toolchain can therefore keep reporting green from cached artifacts long after it should have gone cold, because the cache key never changed even though the underlying stdlib did. This was observed with zig: two zig builds sharing one version string shared global cache keys, so artifacts built against a removed toolchain kept a broken toolchain "green" until the cache was cleared. Guard against this class of bug by verifying stdlib/toolchain checksums against the official release tarball, not by trusting the toolchain's own version output.
 
 ## Proof of loading as a schema field
 
@@ -108,10 +125,12 @@ const survey = await agent(researchPrompt(args), { phase: 'Plan', agentType: 'Ex
 
 ## Validator ↔ Fix Agent loop-until-green
 
-Phase 3's "Validator and Fix Agent iterate until clean, escalate after 3 stalled cycles" is a bounded loop.
+Phase 3's "Validator and Fix Agent iterate until clean, escalate after 3 stalled cycles" is a bounded loop. The CI-runner prompt requires a clean working tree before reporting green — a dirty-tree green is an illusion, since uncommitted changes never reach the PR. The diff-boundary gate re-runs once more after this loop exits (see "Gate doctrine" above) before the result reaches Review.
 
 ```javascript
 let cycles = 0
+// CI-runner prompt includes: "Require a clean working tree before reporting
+// green — a dirty tree green is an illusion."
 let ci = await agent('Run mise run ci.', { phase: 'CI', schema: CI_RESULT })
 while (!ci.green && cycles < 3) {
   await agent(`Fix these failures without touching tests: ${ci.output}`, { phase: 'Fix' })
@@ -119,6 +138,7 @@ while (!ci.green && cycles < 3) {
   cycles++
 }
 if (!ci.green) return { status: 'escalate', reason: 'validation stalled', ci }
+// Re-check frozenIntact() here before Review — see "Gate doctrine" above.
 ```
 
 ## Teams of teams via nested workflow()
