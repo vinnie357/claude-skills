@@ -34,6 +34,51 @@ def find-bad-invocations [content: string, registry: list] {
     $bad
 }
 
+# A references/ path is cross-skill qualified when the text preceding it on
+# the same line names a DIFFERENT skill — either a /plugin:skill token (the
+# common case: "see `/core:restraint`'s references/foo.md") or a full
+# plugins/<...>/skills/<other>/ prefix. Such a pointer targets another
+# skill's reference tree, not this skill's own, so it is not a same-skill
+# nesting or broken-link violation. Shared by check 9 (ref_depth) and
+# check 14 (links).
+def cross-skill-qualified [prefix_line: string, dir_name: string]: nothing -> bool {
+    let qual_match = ($prefix_line | parse --regex '/[a-z][a-z0-9-]*:(?P<skill>[a-z][a-z0-9-]*)')
+    if ($qual_match | is-not-empty) {
+        return (($qual_match | last | get skill) != $dir_name)
+    }
+    let plugins_match = ($prefix_line | parse --regex 'skills/(?P<skill>[a-z][a-z0-9-]*)/$')
+    if ($plugins_match | is-not-empty) {
+        return (($plugins_match | first | get skill) != $dir_name)
+    }
+    false
+}
+
+# Text preceding the first occurrence of `path` in `content`, truncated to
+# just its own line (so cross-skill-qualified only sees same-line context).
+def preceding-line [content: string, path: string]: nothing -> string {
+    let idx = ($content | str index-of $path)
+    if $idx < 0 {
+        ""
+    } else {
+        let before = ($content | str substring 0..<$idx)
+        ($before | split row "\n" | last)
+    }
+}
+
+# True when `content` contains at least one "references/" token that is NOT
+# cross-skill qualified (i.e. a genuine same-skill nested reference).
+def has-unqualified-references-token [content: string, dir_name: string]: nothing -> bool {
+    ($content | lines | any {|line|
+        if not ($line | str contains "references/") {
+            false
+        } else {
+            let idx = ($line | str index-of "references/")
+            let prefix = ($line | str substring 0..<$idx)
+            not (cross-skill-qualified $prefix $dir_name)
+        }
+    })
+}
+
 # Remove fenced code blocks so code examples don't trip content checks
 # (e.g. a `name: CI` line inside a GitHub Actions YAML example).
 def strip-fences [content: string] {
@@ -201,7 +246,9 @@ def main [--update-baseline] {
             let has_example_header = ($content | str downcase | str contains "## example")
             if not ($has_code_fence or $has_example_header) { $failed = ($failed | append "examples") }
 
-            # 9. Reference depth (no nested references; code examples don't count)
+            # 9. Reference depth (no nested references; code examples don't count).
+            # A references/ token qualified as pointing at another skill (see
+            # cross-skill-qualified above) is not a same-skill nesting violation.
             let refs_dir = ($skill_dir | path join "references")
             let ref_files = if ($refs_dir | path exists) {
                 glob ($refs_dir | path join "*.md")
@@ -209,7 +256,7 @@ def main [--update-baseline] {
                 []
             }
             let nested = ($ref_files | where {|f|
-                (strip-fences (open --raw $f)) | str contains "references/"
+                has-unqualified-references-token (strip-fences (open --raw $f)) $dir_name
             })
             if ($nested | length) > 0 { $failed = ($failed | append "ref_depth") }
 
@@ -255,7 +302,12 @@ def main [--update-baseline] {
                 let top = ($p | split row "/" | first)
                 let dir_gated = $top in ["scripts" "templates" "hooks"]
                 let in_scope = (not $dir_gated) or (($skill_dir | path join $top) | path exists)
-                $in_scope and (not (($skill_dir | path join $p) | path exists))
+                let missing = (not (($skill_dir | path join $p) | path exists))
+                # A references/ path qualified as pointing at another skill
+                # (see cross-skill-qualified above) resolves against that
+                # skill's own tree, not $skill_dir — not a broken link here.
+                let cross_skill = ($top == "references") and (cross-skill-qualified (preceding-line $stripped $p) $dir_name)
+                $in_scope and $missing and (not $cross_skill)
             })
             if ($broken_links | is-not-empty) { $failed = ($failed | append "links") }
 
