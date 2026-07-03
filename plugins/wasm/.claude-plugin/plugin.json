@@ -1,13 +1,20 @@
 {
   "name": "wasm",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "WebAssembly skills: wasmtime runtime, component model, guest compilation, and host embedding",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["wasm", "webassembly", "wasmtime", "wasi", "component-model", "wit"],
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "wasmtime",
+    "wasi",
+    "component-model",
+    "wit"
+  ],
   "skills": [
     "./skills/wasmtime",
     "./skills/wit"

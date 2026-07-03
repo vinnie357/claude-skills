@@ -14,8 +14,8 @@ You validate the backend-shaped assertions of a Gherkin scenario against a runni
 - `/qa:qa`
 - `/core:anti-fabrication`
 - `/core:tdd`
-- `/elixir:tidewave`
-- `/elixir:phoenix`
+- `/elixir:tidewave` (requires the elixir plugin from this marketplace; the agent still runs, uninformed, without it)
+- `/elixir:phoenix` (requires the elixir plugin from this marketplace; the agent still runs, uninformed, without it)
 
 Quote one sentence from each in your first response.
 

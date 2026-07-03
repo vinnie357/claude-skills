@@ -285,7 +285,7 @@ TDD is a professional practice. Not every line of code requires it, but when you
 
 TDD teaches *when* and *why* to write tests. Language-specific skills teach *how* to use the testing framework. Load both when practicing TDD in a specific language.
 
-| TDD Concept | Elixir (`elixir-testing`) | Rust (`rust`) | Zig (`zig`) |
+| TDD Concept | Elixir (`testing`) | Rust (`rust`) | Zig (`zig`) |
 |---|---|---|---|
 | Write a failing test | `test "name" do ... end` | `#[test] fn name()` | `test "name" = \|\| { ... }` |
 | Assertions | `assert`, `assert_receive` | `assert!`, `assert_eq!` | `try expect(...)` |

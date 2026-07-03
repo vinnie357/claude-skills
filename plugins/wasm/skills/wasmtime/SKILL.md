@@ -30,6 +30,8 @@ Activate when:
 | Linker | Resolves imports by name, defines host functions |
 | WIT | WebAssembly Interface Type language for component contracts |
 
+Authoring WIT interface files continues in `/wasm:wit`.
+
 ## Supported Languages
 
 ### Guest Languages (compile TO wasm)

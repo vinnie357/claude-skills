@@ -72,7 +72,7 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 
 | Skill | Trigger Keywords |
 |-------|-----------------|
-| `elixir-anti-patterns` | elixir anti-pattern, elixir smell, elixir refactor |
+| `anti-patterns` | elixir anti-pattern, elixir smell, elixir refactor |
 | `phoenix` | phoenix, liveview, phoenix context, phoenix channel |
 | `otp` | OTP, genserver, supervision tree, fault-tolerant, BEAM |
 | `testing` | elixir test, ExUnit, property-based test, elixir mock |

@@ -1,13 +1,27 @@
 {
   "name": "github",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "GitHub Actions, Workflows, act local testing, community health files, Dependabot consolidation, and PR review",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["github", "actions", "workflows", "ci-cd", "act", "testing", "community-health", "open-source", "dependabot", "dependencies", "pr-review", "code-review", "collaborator"],
+  "keywords": [
+    "github",
+    "actions",
+    "workflows",
+    "ci-cd",
+    "act",
+    "testing",
+    "community-health",
+    "open-source",
+    "dependabot",
+    "dependencies",
+    "pr-review",
+    "code-review",
+    "collaborator"
+  ],
   "skills": [
     "./skills/actions",
     "./skills/workflows",

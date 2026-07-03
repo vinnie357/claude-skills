@@ -38,7 +38,7 @@ All marketplaces must be located at `.claude-plugin/marketplace.json` in the rep
 
 **IMPORTANT: Schema Relationship**
 
-Plugin entries use the plugin manifest schema with all fields made optional, plus marketplace-specific fields (`source`, `strict`, `category`, `tags`). This means any field valid in a plugin.json file can also be used in a marketplace entry.
+Plugin entries use the plugin manifest schema with all fields made optional, plus marketplace-specific fields (`source`, `strict`, `category`, `tags`). This means any field valid in a plugin.json file can also be used in a marketplace entry. See `/claude-code:claude-plugins` for the full manifest schema.
 
 - When `strict: false`, the marketplace entry serves as the complete plugin manifest if no plugin.json exists
 - When `strict: true` (default), marketplace fields supplement the plugin's own manifest file

@@ -26,7 +26,7 @@ This skill's multi-agent workflow assumes both plugins are installed:
 - `core@vinnie357` (this plugin) — provides agent-loop, anti-fabrication, tdd, mise, nushell, security, bees
 - `claude-code@vinnie357` — provides claude-agents, claude-teams, plugin-marketplace, claude-hooks; carries the agent file format and team architecture knowledge that the spawning steps below reference by name
 
-When `core` is installed standalone, the spawning sections still describe the workflow but the cross-plugin skill names (e.g., `/claude-code:claude-agents`) do not resolve. Install `claude-code@vinnie357` for the full agent-loop experience, or treat those references as procedural-only.
+When `core` is installed standalone, the spawning sections still describe the workflow but the cross-plugin skill names (e.g., `/claude-code:claude-agents`, `/elixir:tidewave`) do not resolve. Install `claude-code@vinnie357` for the full agent-loop experience, or treat those references as procedural-only.
 
 ## 4-Phase Execution
 

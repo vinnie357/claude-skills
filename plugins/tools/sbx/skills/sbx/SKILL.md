@@ -208,7 +208,7 @@ See `templates/elixir-tidewave/` for a worked example: Phoenix app + Postgres co
 - `templates/mise.toml` — mise github backend pin for sbx
 - `templates/elixir-tidewave/` — Docker-in-sbx workflow with Phoenix + Postgres + Tidewave
 
-Related: `/core:container` — Apple Container CLI (lightweight Linux VMs on Apple silicon via Virtualization.framework; different layer from sbx microVMs). `/elixir:tidewave` — Tidewave MCP setup detail used by the elixir-tidewave template.
+Related: `/core:container` — Apple Container CLI (lightweight Linux VMs on Apple silicon via Virtualization.framework; different layer from sbx microVMs). `/elixir:tidewave` (elixir plugin) — Tidewave MCP setup detail used by the elixir-tidewave template.
 
 ## Anti-fabrication
 

@@ -794,6 +794,8 @@ jobs:
 
 ## Debugging Workflows
 
+Replay a workflow locally with `act` before pushing — see `/github:act` for local run configuration and troubleshooting.
+
 ### Enable Debug Logging
 
 Set repository secrets:
