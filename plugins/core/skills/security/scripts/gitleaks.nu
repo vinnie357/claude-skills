@@ -37,10 +37,10 @@ def main [
     start-runtime $selected_runtime
 
     # Build gitleaks command arguments
-    let gitleaks_args = build-gitleaks-args $report $config $baseline $verbose
+    let built = (build-gitleaks-args $report $config $baseline $verbose)
 
     # Run gitleaks
-    run-gitleaks $selected_runtime $scan_path $gitleaks_args
+    run-gitleaks $selected_runtime $scan_path $built.args $built.config_mount
 }
 
 def print-help [] {
@@ -216,13 +216,24 @@ def build-gitleaks-args [report: string, config: string, baseline: string, verbo
         $args = ($args | append ["--report-path=/code/report.json" "--report-format=json"])
     }
 
-    if not ($config | is-empty) {
+    let config_mount = if ($config | is-empty) {
+        null
+    } else {
         let config_path = ($config | path expand)
         if not ($config_path | path exists) {
             print $"(ansi red)Error:(ansi reset) Config file '($config)' does not exist"
             exit 1
         }
-        $args = ($args | append "--config=/code/.gitleaks-config.toml")
+        # Mount the config's PARENT directory, not the file itself: Apple
+        # Container's `-v` does not reliably support single-file bind
+        # mounts (confirmed — a second -v targeting a file path silently
+        # breaks the first mount too), but directory-to-directory mounts
+        # work correctly.
+        {host: ($config_path | path dirname), container: "/gitleaks-config", filename: ($config_path | path basename)}
+    }
+
+    if $config_mount != null {
+        $args = ($args | append $"--config=/gitleaks-config/($config_mount.filename)")
     }
 
     if not ($baseline | is-empty) {
@@ -236,10 +247,10 @@ def build-gitleaks-args [report: string, config: string, baseline: string, verbo
         $args = ($args | append $"--baseline-path=/code/($baseline_filename)")
     }
 
-    $args
+    {args: $args, config_mount: $config_mount}
 }
 
-def run-gitleaks [runtime: string, scan_path: string, args: list<string>] {
+def run-gitleaks [runtime: string, scan_path: string, args: list<string>, config_mount: any] {
     let args_str = ($args | str join " ")
     let image = "zricethezav/gitleaks"
 
@@ -247,20 +258,26 @@ def run-gitleaks [runtime: string, scan_path: string, args: list<string>] {
     print $"(ansi cyan)Command:(ansi reset) gitleaks ($args_str)"
     print ""
 
+    let mount_flags = if $config_mount != null {
+        ["-v" $"($config_mount.host):($config_mount.container)"]
+    } else {
+        []
+    }
+
     let result = match $runtime {
         "container" => {
             do {
-                ^container run --rm -v $"($scan_path):/code" $image ...$args
+                ^container run --rm -v $"($scan_path):/code" ...$mount_flags $image ...$args
             } | complete
         }
         "docker" => {
             do {
-                ^docker run --rm -v $"($scan_path):/code" $image ...$args
+                ^docker run --rm -v $"($scan_path):/code" ...$mount_flags $image ...$args
             } | complete
         }
         "colima" => {
             do {
-                ^mise exec lima@latest colima@latest -- docker run --rm -v $"($scan_path):/code" $image ...$args
+                ^mise exec lima@latest colima@latest -- docker run --rm -v $"($scan_path):/code" ...$mount_flags $image ...$args
             } | complete
         }
         _ => {

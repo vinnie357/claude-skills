@@ -19,6 +19,9 @@ CONFIG=""
 BASELINE=""
 SCAN_PATH="."
 VERBOSE=true
+# Extra -v mount flags for the container run, populated when --config maps
+# the caller's actual file into the container (see main()).
+CONFIG_MOUNT=()
 
 print_help() {
     cat << 'EOF'
@@ -60,20 +63,25 @@ EXAMPLES:
 EOF
 }
 
+# Write to stderr, not stdout: detect_runtime()'s return value is captured
+# via command substitution ($(detect_runtime)), and these log calls run
+# inside it — on stdout they'd be captured into the return value along with
+# the real "container"/"docker"/"colima" string, corrupting it into a
+# multi-line value that never matches the runtime case statement downstream.
 log_info() {
-    echo -e "${CYAN}$1${NC}"
+    echo -e "${CYAN}$1${NC}" >&2
 }
 
 log_success() {
-    echo -e "${GREEN}$1${NC}"
+    echo -e "${GREEN}$1${NC}" >&2
 }
 
 log_warning() {
-    echo -e "${YELLOW}$1${NC}"
+    echo -e "${YELLOW}$1${NC}" >&2
 }
 
 log_error() {
-    echo -e "${RED}Error:${NC} $1"
+    echo -e "${RED}Error:${NC} $1" >&2
 }
 
 detect_runtime() {
@@ -205,15 +213,20 @@ run_gitleaks() {
 
     local exit_code=0
 
+    local -a mounts=(-v "$scan_path:/code")
+    if [[ ${#CONFIG_MOUNT[@]} -gt 0 ]]; then
+        mounts+=("${CONFIG_MOUNT[@]}")
+    fi
+
     case "$runtime" in
         container)
-            container run --rm -v "$scan_path:/code" "$image" "${args[@]}" || exit_code=$?
+            container run --rm "${mounts[@]}" "$image" "${args[@]}" || exit_code=$?
             ;;
         docker)
-            docker run --rm -v "$scan_path:/code" "$image" "${args[@]}" || exit_code=$?
+            docker run --rm "${mounts[@]}" "$image" "${args[@]}" || exit_code=$?
             ;;
         colima)
-            mise exec lima@latest colima@latest -- docker run --rm -v "$scan_path:/code" "$image" "${args[@]}" || exit_code=$?
+            mise exec lima@latest colima@latest -- docker run --rm "${mounts[@]}" "$image" "${args[@]}" || exit_code=$?
             ;;
     esac
 
@@ -288,7 +301,7 @@ main() {
     start_runtime "$RUNTIME"
 
     # Build gitleaks arguments
-    local args=("detect" '--source="/code"' "-v")
+    local args=("detect" "--source=/code" "-v")
 
     if [[ -n "$REPORT" ]]; then
         args+=("--report-path=/code/report.json" "--report-format=json")
@@ -299,7 +312,17 @@ main() {
             log_error "Config file '$CONFIG' does not exist"
             exit 1
         fi
-        args+=("--config=/code/.gitleaks-config.toml")
+        # Mount the config's PARENT directory, not the file itself: Apple
+        # Container's -v does not reliably support single-file bind mounts
+        # (confirmed -- a second -v targeting a file path silently breaks
+        # the first mount too), but directory-to-directory mounts work
+        # correctly.
+        local config_dir
+        config_dir="$(cd "$(dirname "$CONFIG")" && pwd)"
+        local config_filename
+        config_filename="$(basename "$CONFIG")"
+        CONFIG_MOUNT=(-v "$config_dir:/gitleaks-config")
+        args+=("--config=/gitleaks-config/$config_filename")
     fi
 
     if [[ -n "$BASELINE" ]]; then
