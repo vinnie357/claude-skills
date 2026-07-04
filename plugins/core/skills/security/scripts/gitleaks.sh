@@ -312,11 +312,14 @@ main() {
             log_error "Config file '$CONFIG' does not exist"
             exit 1
         fi
-        # Mount the config's PARENT directory, not the file itself: Apple
-        # Container's -v does not reliably support single-file bind mounts
-        # (confirmed -- a second -v targeting a file path silently breaks
-        # the first mount too), but directory-to-directory mounts work
-        # correctly.
+        # Mount the config's PARENT directory, not the file itself:
+        # single-file bind mounts behaved inconsistently in one observed
+        # environment (not reproduced on container CLI 1.0.0 -- both
+        # mounts worked there); parent-dir mount is used defensively
+        # since it works correctly everywhere tested. This exposes the
+        # parent directory's sibling files to the short-lived local scan
+        # container -- keep configs in a directory you're comfortable
+        # mounting.
         local config_dir
         config_dir="$(cd "$(dirname "$CONFIG")" && pwd)"
         local config_filename

@@ -35,9 +35,20 @@ def find-bad-invocations [content: string, registry: list] {
 }
 
 # Full directory path for a skill name, resolved via the Pass-1
-# skill_dir_map (built once for all local plugins). Returns "" when the
-# skill name is not a known local skill (external/unknown namespace).
-def lookup-skill-dir [skill_dir_map: list, skill: string]: nothing -> string {
+# skill_dir_map (built once for all local plugins). When `plugin` is
+# non-empty and a (skill, plugin) pair exists, that scoped match wins —
+# this is what makes resolution namespace-aware for a skill name that
+# collides across two local plugins. Otherwise (no plugin given, or the
+# plugin doesn't carry that skill) falls back to the prior skill-name-only
+# first-match, preserving lenient handling for unknown/external
+# namespaces. Returns "" when the skill name is not a known local skill.
+def lookup-skill-dir [skill_dir_map: list, skill: string, plugin: string = ""]: nothing -> string {
+    if ($plugin | is-not-empty) {
+        let scoped = ($skill_dir_map | where skill == $skill and plugin == $plugin)
+        if ($scoped | is-not-empty) {
+            return ($scoped | first | get dir)
+        }
+    }
     let m = ($skill_dir_map | where skill == $skill)
     if ($m | is-not-empty) { $m | first | get dir } else { "" }
 }
@@ -50,14 +61,20 @@ def lookup-skill-dir [skill_dir_map: list, skill: string]: nothing -> string {
 # resolved against skill_dir_map (the Pass-1 registry of local skill
 # directories), so an unrelated qualifier earlier on the line that doesn't
 # actually own the path, or a broken cross-skill pointer, is NOT exempted —
-# both fall through to the normal same-skill checks. Unknown/external skill
-# names (not in the local marketplace) cannot be existence-checked, so they
-# stay exempted to preserve prior handling of genuinely external
-# references — check 16 (invocations) independently flags unresolvable
-# /plugin:skill tokens naming a real-but-wrong local skill. Shared by
-# check 9 (ref_depth) and check 14 (links).
-def cross-skill-qualified [prefix_line: string, dir_name: string, path: string, skill_dir_map: list]: nothing -> bool {
-    let qual_match = ($prefix_line | parse --regex '/[a-z][a-z0-9-]*:(?P<skill>[a-z][a-z0-9-]*)')
+# both fall through to the normal same-skill checks. When the /plugin:skill
+# token's namespace names a known local plugin (checked against
+# known_plugins, the Pass-1 registry's plugin names), resolution is scoped
+# to that plugin's own tree — so a skill name that collides across two
+# local plugins resolves against the plugin the token actually names,
+# never whichever plugin's skill_dir_map entry happened to register first.
+# Unknown/external skill names and unknown plugin namespaces (not in the
+# local marketplace) cannot be existence-checked, so they stay exempted to
+# preserve prior handling of genuinely external references — check 16
+# (invocations) independently flags unresolvable /plugin:skill tokens
+# naming a real-but-wrong local skill. Shared by check 9 (ref_depth) and
+# check 14 (links).
+def cross-skill-qualified [prefix_line: string, dir_name: string, path: string, skill_dir_map: list, known_plugins: list]: nothing -> bool {
+    let qual_match = ($prefix_line | parse --regex '/(?P<ns>[a-z][a-z0-9-]*):(?P<skill>[a-z][a-z0-9-]*)')
     let candidate = if ($qual_match | is-not-empty) {
         $qual_match | last | get skill
     } else {
@@ -71,7 +88,9 @@ def cross-skill-qualified [prefix_line: string, dir_name: string, path: string, 
     if ($candidate | is-empty) or ($candidate == $dir_name) {
         return false
     }
-    let target_dir = (lookup-skill-dir $skill_dir_map $candidate)
+    let candidate_ns = if ($qual_match | is-not-empty) { $qual_match | last | get ns } else { "" }
+    let scoped_ns = if ($candidate_ns in $known_plugins) { $candidate_ns } else { "" }
+    let target_dir = (lookup-skill-dir $skill_dir_map $candidate $scoped_ns)
     if ($target_dir | is-empty) {
         return true
     }
@@ -92,7 +111,7 @@ def preceding-line [content: string, path: string]: nothing -> string {
 
 # True when `content` contains at least one "references/" token that is NOT
 # cross-skill qualified (i.e. a genuine same-skill nested reference).
-def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list]: nothing -> bool {
+def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list]: nothing -> bool {
     ($content | lines | any {|line|
         if not ($line | str contains "references/") {
             false
@@ -102,7 +121,7 @@ def has-unqualified-references-token [content: string, dir_name: string, skill_d
             let rest = ($line | str substring $idx..)
             let path_match = ($rest | parse --regex '^(?P<path>references/[A-Za-z0-9._/-]+\.[A-Za-z0-9]{1,6})')
             let path = if ($path_match | is-not-empty) { $path_match | first | get path } else { $rest }
-            not (cross-skill-qualified $prefix $dir_name $path $skill_dir_map)
+            not (cross-skill-qualified $prefix $dir_name $path $skill_dir_map $known_plugins)
         }
     })
 }
@@ -140,9 +159,10 @@ def main [--update-baseline] {
 
     # Pass 1: registry of local plugins -> skill dir names + command names,
     # used to resolve /plugin:skill invocations found in skill content.
-    # skill_dir_map is a parallel flat list of {skill, dir} used to
+    # skill_dir_map is a parallel flat list of {skill, dir, plugin} used to
     # existence-check cross-skill references/ pointers (see
-    # cross-skill-qualified).
+    # cross-skill-qualified) — the plugin field lets that lookup be
+    # namespace-aware when a skill name collides across two local plugins.
     mut registry = []
     mut skill_dir_map = []
     for plugin in $marketplace.plugins {
@@ -161,7 +181,7 @@ def main [--update-baseline] {
         })
         for p in $skill_paths {
             let full_dir = ($plugin_dir | path join ($p | str replace --regex '^\./' ''))
-            $skill_dir_map = ($skill_dir_map | append {skill: ($full_dir | path basename), dir: $full_dir})
+            $skill_dir_map = ($skill_dir_map | append {skill: ($full_dir | path basename), dir: $full_dir, plugin: $plugin_json.name})
         }
         let commands_dir = ($plugin_dir | path join "commands")
         let command_names = if ($commands_dir | path exists) {
@@ -293,7 +313,7 @@ def main [--update-baseline] {
                 []
             }
             let nested = ($ref_files | where {|f|
-                has-unqualified-references-token (strip-fences (open --raw $f)) $dir_name $skill_dir_map
+                has-unqualified-references-token (strip-fences (open --raw $f)) $dir_name $skill_dir_map ($registry | get name)
             })
             if ($nested | length) > 0 { $failed = ($failed | append "ref_depth") }
 
@@ -343,7 +363,7 @@ def main [--update-baseline] {
                 # A references/ path qualified as pointing at another skill
                 # (see cross-skill-qualified above) resolves against that
                 # skill's own tree, not $skill_dir — not a broken link here.
-                let cross_skill = ($top == "references") and (cross-skill-qualified (preceding-line $stripped $p) $dir_name $p $skill_dir_map)
+                let cross_skill = ($top == "references") and (cross-skill-qualified (preceding-line $stripped $p) $dir_name $p $skill_dir_map ($registry | get name))
                 $in_scope and $missing and (not $cross_skill)
             })
             if ($broken_links | is-not-empty) { $failed = ($failed | append "links") }
