@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.41",
+      "version": "0.4.42",
       "category": "meta",
       "keywords": [
         "all",
@@ -114,7 +114,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.22",
+      "version": "0.2.23",
       "category": "development",
       "keywords": [
         "git",
