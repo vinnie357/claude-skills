@@ -6,6 +6,12 @@ awman was previously named **amux** (repo `prettysmartdev/amux`). The skill was 
 
 ## Release History
 
+### v0.11.0 (2026-07-13, skill updated 2026-07-13)
+- **URL**: https://github.com/prettysmartdev/awman/releases/tag/v0.11.0
+- **Summary**: Additive release, no config migration required. **Dynamic workflows**: `awman exec workflow --dynamic --work-item <N>` launches a leader agent that designs and executes a workflow; `--leader <agent::model>` override; new `dynamicWorkflows` config section (`agentsToModels`, `defaultLeader`, `maxConcurrentSteps`, `guidance`); `--dynamic` force-enables `--yolo`/`--worktree`/`context(workflow)`. **True parallel execution**: steps with identical `depends_on` sets run concurrently; `maxConcurrentAgents` config / `AWMAN_MAX_CONCURRENT_AGENTS` / `--max-concurrent` cap (unset = unlimited, 1 disables, 0 rejected); per-step `abort_on_failure` kills active peers. **Git sidebar** (`Ctrl-G`), parallel-container switching (`Ctrl-S`), config-dialog nested-key editing (`Ctrl-,` + `Ctrl+N`). **`awman clean`** (`--dry-run`, `--yes`; exit codes 0/1/2). **Container failure logging** to `~/.awman/logs/{workflow-id}-{step-name}-{container-name}.log` (never auto-cleaned); teardown `on_failure` agents receive failed output as a file, setup steps get no capture. Fixes: credentials injected via environment; workflow filename path-traversal sanitization; OpenCode prompt handling; Codex Dockerfiles updated for newer GPT models. Docs tree additive: new `13-dynamic-workflows.md`, `14-cleaning-up.md`, `15-parallel-workflows.md` (no renumbering).
+- **Skill changes**: `templates/0.11.0/` snapshot added; SKILL.md gained Dynamic Workflows / Parallel Execution / Cleanup and Failure Logs sections + 4 sharp edges; references/config.md gained `dynamicWorkflows.*` and `maxConcurrentAgents`; references/workflows.md gained parallel-group semantics, `abort_on_failure`, failure-log and teardown-capture contracts; references/api.md re-verified against current `docs/09-api-mode.md` and updated where our 0.10.0-era snapshot had drifted (session `type: local|remote` with remote git-clone sessions, `POST /v1/commands` → `{command_id, flags_applied}` with `non_interactive`/`yolo` API-profile defaults, command status enum `queued/running/done/error/cancelled` with `queue_position`/`worker_id`, `--dangerously-skip-auth`).
+- **Discrepancy noted**: the end-to-end example in upstream `docs/09-api-mode.md` uses `[[steps]]` in a TOML workflow; `docs/05-workflows.md` uses `[[step]]` exclusively (16 occurrences). The skill documents `[[step]]` per the authoritative workflows page.
+
 ### skill update 0.2.1 → 0.2.2 (2026-06-12)
 - **Source verified**: `docs/08-overlays.md` (https://github.com/prettysmartdev/awman/blob/main/docs/08-overlays.md, accessed 2026-06-12) and `docs/03-agent-sessions.md` (accessed 2026-06-12)
 - **Changes**: Added `envPassthrough` removal notice + `env()` overlay migration example to SKILL.md and references/config.md. Added `gemini` deprecation note with `antigravity` migration guidance. Added env-passthrough worked example (ANTHROPIC_BASE_URL pattern) to SKILL.md Overlays section. Updated example global config in references/config.md to show env passthrough via `overlays` array. Added two items to Known Sharp Edges.
@@ -74,8 +80,9 @@ awman was previously named **amux** (repo `prettysmartdev/amux`). The skill was 
 ## Plugin Information
 
 - **Name**: awman
-- **Version**: 0.2.1
+- **Version**: 0.2.4
 - **Description**: awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API
 - **Skills**: 1 skill (awman)
 - **Renamed from amux**: 2026-06-02 (upstream renamed amux → awman; refreshed to v0.9.1)
 - **Refreshed to v0.10.0**: 2026-06-11
+- **Refreshed to v0.11.0**: 2026-07-13
