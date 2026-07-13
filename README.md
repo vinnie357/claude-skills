@@ -209,6 +209,15 @@ Ansible configuration management and automation skills.
 
 **Keywords**: ansible, automation, configuration-management, devops, playbooks, molecule
 
+### `proxmox` - Proxmox Virtualization Management
+
+Proxmox VE estate operations: two-tier API/SSH access, pure-API golden-image builds, PVE 8-to-9 upgrades, and PDM/PBS estate services.
+
+**Skills:**
+- **proxmox** - API-token vs. host-SSH access model, golden-image builds, major-version upgrades, cluster vs. PDM decision, Terraform/Packer/CLI automation surfaces
+
+**Keywords**: proxmox, pve, pbs, pdm, hypervisor, virtualization, terraform, packer
+
 ## Usage
 
 Skills are automatically activated by Claude based on task context once plugins are installed.
@@ -276,6 +285,7 @@ claude-skills/
     │   ├── claude-code/          # Plugin development tools
     │   ├── dagu/                 # Workflow orchestration
     │   ├── github/               # GitHub Actions and workflows
+    │   ├── proxmox/              # Proxmox VE virtualization management
     │   ├── slidev/               # Presentation framework
     │   └── tweag/                # Tweag tools (Topiary, Nickel)
     ├── ui/                       # UI frameworks
