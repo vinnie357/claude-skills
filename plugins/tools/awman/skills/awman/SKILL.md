@@ -12,8 +12,8 @@ awman is a Rust CLI and TUI for running AI coding agents (Claude Code, Codex, Op
 
 awman was previously named **amux**. See "Migrating from amux" below.
 
-Source: https://github.com/prettysmartdev/awman (accessed 2026-06-11)
-License: Apache-2.0 | Latest at research time: v0.10.0 (2026-06-11)
+Source: https://github.com/prettysmartdev/awman (accessed 2026-07-13)
+License: Apache-2.0 | Latest at research time: v0.11.0 (2026-07-13)
 
 ## When to Use This Skill
 
@@ -42,22 +42,22 @@ A container runtime, set via the global-only `runtime` config key (`awman config
 
 Mise is the recommended install path. It manages the version, pins reproducibly, and uses the GitHub releases backend — no extra dependencies.
 
-A ready-to-copy pin lives at `templates/0.10.0/mise.toml` in this skill — copy it into the target repo's `mise.toml` (or merge under `[tools]`) and run `mise install`.
+A ready-to-copy pin lives at `templates/0.11.0/mise.toml` in this skill — copy it into the target repo's `mise.toml` (or merge under `[tools]`) and run `mise install`.
 
 **Global pin (one-time, any project):**
 ```sh
-mise use -g github:prettysmartdev/awman@0.10.0
+mise use -g github:prettysmartdev/awman@0.11.0
 ```
 
 **Per-project pin (recommended for repos that run awman):**
 ```sh
-cp templates/0.10.0/mise.toml <your-repo>/mise.toml   # then: cd <your-repo> && mise install
+cp templates/0.11.0/mise.toml <your-repo>/mise.toml   # then: cd <your-repo> && mise install
 ```
 
 The template's contents:
 ```toml
 [tools]
-"github:prettysmartdev/awman" = "0.10.0"
+"github:prettysmartdev/awman" = "0.11.0"
 ```
 
 **Verify:**
@@ -97,7 +97,9 @@ awman config show
 | `awman ready [--refresh]` | Verify environment; `--refresh` re-audits and rebuilds the agent Dockerfile |
 | `awman chat [--agent <name>] [--auto] [--yolo]` | Interactive agent session in a TUI tab |
 | `awman exec prompt "<text>" [--issue <ref>]` | One-off prompt without a persistent session |
-| `awman exec workflow <path> [--work-item <nnnn> \| --issue <ref>] [--yolo] [--worktree]` | Run a multi-step workflow file |
+| `awman exec workflow <path> [--work-item <nnnn> \| --issue <ref>] [--yolo] [--worktree] [--max-concurrent <n>]` | Run a multi-step workflow file |
+| `awman exec workflow --dynamic --work-item <N> [--leader <agent::model>]` | Leader agent designs and runs a workflow (0.11.0) |
+| `awman clean [--dry-run] [--yes]` | Remove stopped containers, dangling images, completed-workflow data (0.11.0) |
 | `awman new spec\|workflow\|skill [--interview] [--issue <ref>]` | Scaffold a work item, workflow, or custom skill |
 | `awman specs amend <nnnn>` | Update an existing work item |
 | `awman status [--watch]` | Session/workflow dashboard |
@@ -106,11 +108,27 @@ awman config show
 | `awman remote run\|session` | Drive a remote awman api server |
 | `awman` (no args) | Open the TUI |
 
-See `templates/0.10.0/commands.md` for the full v0.10.0 command surface with flags and examples.
+See `templates/0.11.0/commands.md` for the full v0.11.0 command surface with flags and examples.
 
 ## GitHub Issue Integration (0.10.0)
 
 `--issue <ref>` on `new spec`, `exec workflow`, and `exec prompt` fetches a GitHub issue and injects it. Reference forms: bare number (`--issue 84`, requires a GitHub `origin` remote), shorthand (`--issue owner/repo#84`), or full URL. Auth resolution: `gh` CLI → `GITHUB_TOKEN` → unauthenticated REST (public repos, 60 requests/hour). For `exec workflow` the issue populates the `{{work_item_*}}` template variables exactly as `--work-item` does; `--issue` and `--work-item` are mutually exclusive.
+
+## Dynamic Workflows (0.11.0)
+
+`awman exec workflow --dynamic --work-item <N>` launches a **leader agent** that reads the work item, designs a `workflow.toml`, and executes it — no hand-authored workflow file. `--dynamic` auto-enforces `--yolo`, `--worktree`, and the `context(workflow)` overlay; passing them explicitly is a no-op, and `--dynamic` rejects a workflow path, `--plan`, or a missing `--work-item`.
+
+Leader resolution (highest wins): `--leader <agent::model>` flag → `dynamicWorkflows.defaultLeader` config → `--model` on the project default agent → project default agent and model. The `dynamicWorkflows` config section constrains the plan: `agentsToModels` (approved agent→model map; empty falls back to Dockerfile discovery), `maxConcurrentSteps` (advisory, not runtime-enforced), and `guidance` (project instructions injected into the leader prompt, max 50 × 1,000 chars). An invalid generated workflow triggers a repair agent up to 3 times. See `references/config.md` for the key schema.
+
+## Parallel Execution (0.11.0)
+
+Workflow steps with identical `depends_on` sets form a parallel group and run **concurrently**. Cap simultaneous containers with `maxConcurrentAgents`; precedence: `--max-concurrent` flag → `AWMAN_MAX_CONCURRENT_AGENTS` env → repo config → global config → **unlimited**. `1` disables parallelism; `0` is rejected. A failed step without `abort_on_failure` lets siblings continue; `abort_on_failure = true` kills all active peers. Stuck detection (30 s) and yolo countdowns (60 s) track per container.
+
+TUI: `Ctrl-S` rotates focus between parallel containers; `Ctrl-G` toggles a git sidebar (per-file `+/-` counts, ~2 s refresh, compact `+X -Y` in the status bar when closed); `Ctrl-,` opens the config dialog (`Ctrl+N` adds nested `dynamicWorkflows` entries).
+
+## Cleanup and Failure Logs (0.11.0)
+
+`awman clean [--dry-run] [--yes]` removes stopped containers, dangling awman-labeled images, and completed-workflow data (repo `.awman/workflows/` state, `~/.awman/context/workflows/` dirs). In-progress workflows and active containers are preserved. Failed step output (~100 lines) lands in `~/.awman/logs/{workflow-id}-{step-name}-{container-name}.log` — created on demand, **never auto-cleaned** (not even by `awman clean`). Teardown `on_failure` remediation agents receive the failed command's output as a readable file; setup `on_failure` agents do not. See `references/workflows.md`.
 
 ## Agents
 
@@ -208,6 +226,10 @@ See `references/workflows.md` for grammar in both formats and worked examples.
 - **Context overlays default to `rw`.** Use `context(SCOPE:ro)` to stop agents from modifying accumulated knowledge.
 - **`envPassthrough` is removed.** The old config key returns a removal notice. Use `env()` overlay entries in the `overlays` array instead.
 - **`gemini` is deprecated.** Use `antigravity` as the replacement (`awman config set agent antigravity`).
+- **`--dynamic` force-enables `--yolo`, `--worktree`, and `context(workflow)`.** There is no supervised dynamic mode.
+- **Unset `maxConcurrentAgents` means unlimited parallelism.** `1` disables it; `0` is rejected.
+- **`~/.awman/logs/` grows unbounded.** `awman clean` does not remove failure logs.
+- **Setup-step `on_failure` gets no automatic output capture.** Only teardown steps hand the failure output to the remediation agent.
 - **Frequent release cadence.** Re-run `awman --version` when output looks unexpected. Pin in mise to control when you upgrade.
 - **Lowercase keys only in workflow files.** Uppercase variants are parse errors.
 
@@ -217,9 +239,10 @@ See `references/workflows.md` for grammar in both formats and worked examples.
 - `references/workflows.md` — Workflow grammar in TOML and YAML
 - `references/config.md` — Per-key config schema for both scopes
 - `references/command-reference.md` — Full CLI surface with flags and examples
-- `templates/0.10.0/commands.md` — Immutable v0.10.0 command snapshot
-- `templates/0.9.1/commands.md` — Immutable v0.9.1 command snapshot (previous version)
+- `templates/0.11.0/commands.md` — Immutable v0.11.0 command snapshot
+- `templates/0.10.0/commands.md` — Immutable v0.10.0 command snapshot (previous version)
+- `templates/0.9.1/commands.md` — Immutable v0.9.1 command snapshot
 
 ## Anti-Fabrication
 
-Run `awman --version` and `awman config show` before asserting that any documented behavior matches the installed binary. awman is pre-1.0 and minor bumps carry breaking changes. Every command form in this skill traces to upstream docs sourced from https://github.com/prettysmartdev/awman (accessed 2026-06-11). Mark any behavior not confirmed by that source as "requires verification against awman v0.10.0 source." Apply `/core:anti-fabrication` rules to all outputs produced with this skill active.
+Run `awman --version` and `awman config show` before asserting that any documented behavior matches the installed binary. awman is pre-1.0 and minor bumps carry breaking changes. Every command form in this skill traces to upstream docs sourced from https://github.com/prettysmartdev/awman (accessed 2026-07-13). Mark any behavior not confirmed by that source as "requires verification against awman v0.11.0 source." Apply `/core:anti-fabrication` rules to all outputs produced with this skill active.

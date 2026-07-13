@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.43",
+      "version": "0.4.44",
       "category": "meta",
       "keywords": [
         "all",
@@ -42,7 +42,7 @@
       "source": "./plugins/tools/awman",
       "strict": true,
       "description": "awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "category": "tools",
       "keywords": [
         "awman",

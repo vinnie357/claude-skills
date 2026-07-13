@@ -1,8 +1,8 @@
 # awman Workflow Authoring
 
-Reference for authoring awman workflow files as of v0.10.0. Two formats are supported: **TOML** and **YAML**.
+Reference for authoring awman workflow files as of v0.11.0. Two formats are supported: **TOML** and **YAML**.
 
-Source: https://github.com/prettysmartdev/awman/blob/main/docs/05-workflows.md — accessed 2026-06-11. (The docs tree was renumbered in 0.10.0; this page was previously `04-workflows.md`.)
+Source: https://github.com/prettysmartdev/awman/blob/main/docs/05-workflows.md and docs/15-parallel-workflows.md — accessed 2026-07-13.
 
 > **Migrating from amux:** Markdown workflow files (`.md`) are **no longer supported as of 0.9.1**. Any extension other than `.toml`, `.yml`, or `.yaml` is rejected. Convert Markdown workflows to TOML or YAML.
 
@@ -35,9 +35,30 @@ awman exec workflow <path> --issue owner/repo#84
 awman exec workflow <path> --yolo --worktree
 ```
 
-Execution flags: `--agent`, `--model`, `--non-interactive`, `--plan`, `--yolo`, `--worktree`, `--allow-docker`, `--mount-ssh`, `--work-item <N>`, `--issue <ref>` (0.10.0; fetches a GitHub issue and treats it as the work item — mutually exclusive with `--work-item`).
+Execution flags: `--agent`, `--model`, `--non-interactive`, `--plan`, `--yolo`, `--worktree`, `--allow-docker`, `--mount-ssh`, `--work-item <N>`, `--issue <ref>` (0.10.0; fetches a GitHub issue and treats it as the work item — mutually exclusive with `--work-item`), `--max-concurrent <n>` (0.11.0; caps parallel step containers for this run).
 
 The `--agent` flag sets the **default** for steps that do not name an agent; it does **not** override steps that explicitly specify one.
+
+For workflows designed on the fly by a leader agent (`--dynamic`), see `references/command-reference.md` — dynamic mode generates and executes a `workflow.toml` from a work item without a hand-authored file.
+
+---
+
+## Parallel execution (0.11.0)
+
+Steps with **identical `depends_on` sets** form a parallel group and launch concurrently — neither depends on the other, so the engine runs them at the same time:
+
+```
+implement → tests
+          → docs
+          → review (depends_on = ["tests", "docs"])
+```
+
+Once `implement` completes, `tests` and `docs` start immediately; `review` waits for both.
+
+- **Scheduling:** eligible steps launch in workflow file order up to the `maxConcurrentAgents` cap; when a slot frees, the next queued step starts. Unset cap = unlimited; `1` disables parallelism; `0` is rejected. Precedence: `--max-concurrent` → `AWMAN_MAX_CONCURRENT_AGENTS` → repo config → global config. See `references/config.md`.
+- **Failure:** a failed step without `abort_on_failure` lets siblings continue; `abort_on_failure = true` kills all active peers in the group instantly.
+- **Per-container tracking:** stuck detection (30 s silent) and yolo countdowns (60 s) apply to each container independently — one stuck or expired container does not affect its siblings.
+- **TUI:** `Ctrl-S` rotates focus between running containers (passes through to the PTY when only one runs). The Workflow Control Board (`Ctrl-W`) scopes actions to the focused container; "Restart current step", "Cancel to previous step", and "Finish workflow" are disabled while peers run, but "Pause" and "Abort" stay available.
 
 ---
 
@@ -64,6 +85,7 @@ Available in all workflow text fields (not in `type`). Substituted at execution 
 | `agent` | string | no | Overrides the default agent for this step |
 | `model` | string | no | Overrides the model for this step |
 | `overlays` | array of overlay specs | no | Per-step overlays, e.g. `["ssh()", "skill(search)"]`; workflow-level `overlays` under `[workflow]` apply to all steps |
+| `abort_on_failure` | boolean | no | On failure, kill all active parallel peers and stop the workflow (0.11.0); without it, siblings continue. With an `on_failure` block, the remediation loop runs first — abort triggers only after `max_attempts` is exhausted |
 
 ---
 
@@ -120,6 +142,19 @@ setup:
       prompt: Tests failed. Fix issues and verify.
       max_attempts: 2
 ```
+
+### Automatic failure output capture (0.11.0)
+
+When a **teardown** step's `on_failure` remediation agent launches, awman captures the failed command's stdout/stderr (capped at 100 KB per stream) and writes it to a file the agent can read; a note prepended to the remediation prompt says where:
+
+- With a writable `context(workflow)` overlay: `/awman/context/workflow/teardown-failure-<step-name>.txt`
+- Otherwise: a dedicated directory mounted read-only at `/awman/remediation/teardown-failure-<step-name>.txt`
+
+On retry the file is overwritten with the latest failure. **Setup steps get no automatic capture** — include failure context explicitly in the `prompt` field.
+
+### Failure logs (0.11.0)
+
+Failed step container output (~100 lines rolling, combined stdout/stderr) is saved to `~/.awman/logs/{workflow-id}-{step-name}-{container-name}.log`. Logs are written only when the container failed **on its own** — containers awman itself stops (yolo auto-advance, control-board Abort/Pause/Finish, stuck-step cancel, `abort_on_failure` killing siblings) exit as expected and produce no log. `docker-sbx-experimental` runtimes do not produce these logs. The directory is created on demand and **never auto-cleaned** — `awman clean` does not touch it.
 
 ---
 

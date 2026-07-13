@@ -1,8 +1,8 @@
 # awman Configuration Reference
 
-Reference for awman configuration files and keys as of v0.10.0.
+Reference for awman configuration files and keys as of v0.11.0.
 
-Source: https://github.com/prettysmartdev/awman/blob/main/docs/07-configuration.md and docs/08-overlays.md — accessed 2026-06-11.
+Source: https://github.com/prettysmartdev/awman/blob/main/docs/07-configuration.md, docs/08-overlays.md, docs/13-dynamic-workflows.md, and docs/15-parallel-workflows.md — accessed 2026-07-13.
 
 **Never hand-edit the JSON files.** Use `awman config set` to write values and `awman config show` to inspect the merged effective configuration. Keys marked "edit file" below are the exception — they are not settable via the CLI.
 
@@ -24,7 +24,7 @@ The per-repo `.awman/` directory also holds per-agent Dockerfiles (`Dockerfile.c
 
 XDG base-directory environment variables are honored as of 0.10.0.
 
-> **Migrating from amux:** the old split between `aspec/.amux.json` and `.amux/config.json` is gone. awman uses a single per-repo `GITROOT/.awman/config.json`, and config migrates automatically on first run. No migration is required from 0.9.1 to 0.10.0.
+> **Migrating from amux:** the old split between `aspec/.amux.json` and `.amux/config.json` is gone. awman uses a single per-repo `GITROOT/.awman/config.json`, and config migrates automatically on first run. No migration is required from 0.9.1 to 0.10.0, nor from 0.10.0 to 0.11.0 (new settings are optional).
 
 If you are unsure which value awman is using, run `awman config show` — it displays the merged effective config. As of 0.10.0, `awman config` works even when the configured runtime is not installed.
 
@@ -81,10 +81,55 @@ Per-repo overrides global on scalar conflicts; `overlays` merges additively.
 | `yoloDisallowedTools` | array of strings | `[]` | Yes |
 | `overlays` | array of overlay specs | `[]` | Yes |
 | `agentStuckTimeout` | integer | `30` (seconds) | Yes |
+| `maxConcurrentAgents` | integer ≥ 1 | unset (unlimited) | Yes |
+| `dynamicWorkflows.agentsToModels` | map of agent → model list | `{}` | Yes (dotted path) |
+| `dynamicWorkflows.defaultLeader` | `agent::model` string | unset | Yes |
+| `dynamicWorkflows.maxConcurrentSteps` | integer ≥ 1 | unset | Yes |
+| `dynamicWorkflows.guidance` | array of strings | `[]` | Yes (indexed path) |
 | `baseImage` | string | unset | No (edit file) |
 | `remote.defaultAddr` | string | unset | Yes |
 | `remote.defaultAPIKey` | string | unset | Yes |
 | `remote.savedDirs` | array of strings | `[]` | No (edit file) |
+
+### `maxConcurrentAgents` (0.11.0)
+
+Caps simultaneous workflow step containers. Precedence (highest wins): `--max-concurrent` flag → `AWMAN_MAX_CONCURRENT_AGENTS` env var → repo config → global config → **unlimited**. `1` disables parallel execution entirely; `0` is rejected.
+
+```sh
+awman config set maxConcurrentAgents 3            # current repo
+awman config set --global maxConcurrentAgents 2   # all projects
+awman exec workflow workflow.toml --max-concurrent 4   # single run
+```
+
+### `dynamicWorkflows.*` (0.11.0)
+
+Constrains the leader agent used by `awman exec workflow --dynamic`. All fields are optional.
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `agentsToModels` | map | Restricts the leader to approved agents/models; falls back to Dockerfile discovery when empty |
+| `maxConcurrentSteps` | integer ≥ 1 | Advisory concurrency cap the leader uses for planning — **not enforced at runtime** |
+| `defaultLeader` | `agent::model` | Repo-wide default leader; overridden by the `--leader` flag |
+| `guidance` | string array | Project-specific instructions injected into the leader prompt; max 50 entries of 1,000 chars each |
+
+```json
+{
+  "dynamicWorkflows": {
+    "agentsToModels": {
+      "claude": ["claude-opus-4-8", "claude-sonnet-4-6"],
+      "codex": ["codex-mini-latest"]
+    },
+    "maxConcurrentSteps": 3,
+    "defaultLeader": "claude::claude-opus-4-8",
+    "guidance": [
+      "Never spawn more than two agents in parallel.",
+      "Always include a validation step after each implementation step."
+    ]
+  }
+}
+```
+
+Set via dotted CLI paths (`awman config set dynamicWorkflows.defaultLeader claude::claude-opus-4-8`, `awman config set dynamicWorkflows.guidance.0 "..."`) or in the TUI config dialog (`Ctrl-,`; `Ctrl+N` adds `agentsToModels` and `guidance` entries, saving an empty value removes one).
 
 ---
 
@@ -143,6 +188,7 @@ awman reads several `AWMAN_*` environment variables (override config at runtime)
 | `AWMAN_REMOTE_ADDR` | `remote.defaultAddr` |
 | `AWMAN_API_KEY` | `remote.defaultAPIKey` / API auth key |
 | `AWMAN_REMOTE_SESSION` | Target session id for `awman remote` |
+| `AWMAN_MAX_CONCURRENT_AGENTS` | `maxConcurrentAgents` (both scopes; beaten only by `--max-concurrent`) |
 
 > **Migrating from amux:** rename all `AMUX_*` variables to `AWMAN_*`.
 

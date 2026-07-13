@@ -1,8 +1,8 @@
 # awman Command Reference
 
-Exhaustive reference for all awman CLI subcommands, flags, and options as of v0.10.0.
+Exhaustive reference for all awman CLI subcommands, flags, and options as of v0.11.0.
 
-Source: https://github.com/prettysmartdev/awman (README + docs/, accessed 2026-06-11).
+Source: https://github.com/prettysmartdev/awman (README + docs/, accessed 2026-07-13).
 Run `awman <subcommand> --help` to verify flags match the installed binary. Pre-1.0 releases drift between minors.
 
 ---
@@ -91,6 +91,16 @@ awman config set --global runtime docker
 
 # Add allowlisted API workdirs (comma-separated)
 awman config set --global api.workDirs "/path1,/path2"
+
+# Nested dynamicWorkflows keys use dotted paths (0.11.0)
+awman config set dynamicWorkflows.defaultLeader claude::claude-opus-4-8
+awman config set dynamicWorkflows.maxConcurrentSteps 3
+awman config set dynamicWorkflows.agentsToModels.claude "claude-opus-4-8, claude-sonnet-4-6"
+awman config set dynamicWorkflows.guidance.0 "Never spawn more than two agents in parallel."
+
+# Cap parallel workflow containers (0.11.0)
+awman config set maxConcurrentAgents 3            # this repo
+awman config set --global maxConcurrentAgents 2   # all projects
 ```
 
 **Do not hand-edit the JSON files directly.** Use `awman config set` and verify with `awman config show`.
@@ -149,15 +159,67 @@ awman exec prompt "Fix this bug" --issue 84      # prompt text first, then issue
 
 ### `awman exec workflow`
 
-Execute a multi-step workflow file. Adds workflow-only flags `--worktree` and `--work-item <N>`.
+Execute a multi-step workflow file. Adds workflow-only flags `--worktree`, `--work-item <N>`, and `--max-concurrent <n>` (0.11.0).
 
 ```sh
 awman exec workflow ./workflows/refactor.toml
 awman exec workflow ./workflows/implement.toml --work-item 0027 --yolo --worktree
 awman exec workflow ./workflows/implement.toml --issue prettysmartdev/awman#84
+awman exec workflow ./workflows/implement.toml --work-item 0027 --max-concurrent 4
 ```
 
 `--work-item <nnnn>` injects template variables (`{{work_item_number}}`, `{{work_item_content}}`, etc.) into step prompts. `--issue <ref>` (0.10.0) fetches a GitHub issue and populates the same variables — mutually exclusive with `--work-item`. Reference forms: bare number (requires GitHub `origin` remote), `owner/repo#N`, or full URL; auth via `gh` CLI, then `GITHUB_TOKEN`, then unauthenticated (public repos, 60 req/hr). The worktree is never auto-deleted — a merge/discard/keep dialog appears at completion or abort.
+
+`--max-concurrent <n>` (0.11.0) caps simultaneous step containers for this run, overriding `AWMAN_MAX_CONCURRENT_AGENTS` and the `maxConcurrentAgents` config key. See `references/workflows.md` for parallel-group semantics.
+
+### `awman exec workflow --dynamic` (0.11.0)
+
+A leader agent reads the work item, designs a `workflow.toml`, and executes it.
+
+```sh
+awman exec workflow --dynamic --work-item 27
+awman exec workflow --dynamic --work-item 27 --leader claude::claude-opus-4-8
+awman exec workflow --dynamic --work-item 27 --model claude-sonnet-4-6   # default model for generated steps
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dynamic` | Enable dynamic mode; requires `--work-item`, rejects a workflow file path and `--plan` |
+| `--leader <agent::model>` | Override the leader agent and model (only valid with `--dynamic`) |
+| `--model <name>` | Default model for generated workflow steps |
+
+`--yolo`, `--worktree`, and the `context(workflow)` overlay are enforced automatically — passing them explicitly has no effect. Leader resolution order: `--leader` flag → `dynamicWorkflows.defaultLeader` config → `--model` on the project default agent → project default agent and model. If the generated `workflow.toml` is invalid, missing, or references unknown agents, a repair agent runs up to 3 times before the run errors with the file path.
+
+| Violation | Error |
+|-----------|-------|
+| `--dynamic` + workflow file path | `cannot specify a workflow file path with --dynamic...` |
+| `--dynamic` without `--work-item` | `--dynamic requires --work-item` |
+| `--leader` without `--dynamic` | `--leader is only valid with --dynamic` |
+| `--dynamic --plan` | `--dynamic cannot be used with --plan...` |
+| Malformed `--leader` | `invalid --leader value: expected agent::model...` |
+
+---
+
+## `awman clean` (0.11.0)
+
+Remove leftover awman resources.
+
+```sh
+awman clean --dry-run   # preview what would be removed
+awman clean             # interactive confirmation (y/N)
+awman clean --yes       # no prompt; required in non-TTY contexts
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | List removable items without deleting; no confirmation needed |
+| `--yes` / `-y` | Skip the confirmation prompt |
+
+**Removes:** stopped awman containers; completed workflow state files in `GITROOT/.awman/workflows/`; completed workflow context directories under `~/.awman/context/workflows/`; dangling awman-labeled Docker images.
+
+**Preserves:** in-progress workflows, active containers and images, and `~/.awman/logs/` (failure logs are never auto-cleaned).
+
+**Exit codes:** `0` success / nothing to clean / dry-run; `1` one or more deletions failed; `2` interactive input required but unavailable (non-TTY without `--yes`). If Docker is unavailable, container/image cleanup is skipped with a warning and filesystem cleanup proceeds. In the TUI, a confirmation modal replaces the text prompt.
 
 ---
 
@@ -223,6 +285,7 @@ awman api kill                                               # Graceful shutdown
 | `--background` | Run the server detached |
 | `--refresh-key` | Generate a new API key (prints plaintext once) |
 | `--dangerously-skip-tls` | Serve plain HTTP instead of self-signed HTTPS |
+| `--dangerously-skip-auth` | Disable auth for this process lifetime only; `api_key.hash` is untouched and the next normal start re-enables auth |
 
 See `references/api.md` for the full REST endpoint table and auth model.
 
@@ -291,6 +354,9 @@ awman remote session kill "$SESSION"
 | `unsupported workflow format` | Markdown (`.md`) workflow; convert to TOML or YAML |
 | `worktree already exists` | Previous `--worktree` run left a tree; resolve with `git worktree list` / `git worktree remove` |
 | `no agent Dockerfile found` | Run `awman ready --refresh` after `awman init` or after editing `.awman/Dockerfile.*` |
+| `--dynamic requires --work-item` | Dynamic mode needs a work item; add `--work-item <N>` |
+| `invalid --leader value` | `--leader` expects `agent::model` (e.g. `claude::claude-opus-4-8`) |
+| Value `0` rejected for `maxConcurrentAgents` | Use `1` to disable parallelism or unset for unlimited |
 
 ---
 
