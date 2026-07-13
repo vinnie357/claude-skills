@@ -383,6 +383,17 @@ Install skills only from trusted sources. When evaluating unfamiliar skills:
 - Examine instructions directing Claude to connect with external services
 - Verify the skill doesn't request sensitive information or dangerous operations
 
+### Disclosure Discipline for Public Repositories
+
+Skill content ships to public repositories; secret *references* disclose infrastructure even when no credential leaks, and secret scanners do not catch them. In every SKILL.md, reference, and template:
+
+- Use placeholder vault names in secret-manager references: `op://<vault>/item/field`, never a real vault name
+- Use RFC5737 documentation IP ranges in examples (`192.0.2.x`, `198.51.100.x`, `203.0.113.x`), not RFC1918 addresses from a real network — quote an RFC1918 literal only when it is an upstream tool's documented default
+- Use generic hostnames (`node1`, `host.example.com`), never real estate hostnames as ssh/URL/mount targets
+- Apply the same rules to issue-tracker descriptions when the tracker exports to a tracked file (e.g. bees `issues.jsonl`)
+
+Enforce with a repo lint in CI where available (this marketplace runs `mise test:disclosure`).
+
 ## Anti-Fabrication Requirements
 
 All skills MUST adhere to strict anti-fabrication requirements to ensure factual, measurable content. Every SKILL.md must include anti-fabrication rules — either inline (template below) or by referencing `core:anti-fabrication`.
