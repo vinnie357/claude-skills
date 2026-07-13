@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.42",
+  "version": "0.4.43",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -83,6 +83,7 @@
     "./plugins/tools/agent-sandboxing/skills/agent-substrate-overview",
     "./plugins/tools/linear/skills/linear",
     "./plugins/tools/playwright/skills/playwright",
+    "./plugins/tools/proxmox/skills/proxmox",
     "./plugins/tools/qa/skills/qa",
     "./plugins/tools/runex/skills/runex",
     "./plugins/languages/rust/skills/rust",

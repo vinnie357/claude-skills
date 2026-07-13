@@ -1,0 +1,14 @@
+{
+  "name": "proxmox",
+  "version": "0.1.0",
+  "description": "Operate a Proxmox estate: PVE hypervisor, PBS backups, PDM multi-node management, golden-image builds, and terraform/packer automation",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["proxmox", "pve", "pbs", "pdm", "hypervisor", "virtualization", "terraform", "packer"],
+  "skills": [
+    "./skills/proxmox"
+  ]
+}
