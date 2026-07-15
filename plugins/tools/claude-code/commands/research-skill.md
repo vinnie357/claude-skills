@@ -69,7 +69,7 @@ license: MIT
 6. **Validate**: Ensure spec compliance and activation clarity
 
 **Task Instructions:**
-Use Task tool with subagent_type: "general-purpose" to:
+Use Agent tool with subagent_type: "general-purpose" to:
 
 1. Research the topic thoroughly using web search and authoritative sources
 2. Create the skill directory: `skills/<skill-name>/`

@@ -106,7 +106,7 @@ async for message in query(
 
 ## Detecting Subagent Invocation
 
-Subagents are invoked via the Task tool. Check for `tool_use` blocks with `name: 'Task'`. Messages from within a subagent's context include a `parent_tool_use_id` field for tracking.
+Subagents are invoked via the Agent tool (which replaced the deprecated Task tool in v2.1.63). Check for `tool_use` blocks with `name: 'Agent'`. Messages from within a subagent's context include a `parent_tool_use_id` field for tracking.
 
 ## Dynamic Agent Configuration
 
@@ -125,6 +125,6 @@ def create_security_agent(security_level: str) -> AgentDefinition:
 
 ## Constraints
 
-- Subagents cannot spawn their own subagents (do not include `Task` in a subagent's `tools` array)
+- Subagents cannot spawn their own subagents (do not include `Agent` in a subagent's `tools` array)
 - Each query starts a new context unless resumed via session ID
 - Tool permissions must be declared upfront in `allowed_tools`
