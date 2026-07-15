@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.46",
+      "version": "0.4.47",
       "category": "meta",
       "keywords": [
         "all",
@@ -95,7 +95,7 @@
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills: plugin marketplace management and validation",
-      "version": "0.2.17",
+      "version": "0.2.18",
       "category": "tools",
       "keywords": [
         "claude-code",
