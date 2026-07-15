@@ -32,7 +32,7 @@ claude-skills    | cl-code  | Pass | 380/500 | Pass | Pass     | 10/11
 ```
 
 **Task Instructions:**
-Use Task tool with subagent_type: "general-purpose" to:
+Use Agent tool with subagent_type: "general-purpose" to:
 
 1. Read `.claude-plugin/marketplace.json` to discover all plugins
 2. For each local plugin, read its `.claude-plugin/plugin.json` to get skill paths
