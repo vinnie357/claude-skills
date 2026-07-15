@@ -1,0 +1,37 @@
+{
+  "name": "pm",
+  "version": "0.1.0",
+  "description": "Product management toolkit: harvest implementation-agnostic feature specs from prototypes with SDLC guardrails and author PRDs as implementation contracts",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": [
+    "pm",
+    "prd",
+    "spec",
+    "prototype",
+    "sdlc",
+    "user-stories",
+    "product-management",
+    "harvest"
+  ],
+  "skills": [
+    "./skills/spec-harvest",
+    "./skills/prd"
+  ],
+  "agents": [
+    "./agents/pm-lead.md",
+    "./agents/pm-discovery.md",
+    "./agents/pm-separator.md",
+    "./agents/pm-sdlc-assessor.md",
+    "./agents/pm-spec-writer.md",
+    "./agents/pm-prd-author.md"
+  ],
+  "commands": [
+    "./commands/harvest.md",
+    "./commands/assess.md",
+    "./commands/prd.md"
+  ]
+}
