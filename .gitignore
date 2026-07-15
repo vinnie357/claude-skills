@@ -1,6 +1,10 @@
 # Beads SQLite cache (local only, not committed)
 .beads.sqlite
 
+# Operator-local disclosure blocklist (real hostnames — never publish;
+# test/validate-disclosure.nu hard-fails if this file is ever tracked)
+.disclosure-blocklist.local
+
 # OS generated files
 .DS_Store
 .DS_Store?

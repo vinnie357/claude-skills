@@ -423,6 +423,17 @@ Tests validate every plugin registered in `.claude-plugin/marketplace.json` (inc
 - No invalid marketplace-only fields in plugin.json
 - Skill paths exist (all-skills has special handling as meta-plugin)
 
+### Public-Repo Disclosure Lint
+
+This repository is public. `mise test:disclosure` (part of `mise test`, enforced in CI) fails when any git-tracked file contains real infrastructure identifiers — gitleaks does not catch these because they are references, not credentials. The checklist for all authored content (skills, references, templates, bees exports):
+
+- **op:// secret references**: placeholder vault names only — `op://<vault>/item/field`, `op://your-vault/...`. Never a real vault name.
+- **IP examples**: use the RFC5737 documentation ranges (`192.0.2.x`, `198.51.100.x`, `203.0.113.x`). RFC1918 literals (`10/8`, `172.16/12`, `192.168/16`) fail the lint unless they are on the reviewed allowlist in `test/validate-disclosure.nu` (legitimate upstream defaults such as Apple Container's `192.168.64.1`).
+- **Hostnames**: generic names only (`node1`, `host.example.com`). Estate-style short hostnames used in host position fail the lint — as an ssh target, after `@`, as a bare URL host with a port or path, or under private TLDs (`.lan`, `.local`, `.internal`); the mac-mini hostname suffix is blocked everywhere. Public FQDNs like `pve.proxmox.com` are fine.
+- Operators can add real hostname literals to the git-ignored `.disclosure-blocklist.local` (one per line) for local-only linting; the lint hard-fails if that file is ever tracked.
+
+Context: real op:// vault paths, RFC1918 node IPs, and estate hostnames were once published via an exported `.bees/issues.jsonl` (PR #123 incident). Bees issue descriptions are exported to a tracked file — write them with the same discipline as skill content.
+
 ### Maintaining the All-Skills Meta-Plugin
 
 The `all-skills` meta-plugin at `.claude-plugin/plugin.json` aggregates all skills from all other plugins. After adding/removing skills:
