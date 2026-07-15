@@ -376,6 +376,7 @@ claude-skills/
     ├── languages/
     │   ├── elixir/               # Elixir development
     │   └── rust/                 # Rust programming
+    ├── pm/                       # Prototype spec harvesting and PRDs
     ├── tools/
     │   ├── claude-code/          # Plugin development tools
     │   ├── dagu/                 # Workflow orchestration

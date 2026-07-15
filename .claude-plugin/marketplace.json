@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.45",
+      "version": "0.4.46",
       "category": "meta",
       "keywords": [
         "all",
@@ -253,6 +253,25 @@
         "browser",
         "automation",
         "screenshots"
+      ],
+      "license": "MIT"
+    },
+    {
+      "name": "pm",
+      "source": "./plugins/pm",
+      "strict": true,
+      "description": "Product management toolkit: harvest implementation-agnostic feature specs from prototypes with SDLC guardrails and author PRDs as implementation contracts",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": [
+        "pm",
+        "prd",
+        "spec",
+        "prototype",
+        "sdlc",
+        "user-stories",
+        "product-management",
+        "harvest"
       ],
       "license": "MIT"
     },

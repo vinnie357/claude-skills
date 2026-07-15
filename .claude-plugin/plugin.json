@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.45",
+  "version": "0.4.46",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -83,6 +83,8 @@
     "./plugins/tools/agent-sandboxing/skills/agent-substrate-overview",
     "./plugins/tools/linear/skills/linear",
     "./plugins/tools/playwright/skills/playwright",
+    "./plugins/pm/skills/spec-harvest",
+    "./plugins/pm/skills/prd",
     "./plugins/tools/proxmox/skills/proxmox",
     "./plugins/tools/qa/skills/qa",
     "./plugins/tools/runex/skills/runex",
@@ -128,6 +130,9 @@
     "./plugins/tools/agent-sandboxing/commands/build-image.md",
     "./plugins/tools/linear/commands/plan-epic.md",
     "./plugins/tools/linear/commands/audit-epics.md",
-    "./plugins/tools/linear/commands/groom-epics.md"
+    "./plugins/tools/linear/commands/groom-epics.md",
+    "./plugins/pm/commands/harvest.md",
+    "./plugins/pm/commands/assess.md",
+    "./plugins/pm/commands/prd.md"
   ]
 }

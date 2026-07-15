@@ -23,6 +23,7 @@ Add the marketplace and install plugins:
 /plugin install zig@vinnie357         # Zig language features
 /plugin install dagu@vinnie357        # Workflow orchestration
 /plugin install github@vinnie357      # GitHub Actions, workflows, act
+/plugin install pm@vinnie357          # Prototype spec harvesting, SDLC assessment, PRDs
 /plugin install slidev@vinnie357      # Slidev presentations
 /plugin install tweag@vinnie357       # Topiary formatter and Nickel config
 /plugin install ui@vinnie357          # daisyUI, Tailwind CSS theming
@@ -209,6 +210,18 @@ Ansible configuration management and automation skills.
 
 **Keywords**: ansible, automation, configuration-management, devops, playbooks, molecule
 
+### `pm` - Product Management
+
+Product management toolkit for harvesting implementation-agnostic feature specifications from prototypes with SDLC guardrails and authoring PRDs as implementation contracts.
+
+**Skills:**
+- **spec-harvest** - Extract implementation-agnostic feature specs from working prototypes with SDLC guardrails (licensing, security, supportability)
+- **prd** - Structured PRD authoring where the PRD is the implementation contract for engineering teams
+
+**Commands**: /pm:harvest, /pm:assess, /pm:prd
+
+**Keywords**: pm, prd, spec, prototype, sdlc, user-stories, product-management, harvest
+
 ### `proxmox` - Proxmox Virtualization Management
 
 Proxmox VE estate operations: two-tier API/SSH access, pure-API golden-image builds, PVE 8-to-9 upgrades, and PDM/PBS estate services.
@@ -280,6 +293,7 @@ claude-skills/
     │   ├── elixir/               # Elixir development
     │   ├── rust/                 # Rust programming
     │   └── zig/                  # Zig programming
+    ├── pm/                       # Prototype spec harvesting and PRDs
     ├── tools/
     │   ├── ansible/              # Ansible automation
     │   ├── claude-code/          # Plugin development tools
