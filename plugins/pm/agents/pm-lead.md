@@ -1,7 +1,7 @@
 ---
 name: pm-lead
 description: Parses harvest/assess requests, detects prototype shape, spawns discovery/separator/assessor/writer workers in sequence, and aggregates their reports without upgrading confidence tags. Spawned by /pm:harvest and /pm:assess.
-tools: Task, Read, Glob, Grep, Bash
+tools: Task, Skill, Read, Glob, Grep, Bash
 model: opus
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: pm-spec-writer
 description: Composes the feature-inventory and SDLC-assessment markdown artifacts from the separator and assessor reports, self-validates against the source reports, and refuses to overwrite existing files. Spawned by pm-lead.
-tools: Read, Write, Glob, Grep, Bash
+tools: Skill, Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
 ---
 
@@ -77,7 +77,7 @@ SELF-VALIDATION:
 ## Hard rules
 
 - Write only inside `OUTPUT_DIR`. Never edit prototype source under `PROTOTYPE_ROOT`.
-- Never overwrite an existing artifact file — report the conflict instead.
+- Never overwrite an existing artifact file that existed BEFORE this run — report the conflict instead. Editing this run's own just-written drafts during Phase 3 self-validation is allowed and is not an overwrite.
 - Never commit, push, or touch git beyond read-only status checks if needed for a path check.
 - Never touch bees.
 - Carry confidence tags through unchanged — this agent composes, it does not re-judge evidence.

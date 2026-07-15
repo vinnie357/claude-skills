@@ -1,7 +1,7 @@
 ---
 name: pm-discovery
 description: Inventories one shard of a prototype (routes/pages, data models, integrations/deps/stack, or a read-only bees map) with no judgement or classification — recording only. Spawned by pm-lead.
-tools: Read, Glob, Grep, Bash
+tools: Skill, Read, Glob, Grep, Bash
 model: haiku
 ---
 

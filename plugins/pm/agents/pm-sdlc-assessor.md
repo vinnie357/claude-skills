@@ -1,7 +1,7 @@
 ---
 name: pm-sdlc-assessor
 description: Walks the spec-harvest SDLC checklist (licensing, security, supportability) against a prototype, gathering evidence via read-only commands and tagging each row's confidence. Spawned by pm-lead.
-tools: Read, Glob, Grep, Bash
+tools: Skill, Read, Glob, Grep, Bash
 model: sonnet
 ---
 

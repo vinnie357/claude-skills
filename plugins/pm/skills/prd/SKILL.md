@@ -30,7 +30,7 @@ A PRD is complete when the implementing team needs no follow-up questions to sta
 
 `/pm:prd` runs `pm-prd-author` in one of two modes:
 
-1. **Interactive** (default) — a questionnaire covering problem, users, goals, non-goals, stories, constraints, and phasing. Every answer is tagged `[operator-stated]`.
+1. **Interactive** (default) — the `/pm:prd` command session runs the questionnaire (problem, users, goals, non-goals, stories, constraints, phasing) via `AskUserQuestion`, since the spawned `pm-prd-author` agent has no channel to the operator. The agent then composes the PRD from the collected answers, each tagged `[operator-stated]`.
 2. **Harvest-grounded** (`--inventory=<path>`) — the feature inventory from `/pm:spec-harvest` is the grounding document. One PRD is authored per major feature area named in the inventory; requirements are lifted from inventory entries and carry their original confidence tags. Sections the inventory cannot answer become Open Questions rows rather than invented content.
 
 ## Template Walkthrough

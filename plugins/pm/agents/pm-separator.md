@@ -1,7 +1,7 @@
 ---
 name: pm-separator
 description: Spot-verifies sampled inventory claims in code and classifies each item as a customer-value feature, a prototype shortcut, or both, drafting per-feature WHAT/WHY value statements. Spawned by pm-lead.
-tools: Read, Glob, Grep, Bash
+tools: Skill, Read, Glob, Grep, Bash
 model: sonnet
 ---
 
