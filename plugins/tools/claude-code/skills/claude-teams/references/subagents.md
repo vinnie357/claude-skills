@@ -1,4 +1,4 @@
-# Subagents (Task Tool)
+# Subagents (Agent Tool)
 
 Subagents are specialized agents that handle focused tasks within a single session. Each runs in its own context window with a custom system prompt and specific tool access, then returns results to the parent.
 
@@ -6,7 +6,7 @@ Subagents are specialized agents that handle focused tasks within a single sessi
 
 ## How Subagents Work
 
-When Claude encounters a task matching a subagent's description, it delegates via the Task tool. The subagent works independently and returns a summary to the parent's context.
+When Claude encounters a task matching a subagent's description, it delegates via the Agent tool (`Task` remains a deprecated alias, renamed in v2.1.63). The subagent works independently and returns a summary to the parent's context.
 
 Key characteristics:
 - Own context window (results summarized back to parent)
@@ -117,13 +117,15 @@ Control which subagent types an agent can delegate to:
 ---
 name: coordinator
 description: Coordinates work across specialized agents
-tools: Task(worker, researcher), Read, Bash
+tools: Agent(worker, researcher), Read, Bash
 ---
 ```
 
+(`Task` remains a deprecated alias for `Agent`, renamed in v2.1.63.)
+
 ## Foreground vs Background
 
-Subagents run in the foreground by default. Press `Ctrl+B` to background a running task and continue working.
+Subagents default to background execution as of v2.1.198. Claude runs a subagent in the foreground only when it needs the result before continuing; press `Ctrl+B` to background a running foreground task manually and keep working.
 
 Background subagents prompt for tool permissions upfront to run without interruption.
 
@@ -133,10 +135,10 @@ Subagents can be resumed to continue where they left off with full conversation 
 
 ## Subagent Invocation
 
-Invoke via the Task tool:
+Invoke via the Agent tool (`Task` remains a deprecated alias, renamed in v2.1.63):
 
 ```
-Use the Task tool with subagent_type: "code-reviewer" to review the authentication module.
+Use the Agent tool with subagent_type: "code-reviewer" to review the authentication module.
 ```
 
 Or programmatically via the Agent SDK (see `references/agent-sdk.md`).

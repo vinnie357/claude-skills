@@ -1,6 +1,6 @@
 {
   "name": "claude-code",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "description": "Claude Code-specific skills for plugin marketplace management, validation, and component creation",
   "author": {
     "name": "vinnie357"

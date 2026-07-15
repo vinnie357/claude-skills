@@ -36,7 +36,7 @@ Agents are specialized Claude instances with:
 
 | Feature | Agents | Skills |
 |---------|--------|--------|
-| **Activation** | Explicitly launched via Task tool | Auto-activated based on context |
+| **Activation** | Explicitly launched via Agent tool | Auto-activated based on context |
 | **Tool Access** | Configurable, can be restricted | Inherit from parent context |
 | **State** | Independent, isolated | Share parent context |
 | **Use Case** | Complex multi-step tasks | Knowledge and guidelines |
@@ -105,19 +105,38 @@ Effective agents use direct, imperative language:
 
 ### YAML Frontmatter
 
-Required and optional fields:
+Complete field reference (source: https://code.claude.com/docs/en/sub-agents):
+
+| Field | Required | Meaning |
+|---|---|---|
+| `name` | yes | Unique identifier, lowercase letters and hyphens. Hooks receive this value as `agent_type`. The filename does not need to match. |
+| `description` | yes | When Claude delegates to this subagent. |
+| `tools` | no | Tool allowlist. Omit to inherit all tools. To preload skill content use `skills` — never list `Skill` here. |
+| `disallowedTools` | no | Denylist removed from the inherited or specified tool set. |
+| `model` | no | `sonnet`, `opus`, `haiku`, `fable`, a full model ID (e.g. `claude-opus-4-8`), or `inherit`. Defaults to `inherit`. |
+| `permissionMode` | no | `default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`, or `manual` (alias of `default`, v2.1.200+). Ignored for plugin subagents. |
+| `maxTurns` | no | Maximum agentic turns before the subagent stops. |
+| `skills` | no | Skills preloaded into context at startup. See Preloading Skills below. |
+| `mcpServers` | no | MCP servers available to this subagent (name reference or inline config). Ignored for plugin subagents. |
+| `hooks` | no | Lifecycle hooks scoped to this subagent. Ignored for plugin subagents. |
+| `memory` | no | Persistent memory scope: `user`, `project`, or `local`. |
+| `background` | no | `true` forces background execution. Unset lets Claude choose; defaults to background as of v2.1.198. |
+| `effort` | no | `low`, `medium`, `high`, `xhigh`, or `max` (model-dependent). |
+| `isolation` | no | `worktree` runs the subagent in a temporary git worktree, auto-cleaned if the subagent makes no changes. |
+| `color` | no | `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink`, `cyan`. |
+| `initialPrompt` | no | Auto-submitted first user turn when run as a main-session agent (`--agent`). |
+
+Example:
 
 ```markdown
 ---
 name: agent-name                    # Required: kebab-case identifier
 description: Brief description      # Required: What this agent does
-tools:                             # Optional: Tool allowlist
+tools:                             # Optional: tool allowlist, inherits all if omitted
   - Read
   - Write
   - Bash
-model: sonnet                      # Optional: Model to use (sonnet, opus, haiku)
-max_iterations: 10                 # Optional: Maximum task iterations
-timeout: 300                       # Optional: Timeout in seconds
+model: sonnet                      # Optional: model to use, defaults to inherit
 ---
 ```
 
@@ -151,15 +170,35 @@ tools: Read, Grep, Glob
 
 ### Model Selection
 
-Choose appropriate model for the task:
+Choose the model for the task, or inherit the parent session's model:
 
 ```markdown
 ---
-model: haiku        # Fast, cost-effective for simple tasks
-# model: sonnet     # Balanced (default)
-# model: opus       # Most capable for complex tasks
+model: haiku               # Fast, cost-effective for simple tasks
+# model: sonnet            # Balanced
+# model: opus              # Complex reasoning
+# model: fable             # Fable 5 tier
+# model: claude-opus-4-8   # Full model ID pins an exact version
+# model: inherit           # Default — matches the parent session's model
 ---
 ```
+
+### Preloading Skills
+
+The `skills` field preloads full skill content into the subagent's context at startup — not just the description shown during discovery. Use the namespaced form for plugin skills:
+
+```markdown
+---
+name: phoenix-reviewer
+description: Reviews Phoenix application code
+tools: Read, Glob, Grep
+skills:
+  - elixir:phoenix
+  - elixir:testing
+---
+```
+
+Skills not listed in `skills` remain invocable through the Skill tool during the run — `skills` only controls what loads automatically at startup. Never list `Skill` in `tools:` to enable this; `skills` is the dedicated field.
 
 ## Common Agent Patterns
 
@@ -213,11 +252,11 @@ Loads all `.md` files in `agents/` directory.
 
 ## Invoking Agents
 
-Agents are launched via the Task tool:
+Agents are launched via the Agent tool (`Task` remains a deprecated alias, renamed in v2.1.63):
 
 ```python
 # In parent Claude conversation
-Task(
+Agent(
     subagent_type="code-reviewer",
     description="Review authentication module",
     prompt="""
@@ -284,17 +323,18 @@ tools: Read, Write, Edit, Glob, Grep
 Match model to task complexity:
 
 - **haiku**: Simple, repetitive tasks
-- **sonnet**: Standard tasks (default)
-- **opus**: Complex reasoning required
+- **sonnet**: Standard tasks
+- **opus** / **fable**: Complex reasoning required
+- **inherit**: Default when `model` is omitted — matches the parent session
 
-### Iteration Limits
+### Turn Limits
 
-Set appropriate limits for task complexity:
+Set `maxTurns` for task complexity:
 
 ```markdown
 ---
-max_iterations: 5   # Simple, focused task
-# max_iterations: 20  # Complex, multi-step workflow
+maxTurns: 5    # Simple, focused task
+# maxTurns: 20 # Complex, multi-step workflow
 ---
 ```
 
@@ -398,4 +438,4 @@ Templates directory:
 
 Documentation:
 - Claude Code Agents: https://code.claude.com/docs/en/agents
-- Task Tool: https://code.claude.com/docs/en/tools/task
+- Subagents (Agent Tool): https://code.claude.com/docs/en/sub-agents

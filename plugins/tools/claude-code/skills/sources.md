@@ -381,6 +381,14 @@ Create a modular Claude Code plugin marketplace that:
 - **Date Accessed**: 2026-03-25
 - **Key Topics**: Array of tables, inline tables, key-value pairs
 
+## Update History
+
+### 2026-07-15: claude-agents frontmatter refresh, claude-teams subagents.md corrections
+- **Sources**: https://code.claude.com/docs/en/sub-agents (fetched 2026-07-15), CHANGELOG at raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md, npm registry (for release dates)
+- **claude-agents/SKILL.md**: replaced the frontmatter documentation with the complete upstream subagent field table (`name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, `color`, `initialPrompt`). Removed `max_iterations` and `timeout` — zero hits in the upstream doc, replaced by `maxTurns`. Updated `model` documentation to include `fable`, full model IDs, and `inherit` (the default). Added a Preloading Skills subsection documenting the `skills` field (shipped in Claude Code 2.0.43, published 2025-11-17).
+- **claude-agents/templates/write-capable-agent.md**: added a `skills:` frontmatter field demonstrating skill preloading.
+- **claude-teams/references/subagents.md**: corrected background-execution framing — subagents default to background as of v2.1.198 (Claude runs foreground only when it needs the result before continuing), not foreground-by-default. Renamed `Task` references to `Agent` (Task tool renamed to Agent in v2.1.63; `Task` remains a deprecated alias).
+
 ## Plugin Information
 
 - **Name**: claude-code

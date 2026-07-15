@@ -3,6 +3,10 @@ name: test-generator
 description: Creates test suites for provided code
 tools: Read, Write, Glob
 model: sonnet
+# skills preloads full skill content at startup, not just the description
+skills:
+  - core:tdd
+  - elixir:testing
 ---
 
 You are a test generator. Create comprehensive test suites for code.
