@@ -69,26 +69,26 @@ This file documents the sources used to create the rust plugin skills.
 ### Rust Stable Releases
 - **URL**: https://github.com/rust-lang/rust/releases
 - **Purpose**: Rust compiler release tracking
-- **Date Accessed**: 2026-03-25
-- **Key Topics**: Version 1.94.0 (current stable), edition 2021, release notes
+- **Date Accessed**: 2026-07-17
+- **Key Topics**: Version 1.97.0 (current stable), edition 2024, release notes
 
 ### Tokio Runtime
 - **URL**: https://crates.io/crates/tokio
 - **Purpose**: Async runtime version tracking
-- **Date Accessed**: 2026-03-25
-- **Key Topics**: Version 1.50.0 (current), async/await, task spawning
+- **Date Accessed**: 2026-07-17
+- **Key Topics**: Version 1.53.0 (current), async/await, task spawning
 
 ### Serde Serialization
 - **URL**: https://crates.io/crates/serde
 - **Purpose**: Serialization framework version tracking
-- **Date Accessed**: 2026-03-25
+- **Date Accessed**: 2026-07-17
 - **Key Topics**: Version 1.0.228 (current), derive macros, data formats
 
 ## Plugin Information
 
 - **Name**: rust
-- **Version**: 0.1.4
+- **Version**: 0.1.5
 - **Description**: Rust programming skills: ownership, borrowing, lifetimes, async, and best practices
 - **Skills**: 6 skills
 - **Created**: 2025-11-15
-- **Updated**: 2026-03-25
+- **Updated**: 2026-07-17

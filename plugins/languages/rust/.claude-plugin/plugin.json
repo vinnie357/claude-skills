@@ -1,6 +1,6 @@
 {
   "name": "rust",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Rust programming skills: ownership, borrowing, lifetimes, async, best practices, and adversarial-TDD worker agents",
   "author": {
     "name": "vinnie357"

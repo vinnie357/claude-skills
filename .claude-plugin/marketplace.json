@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.49",
+      "version": "0.4.50",
       "category": "meta",
       "keywords": [
         "all",
@@ -342,7 +342,7 @@
       "source": "./plugins/languages/rust",
       "strict": true,
       "description": "Rust programming skills + adversarial-TDD worker agents (rust-test-author, rust-implementer)",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "category": "language",
       "keywords": [
         "rust",
