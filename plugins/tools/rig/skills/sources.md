@@ -47,6 +47,23 @@ This file documents the sources used to create the rig plugin skill.
 - **Purpose**: Confirms MCP support landed in rig 0.16.0 (2025-07-30)
 - **Date Accessed**: 2026-07-17
 
+### Lemonade Server
+- **URL**: https://lemonade-server.ai/
+- **Purpose**: AMD's local LLM server project page — platform support, backends, release
+  version
+- **Date Accessed**: 2026-07-17
+
+### Lemonade Server OpenAI-Compatible API Docs
+- **URL**: https://lemonade-server.ai/docs/api/openai/
+- **Purpose**: OpenAI-compatible REST surface reference (endpoints, base URL, streaming,
+  tools param)
+- **Date Accessed**: 2026-07-17
+
+### Lemonade Server Source Repository
+- **URL**: https://github.com/lemonade-sdk/lemonade
+- **Purpose**: License (Apache 2.0), AMD sponsorship, release version confirmation
+- **Date Accessed**: 2026-07-17
+
 ### Third-Party Field Report — Local Model Tool-Arg Typing
 - **URL**: https://www.malachid.com/blog/2025-04-06-rig-ollama/ ("How model choice affects
   your Tool Calling")

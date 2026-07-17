@@ -1,6 +1,6 @@
 ---
 name: rig
-description: Guide for building LLM clients in Rust with rig (rig-core) — AgentBuilder, providers, tools, extractors, RAG, and streaming. Use when writing Rust LLM clients with rig or rig-core, building multi-provider or hybrid clients that mix Anthropic, OpenAI, Gemini, or local models, integrating ollama, LM Studio, or an OpenAI-compatible gateway (LiteLLM, Bifrost) from Rust, or implementing rig agents, tools, extractors, or RAG pipelines.
+description: Guide for building LLM clients in Rust with rig (rig-core) — AgentBuilder, providers, tools, extractors, RAG, and streaming. Use when writing Rust LLM clients with rig or rig-core, building multi-provider or hybrid clients that mix Anthropic, OpenAI, Gemini, or local models, integrating ollama, LM Studio, or an OpenAI-compatible gateway (LiteLLM, Bifrost, Lemonade Server) from Rust, or implementing rig agents, tools, extractors, or RAG pipelines.
 license: MIT
 ---
 
@@ -97,8 +97,8 @@ comes from somewhere other than the environment.
 - `references/providers.md` — per-provider client construction, env vars, model-ID strings
   vs constants, and the worked multi-provider/hybrid-tier harness example
 - `references/local-and-gateways.md` — ollama (built-in), remote ollama, LM Studio, LiteLLM,
-  and Bifrost via the OpenAI-compatible client + base URL, and the local-model typed
-  tool-args gotcha
+  Bifrost, and Lemonade Server via the OpenAI-compatible client + base URL, and the
+  local-model typed tool-args gotcha
 - `references/agents-tools.md` — full `AgentBuilder` surface, the `Tool` trait, extractors,
   and MCP integration via the `rmcp` feature
 - `references/rag-embeddings.md` — `EmbeddingModel`, vector-store companion crates, and the

@@ -75,7 +75,7 @@ let client = openai::Client::builder()
 ```
 
 This one pattern — plus its `OPENAI_BASE_URL` env-var form — is the integration path for
-every OpenAI-wire-compatible target: LM Studio, LiteLLM, and Bifrost gateways. See
+every OpenAI-wire-compatible target: LM Studio, LiteLLM, Bifrost, and Lemonade Server. See
 `local-and-gateways.md` for the full walkthrough.
 
 ## Worked example — hybrid multi-provider harness

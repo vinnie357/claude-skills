@@ -30,12 +30,12 @@ Point at a non-default host by setting `OLLAMA_API_BASE_URL` before `from_env()`
 constructing the client explicitly with a base URL through the shared `ClientBuilder`
 pattern (see `providers.md`).
 
-## LM Studio, LiteLLM, Bifrost — via the OpenAI client
+## LM Studio, LiteLLM, Bifrost, Lemonade Server — via the OpenAI client
 
-LM Studio, LiteLLM, and Bifrost all expose an OpenAI-wire-compatible `/v1` endpoint. Rig has
-no dedicated client module for any of them — the integration path is the OpenAI client with
-a custom base URL, the same `ClientBuilder::base_url()` mechanism documented in
-`providers.md`:
+LM Studio, LiteLLM, Bifrost, and AMD's Lemonade Server all expose an OpenAI-wire-compatible
+`/v1` endpoint. Rig has no dedicated client module for any of them — the integration path is
+the OpenAI client with a custom base URL, the same `ClientBuilder::base_url()` mechanism
+documented in `providers.md`:
 
 ```rust
 use rig_core::providers::openai;
@@ -53,6 +53,19 @@ The same shape covers a LiteLLM or Bifrost gateway — substitute the gateway's 
 its API key. Setting `OPENAI_BASE_URL` before calling `openai::Client::from_env()` achieves
 the same result without a custom builder call, useful when the gateway URL is deployment
 configuration rather than a compile-time constant.
+
+[Lemonade Server](https://lemonade-server.ai/) (Apache 2.0, AMD-sponsored, current release
+v11.0.0) follows the same pattern, serving local models on AMD Ryzen AI NPUs and Radeon GPUs
+via llamacpp (Vulkan), ONNX Runtime GenAI (NPU), and ROCm/CUDA/Metal backends, with an
+OpenAI-compatible `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, and `/v1/models`
+surface (SSE streaming and the `tools` param both supported). Its default base URL is
+`http://localhost:13305/api/v1` (also accepts a `/v1` prefix) — port 13305 is non-standard,
+unlike ollama's 11434 or LM Studio's 1234 above. Two gotchas: pass a non-empty placeholder
+API key even though no real key is required locally, since OpenAI-style clients reject an
+empty key client-side (an optional `LEMONADE_API_KEY` exists for secured deployments), and
+models must be pulled/installed into Lemonade before they appear in `/v1/models` — install-
+first like ollama, not fetch-on-demand. Runs on Windows 11, Linux (Ubuntu 24.04+, Fedora,
+Debian, Arch), macOS, and Docker.
 
 ## Local-model typed tool-arg gotcha
 
