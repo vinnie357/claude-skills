@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.26"
+    "version": "1.0.27"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.48",
+      "version": "0.4.49",
       "category": "meta",
       "keywords": [
         "all",
@@ -300,6 +300,24 @@
         "tdd",
         "user-stories",
         "bdd"
+      ],
+      "license": "MIT"
+    },
+    {
+      "name": "rig",
+      "source": "./plugins/tools/rig",
+      "strict": true,
+      "description": "Rig (rig-core): building multi-provider and hybrid LLM clients in Rust",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": [
+        "rig",
+        "rig-core",
+        "rust",
+        "llm",
+        "agents",
+        "ollama",
+        "mcp"
       ],
       "license": "MIT"
     },
