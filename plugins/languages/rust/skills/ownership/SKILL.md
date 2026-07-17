@@ -1,5 +1,5 @@
 ---
-name: rust-ownership
+name: ownership
 description: Guide for Rust ownership, borrowing, and lifetimes. Use when working with ownership rules, move semantics, borrowing, slices, or lifetime annotations.
 ---
 
@@ -17,3 +17,11 @@ Activate when:
 - Fixing borrow checker errors
 
 For ownership rules, borrowing patterns, slices, and lifetime annotations, see `references/ownership.md`.
+
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Every claim about ownership, borrowing, and
+lifetime rules is verified against the official Rust Book chapters cited in `sources.md` —
+not inferred from generic familiarity with the language. Before asserting borrow-checker
+behavior this skill and its references do not cover, check the installed Rust toolchain's
+documentation rather than guessing.

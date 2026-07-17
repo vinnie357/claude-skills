@@ -20,9 +20,11 @@ This plugin provides focused skills for specific Rust topics:
 
 - **rust:ownership** - Ownership rules, borrowing, slices, lifetimes
 - **rust:error-handling** - Result, Option, ? operator, custom error types
+- **rust:anti-patterns** - Anti-patterns and clippy anti-idioms to hunt and fix
 - **rust:async** - Async functions, tokio, streams, threads, channels, shared state
 - **rust:testing** - Unit tests, integration tests, cargo test, Cargo.toml, commands
 - **rust:troubleshooting** - Best practices, common patterns, idiomatic Rust
+- **rust:cli** - Argument parsing with clap, CLI output and progress, exit codes, testing CLI binaries
 
 For core language features (traits, generics, collections, pattern matching), see `references/language.md`.
 
@@ -52,3 +54,12 @@ See `templates/mise.toml` for project task definitions.
 - **Use the type system**: let the compiler catch errors
 - **Test thoroughly**: tests are first-class in Rust
 - **Use clippy**: catch common mistakes and non-idiomatic code
+
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Every claim about Rust language behavior, the
+standard library, and tooling commands is verified against the official documentation cited
+in `sources.md` — not inferred from generic familiarity with the language. Before asserting a
+language feature, API signature, or command behavior this skill and its references do not
+cover, check the installed Rust toolchain's documentation (`rustup doc`) or crates.io rather
+than guessing.

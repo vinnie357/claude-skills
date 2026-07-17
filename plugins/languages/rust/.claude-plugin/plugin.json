@@ -1,7 +1,7 @@
 {
   "name": "rust",
-  "version": "0.1.6",
-  "description": "Rust programming skills: ownership, borrowing, lifetimes, async, best practices, and adversarial-TDD worker agents",
+  "version": "0.1.7",
+  "description": "Rust programming skills: ownership, borrowing, lifetimes, async, best practices, anti-patterns, CLI apps, and adversarial-TDD worker agents",
   "author": {
     "name": "vinnie357"
   },
@@ -12,9 +12,11 @@
     "./skills/rust",
     "./skills/ownership",
     "./skills/error-handling",
+    "./skills/anti-patterns",
     "./skills/async",
     "./skills/testing",
-    "./skills/troubleshooting"
+    "./skills/troubleshooting",
+    "./skills/cli"
   ],
   "agents": [
     "./agents/rust-test-author.md",
