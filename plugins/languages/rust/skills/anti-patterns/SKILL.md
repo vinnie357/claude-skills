@@ -17,9 +17,7 @@ Activate when:
 
 ## Sources
 
-Three catalog anti-patterns come from the [Rust Design Patterns book](https://rust-unofficial.github.io/patterns/anti_patterns/) (`rust-unofficial/patterns`, last commit 2026-01-03 at time of writing). Idiom-violation entries are drawn from the same book's [idioms chapter](https://rust-unofficial.github.io/patterns/idioms/), selected for patterns agents commonly get wrong. The clippy anti-idiom entries reference lint names from [Clippy's lint index](https://rust-lang.github.io/rust-clippy/master/index.html); lint names are cited only where verified against that index — see `references/anti-patterns.md` for exact lint status (default-enabled vs. `restriction` group, which requires opt-in).
-
-See `references/anti-patterns.md` for the full catalog: each entry gives a BAD example, a GOOD replacement, why it matters, and a detection hint.
+Rust Design Patterns book ([anti-patterns](https://rust-unofficial.github.io/patterns/anti_patterns/), [idioms](https://rust-unofficial.github.io/patterns/idioms/)) and the [Clippy lint index](https://rust-lang.github.io/rust-clippy/master/index.html) — full attribution per entry in `references/anti-patterns.md`, dated URLs in `sources.md`.
 
 ## Example
 

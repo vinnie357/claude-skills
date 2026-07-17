@@ -32,11 +32,7 @@ fn main() {
     println!("pattern: {}, path: {:?}", cli.pattern, cli.path);
 }
 ```
-
-```toml
-[dependencies]
-clap = { version = "4.6", features = ["derive"] }
-```
+Add to `Cargo.toml`: `clap = { version = "4.6", features = ["derive"] }`.
 
 ## Error Context with anyhow
 
@@ -44,26 +40,14 @@ clap = { version = "4.6", features = ["derive"] }
 
 ```rust
 use anyhow::{Context, Result};
-use std::fs::File;
-use std::io::Read;
 
 fn read_pattern_file(path: &std::path::Path) -> Result<String> {
-    let mut file = File::open(path)
-        .with_context(|| format!("could not open file `{}`", path.display()))?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .with_context(|| format!("could not read file `{}`", path.display()))?;
-    Ok(contents)
-}
-
-fn main() -> Result<()> {
-    let contents = read_pattern_file(std::path::Path::new("input.txt"))?;
-    println!("{contents}");
-    Ok(())
+    std::fs::read_to_string(path)
+        .with_context(|| format!("could not read file `{}`", path.display()))
 }
 ```
 
-`anyhow::Error` is for the CLI binary's error path where callers only print the message — it is not a library API type. A library crate consumed by others should still expose a `thiserror`-derived enum (see `rust:error-handling`); the CLI binary layer wraps that enum in `anyhow::Result` and adds `.context(...)` at each call site.
+For the `thiserror` vs. `anyhow` library/binary boundary rule, see `rust:error-handling`.
 
 ## Output for Humans and Machines
 
@@ -98,21 +82,18 @@ fn main() {
 Verbosity-gated logging with `log` (0.4.33), `env_logger` (0.11.11), and `clap-verbosity-flag` (3.0.4):
 
 ```rust
-use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 struct Cli {
     #[command(flatten)]
     verbosity: Verbosity,
 }
 
 fn main() {
-    let cli = Cli::parse();
     env_logger::Builder::new()
-        .filter_level(cli.verbosity.log_level_filter())
+        .filter_level(Cli::parse().verbosity.log_level_filter())
         .init();
-    log::info!("starting up");
 }
 ```
 
@@ -136,7 +117,7 @@ For multiple signal types (SIGTERM, SIGHUP) or async shutdown coordinated with t
 
 ## Exit Codes
 
-Return a specific exit code from `main` instead of always exiting 0/1. The `exitcode` crate (1.1.2) provides BSD `sysexits.h`-style constants as `i32`, which `std::process::ExitCode` cannot construct directly (`ExitCode` only implements `From<u8>`) — convert through `u8`:
+The `exitcode` crate (1.1.2) provides BSD `sysexits.h`-style constants as `i32`; convert through `u8` since `std::process::ExitCode` only implements `From<u8>`:
 
 ```rust
 fn main() -> std::process::ExitCode {
