@@ -103,7 +103,7 @@ comes from somewhere other than the environment.
   and MCP integration via the `rmcp` feature
 - `references/rag-embeddings.md` — `EmbeddingModel`, vector-store companion crates, and the
   RAG agent pattern
-- `references/streaming-pipelines.md` — streaming completions and `rig::pipeline` `Op` chains
+- `references/streaming.md` — streaming completions
 
 ## Adversarial TDD
 

@@ -6,7 +6,7 @@ URL. This reference covers both paths and a gotcha specific to small local model
 
 ## Ollama (built-in)
 
-`rig::providers::ollama` reads `OLLAMA_API_BASE_URL` (default `http://localhost:11434`) and
+`rig_core::providers::ollama` reads `OLLAMA_API_BASE_URL` (default `http://localhost:11434`) and
 an optional `OLLAMA_API_KEY` — ollama has no auth by default:
 
 ```rust
@@ -56,8 +56,9 @@ configuration rather than a compile-time constant.
 
 ## Local-model typed tool-arg gotcha
 
-A third-party field report (malachid.com blog, 2025-04-06) observed small local models
-served through ollama — specifically `llama3.2` — returning tool-call arguments as strings
+A third-party field report ([malachid.com blog, 2025-04-06](https://www.malachid.com/blog/2025-04-06-rig-ollama/))
+observed small local models served through ollama — specifically `llama3.2` — returning
+tool-call arguments as strings
 where rig's typed `Args` deserialization expected integers, breaking the tool call.
 `llama3.1:8b-instruct-q4_0` returned correctly typed arguments in the same report. This is
 model behavior, not a rig defect: small local models can violate the typed tool-argument

@@ -1,9 +1,11 @@
 # Providers
 
-Rig provides built-in client modules under `rig::providers::{anthropic, openai, gemini,
+Rig provides built-in client modules under `rig_core::providers::{anthropic, openai, gemini,
 ollama, azure, cohere, deepseek, groq, xai, perplexity, openrouter, together, huggingface,
-bedrock, mistral, ...}`. This reference covers the four most common in a hybrid Rust
-harness — Anthropic, OpenAI, Gemini, and ollama — plus the pattern for wiring them together.
+mistral, ...}`. AWS Bedrock is not one of them — it ships as the separate `rig-bedrock`
+companion crate, not a `rig_core::providers` module. This reference covers the four most
+common in a hybrid Rust harness — Anthropic, OpenAI, Gemini, and ollama — plus the pattern
+for wiring them together.
 
 ## `ProviderClient` and `from_env()`
 
@@ -41,7 +43,7 @@ use rig_core::providers::anthropic::completion::{
 ```
 
 No `CLAUDE_3_*` constants exist in the current crate — the module tracks the current model
-line only. `rig::providers::gemini::completion` ships its own set (10 total): stable tiers
+line only. `rig_core::providers::gemini::completion` ships its own set (10 total): stable tiers
 `GEMINI_2_5_FLASH`, `GEMINI_2_0_FLASH`, `GEMINI_2_0_FLASH_LITE`, dated 2.5-pro/flash preview
 constants, and the newest `GEMINI_3_1_FLASH_LITE_PREVIEW` / `GEMINI_3_FLASH_PREVIEW`
 (preview-only for the 3.x line); `GEMINI_2_5_FLASH_IMAGE` is gated behind the `image`
@@ -89,15 +91,21 @@ types cannot store them in one homogeneous collection of trait objects. Route wi
 dispatch instead — the rig repository ships an `enum_dispatch` example demonstrating this
 exact shape:
 
+`openai::Client` (the type `.agent()` gets by default) is the Responses API client, backed by
+`openai::responses_api::ResponsesCompletionModel`, not `openai::completion::CompletionModel`.
+The example below uses `openai::CompletionsClient` instead — the Chat Completions client —
+because it is backed by `openai::completion::CompletionModel`, giving the smallest, most
+readable enum variant type; either client works for a review tier.
+
 ```rust
 use rig_core::prelude::*;
 use rig_core::agent::Agent;
-use rig_core::providers::{anthropic, openai, ollama};
+use rig_core::providers::{anthropic, ollama, openai};
 
 enum Tier {
     Fast(Agent<ollama::CompletionModel>),
     Main(Agent<anthropic::completion::CompletionModel>),
-    Review(Agent<openai::CompletionModel>),
+    Review(Agent<openai::completion::CompletionModel>),
 }
 
 impl Tier {
@@ -124,7 +132,7 @@ async fn build_harness() -> Result<Harness, Box<dyn std::error::Error>> {
 
     let ollama_client = ollama::Client::from_env()?;
     let anthropic_client = anthropic::Client::from_env()?;
-    let openai_client = openai::Client::from_env()?;
+    let openai_client = openai::CompletionsClient::from_env()?;
 
     Ok(Harness {
         fast: Tier::Fast(ollama_client.agent(fast_model).build()),

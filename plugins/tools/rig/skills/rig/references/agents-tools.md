@@ -153,7 +153,7 @@ let agent = client
     .build();
 ```
 
-Methods available (mirrored on both the pre-tool and post-tool `AgentBuilder` states):
+Methods available:
 
 - `.rmcp_tool(tool, client_sink)` — register a single MCP tool with the default timeout
   (`DEFAULT_MCP_TOOL_TIMEOUT`)
@@ -161,6 +161,12 @@ Methods available (mirrored on both the pre-tool and post-tool `AgentBuilder` st
   timeout
 - `.rmcp_tools(tools, client_sink)` / `.rmcp_tools_with_timeout(tools, client_sink, timeout)`
   — batch registration variants
+
+The singular `.rmcp_tool()` / `.rmcp_tool_with_timeout()` are only on the pre-tool
+`AgentBuilder` state (before any tool has been registered). Once `.tool()` or an `rmcp`
+method has moved the builder into its post-tool state, only the plural batch variants,
+`.rmcp_tools()` / `.rmcp_tools_with_timeout()`, remain available — register single MCP tools
+before any other tool call, or pass a one-element `Vec` to a plural method afterward.
 
 The `examples/rmcp` example in the rig repository demonstrates a full MCP client
 integration.

@@ -38,17 +38,18 @@ Unlike `CompletionModel` (see `providers.md` — no dyn-compatible variant),
 `vector_store::VectorStoreIndexDyn` is dyn-compatible and is exactly what `AgentBuilder`
 uses internally to hold retrieval indexes:
 `Arc<dyn VectorStoreIndexDyn + Send + Sync>`. Attach a vector store to an agent for
-retrieval-augmented generation via `.dynamic_context()`:
+retrieval-augmented generation via `.dynamic_context(sample, index)`:
 
 ```rust
 let agent = client
     .agent(model_id)
-    .dynamic_context(my_vector_store_index)
+    .dynamic_context(4, my_vector_store_index)
     .build();
 ```
 
-`my_vector_store_index` must implement `VectorStoreIndexDyn + Send + Sync + 'static` — the
-companion crates above provide this for their respective backends.
+`sample` (a `usize`) is how many documents the dynamic context retrieves and inserts into
+each prompt request. `my_vector_store_index` must implement `VectorStoreIndexDyn + Send +
+Sync + 'static` — the companion crates above provide this for their respective backends.
 
 ## Examples in the rig repository
 

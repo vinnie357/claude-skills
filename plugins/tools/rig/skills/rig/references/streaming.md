@@ -1,4 +1,4 @@
-# Streaming and Pipelines
+# Streaming
 
 ## Streaming completions
 
@@ -26,20 +26,6 @@ while let Some(chunk) = stream.next().await {
     // chunk carries incremental assistant content; the final chunk carries usage
 }
 ```
-
-## Pipelines — `rig::pipeline`
-
-`rig::pipeline` provides an `Op` trait for composing multi-step processing chains:
-
-```rust
-pub trait Op {
-    async fn call(&self, input: Self::Input) -> Self::Output;
-}
-```
-
-Combinators chain `Op` implementations together, letting a pipeline compose retrieval,
-prompting, and post-processing steps as discrete, testable units rather than one large async
-function.
 
 ## Examples in the rig repository
 
