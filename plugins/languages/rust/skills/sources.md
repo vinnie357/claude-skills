@@ -70,7 +70,7 @@ This file documents the sources used to create the rust plugin skills.
 - **URL**: https://github.com/rust-lang/rust/releases
 - **Purpose**: Rust compiler release tracking
 - **Date Accessed**: 2026-07-17
-- **Key Topics**: Version 1.97.0 (current stable), edition 2024, release notes
+- **Key Topics**: Version 1.97.1 (current stable), edition 2024, release notes
 
 ### Tokio Runtime
 - **URL**: https://crates.io/crates/tokio
@@ -87,7 +87,7 @@ This file documents the sources used to create the rust plugin skills.
 ## Plugin Information
 
 - **Name**: rust
-- **Version**: 0.1.5
+- **Version**: 0.1.6
 - **Description**: Rust programming skills: ownership, borrowing, lifetimes, async, and best practices
 - **Skills**: 6 skills
 - **Created**: 2025-11-15
