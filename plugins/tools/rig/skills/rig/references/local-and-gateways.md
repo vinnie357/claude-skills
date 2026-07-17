@@ -61,11 +61,10 @@ OpenAI-compatible `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, a
 surface (SSE streaming and the `tools` param both supported). Its default base URL is
 `http://localhost:13305/api/v1` (also accepts a `/v1` prefix) — port 13305 is non-standard,
 unlike ollama's 11434 or LM Studio's 1234 above. Two gotchas: pass a non-empty placeholder
-API key even though no real key is required locally, since OpenAI-style clients reject an
-empty key client-side (an optional `LEMONADE_API_KEY` exists for secured deployments), and
-models must be pulled/installed into Lemonade before they appear in `/v1/models` — install-
-first like ollama, not fetch-on-demand. Runs on Windows 11, Linux (Ubuntu 24.04+, Fedora,
-Debian, Arch), macOS, and Docker.
+API key even though no real key is required locally (an optional `LEMONADE_API_KEY` exists
+for secured deployments), and models must be pulled/installed into Lemonade before they
+appear in `/v1/models` — install-first like ollama, not fetch-on-demand. Runs on Windows 11,
+Linux (Ubuntu 24.04+, Fedora, Debian, Arch), macOS, and Docker.
 
 ## Local-model typed tool-arg gotcha
 
