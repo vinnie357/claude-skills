@@ -1,0 +1,12 @@
+{
+  "name": "rig",
+  "version": "0.1.0",
+  "description": "Rig (rig-core): building multi-provider and hybrid LLM clients in Rust",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": ["rig", "rig-core", "rust", "llm", "agents", "ollama", "mcp"],
+  "skills": ["./skills/rig"]
+}
