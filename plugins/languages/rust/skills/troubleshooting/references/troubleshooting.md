@@ -5,8 +5,8 @@
 ### Prefer Borrowing
 
 ```rust
-// Good: Borrow when possible
-fn process(data: &Vec<i32>) {
+// Good: Borrow a slice when possible (clippy::ptr_arg flags &Vec<T>)
+fn process(data: &[i32]) {
     // Use data without taking ownership
 }
 

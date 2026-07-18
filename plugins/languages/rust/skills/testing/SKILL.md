@@ -1,5 +1,5 @@
 ---
-name: rust-testing
+name: testing
 description: Guide for Rust testing and Cargo usage. Use when writing unit or integration tests, configuring Cargo.toml, or running cargo commands.
 ---
 
@@ -17,3 +17,11 @@ Activate when:
 - Using #[should_panic] or Result-returning tests
 
 For test patterns, Cargo.toml configuration, and command reference, see `references/testing.md`.
+
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Every claim about `cargo test`/`cargo` command
+behavior and Cargo.toml configuration is verified against the Cargo Book cited in
+`sources.md` — not inferred from generic familiarity with the tool. Before asserting a
+Cargo command or flag this skill and its references do not cover, check `cargo help` or the
+installed Cargo version's documentation rather than guessing.

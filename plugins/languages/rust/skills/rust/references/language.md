@@ -165,7 +165,7 @@ enum Result<T, E> {
 ```rust
 // Create vector
 let mut v: Vec<i32> = Vec::new();
-let v = vec![1, 2, 3];
+let mut v = vec![1, 2, 3];
 
 // Add elements
 v.push(4);
@@ -291,3 +291,22 @@ while let Some(top) = stack.pop() {
     println!("{}", top);
 }
 ```
+
+## Common Crates by Task
+
+The standard library covers the language; these crates cover tasks std does not.
+Names only — pull the specific pattern from the linked skill or the crate's own
+docs when the task calls for it.
+
+| Task | Crate | Covered in |
+|---|---|---|
+| CLI argument parsing | `clap` | `rust:cli` |
+| CLI-level error context | `anyhow` | `rust:cli`, `rust:error-handling` |
+| Library error types | `thiserror` | `rust:error-handling` |
+| HTTP client | `reqwest` | — |
+| Serialization | `serde`, `serde_json` | — |
+| Async runtime | `tokio` | `rust:async` |
+| Logging | `log`, `env_logger` | `rust:cli` |
+| CLI subprocess testing | `assert_cmd`, `predicates` | `rust:cli` |
+
+For a broader recipe catalog beyond this list, see the [Rust Cookbook](https://rust-lang-nursery.github.io/rust-cookbook/) directly — it is not mirrored into this plugin.

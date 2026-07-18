@@ -9,6 +9,10 @@
 # - A baselined check that now passes fails the run with a prompt to remove the
 #   stale entry (the baseline only shrinks).
 # Regenerate the baseline with: nu test/validate-skills-quality.nu --update-baseline
+#
+# Usage:
+#   nu test/validate-skills-quality.nu              # scan all plugins
+#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter checks
 
 # Resolve every /plugin:skill token in `content` against the Pass-1 registry
 # (list of {name, dir, invocables}). Unknown (external) plugin namespaces are
@@ -126,6 +130,63 @@ def has-unqualified-references-token [content: string, dir_name: string, skill_d
     })
 }
 
+# Parse an agent's `skills:` frontmatter field out of its already-extracted
+# fm_lines. Three shapes: absent (no `skills:` key at all), inline scalar
+# (`skills: foo` — invalid, flagged via shape_ok: false), or a YAML list of
+# `- ns:skill` entries. Entry values are NOT shape-validated here (that's
+# check-agent-skills' job) — this function only parses structure.
+def parse-skills-frontmatter [fm_lines: list] {
+    let hits = ($fm_lines | enumerate | where {|l| ($l.item | str starts-with "skills:")})
+    if ($hits | is-empty) { return {present: false, entries: [], shape_ok: true} }
+    let first = ($hits | first)
+    if (($first.item | str replace "skills:" "" | str trim) | is-not-empty) {
+        return {present: true, entries: [], shape_ok: false}   # inline scalar form
+    }
+    mut entries = []
+    for line in ($fm_lines | skip ($first.index + 1)) {
+        let t = ($line | str trim)
+        if ($t | str starts-with "- ") { $entries = ($entries | append ($t | str substring 2.. | str trim)) } else { break }
+    }
+    {present: true, entries: $entries, shape_ok: true}
+}
+
+# Validate an agent's `skills:` frontmatter (claude-skills-119): well-formed
+# `ns:skill` entries, no duplicates, and each entry resolves against the
+# registry's `skills` list — NEVER `invocables`, since invocables also
+# carries command names and a command token is not preloadable via an
+# agent's `skills:` field. Unknown/external plugin namespaces are skipped,
+# mirroring find-bad-invocations' external-namespace leniency. Shared by the
+# Pass-2 agent loop and run-skills-self-test so there is exactly one
+# implementation to keep in sync.
+def check-agent-skills [fm_lines: list, registry: list] {
+    let parsed = (parse-skills-frontmatter $fm_lines)
+    if not $parsed.present {
+        return {failed: [], bad_tokens: []}
+    }
+    mut failed = []
+    let shape_bad = (not $parsed.shape_ok) or ($parsed.entries | any {|e|
+        ($e | parse --regex '^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$') | is-empty
+    })
+    if $shape_bad { $failed = ($failed | append "skills_shape") }
+    if ($parsed.entries | length) != ($parsed.entries | uniq | length) {
+        $failed = ($failed | append "skills_duplicate")
+    }
+    mut bad_tokens = []
+    for entry in $parsed.entries {
+        let m = ($entry | parse --regex '^(?P<ns>[a-z][a-z0-9-]*):(?P<skill>[a-z][a-z0-9-]*)$')
+        if ($m | is-not-empty) {
+            let ns = ($m | first | get ns)
+            let skill = ($m | first | get skill)
+            let known = ($registry | where name == $ns)
+            if ($known | is-not-empty) and ($skill not-in ($known | first | get skills)) {
+                $bad_tokens = ($bad_tokens | append $entry)
+            }
+        }
+    }
+    if ($bad_tokens | is-not-empty) { $failed = ($failed | append "skills_unresolved") }
+    {failed: $failed, bad_tokens: $bad_tokens}
+}
+
 # Remove fenced code blocks so code examples don't trip content checks
 # (e.g. a `name: CI` line inside a GitHub Actions YAML example).
 def strip-fences [content: string] {
@@ -141,7 +202,64 @@ def strip-fences [content: string] {
     $kept | str join "\n"
 }
 
-def main [--update-baseline] {
+# Embedded self-test for the skills: frontmatter checks (claude-skills-119):
+# every bad case must be flagged, every good case must pass clean. Exercises
+# check-agent-skills directly — the same implementation the Pass-2 agent
+# loop calls — so there is no drift between what's tested and what runs.
+def run-skills-self-test [] {
+    let fake_registry = [
+        {name: "rust", dir: "", invocables: [], skills: ["rust" "testing" "error-handling"]}
+        {name: "core", dir: "", invocables: [], skills: ["tdd" "anti-fabrication"]}
+    ]
+    mut failed = false
+
+    # Case 1: inline scalar form (`skills: rust:rust` instead of a list)
+    let inline = (check-agent-skills ["skills: rust:rust"] $fake_registry)
+    if "skills_shape" not-in $inline.failed {
+        print $"(ansi red_bold)❌ skills self-test: inline scalar form not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2: malformed token shape (uppercase / underscore violates ns:skill regex)
+    let malformed = (check-agent-skills ["skills:" "  - Rust:BAD_Name"] $fake_registry)
+    if "skills_shape" not-in $malformed.failed {
+        print $"(ansi red_bold)❌ skills self-test: malformed token not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3: duplicate entries (both individually well-formed)
+    let duplicate = (check-agent-skills ["skills:" "  - rust:rust" "  - rust:rust"] $fake_registry)
+    if "skills_duplicate" not-in $duplicate.failed {
+        print $"(ansi red_bold)❌ skills self-test: duplicate entries not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4: unresolvable token against a known namespace
+    let unresolved = (check-agent-skills ["skills:" "  - rust:nonexistent"] $fake_registry)
+    if ("skills_unresolved" not-in $unresolved.failed) or ("rust:nonexistent" not-in $unresolved.bad_tokens) {
+        print $"(ansi red_bold)❌ skills self-test: unresolvable token not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5: clean list, plus an external/unknown namespace token that must
+    # be skipped (leniency), not flagged unresolved
+    let clean = (check-agent-skills ["skills:" "  - rust:rust" "  - core:tdd" "  - someexternal:thing"] $fake_registry)
+    if ($clean.failed | is-not-empty) {
+        print $"(ansi red_bold)❌ skills self-test: clean list flagged \(($clean.failed | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    if $failed { exit 1 }
+    print $"(ansi green_bold)✅ Agent skills: frontmatter self-test passed \(5 cases\)(ansi reset)"
+    exit 0
+}
+
+def main [--update-baseline, --self-test] {
+    if $self_test {
+        run-skills-self-test
+        return
+    }
+
     print "Validating skill quality across all plugins..."
     print ""
 
@@ -195,6 +313,7 @@ def main [--update-baseline] {
             name: $plugin_json.name
             dir: $plugin_dir
             invocables: ($skill_names | append $command_names)
+            skills: $skill_names
         })
     }
 
@@ -471,6 +590,13 @@ def main [--update-baseline] {
                 let model_val = ($model_lines | first | str replace "model:" "" | str trim | str trim -c '"' | str trim -c "'" | str downcase)
                 if $model_val not-in $known_models { $failed = ($failed | append "bad_model") }
             }
+
+            # skills: frontmatter (claude-skills-119) — well-formed entries, no
+            # duplicates, and each entry resolves against a local plugin's
+            # `skills` list. Only runs when the agent has a `skills:` field.
+            let skills_check = (check-agent-skills $fm_lines $registry)
+            $failed = ($failed | append $skills_check.failed)
+
             let bad_invocations = (find-bad-invocations $content $registry)
             if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
 
@@ -479,6 +605,7 @@ def main [--update-baseline] {
                 $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
                 $surface_results = ($surface_results | append {
                     plugin: $plugin_name, kind: "agent", file: ($f | path basename), failed: ($failed | str join " ")
+                    details: ($bad_invocations | append $skills_check.bad_tokens | str join " ")
                 })
             }
         }
@@ -512,6 +639,7 @@ def main [--update-baseline] {
                 $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
                 $surface_results = ($surface_results | append {
                     plugin: $plugin_name, kind: "command", file: ($f | path basename), failed: ($failed | str join " ")
+                    details: ($bad_invocations | str join " ")
                 })
             }
         }
@@ -539,6 +667,7 @@ def main [--update-baseline] {
                 $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
                 $surface_results = ($surface_results | append {
                     plugin: $plugin_name, kind: "hooks", file: "hooks.json", failed: ($failed | str join " ")
+                    details: ""
                 })
             }
         }
