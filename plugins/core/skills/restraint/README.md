@@ -1,6 +1,6 @@
 # /core:restraint
 
-A standing engineering principle: **stop at the first rung that already solves the problem before writing new code.** Like TDD discipline or twelve-factor design, it is threaded through every phase of the agent loop — planning, test planning, test authoring, implementation, review.
+A standing engineering principle: **stop at the first rung that already solves the problem before writing new code.** Loaded alongside `/core:tdd` and `/core:twelve-factor`, and threaded through every phase of the agent loop — planning, test planning, test authoring, implementation, review.
 
 - `SKILL.md` — the principle: the ladder, the "never lazy about" guardrails, the `restraint:` comment convention, root-cause bug fixing, the anti-prose rule.
 - `references/agent-loop-phases.md` — what each agent-loop phase owes the ladder.

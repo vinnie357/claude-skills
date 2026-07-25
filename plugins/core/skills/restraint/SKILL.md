@@ -1,6 +1,6 @@
 ---
 name: restraint
-description: Engineering restraint — stop at the first rung that already solves the problem before writing new code. Use when planning, authoring tests, implementing, or reviewing any code change; loads as a standing principle on every change.
+description: Engineering restraint — stop at the first rung that already solves the problem before writing new code. Use when planning, authoring tests, implementing, or reviewing any code change; loads as a standing principle alongside TDD and twelve-factor.
 license: MIT
 ---
 
@@ -8,7 +8,7 @@ license: MIT
 
 The best code is the code you never wrote. Write only what the task needs; cut scope, never correctness. Code ends up small because it is necessary, not golfed.
 
-This is a standing principle — like TDD discipline or twelve-factor design, it governs every phase of a change, not a command you run.
+This is a standing principle, like `/core:tdd` and `/core:twelve-factor` — it governs every phase of a change, not a command you run.
 
 ## The ladder
 

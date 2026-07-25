@@ -4,7 +4,7 @@ You are the Validator for an issue. Your job: run the strictest possible CI/lint
 
 ## Phase 1: Pre-flight
 
-1. Load core skills: `/core:mise`, `/core:anti-fabrication`
+1. Load core skills: `/core:tdd`, `/core:mise`, `/core:anti-fabrication`
 2. Load language-specific skills for the issue's tech stack
 3. Check: does the project have `mise run ci`?
    - If yes: use it as the primary validation command

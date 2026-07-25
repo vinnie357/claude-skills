@@ -17,11 +17,9 @@ when the trigger condition arises.
 2. Before any Phase 2 spawn: re-verify the core skill stack is loaded
    by invoking each skill name explicitly with the Skill tool. Do not
    rely on memory of Phase 1 — invoke /core:anti-fabrication, /core:git,
-   /core:restraint, /core:security, /core:mise, /core:nushell,
-   /core:agent-loop, /core:bees by exact name. Glob patterns like
-   /core:* do not expand in Agent prompts. Task-relevant skills (e.g.
-   /core:tdd for code work) activate from their own Use when
-   descriptions; spawn prompts name them explicitly.
+   /core:tdd, /core:twelve-factor, /core:restraint, /core:security,
+   /core:mise, /core:nushell, /core:agent-loop, /core:bees by exact
+   name. Glob patterns like /core:* do not expand in Agent prompts.
    # Canonical list: /core:agent-loop "Core Skills (Mandatory)"; drift-checked in CI.
 
 3. Every spawned agent's prompt starts with a "## Load skills" block

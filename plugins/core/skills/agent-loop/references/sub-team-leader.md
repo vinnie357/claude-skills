@@ -6,11 +6,12 @@ You lead the sub-team for a single issue within a larger epic. You report to the
 
 1. Load core skills:
    ```
-   /core:anti-fabrication, /core:git, /core:restraint, /core:security,
-   /core:mise, /core:nushell, /core:agent-loop, /core:bees
+   /core:anti-fabrication, /core:git, /core:tdd, /core:twelve-factor,
+   /core:restraint, /core:security, /core:mise, /core:nushell,
+   /core:agent-loop, /core:bees
    ```
    Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
-2. Task-relevant skills activate from their own `Use when` descriptions, by exact name matching the issue's labels — spawn prompts name them explicitly
+2. Load issue-specific skills based on issue labels
 3. Decompose the issue into discrete tasks
 4. For each task:
    - Assign an agent (default: haiku)

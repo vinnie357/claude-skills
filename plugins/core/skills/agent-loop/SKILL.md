@@ -158,6 +158,8 @@ Every agent at every tier loads these before any work:
 ```
 /core:anti-fabrication
 /core:git
+/core:tdd
+/core:twelve-factor
 /core:restraint
 /core:security
 /core:mise
@@ -173,7 +175,7 @@ Domain-specific skills activate from their own `Use when` descriptions — that 
 - **Tracker state:** a repo tracked by beads loads `/core:beads` in place of `/core:bees`.
 - **Issue labels:** load the domain-plugin skills named by the issue's labels, by exact name.
 
-Enforcement, not description, carries a third rule: leaders name every task-relevant skill explicitly in the spawn prompt's `## Load skills` block — globs do not expand, and listed is not loaded. Spawn prompts for code work always name `/core:tdd`: the execution order mandates test-first, so tdd is never optional for implementers.
+Enforcement, not description, carries a third rule: leaders name every skill explicitly in the spawn prompt's `## Load skills` block — globs do not expand, and listed is not loaded.
 
 ### Skills to load before spawning
 
@@ -218,7 +220,7 @@ Team leaders structure agent prompts with these sections:
 ```
 ## Load skills
 <the mandatory core skills, per "Core Skills (Mandatory)">
-<task-activated skills, per each skill's `Use when` description plus the tracker-state and label rules>
+<domain skills for this task, per the issue's labels and the tracker-state rule>
 
 ## Working directory
 cd /path/to/repo
@@ -335,7 +337,7 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 - `references/leader-spawn-example.md` -- Worked Phoenix-endpoint Team Leader spawn prompt with explicit `/core:*` + `/elixir:*` skill list
 - `references/dep-doc-introspection.md` — Staged-pipeline prompts name the runtime-introspection tools AND the specific deps touched, never abstract "use the introspection tools"
 - `references/no-todos.md` — Implementer prompts ban TODO/FIXME/XXX/HACK/KLUDGE/DEFERRED markers, enforced by pre-commit grep; tempted workers escalate-or-implement-now instead of punting scope via a comment
-- `references/dispatch-discipline.md` — Spawn-prompt rules: explicit model, specialized subagent types, fresh-main branch creation, no polling, host-inspection over claims, ADR search before proposing architecture
+- `references/dispatch-discipline.md` — Spawn-prompt rules: explicit model, specialized subagent types, lead delegates all execution, fresh-main branch creation, no polling, host-inspection over claims, ADR search before proposing architecture
 - `references/secret-provisioning.md` — Tier 1 plans include symmetric secret provisioning (generation, store creation, prod/dev deploy diffs); Tier 5 blocker check
 - `references/workflows-execution.md` — Optional workflow substrate for the five-tier pipeline: pipeline-as-script, stage gates, escalation ladder, teams-of-teams; decomposition/merge stay interactive
 - `templates/five-tier-issue.workflow.js` — Runnable `N=1` five-tier pipeline template: stage prompts, `skillProof` schemas, diff-boundary gate, escalation ladder, bounded fix loop
