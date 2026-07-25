@@ -168,7 +168,7 @@ Every agent at every tier loads these before any work:
 /core:bees
 ```
 
-This block is the canonical copy; every other site listing the mandatory core stack is drift-checked against it by `test/validate-core-list.nu`.
+This block is the canonical copy. `test/validate-core-list.nu` drift-checks it against the eight sites it lists — this skill, four tier references, `/core:work`, the core session-start hook, and the operator CLAUDE.md template. Other files that enumerate core skills are not covered; add a site to that script when it starts carrying the full stack.
 
 Domain-specific skills activate from their own `Use when` descriptions — that is the discovery mechanism at every tier. Two rules descriptions cannot express:
 
@@ -219,7 +219,7 @@ Team leaders structure agent prompts with these sections:
 
 ```
 ## Load skills
-<the mandatory core skills, per "Core Skills (Mandatory)">
+<every name from "Core Skills (Mandatory)", one per line — never this placeholder, never a glob>
 <domain skills for this task, per the issue's labels and the tracker-state rule>
 
 ## Working directory

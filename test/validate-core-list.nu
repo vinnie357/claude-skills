@@ -48,9 +48,13 @@
 #   - A load list written in a form neither grammar recognises. validator.md:7
 #     is such a case (inline numbered item), acceptable only because it is an
 #     excluded partial — see EXCLUDED_PARTIAL.
-#   - A name deleted from its position in a list and re-added elsewhere in the
-#     SAME contiguous run. The name is genuinely in the list, so this is
-#     correct behaviour rather than a gap.
+#   - A paren-annotated bullet inside a run counts as an entry regardless of
+#     what the annotation SAYS. "- `/core:tdd` (NOT loaded by default)" passes.
+#     This is a real gap, not a property: the fix is deleting G2 and requiring
+#     names-only lines. Tracked in claude-skills-134, fixture in --self-test.
+#   - A real list annotated with em-dashes is invisible to both grammars, so a
+#     satellite can pass with no operative list at all. The fix is anchoring to
+#     a marker rather than searching for a list. Also claude-skills-134.
 #   - Prose mentions, by design, so restraint/SKILL.md and restraint/README.md
 #     may discuss /core:tdd freely.
 #
@@ -96,7 +100,12 @@ const EXCLUDED_PARTIAL = [
   "plugins/core/skills/agent-loop/references/fix-agent.md"   # 4 names
 ]
 
-def main [] {
+def main [--self-test] {
+  if $self_test {
+    self-test
+    return
+  }
+
   let repo_root = (git rev-parse --show-toplevel | str trim)
   cd $repo_root
 
@@ -187,13 +196,41 @@ def extract-canonical-names [file: string] {
     exit 1
   }
 
+  # Terminate at the closing fence of the first fenced block after the heading.
+  # Terminating at the next "## " heading was wrong: "### Skills to load before
+  # spawning" does not match it, so the parsed block ran 35 lines past the fence
+  # and absorbed any bare skill name in that subsection into the canonical set.
   let rest = ($lines | skip ($heading_idx + 1))
-  let next_heading_offset = ($rest | enumerate | where { |it| $it.item | str starts-with "## " } | get -o 0.index)
-  let block = if $next_heading_offset == null { $rest } else { $rest | first $next_heading_offset }
+  let fence_open = ($rest | enumerate | where { |it| ($it.item | str trim) | str starts-with "```" } | get -o 0.index)
 
-  $block
-  | each { |line| $line | str trim }
-  | where { |line| $line =~ $CORE_NAME }
+  if $fence_open == null {
+    print $"(ansi red_bold)❌ No fenced block found after '($CANONICAL_HEADING)' in ($file)(ansi reset)"
+    exit 1
+  }
+
+  let after_fence = ($rest | skip ($fence_open + 1))
+  let fence_close = ($after_fence | enumerate | where { |it| ($it.item | str trim) | str starts-with "```" } | get -o 0.index)
+
+  if $fence_close == null {
+    print $"(ansi red_bold)❌ Unterminated fenced block after '($CANONICAL_HEADING)' in ($file)(ansi reset)"
+    exit 1
+  }
+
+  let names = ($after_fence
+    | first $fence_close
+    | each { |line| $line | str trim }
+    | where { |line| $line =~ $CORE_NAME })
+
+  # A duplicate is a defect, not padding. Without this, dropping one name and
+  # duplicating another holds EXPECTED_COUNT steady while the real stack shrinks
+  # — the exact trim this guard exists to force intent on.
+  if ($names | length) != ($names | uniq | length) {
+    let dupes = ($names | uniq -d)
+    print $"(ansi red_bold)❌ Duplicate name\(s\) in the canonical block of ($file): ($dupes | str join ', ')(ansi reset)"
+    exit 1
+  }
+
+  $names
 }
 
 # Find the load LISTS in a file, as contiguous runs of list lines.
@@ -295,4 +332,105 @@ def bullet-leading-name [line: string] {
   } else {
     []
   }
+}
+
+# Regression fixtures for the run-finder. Every case below is a real defect or
+# a real idiom found by review — three separate reviewers each found one silent
+# false pass in this parser, and every round was fixed by editing the parser
+# with no test added, which is why the next round found another. These are that
+# test. Two cases are CHARACTERISATION tests: they assert current behaviour on
+# known gaps (tracked in claude-skills-134) so that fixing the gap fails here
+# and forces the expectation to be updated deliberately.
+def self-test [] {
+  let dir = (mktemp -d | str trim)
+  mut failures = []
+
+  let cases = [
+    {
+      name: "names_only_fence"
+      why: "canonical block shape: one name per line inside a fence"
+      content: "# Doc\n\n```\n/core:aa\n/core:bb\n/core:cc\n```\n"
+      expect: [[/core:aa /core:bb /core:cc]]
+    }
+    {
+      name: "comma_separated_fence"
+      why: "tier references wrap a comma-separated list across lines"
+      content: "1. Load core skills:\n   ```\n   /core:aa, /core:bb,\n   /core:cc\n   ```\n"
+      expect: [[/core:aa /core:bb /core:cc]]
+    }
+    {
+      name: "paren_annotated_bullets"
+      why: "commands/work.md idiom: bullet, backticked name, paren annotation"
+      content: "- `/core:aa`\n- `/core:bb` (the tracker)\n- `/core:cc` (carries Forge)\n"
+      expect: [[/core:aa /core:bb /core:cc]]
+    }
+    {
+      name: "lone_em_dash_prose_bullet_ignored"
+      why: "a prose bullet ABOUT a skill is not a load list; under 2 names anyway"
+      content: "Some prose.\n\n- `/core:aa` — standing discipline, not pulled\n\nMore prose.\n"
+      expect: []
+    }
+    {
+      name: "prose_sentence_with_names_ignored"
+      why: "restraint/README.md:3 says 'Loaded alongside `/core:tdd` and ...' in prose"
+      content: "A principle: stop early. Loaded alongside `/core:aa` and `/core:bb`, threaded throughout.\n"
+      expect: []
+    }
+    {
+      name: "two_complete_lists_both_kept"
+      why: "leader-spawn-example.md exists to hold a worked example; both must be checked"
+      content: "```\n/core:aa\n/core:bb\n/core:cc\n```\n\nAnd again:\n\n```\n/core:aa\n/core:bb\n/core:cc\n```\n"
+      expect: [[/core:aa /core:bb /core:cc] [/core:aa /core:bb /core:cc]]
+    }
+    {
+      name: "masking_paren_bullet_separate_run"
+      why: "PoC A: name deleted from the list, re-added as a detached paren bullet"
+      content: "- `/core:aa`\n- `/core:bb`\n\nLater, unrelated:\n\n- `/core:cc` (standing discipline)\n"
+      expect: [[/core:aa /core:bb]]
+    }
+    {
+      name: "masking_fenced_example_separate_run"
+      why: "PoC B: a worked example elsewhere in the file must not patch the real list"
+      content: "- `/core:aa`\n- `/core:bb`\n\nExample:\n\n```\n/core:cc\n/core:aa\n```\n"
+      expect: [[/core:aa /core:bb] [/core:aa /core:cc]]
+    }
+    {
+      name: "single_name_run_below_threshold"
+      why: "a one-name run is a mention, not a list"
+      content: "```\n/core:aa\n```\n"
+      expect: []
+    }
+    {
+      name: "KNOWN GAP F1 adjacent paren bullet joins the run"
+      why: "characterisation: a paren annotation that NEGATES the instruction still counts, because it sits in the run. Fix is deleting G2 — claude-skills-134"
+      content: "- `/core:aa`\n- `/core:bb`\n- `/core:cc` (NOT loaded by default; skip for doc-only work)\n"
+      expect: [[/core:aa /core:bb /core:cc]]
+    }
+    {
+      name: "KNOWN GAP F3 em-dash annotated operative list is invisible"
+      why: "characterisation: annotate a REAL list with em-dashes and no run is found, so a file can pass with no list at all. Fix is anchoring to a marker — claude-skills-134"
+      content: "- `/core:aa` — always\n- `/core:bb` — the tracker\n- `/core:cc` — carries Forge\n"
+      expect: []
+    }
+  ]
+
+  for c in $cases {
+    let f = ($dir | path join "fixture.md")
+    $c.content | save -f $f
+    let got = (find-load-list-runs $f)
+    if $got != $c.expect {
+      $failures = ($failures | append $"($c.name): expected ($c.expect | to nuon), got ($got | to nuon)")
+    }
+    rm -f $f
+  }
+
+  rm -rf $dir
+
+  if ($failures | is-not-empty) {
+    print $"(ansi red_bold)❌ Core-list self-test failed:(ansi reset)"
+    for f in $failures { print $"  • ($f)" }
+    exit 1
+  }
+
+  print $"(ansi green_bold)✅ Core-list self-test passed \(($cases | length) cases\)(ansi reset)"
 }

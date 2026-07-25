@@ -28,7 +28,7 @@ when the trigger condition arises.
    /core:agent-loop
    /core:bees
    Glob patterns like /core:* do not expand in Agent prompts.
-   # Canonical list: /core:agent-loop "Core Skills (Mandatory)"; drift-checked in CI.
+   Canonical list: /core:agent-loop "Core Skills (Mandatory)".
 
 3. Every spawned agent's prompt starts with a "## Load skills" block
    listing exact skill names. Require the agent to quote one sentence
