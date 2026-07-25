@@ -46,6 +46,13 @@ const CANONICAL_FILE = "plugins/core/skills/agent-loop/SKILL.md"
 const CANONICAL_HEADING = "## Core Skills (Mandatory)"
 const EXPECTED_COUNT = 10
 
+# One definition of each name shape, shared by the canonical extractor and
+# both grammars. Keeping these separate previously let them disagree on case
+# and digits, so a name like /core:s3-tools parsed in a satellite but was
+# dropped from the canonical block, surfacing as a confusing count mismatch.
+const CORE_NAME = '^/core:[a-z][a-z0-9-]*$'
+const SKILL_NAME = '^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$'
+
 const SATELLITES = [
   "plugins/core/skills/agent-loop/SKILL.md"
   "plugins/core/skills/agent-loop/references/team-leader.md"
@@ -141,7 +148,7 @@ def extract-canonical-names [file: string] {
 
   $block
   | each { |line| $line | str trim }
-  | where { |line| $line =~ '^/core:[a-zA-Z-]+$' }
+  | where { |line| $line =~ $CORE_NAME }
 }
 
 # Collect the /core: names that appear in a LOAD LIST position in the given
@@ -176,22 +183,40 @@ def names-only-line [line: string] {
   # Every token must be skill-shaped for this to be a load list. A mixed
   # /core: + /elixir: block qualifies; a code-fence info string or a prose
   # fragment does not.
-  let all_skill_shaped = ($tokens | all { |t| $t =~ '^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$' })
+  let all_skill_shaped = ($tokens | all { |t| $t =~ $SKILL_NAME })
 
   if not $all_skill_shaped { return [] }
 
   $tokens | where { |t| $t | str starts-with "/core:" }
 }
 
-# G2: a bullet whose FIRST token is a /core: name, allowing a trailing
+# G2: a bullet whose FIRST token is a /core: name, allowing a parenthesised
 # annotation after it. Returns that single name, or [].
+#
+# The remainder after the name must be empty or start with "(" — that is what
+# separates a load-list entry from a prose bullet ABOUT a skill. Real
+# annotated entries in commands/work.md are paren-shaped ("- `/core:bees`
+# (the tracker)"), while documentation bullets use an em-dash ("- `/core:tdd`
+# — standing discipline, not pulled"). Without this test, any future prose
+# bullet in that idiom would be counted as a load-list entry, which could
+# MASK a genuinely missing name — the same false-pass class this check exists
+# to remove.
 def bullet-leading-name [line: string] {
   let trimmed = ($line | str trim)
 
   if not ($trimmed =~ '^[-*]\s') { return [] }
 
   let after_marker = ($trimmed | str replace -r '^[-*]\s+' '' | str trim | str replace -a '`' '' | str trim)
-  let first_token = ($after_marker | split row " " | get -o 0 | default "" | str trim | str replace -r '[,.]$' '')
+  let tokens = ($after_marker | split row " ")
+  let first_token = ($tokens | get -o 0 | default "" | str trim | str replace -r '[,.]$' '')
 
-  if ($first_token =~ '^/core:[a-z][a-z0-9-]*$') { [$first_token] } else { [] }
+  if not ($first_token =~ $CORE_NAME) { return [] }
+
+  let remainder = ($tokens | skip 1 | str join " " | str trim)
+
+  if ($remainder | is-empty) or ($remainder | str starts-with "(") {
+    [$first_token]
+  } else {
+    []
+  }
 }
