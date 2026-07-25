@@ -27,31 +27,11 @@ mise is a polyglot runtime manager and development environment tool that combine
 - **Task automation** - Define and run project tasks
 - **Cross-platform** - Works on macOS, Linux, and Windows
 
-## Installation
+Install with `curl https://mise.run | sh` (or `brew install mise`), then activate in the shell: `eval "$(mise activate zsh)"`. Full install matrix, shims, IDE and CI/CD integration: `references/setup-and-troubleshooting.md`.
 
-```bash
-# macOS/Linux (using curl)
-curl https://mise.run | sh
+## Tool Backends
 
-# macOS (using Homebrew)
-brew install mise
-
-# Windows
-# See https://mise.jdx.dev for Windows install instructions
-
-# Activate mise in your shell
-echo 'eval "$(mise activate bash)"' >> ~/.bashrc   # bash
-echo 'eval "$(mise activate zsh)"' >> ~/.zshrc     # zsh
-echo 'mise activate fish | source' >> ~/.config/fish/config.fish  # fish
-```
-
-## Managing Tools
-
-### Tool Backends
-
-mise uses different backends (package managers) to install tools. Understanding backends helps you install tools correctly.
-
-#### Available Backends
+mise uses different backends (package managers) to install tools:
 
 - **asdf** - Traditional asdf plugins (default for many tools)
 - **github** - GitHub release-asset installer (replaces deprecated ubi backend)
@@ -64,148 +44,52 @@ mise uses different backends (package managers) to install tools. Understanding 
 - **gitlab** - Direct from GitLab repositories
 - **http** - Direct HTTP downloads
 
-#### Verifying Tool Names
+Prefer registry short names (`ripgrep`) over backend-prefixed forms (`cargo:ripgrep`) when the tool is in the mise registry (`mise registry | grep <tool-name>`). Fall back to an explicit backend prefix when the registry has no entry.
 
-Always verify tool names using `mise ls-remote` before adding to configuration:
+Per-backend detail — github backend options (`exe`, `asset_pattern`, `extract_all`, `rename_exe`), multi-arch platform keys, cargo prerequisites and git installs, upgrades and aliases: `references/backends.md`.
+
+## Verify Before Pinning — ls-remote
+
+`mise ls-remote <backend>:<target>` returns all available versions for any backend. Run this BEFORE pinning a version in mise.toml to confirm the backend can actually see the tool:
 
 ```bash
-# Check if tool exists in registry
-mise ls-remote node
-
-# Check tool with specific backend
-mise ls-remote cargo:ripgrep
-mise ls-remote github:sharkdp/fd
-
-# Search the registry
-mise registry | grep <tool-name>
+mise ls-remote node                  # registry tool
+mise ls-remote github:sharkdp/fd     # explicit backend
+mise registry | grep <tool-name>     # search the registry
 ```
 
-### Discovering Available Tools with ls-remote
-
-`mise ls-remote <backend>:<target>` returns all available versions for any backend. Run this BEFORE pinning a version in mise.toml to confirm the backend can actually see the tool.
+**Failure mode — the tool lives in a different repo than you expect.** Sometimes the CLI binary is released from a different repository than the documentation or project homepage:
 
 ```bash
-# github backend — lists release tags from GitHub
-$ mise ls-remote github:sharkdp/fd | head -5
-7.0.0
-7.1.0
-7.2.0
-7.3.0
-7.4.0
-
-# github backend — another tool
-$ mise ls-remote github:goreleaser/goreleaser | head -5
-2.8.1
-2.8.2
-2.9.0
-2.10.0
-2.10.1
-
-# github backend — the GitHub CLI itself
-$ mise ls-remote github:cli/cli | head -5
-2.74.0
-2.74.1
-2.74.2
-2.75.0
-2.75.1
-
-# cargo backend — lists versions from crates.io
-$ mise ls-remote cargo:ripgrep | head -5
-0.1.0
-0.1.1
-0.1.2
-0.1.3
-0.1.4
-
-# go backend — requires Go installed (mise use go@latest)
-$ mise ls-remote go:mvdan.cc/gofumpt | head -5
-0.1.0
-0.1.1
-0.2.0
-0.2.1
-0.3.0
-
-# npm backend — lists versions from the npm registry
-$ mise ls-remote npm:typescript | head -5
-0.8.0
-0.8.1-1
-0.8.1
-0.8.2
-0.8.3
-```
-
-**Failure mode — the tool lives in a different repo than you expect.** Sometimes the CLI binary is released from a different repository than the documentation or project homepage. Example:
-
-```bash
-# Returns no versions — wrong repo
 $ mise ls-remote github:juxt/allium | head -5
-(no output)
+(no output)                          # wrong repo — homepage, no releases
 
-# Returns versions — correct repo for the CLI releases
 $ mise ls-remote github:juxt/allium-tools | head -5
-0.1.0
-0.1.1
-0.1.2
-0.1.3
-0.1.5
+0.1.0                                # correct repo for the CLI releases
 ```
 
-If `ls-remote` returns nothing, check whether the project publishes releases to a separate repository (e.g., a `-tools`, `-cli`, or `-releases` repo).
+If `ls-remote` returns nothing, check whether the project publishes releases to a separate repository (e.g., a `-tools`, `-cli`, or `-releases` repo). Don't pin a version you haven't verified ls-remote can see. Per-backend ls-remote output examples: `references/backends.md`.
 
-Don't pin a version you haven't verified ls-remote can see.
+## Installing and Using Tools
 
-### Installing Tools
+**Key difference**: `mise install` only installs tools; `mise use` installs AND adds the tool to your configuration file. `mise use` is the primary way to add tools to projects.
 
 ```bash
-# List available tools in registry
-mise registry
+mise install                  # install everything in .mise.toml / .tool-versions
+mise install node@20.10.0     # install without touching config
 
-# Install from default backend
-mise install node@20.10.0
-mise install python@3.12
-mise install ruby@3.3
-
-# Install with specific backend
-mise install cargo:ripgrep        # From Rust crates
-mise install github:sharkdp/fd    # From GitHub releases
-mise install npm:typescript       # From npm
-
-# Install latest version
-mise install node@latest
-
-# Install from .mise.toml or .tool-versions
-mise install
+mise use node@20              # fuzzy version — saves "20" (default)
+mise use --pin node@20.10.0   # exact version — saves "20.10.0"
+mise use node@latest          # saves "latest"
+mise use cargo:ripgrep@latest # explicit backend
+mise use --remove node        # remove tool from config
+mise use --force node@20      # force reinstall
+mise use --dry-run node@20    # preview changes
 ```
 
-### Using Tools with `mise use`
+Version pinning: fuzzy (`node@20`) auto-updates within the major version; `--pin` locks the exact version; `latest` always updates. **Best Practice**: Use fuzzy versions for flexibility, `mise.lock` for reproducibility.
 
-The `mise use` command is the primary way to add tools to projects. It combines two operations:
-1. **Installs** the tool (if not already installed)
-2. **Adds** the tool to your configuration file
-
-**Key Difference**: `mise install` only installs tools, while `mise use` installs AND configures them.
-
-#### Basic Usage
-
-```bash
-# Interactive selection
-mise use
-
-# Add tool with fuzzy version (default)
-mise use node@20              # Saves as "20" in mise.toml
-
-# Add tool with exact version
-mise use --pin node@20.10.0   # Saves as "20.10.0"
-
-# Add latest version
-mise use node@latest          # Saves as "latest"
-
-# Add with specific backend
-mise use cargo:ripgrep@latest
-mise use github:sharkdp/fd
-```
-
-#### Configuration File Selection
+### Configuration file selection
 
 `mise use` writes to configuration files in this priority order:
 
@@ -214,68 +98,12 @@ mise use github:sharkdp/fd
 3. **`--env <env>` flag**: `.mise.<env>.toml`
 4. **Default**: `mise.toml` in current directory
 
-```bash
-# Global (all projects)
-mise use --global node@20
-
-# Local (current project)
-mise use node@20              # Creates/updates ./mise.toml
-
-# Environment-specific
-mise use --env local node@20  # Creates .mise.local.toml
-
-# Specific file
-mise use --path ~/.config/mise/custom.toml node@20
-```
-
-#### Important Flags
-
-```bash
-# Pin exact version
-mise use --pin node@20.10.0        # Saves "20.10.0"
-
-# Fuzzy version (default)
-mise use --fuzzy node@20           # Saves "20"
-
-# Force reinstall
-mise use --force node@20
-
-# Dry run (preview changes)
-mise use --dry-run node@20
-
-# Remove tool from config
-mise use --remove node
-```
-
-#### Version Pinning
-
-```bash
-# Fuzzy (recommended) - auto-updates within major version
-mise use node@20                   # Uses latest 20.x.x
-
-# Exact - locks to specific version
-mise use --pin node@20.10.0        # Always uses 20.10.0
-
-# Latest - always uses newest version
-mise use node@latest               # Always updates to latest
-```
-
-**Best Practice**: Use fuzzy versions for flexibility, `mise.lock` for reproducibility.
-
-### Setting Tool Versions
-
-The `mise use` command automatically sets tool versions by updating configuration files.
-
-#### .mise.toml Configuration
+## .mise.toml Schema
 
 ```toml
 [tools]
 node = "20.10.0"
 python = "3.12"
-ruby = "3.3"
-go = "1.21"
-
-# Use latest version
 terraform = "latest"
 
 # Backends - use quotes for namespaced tools
@@ -288,291 +116,38 @@ terraform = "latest"
 node = { version = "lts", resolve = "latest-lts" }
 ```
 
-### GitHub Backend
+mise reads configuration from multiple locations (in order):
 
-The **github** backend installs tools directly from GitHub release assets without requiring plugins. It is built into mise, works cross-platform including Windows, and adds provenance verification and download progress over the older ubi backend.
-
-Note: The `ubi:` prefix is deprecated (per upstream mise docs); migrate any existing `ubi:owner/repo` entries to `github:owner/repo`.
-
-#### Basic GitHub Backend Usage
-
-```bash
-# Install from GitHub releases
-mise use -g github:goreleaser/goreleaser
-mise use -g github:sharkdp/fd
-mise use -g github:BurntSushi/ripgrep
-
-# Specific version
-mise use -g github:goreleaser/goreleaser@2.10.0
-
-# In .mise.toml
-[tools]
-"github:goreleaser/goreleaser" = "latest"
-"github:sharkdp/fd" = "10.0.0"
-```
-
-#### GitHub Backend Advanced Options
-
-Configure tool-specific options when binary names differ or asset filtering is needed:
-
-```toml
-[tools]
-# When executable name differs from repo name
-"github:BurntSushi/ripgrep" = { version = "latest", exe = "rg" }
-
-# Filter release assets with a glob pattern
-"github:some/tool" = { version = "latest", asset_pattern = "*-linux-gnu*" }
-
-# Asset pattern with exact architecture
-"github:some/tool" = { version = "latest", asset_pattern = "*_darwin_arm64.tar.gz" }
-
-# Extract entire tarball
-"github:some/tool" = { version = "latest", extract_all = true }
-
-# Rename extracted executable
-"github:some/tool" = { version = "latest", rename_exe = "my-tool" }
-```
-
-#### GitHub Backend Supported Syntax
-
-Two installation formats:
-- **GitHub shorthand (latest)**: `github:owner/repo`
-- **GitHub shorthand (version)**: `github:owner/repo@1.2.3`
-
-## Templates
-
-The `templates/` directory contains reusable configuration snippets for common mise patterns.
-
-### Multi-Architecture Tool Installation
-
-When installing tools from GitHub releases that provide separate binaries for different platforms/architectures, use platform-specific asset patterns.
-
-See `templates/multi-arch.md` for the pattern:
-
-```toml
-[tools."github:owner/repo"]
-version = "latest"
-
-[tools."github:owner/repo".platforms]
-linux-x64 = { asset_pattern = "tool_*_linux_amd64.tar.gz" }
-macos-arm64 = { asset_pattern = "tool_*_darwin_arm64.tar.gz" }
-```
-
-#### Platform Keys
-
-Common platform keys for mise:
-- `linux-x64` - Linux on x86_64/amd64
-- `linux-arm64` - Linux on ARM64/aarch64
-- `macos-x64` - macOS on Intel (x86_64)
-- `macos-arm64` - macOS on Apple Silicon (M1/M2/M3)
-- `windows-x64` - Windows on x86_64
-
-#### Asset Pattern Wildcards
-
-Use `*` as a wildcard in asset patterns to match version numbers or other variable parts of release asset names.
-
-Example for a tool with releases like `beads_1.0.0_darwin_arm64.tar.gz`:
-```toml
-asset_pattern = "beads_*_darwin_arm64.tar.gz"
-```
-
-### Cargo Backend
-
-The **cargo** backend installs Rust packages from crates.io. **Requires Rust to be installed first.**
-
-#### Cargo Prerequisites
-
-Install Rust before using cargo backend:
-
-```bash
-# Option 1: Install Rust via mise
-mise use -g rust
-
-# Option 2: Install Rust directly
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-#### Cargo Usage
-
-```bash
-# Install from crates.io
-mise use -g cargo:ripgrep
-mise use -g cargo:eza
-mise use -g cargo:bat
-
-# In .mise.toml - requires rust installed first
-[tools]
-rust = "latest"              # Install rust first
-"cargo:ripgrep" = "latest"   # Then cargo tools
-"cargo:eza" = "latest"
-"cargo:bat" = "latest"
-```
-
-#### Cargo from Git Repositories
-
-```bash
-# Specific tag
-mise use cargo:https://github.com/username/demo@tag:v1.0.0
-
-# Branch
-mise use cargo:https://github.com/username/demo@branch:main
-
-# Commit hash
-mise use cargo:https://github.com/username/demo@rev:abc123
-```
-
-#### Cargo Settings
-
-Configure cargo behavior globally:
-
-```toml
-[settings]
-# Use cargo-binstall for faster installs (default: true)
-cargo.binstall = true
-
-# Use alternative cargo registry
-cargo.registry_name = "my-registry"
-```
-
-### Managing Installed Tools
-
-```bash
-# List installed tools
-mise list
-
-# List all versions of a tool
-mise list node
-
-# Uninstall a version
-mise uninstall node@18.0.0
-
-# Update all tools to latest
-mise upgrade
-
-# Update specific tool
-mise upgrade node
-```
-
-### Tool Aliases
-
-```bash
-# Create alias for a tool
-mise alias node 20 20.10.0
-
-# Use alias
-mise use node@20
-```
+1. `.mise.toml` - Project local config
+2. `.mise/config.toml` - Project local config (alternative)
+3. `~/.config/mise/config.toml` - Global config
+4. Environment variables - `MISE_*`
 
 ## Environment Variables
-
-### Setting Environment Variables
-
-#### In .mise.toml
 
 ```toml
 [env]
 DATABASE_URL = "postgresql://localhost/myapp"
-API_KEY = "development-key"
 NODE_ENV = "development"
 
-# Template values
+# Go templates — {{ config_root }} is the directory containing mise.toml
 APP_ROOT = "{{ config_root }}"
-DATA_DIR = "{{ config_root }}/data"
-```
+PATH = ["{{ config_root }}/bin", "$PATH"]
 
-#### File-based env vars
-
-```toml
-[env]
+# File-based env vars
 _.file = ".env"
 _.path = ["/custom/bin"]
 ```
 
-### Environment Templates
-
-Use Go templates in environment variables:
-
-```toml
-[env]
-PROJECT_ROOT = "{{ config_root }}"
-LOG_FILE = "{{ config_root }}/logs/app.log"
-PATH = ["{{ config_root }}/bin", "$PATH"]
-```
-
-### Secrets Management
+Secrets via `mise set`:
 
 ```bash
-# Use with sops
-mise set SECRET_KEY sops://path/to/secret
-
-# Use with age
-mise set API_TOKEN age://path/to/secret
-
-# Use from command
-mise set BUILD_ID "$(git rev-parse HEAD)"
+mise set SECRET_KEY sops://path/to/secret     # sops
+mise set API_TOKEN age://path/to/secret       # age
+mise set BUILD_ID "$(git rev-parse HEAD)"     # from command
 ```
 
 ## Tasks
-
-### Defining Tasks
-
-#### In .mise.toml
-
-```toml
-[tasks.build]
-description = "Build the project"
-run = "npm run build"
-
-[tasks.test]
-description = "Run tests"
-run = "npm test"
-
-[tasks.lint]
-description = "Run linter"
-run = "npm run lint"
-depends = ["build"]
-
-[tasks.ci]
-description = "Run CI pipeline"
-depends = ["lint", "test"]
-
-[tasks.dev]
-description = "Start development server"
-run = "npm run dev"
-```
-
-### Running Tasks
-
-```bash
-# Run a task
-mise run build
-mise run test
-
-# Short form
-mise build
-mise test
-
-# Run multiple tasks
-mise run lint test
-
-# List available tasks
-mise tasks
-
-# Run task with arguments
-mise run script -- arg1 arg2
-```
-
-### Task Dependencies
-
-```toml
-[tasks.deploy]
-depends = ["build", "test"]
-run = "npm run deploy"
-
-# Tasks run in order: build, test, then deploy
-```
-
-### Task Options
 
 ```toml
 [tasks.build]
@@ -583,352 +158,62 @@ outputs = ["dist/**/*"]         # Check outputs for changes
 dir = "frontend"                # Run in specific directory
 env = { NODE_ENV = "production" }
 
+[tasks.test]
+description = "Run tests"
+run = "npm test"
+
+[tasks.lint]
+description = "Run linter"
+run = "npm run lint"
+depends = ["build"]             # depends run first, in order
+
+[tasks.ci]
+description = "Run CI pipeline"
+depends = ["lint", "test"]
+
 [tasks.watch]
 run = "npm run watch"
 raw = true                      # Don't wrap in shell
 ```
 
-### Task Files
-
-Create separate task files:
-
 ```bash
-# .mise/tasks/deploy
-#!/bin/bash
-# mise description="Deploy to production"
-# mise depends=["build", "test"]
-
-echo "Deploying..."
-npm run deploy
+mise run build            # run a task
+mise build                # short form
+mise run lint test        # run multiple tasks
+mise tasks                # list available tasks
+mise run script -- arg1   # pass arguments
 ```
 
-Make executable:
-```bash
-chmod +x .mise/tasks/deploy
-```
+Define a `ci` task that aggregates the project's format, lint, and test checks — `mise run ci` is the local quality gate other skills and agents in this workspace invoke before commit. File-based tasks (`.mise/tasks/`) and complete Node/Python/monorepo/multi-tool project setups: `references/tasks-and-workflows.md`.
 
 ## Sandboxing
 
-mise sandboxing is a lightweight process-isolation feature for `mise exec` and `mise run` that restricts filesystem, network, and environment-variable access using OS-level primitives — not a container, not a VM. Enable the feature flag before using any sandbox options:
-
-```bash
-mise settings experimental=true
-```
-
-### Platform support
-
-| Platform | Filesystem | Network | Per-host net filter |
-|----------|------------|---------|---------------------|
-| Linux (kernel 5.13+) | Landlock | seccomp-bpf | No (all-or-nothing in v1) |
-| macOS | Seatbelt | Seatbelt | Yes |
-| Windows | unsupported | unsupported | unsupported |
-
-### Allow/deny flags
-
-Deny flags (apply to `mise exec` / `mise run`):
-- `--deny-all` — deny filesystem, network, and env by default
-- `--deny-read` — deny all filesystem reads
-- `--deny-write` — deny all filesystem writes
-- `--deny-net` — deny all network access
-- `--deny-env` — deny all environment variables
-
-Allow flags (grant specific access back):
-- `--allow-read=<path>` — grant read access to a path
-- `--allow-write=<path>` — grant write access to a path
-- `--allow-net=<host>` — grant access to a specific host (macOS only for per-host filtering)
-- `--allow-env=<var>` — grant access to an env var; supports globs (e.g. `MYAPP_*`)
+mise sandboxing restricts filesystem, network, and env access for `mise exec` / `mise run` using OS-level primitives (Landlock/seccomp on Linux, Seatbelt on macOS; Windows unsupported). Gotcha: `mise settings experimental=true` is required first — without it, deny/allow flags are silently no-ops.
 
 ```bash
 mise x --deny-all --allow-read=. --allow-write=./dist --allow-net=registry.npmjs.org -- npm install
 ```
 
-### Task-level config
-
-Define sandbox policy inline in `mise.toml`:
-
-```toml
-[tasks.build]
-run = "npm run build"
-deny_net = true
-allow_write = ["./dist"]
-```
-
-Task-level keys map 1:1 to CLI flags. CLI flags override task config when both are present.
-
-### Limitations
-
-- `mise settings experimental=true` is required; without it, deny/allow flags are silently no-ops.
-- Linux v1 lacks per-host network filtering — network access is all-or-nothing.
-- Landlock failures terminate the command immediately on Linux.
-- Windows is unsupported; commands run unsandboxed with a warning.
-
-### See also
-
-- `templates/sandboxing.md` — runnable examples for task-level and ad-hoc sandbox invocations.
-
-## Common Workflows
-
-### Node.js Project Setup
-
-```toml
-# .mise.toml
-[tools]
-node = "20"
-
-[env]
-NODE_ENV = "development"
-
-[tasks.install]
-run = "npm install"
-
-[tasks.dev]
-run = "npm run dev"
-depends = ["install"]
-
-[tasks.build]
-run = "npm run build"
-depends = ["install"]
-
-[tasks.test]
-run = "npm test"
-depends = ["install"]
-```
-
-```bash
-# Setup and run
-cd project
-mise install      # Installs Node 20
-mise dev         # Runs dev server
-```
-
-### Python Project Setup
-
-```toml
-# .mise.toml
-[tools]
-python = "3.12"
-
-[env]
-PYTHONPATH = "{{ config_root }}/src"
-
-[tasks.venv]
-run = "python -m venv .venv"
-
-[tasks.install]
-run = "pip install -r requirements.txt"
-depends = ["venv"]
-
-[tasks.test]
-run = "pytest"
-depends = ["install"]
-
-[tasks.format]
-run = "black src tests"
-```
-
-### Monorepo Setup
-
-```toml
-# Root .mise.toml
-[tools]
-node = "20"
-python = "3.12"
-
-[env]
-WORKSPACE_ROOT = "{{ config_root }}"
-
-[tasks.install-all]
-run = """
-npm install
-cd services/api && npm install
-cd services/web && npm install
-"""
-
-[tasks.test-all]
-depends = ["install-all"]
-run = """
-mise run test --dir services/api
-mise run test --dir services/web
-"""
-```
-
-### Multi-Tool Project
-
-```toml
-# .mise.toml
-[tools]
-node = "20"
-python = "3.12"
-ruby = "3.3"
-go = "1.21"
-terraform = "latest"
-
-[env]
-PROJECT_ROOT = "{{ config_root }}"
-PATH = ["{{ config_root }}/bin", "$PATH"]
-
-[tasks.setup]
-description = "Setup all dependencies"
-run = """
-npm install
-pip install -r requirements.txt
-bundle install
-go mod download
-"""
-```
+Full flag reference, platform support matrix, task-level config, and limitations: `references/sandboxing.md`. Runnable examples: `templates/sandboxing.md`.
 
 ## Lock Files
 
-Generate lock files for reproducible environments:
-
 ```bash
-# Generate .mise.lock
-mise lock
-
-# Use locked versions
-mise install --locked
+mise lock                 # generate .mise.lock
+mise install --locked     # use locked versions
 ```
 
 ```toml
-# .mise.toml
-[tools]
-node = "20"
-
 [settings]
 lockfile = true  # Auto-generate lock file
 ```
 
-## Shims
+## Templates
 
-Use shims for tool binaries:
+The `templates/` directory contains reusable configuration snippets for common mise patterns:
 
-```bash
-# Enable shims
-mise settings set experimental true
-mise reshim
-
-# Now tools are in PATH via shims
-node --version  # Uses mise-managed node
-python --version  # Uses mise-managed python
-```
-
-## Configuration Locations
-
-mise reads configuration from multiple locations (in order):
-
-1. `.mise.toml` - Project local config
-2. `.mise/config.toml` - Project local config (alternative)
-3. `~/.config/mise/config.toml` - Global config
-4. Environment variables - `MISE_*`
-
-## IDE Integration
-
-### VS Code
-
-Add to `.vscode/settings.json`:
-
-```json
-{
-  "terminal.integrated.env.linux": {
-    "PATH": "${env:HOME}/.local/share/mise/shims:${env:PATH}"
-  },
-  "terminal.integrated.env.osx": {
-    "PATH": "${env:HOME}/.local/share/mise/shims:${env:PATH}"
-  }
-}
-```
-
-### JetBrains IDEs
-
-Use mise shims or configure tool paths:
-
-```bash
-# Find tool path
-mise which node
-mise which python
-```
-
-## CI/CD Integration
-
-### GitHub Actions
-
-```yaml
-name: CI
-
-on: [push]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: jdx/mise-action@v2
-
-      - name: Run tests
-        run: mise run test
-```
-
-### GitLab CI
-
-```yaml
-test:
-  image: ubuntu:latest
-  before_script:
-    - curl https://mise.run | sh
-    - eval "$(mise activate bash)"
-    - mise install
-  script:
-    - mise run test
-```
-
-## Troubleshooting
-
-### Check mise status
-
-```bash
-# Show configuration
-mise config
-
-# Show environment
-mise env
-
-# Show installed tools
-mise list
-
-# Debug mode
-mise --verbose install node
-```
-
-### Clear cache
-
-```bash
-# Clear tool cache
-mise cache clear
-
-# Remove and reinstall
-mise uninstall node@20
-mise install node@20
-```
-
-### Legacy .tool-versions
-
-mise is compatible with asdf's `.tool-versions`:
-
-```
-# .tool-versions
-nodejs 20.10.0
-python 3.12.0
-ruby 3.3.0
-```
-
-Convert to mise:
-
-```bash
-# mise auto-reads .tool-versions
-# Or convert to .mise.toml
-mise config migrate
-```
+- `templates/multi-arch.md` — platform-specific asset patterns for GitHub-release tools (pattern detail in `references/backends.md`)
+- `templates/sandboxing.md` — runnable sandbox invocations
 
 ## Best Practices
 
@@ -940,15 +225,12 @@ mise config migrate
 - **Environment per project**: Keep secrets and config in .mise.toml
 - **Commit .mise.toml**: Share config with team
 - **Don't commit .mise.lock**: Let mise generate per environment
-
-## Key Principles
-
-- **Reproducible environments**: Lock versions for consistency
-- **Project-specific config**: Each project defines its own tools and env
-- **Task automation**: Centralize common development tasks
-- **Cross-platform**: Same config works on all platforms
 - **Zero setup for team**: Clone and `mise install` to get started
 
 ## References
 
+- `references/backends.md` — per-backend ls-remote examples, github backend options, multi-arch asset patterns, cargo backend, upgrades and aliases
+- `references/tasks-and-workflows.md` — file-based tasks and complete project workflow examples (Node.js, Python, monorepo, multi-tool)
+- `references/sandboxing.md` — sandbox flag reference, platform support matrix, task-level config, limitations
+- `references/setup-and-troubleshooting.md` — installation matrix, shims, IDE integration, CI/CD integration (GitHub Actions, GitLab CI), troubleshooting, `.tool-versions` migration
 - `references/transitive-runtime-deps.md` — `mise exec` does NOT auto-install transitive deps (Elixir-needs-Erlang failure mode); prefer portable secret-generation commands (`openssl`, `python3`, `/dev/urandom`)
