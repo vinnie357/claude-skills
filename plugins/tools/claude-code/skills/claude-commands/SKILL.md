@@ -1,410 +1,119 @@
 ---
 name: claude-commands
-description: Guide for creating custom slash commands for Claude Code. Use when adding new commands, defining command arguments, or implementing command workflows.
+description: Guide for creating custom slash commands for Claude Code. Use when adding a new slash command, writing $ARGUMENTS or $N argument substitutions, setting argument-hint or arguments in command frontmatter, choosing command frontmatter fields, injecting shell output into a command, or migrating .claude/commands/ files to skills.
 ---
 
 # Claude Code Commands
 
-Guide for creating custom slash commands that extend Claude Code functionality.
+Custom slash commands for Claude Code: prompt files invoked with `/name`, with argument substitution and dynamic shell context.
 
-## When to Use This Skill
+**Custom commands have merged into skills.** A file at `.claude/commands/deploy.md` and a skill at `.claude/skills/deploy/SKILL.md` both create `/deploy` and work the same way. Existing `.claude/commands/` files keep working and support the same frontmatter. Skills add a directory for supporting files, invocation control, and automatic loading when relevant — so create new commands as skills, and use `.claude/commands/` only for single-file prompts you already maintain there. The full skill-authoring guide is the `claude-skills` skill; this skill covers the command surface: naming, frontmatter, arguments, and dynamic context.
 
-Activate this skill when:
-- Creating new custom slash commands
-- Understanding command structure and syntax
-- Organizing commands for plugins
-- Implementing command workflows
-- Debugging command execution
+## File Locations and Command Names
 
-## What Are Commands?
+| Location | Path | Command name |
+|----------|------|--------------|
+| Personal skill | `~/.claude/skills/<dir>/SKILL.md` | `/<dir>` |
+| Project skill | `.claude/skills/<dir>/SKILL.md` | `/<dir>` |
+| Project command file | `.claude/commands/<file>.md` | `/<file>` (extension dropped) |
+| Plugin skill | `<plugin>/skills/<dir>/SKILL.md` | `/<plugin>:<dir>` |
+| Nested project skill | `apps/web/.claude/skills/deploy/SKILL.md` | `/apps/web:deploy` when the name clashes with another skill |
 
-Commands are custom slash commands (like `/commit`, `/review`) that users can invoke to trigger specific workflows or expand prompts. They are markdown files that can contain:
+- Use kebab-case directory and file names; the name on disk is the name typed.
+- When a skill and a command file share a name, the skill takes precedence. Across levels, personal overrides project; enterprise managed settings take precedence over both. Plugin skills are namespaced, so they cannot conflict with other levels.
+- In a plugin skill, the frontmatter `name` field replaces the last segment of the command (`my-plugin/skills/review/SKILL.md` with `name: fancy` → `/my-plugin:fancy`). In personal and project skills, `name` is only a display label — the command still comes from the directory name.
 
-- Static prompt text
-- Dynamic content based on arguments
-- Multi-step workflows
-- Integration with tools and scripts
+## Frontmatter Reference
 
-## Command File Structure
+YAML between `---` markers at the top of the file. All fields are optional; `description` is recommended so Claude knows when to load the command automatically. Malformed YAML loads the body with empty metadata: `/name` still works, but Claude has no description to match against.
 
-### Location
+| Field | Type / values | Default | Effect |
+|-------|---------------|---------|--------|
+| `name` | string | directory name | Display name; sets the command's last segment for plugin skills only |
+| `description` | string | first paragraph of body | What it does and when to use it; drives automatic invocation |
+| `when_to_use` | string | — | Extra trigger phrases, appended to `description` in the listing |
+| `argument-hint` | string | — | Autocomplete hint, e.g. `[issue-number]` or `[filename] [format]` |
+| `arguments` | space-separated string or YAML list | — | Declares named positional arguments for `$name` substitution; names map to positions in order |
+| `disable-model-invocation` | boolean | `false` | Only the user can invoke; Claude cannot trigger it automatically |
+| `user-invocable` | boolean | `true` | `false` hides it from the `/` menu; only Claude can invoke |
+| `allowed-tools` | space/comma-separated string or YAML list | — | Tools pre-approved for the turn that invokes the command; the grant clears on the user's next message |
+| `disallowed-tools` | space/comma-separated string or YAML list | — | Tools removed from the pool while the command is active; clears on the next message |
+| `model` | model name or `inherit` | session model | Model override for the rest of the current turn |
+| `effort` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | session effort | Effort override while active |
+| `context` | `fork` | inline | Runs the command in a forked subagent; the body becomes the subagent's prompt |
+| `agent` | agent type | `general-purpose` | Which subagent type executes when `context: fork` is set |
+| `background` | boolean | `true` | With `context: fork`, `false` waits for the result in the invoking turn |
+| `hooks` | hook config | — | Hooks scoped to the command's lifecycle |
+| `paths` | glob patterns (string or list) | — | Auto-load only when working with matching files |
+| `shell` | `bash` \| `powershell` | `bash` | Shell used for dynamic context injection in this file |
 
-Commands are defined in markdown files located in:
-- Plugin: `<plugin-root>/commands/`
-- User-level: `.claude/commands/`
+Do not put `allowed-tools` on skills in THIS marketplace — `test/validate-plugin.nu` rejects it as a hard failure; tool allowlists belong on agents here. The field itself is valid upstream Claude Code frontmatter, which is why the table documents it.
 
-### File Naming
+## Argument Substitution
 
-- Use kebab-case: `my-command.md`
-- File name becomes the command name: `my-command.md` → `/my-command`
-- Avoid conflicts with built-in commands
+Placeholders in the body are replaced before Claude sees the content:
 
-## Basic Command Format
+| Placeholder | Expands to |
+|-------------|-----------|
+| `$ARGUMENTS` | The full argument string as typed |
+| `$ARGUMENTS[N]` | The argument at **0-based** index N |
+| `$N` | Shorthand for `$ARGUMENTS[N]` |
+| `$name` | The named argument declared in `arguments:` frontmatter |
+| `${CLAUDE_SESSION_ID}` | The current session ID |
+| `${CLAUDE_EFFORT}` | The current effort level |
+| `${CLAUDE_SKILL_DIR}` | The directory containing the command's SKILL.md |
+| `${CLAUDE_PROJECT_DIR}` | The project root directory |
 
-### Simple Static Command
+**Indexing is 0-based: `$0` is the FIRST argument and `$1` is the SECOND.** This runs against shell convention (where `$1` is the first parameter) and is the easiest mistake to make when writing commands.
 
-```markdown
-# /my-command
+Substitution rules:
 
-This is the prompt that will be expanded when the user types /my-command.
+- **Quoting is shell-style.** `/my-skill "hello world" second` gives `$0` = `hello world`, `$1` = `second`. `$ARGUMENTS` always gets the full string as typed.
+- **Missing arguments differ by kind.** An indexed placeholder with no corresponding argument (`$2` when only one argument was passed) stays in the content unchanged. A named placeholder with no matching argument expands to an empty string.
+- **Named arguments map by position.** With `arguments: [issue, branch]`, `$issue` expands to the first argument and `$branch` to the second.
+- **Escaping a literal `$`:** a single backslash directly before the token, e.g. `\$1.00`. A doubled backslash (`\\$1`) does NOT escape — both backslashes stay and `$1` still expands. A backslash before any other `$` is left unchanged.
+- **No `$ARGUMENTS` in the body?** When a command is invoked with arguments but contains no `$ARGUMENTS`, Claude Code appends `ARGUMENTS: <input>` to the end of the content so Claude still sees what was typed.
+- **Stacked invocations:** typing `/write-tests /fix-issue 123` at the start of one message loads both commands and passes the trailing text `123` as `$ARGUMENTS` to each.
+- `${CLAUDE_SKILL_DIR}` and `${CLAUDE_PROJECT_DIR}` also substitute inside Bash rules in `allowed-tools`, so a command can pre-approve exactly the bundled script its body tells Claude to run.
 
-The entire content of this file will replace the slash command in the conversation.
-```
+## Dynamic Context Injection
 
-### Command with Description
+Shell output can be inlined into the command content before Claude reads it:
 
-```markdown
-<!--
-description: Brief description of what this command does
--->
+- **Inline:** `` !`git diff HEAD` `` on a line — the command runs and its stdout replaces the placeholder.
+- **Fenced (multi-line):** a code fence opened with ```` ```! ```` runs the commands and inlines the output.
 
-# /my-command
+This is preprocessing, not Claude executing a tool: every command runs before Claude sees anything, and Claude receives only the rendered result. Substitution runs once over the original file — command output is not re-scanned for further placeholders.
 
-Command prompt goes here...
-```
+The inline `!` is only recognized at the start of a line or immediately after whitespace. `` KEY=!`cmd` `` stays literal text and does not run.
 
-## Command Arguments
+There is no file-inclusion placeholder. To inject a file's content, use `` !`cat path/to/file` ``.
 
-Commands can accept arguments that users provide when invoking the command.
+To block injection for user, project, plugin, and additional-directory sources, set `"disableSkillShellExecution": true` in settings; each command is replaced with `[shell command execution disabled by policy]`. Bundled and managed skills are not affected.
 
-### Single Argument
+## Plugin Wiring
 
-```markdown
-# /greet
+Plugin commands ship two ways:
 
-Hello, {{arg}}! Welcome to the project.
-```
+- **Plugin skills** (preferred): directories under `<plugin>/skills/`, listed in the plugin.json `skills` array. Invoked as `/<plugin>:<name>`.
+- **Command files:** the plugin.json `commands` field — a single path string or an array of `.md` file and directory paths; a directory entry loads every `.md` file in it.
 
-Usage: `/greet Alice` → "Hello, Alice! Welcome to the project."
+See the `claude-plugins` skill for the full plugin.json schema and validation scripts.
 
-### Multiple Arguments
+## Security
 
-```markdown
-# /create-file
+- Never hardcode secrets — API keys, passwords, tokens, private URLs — in command files. Command bodies are prompts checked into repos and plugins.
+- Treat `` !`command` `` lines as executable code in review: they run on invocation, before anyone reads the output. Audit third-party skills and plugins for injection lines and `allowed-tools` grants before installing; project-level `allowed-tools` takes effect only after the workspace trust dialog is accepted.
+- Use `disable-model-invocation: true` for commands with side effects (deploy, commit, send-message) so Claude cannot trigger them on its own.
+- In managed environments, enforce `disableSkillShellExecution` through managed settings, where users cannot override it.
 
-Create a new file at {{arg1}} with the following content:
+## Examples
 
-{{arg2}}
-```
-
-Usage: `/create-file src/main.rs "fn main() {}"`
-
-### Named Arguments
-
-```markdown
-# /deploy
-
-Deploy {{environment}} environment to {{region}}.
-
-Configuration:
-- Environment: {{environment}}
-- Region: {{region}}
-- Branch: {{branch}}
-```
-
-Usage: `/deploy --environment=production --region=us-east-1 --branch=main`
-
-## Advanced Features
-
-### Conditional Content
-
-```markdown
-# /analyze
-
-Analyze the {{language}} codebase.
-
-{{#if verbose}}
-Provide detailed analysis including:
-- Code complexity metrics
-- Dependency analysis
-- Security vulnerabilities
-{{else}}
-Provide a summary analysis.
-{{/if}}
-```
-
-### Including Files
-
-Reference other files or command outputs:
-
-```markdown
-# /context
-
-Here is the current project structure:
-
-{{file:PROJECT_STRUCTURE.md}}
-
-And the current git status:
-
-{{shell:git status}}
-```
-
-### Multi-Step Workflows
-
-```markdown
-# /full-review
-
-I'll perform a comprehensive code review:
-
-1. First, let me check the git diff:
-{{shell:git diff}}
-
-2. Now analyzing code quality...
-
-3. Checking for security issues...
-
-4. Final recommendations:
-```
-
-## Best Practices
-
-### Clear Command Names
-
-- Use descriptive, action-oriented names
-- `/analyze-security` not `/sec`
-- `/create-component` not `/comp`
-
-### Provide Context
-
-Always include what the command will do:
-
-```markdown
-# /commit
-
-I'll analyze the current git changes and create a conventional commit message.
-
-Current changes:
-{{shell:git diff --staged}}
-
-Based on these changes, here's my suggested commit message:
-```
-
-### Handle Edge Cases
-
-```markdown
-# /deploy
-
-{{#if staging}}
-Deploying to staging environment (safe for testing)
-{{else if production}}
-⚠️ WARNING: Deploying to PRODUCTION
-Are you sure you want to continue? This will affect live users.
-{{else}}
-Error: Unknown environment. Please specify --staging or --production
-{{/if}}
-```
-
-### Document Arguments
-
-```markdown
-<!--
-description: Deploy application to specified environment
-usage: /deploy [--environment=<env>] [--region=<region>]
-arguments:
-  - environment: Target environment (staging, production)
-  - region: AWS region (us-east-1, eu-west-1, etc.)
--->
-
-# /deploy
-```
-
-## Command Organization
-
-### Plugin Commands
-
-In `plugin.json`:
-
-```json
-{
-  "commands": [
-    "./commands/deploy.md",
-    "./commands/analyze.md",
-    "./commands/review.md"
-  ]
-}
-```
-
-### Directory-Based Commands
-
-```json
-{
-  "commands": ["./commands"]
-}
-```
-
-This loads all `.md` files in the `commands/` directory.
-
-### Namespaced Commands
-
-Organize related commands in subdirectories:
-
-```
-commands/
-├── git/
-│   ├── commit.md
-│   ├── review.md
-│   └── cleanup.md
-├── deploy/
-│   ├── staging.md
-│   └── production.md
-```
-
-## Common Command Patterns
-
-### Git Commit Message Generator
-
-```markdown
-# /gcm
-
-I'll analyze the staged changes and generate a conventional commit message.
-
-{{shell:git diff --staged}}
-
-Based on these changes, here's my commit message:
-```
-
-### Code Review Command
-
-```markdown
-# /review-pr
-
-I'll review the pull request changes.
-
-PR Number: {{pr_number}}
-
-{{shell:gh pr diff {{pr_number}}}}
-
-Review checklist:
-- [ ] Code quality and style
-- [ ] Security considerations
-- [ ] Test coverage
-- [ ] Documentation updates
-```
-
-### Project Scaffolding
-
-```markdown
-# /new-component
-
-Creating a new {{component_type}} component named {{name}}.
-
-I'll create:
-1. Component file at src/components/{{name}}.tsx
-2. Test file at src/components/{{name}}.test.tsx
-3. Storybook file at src/components/{{name}}.stories.tsx
-```
-
-## Testing Commands
-
-### Manual Testing
-
-1. Install the plugin locally
-2. Reload Claude Code
-3. Type your command in the chat
-4. Verify the expansion is correct
-
-### Debugging
-
-If a command doesn't work:
-
-1. Check file location matches plugin.json
-2. Verify markdown syntax
-3. Test argument substitution
-4. Check for conflicts with existing commands
-
-## Command Templates
-
-### Analysis Command Template
-
-```markdown
-<!--
-description: Analyze {{target}} for {{criteria}}
--->
-
-# /analyze-{{target}}
-
-I'll analyze the {{target}} codebase for {{criteria}}.
-
-{{shell:find {{target}} -type f -name "*.{{extension}}"}}
-
-Analysis results:
-```
-
-### Workflow Command Template
-
-```markdown
-<!--
-description: Execute {{workflow}} workflow
--->
-
-# /{{workflow}}
-
-Starting {{workflow}} workflow...
-
-Step 1: {{step1_description}}
-{{step1_action}}
-
-Step 2: {{step2_description}}
-{{step2_action}}
-
-Workflow complete!
-```
-
-## Integration with Skills
-
-Commands can reference skills:
-
-```markdown
-# /elixir-review
-
-I'll review this Elixir code using my Phoenix and OTP knowledge.
-
-Please provide the code to review, and I'll check for:
-- Phoenix best practices
-- OTP design patterns
-- Elixir anti-patterns
-- Performance considerations
-```
-
-## Security Considerations
-
-### Avoid Sensitive Data
-
-Never hardcode:
-- API keys
-- Passwords
-- Tokens
-- Private URLs
-
-### Validate Input
-
-```markdown
-# /deploy
-
-{{#unless environment}}
-Error: --environment is required
-{{/unless}}
-
-{{#if (validate_environment environment)}}
-Proceeding with deployment...
-{{else}}
-Error: Invalid environment. Must be staging or production.
-{{/if}}
-```
-
-### Safe Shell Commands
-
-Be cautious with shell command execution:
-
-```markdown
-# /safe-deploy
-
-<!-- Only allow whitelisted commands -->
-{{shell:./scripts/deploy.sh {{environment}}}}
-```
+Complete worked commands — `$ARGUMENTS`, `$N`, named arguments, and dynamic injection — are in [references/examples.md](references/examples.md).
 
 ## References
 
-For more information about Claude Code commands:
-- Claude Code Documentation: https://code.claude.com/docs/en/commands
-- Example Commands: https://github.com/anthropics/claude-code/tree/main/examples/commands
+- Claude Code docs, "Extend Claude with skills" (covers custom commands): https://code.claude.com/docs/en/slash-commands
+- `claude-skills` skill — full skill-authoring guide (structure, supporting files, evaluation)
+- `claude-plugins` skill — plugin.json schema for shipping commands in plugins
+- `core:anti-fabrication` skill — command bodies are prompts; verify every claim they make about tools, files, and behavior before shipping them
