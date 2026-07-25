@@ -90,7 +90,7 @@ For each update target, collect before writing any changes:
 1. Fetch release notes from `releases_url`
 2. Identify: breaking changes, new features, deprecations, bug fixes
 3. Compare against skill's currently documented features
-4. Determine if a versioned template is needed (e.g., `templates/0.11.0/commands.md`)
+4. Determine if a versioned template is needed (a `templates/<version>/` snapshot of that version's commands)
 
 **Anti-fabrication requirements**:
 - Read actual release notes before claiming any feature exists in a new version

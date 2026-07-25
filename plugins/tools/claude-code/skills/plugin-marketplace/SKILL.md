@@ -8,6 +8,8 @@ license: MIT
 
 Guide for creating, validating, and managing plugin marketplaces for Claude Code. Includes schema validation, best practices, and automated tools.
 
+Per `core:anti-fabrication`: verify schema fields and source paths with the validation scripts before claiming an entry is valid — never assert validation results without running them.
+
 ## When to Use This Skill
 
 Activate this skill when:
@@ -202,22 +204,7 @@ This validates:
 - Field type correctness
 - Source path accessibility (for relative paths)
 
-### 2. Plugin Entry Validation
-
-Validate individual plugin entries:
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-plugin-entry.nu .claude-plugin/marketplace.json "plugin-name"
-```
-
-Checks:
-- Required fields (name, source)
-- Strict mode consistency
-- Dependency references
-- Path validity
-- Component configuration
-
-### 3. Dependency Graph Validation
+### 2. Dependency Graph Validation
 
 Check for circular dependencies and missing dependencies:
 
@@ -406,8 +393,11 @@ nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-marketplace.nu .claude-plugin/marketpl
 
 ### Step 5: Test Installation
 
-```bash
-claude-code install ./
+In Claude Code, add the marketplace and install a plugin from it:
+
+```
+/plugin marketplace add <owner>/<repo>
+/plugin install <plugin-name>@<marketplace-name>
 ```
 
 ## Migrating Existing Plugins
@@ -460,16 +450,13 @@ nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-marketplace.nu .claude-plugin/marketpl
 
 ## References
 
-For detailed schema specifications and examples, see:
+For the detailed schema specification, see:
 - `references/schema-specification.md`: Complete JSON schema
-- `references/examples.md`: Real-world marketplace examples
-- `references/migration-guide.md`: Step-by-step migration instructions
 
 ## Script Usage
 
 All validation and utility scripts are located in `scripts/`:
 - `validate-marketplace.nu`: Full marketplace validation
-- `validate-plugin-entry.nu`: Individual plugin entry validation
 - `validate-dependencies.nu`: Dependency graph validation
 - `init-marketplace.nu`: Generate marketplace template
 - `analyze-plugins.nu`: Analyze existing plugin structure

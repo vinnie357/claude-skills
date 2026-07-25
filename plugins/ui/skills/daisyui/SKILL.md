@@ -42,8 +42,6 @@ module.exports = {
 }
 ```
 
-For detailed installation options and CDN usage, see `references/installation.md`.
-
 ## Component Categories
 
 daisyUI provides components across these categories:
@@ -55,7 +53,7 @@ daisyUI provides components across these categories:
 - **Feedback**: Alert, progress, loading, toast, tooltip
 - **Layout**: Drawer, footer, hero, stack, divider
 
-For component-specific guidance, consult the appropriate reference file.
+For component-specific guidance, see `references/components.md`.
 
 ## Quick Usage
 
@@ -123,8 +121,6 @@ Available themes: light, dark, cupcake, bumblebee, emerald, corporate, synthwave
 </select>
 ```
 
-For advanced theming and customization, see `references/theming.md`.
-
 ## Responsive Design
 
 daisyUI components work with Tailwind's responsive prefixes:
@@ -141,12 +137,7 @@ daisyUI components work with Tailwind's responsive prefixes:
 
 ## When to Consult References
 
-- **Installation details**: Read `references/installation.md`
-- **Complete component list**: Read `references/components.md`
-- **Theming and customization**: Read `references/theming.md`
-- **Layout patterns**: Read `references/layouts.md`
-- **Form components**: Read `references/forms.md`
-- **Common patterns**: Read `references/patterns.md`
+Read `references/components.md` for the complete component reference with markup examples across all categories: Actions, Data Display, Data Input (form components), Navigation, Feedback, and Layout.
 
 ## Combining with Tailwind Utilities
 

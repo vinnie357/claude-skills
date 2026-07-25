@@ -57,23 +57,15 @@ For detailed information on a running workflow, consult `references/monitoring.m
 
 ### View History
 
-To review past executions, see `references/history.md` for guidance on:
-- Filtering execution history
-- Analyzing failed runs
-- Comparing execution times
-- Exporting execution data
+All executions are preserved; open a workflow's history to review past runs, find failed executions, and retry them (see Common Tasks).
 
 ### Workflow Visualization
 
-The DAG view shows workflow structure. For detailed visualization features, see `references/visualization.md`.
+The DAG view shows workflow structure. Click step names in the DAG view for step-specific details.
 
 ## When to Consult References
 
-- **Detailed UI navigation**: Read `references/ui-navigation.md`
-- **Advanced monitoring**: Read `references/monitoring.md`
-- **History analysis**: Read `references/history.md`
-- **Workflow editing via UI**: Read `references/workflow-editor.md`
-- **Configuration options**: Read `references/configuration.md`
+Read `references/monitoring.md` for execution status indicators, real-time log viewing, progress tracking, error detection, and troubleshooting stuck workflows.
 
 ## Common Tasks
 

@@ -8,6 +8,8 @@ license: MIT
 
 Guide for designing, configuring, and debugging the Claude Code status line — a customizable bar rendered at the bottom of the UI that runs a user-supplied shell script on each session update.
 
+Per `core:anti-fabrication`: test status-line scripts against the real stdin payload (see Testing Locally) before claiming a field renders — never assert output you have not observed.
+
 ## When to Use This Skill
 
 Activate this skill when:

@@ -47,8 +47,6 @@ Material Design 3 uses HCT (Hue, Chroma, Tone) color space for perceptually accu
 - Automatic light/dark theme generation
 - User-driven personalization from wallpaper/system
 
-For detailed color system implementation, see `references/color-system.md`.
-
 ### 2. Typography
 
 Type scale with 5 display sizes and 9 text sizes:
@@ -59,8 +57,6 @@ Type scale with 5 display sizes and 9 text sizes:
 - Body Large: 16sp
 - Label Small: 11sp
 
-For complete typography system and responsive scaling, see `references/typography.md`.
-
 ### 3. Layout
 
 Responsive breakpoints and grid system:
@@ -68,8 +64,6 @@ Responsive breakpoints and grid system:
 - **Compact**: 0-599dp (phones)
 - **Medium**: 600-839dp (tablets, folded phones)
 - **Expanded**: 840dp+ (desktops, large tablets)
-
-For layout guidelines and examples, see `references/layout.md`.
 
 ## Component Guidelines
 
@@ -82,7 +76,7 @@ Material Design 3 provides specifications for:
 - **Chips**: Assist, Filter, Input, Suggestion chips
 - **Dialogs**: Basic, Full-screen dialogs
 
-For detailed component specifications, consult `references/components.md`.
+Full specifications for every component live at m3.material.io (linked under Resources).
 
 ## Quick Component Examples
 
@@ -124,8 +118,6 @@ OutlinedTextField(
 )
 ```
 
-For more component examples and patterns, see `references/components.md`.
-
 ## Implementing Dynamic Color
 
 ### Android (Jetpack Compose)
@@ -149,7 +141,7 @@ MaterialTheme(
 
 ### Web
 
-For web implementation with Material Web Components, see `references/web-implementation.md`.
+Use Material Web Components (linked under Resources) for web implementation.
 
 ## Motion and Animation
 
@@ -157,8 +149,6 @@ Material Design 3 motion principles:
 - **Easing**: Standard, emphasized, decelerated curves
 - **Duration**: Based on travel distance and complexity
 - **Choreography**: Coordinated element movements
-
-For motion specifications, see `references/motion.md`.
 
 ## Accessibility
 
@@ -169,17 +159,7 @@ Material Design 3 prioritizes accessibility:
 - Screen reader support
 - Semantic color usage (not color-only indicators)
 
-For accessibility implementation details, see `references/accessibility.md`.
-
-## When to Consult References
-
-- **Color system implementation**: Read `references/color-system.md`
-- **Typography scales and usage**: Read `references/typography.md`
-- **Layout and responsive design**: Read `references/layout.md`
-- **Component specifications**: Read `references/components.md`
-- **Web implementation**: Read `references/web-implementation.md`
-- **Motion and animation**: Read `references/motion.md`
-- **Accessibility guidelines**: Read `references/accessibility.md`
+Load `/core:accessibility` for WCAG implementation guidance.
 
 ## Key Principles
 

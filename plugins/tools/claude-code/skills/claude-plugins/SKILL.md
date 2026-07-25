@@ -8,6 +8,8 @@ license: MIT
 
 Guide for creating, validating, and managing plugin.json files for Claude Code plugins. Includes schema validation, best practices, and automated tools.
 
+Per `core:anti-fabrication`: run the validation scripts and read the manifest before claiming a plugin.json is valid or that a component path exists.
+
 ## When to Use This Skill
 
 Activate this skill when:
@@ -314,10 +316,10 @@ nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-plugin.nu .claude-plugin/plugin.json
 
 ### Step 5: Test
 
-Install locally to test:
+Install via a marketplace that lists the plugin (see the `plugin-marketplace` skill), then in Claude Code:
 
-```bash
-claude-code install ./
+```
+/plugin install <plugin-name>@<marketplace-name>
 ```
 
 ## Hooks Configuration
@@ -395,9 +397,8 @@ nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-plugin.nu .claude-plugin/plugin.json -
 
 ## References
 
-For detailed schema specifications and examples, see:
+For the detailed schema specification, see:
 - `references/plugin-schema.md`: Complete JSON schema specification
-- `references/plugin-examples.md`: Real-world plugin.json examples
 
 ## Script Usage
 

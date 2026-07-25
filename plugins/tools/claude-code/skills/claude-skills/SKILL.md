@@ -87,7 +87,7 @@ Main instructional content goes here...
 Source: [Claude Code Skills documentation](https://code.claude.com/docs/en/skills#frontmatter-reference). All fields are optional; only `description` is recommended.
 
 - `name`: Display name. If omitted, defaults to the directory name. Lowercase letters, numbers, and hyphens only (max 64 characters).
-- `description` (recommended): What the skill does and when to use it. Claude uses this to decide when to apply the skill. Combined `description` + `when_to_use` is truncated at 1,536 characters in the skill listing — put the key use case first.
+- `description` (recommended): What the skill does and when to use it. Claude uses this to decide when to apply the skill. Two distinct limits apply: Claude Code truncates the combined `description` + `when_to_use` at 1,536 characters in the skill listing — put the key use case first — and this marketplace enforces a stricter 1024-character cap on `description` in `test/validate-skills-quality.nu`.
 - `when_to_use`: Additional trigger phrases or example requests, appended to `description` in the listing.
 - `license`: License name or filename reference.
 
@@ -197,7 +197,7 @@ Analyze examples to identify needed components:
 - **References**: Documentation to load into context as needed
 - **Assets**: Output files like templates or boilerplate (not loaded into context)
 
-**Example:**
+**Example** (illustrative paths for a hypothetical git skill):
 ```
 Git skill resources:
 - scripts/analyze-commit.sh - Parse git diff for commit message
@@ -396,41 +396,7 @@ Enforce with a repo lint in CI where available (this marketplace runs `mise test
 
 ## Anti-Fabrication Requirements
 
-All skills MUST adhere to strict anti-fabrication requirements to ensure factual, measurable content. Every SKILL.md must include anti-fabrication rules — either inline (template below) or by referencing `core:anti-fabrication`.
-
-For skill-creation-specific anti-fabrication guidance, see `references/anti-fabrication.md`. For the authoritative anti-fabrication guide, see the `core:anti-fabrication` skill.
-
-### Core Principles
-
-- Base all outputs on actual analysis of real data using tool execution
-- Execute Read, Glob, Bash, or other validation tools before making claims
-- Mark uncertain information as "requires analysis", "needs validation", or "requires investigation"
-- Use precise, factual language without superlatives or unsubstantiated performance claims
-- Execute tests before marking tasks complete and report actual results
-- Validate integration recommendations through actual framework detection using tool analysis
-
-### Prohibited Language and Claims
-
-- **Superlatives**: Avoid "excellent", "comprehensive", "advanced", "optimal", "perfect"
-- **Unsubstantiated Metrics**: Never fabricate percentages, success rates, or performance numbers
-- **Assumed Capabilities**: Don't claim features exist without tool verification
-- **Generic Claims**: Replace vague statements with specific, measurable observations
-- **Fabricated Testing**: Never report test results without actual execution
-
-### Time and Effort Estimation Rule
-
-- Never provide time estimates, effort estimates, or completion timelines without actual measurement or analysis
-- If estimates are requested, execute tools to analyze scope (e.g., count files, measure complexity, assess dependencies) before providing data-backed estimates
-- When estimates cannot be measured, explicitly state "timeline requires analysis of [specific factors]"
-- Avoid fabricated scheduling language like "15 minutes", "2 hours", "quick task" without factual basis
-
-### Validation Requirements
-
-- **File Claims**: Use Read or Glob tools before claiming files exist or contain specific content
-- **System Integration**: Use Bash or appropriate tools to verify system capabilities
-- **Framework Detection**: Execute actual detection logic before claiming framework presence
-- **Test Results**: Only report test outcomes after actual execution with tool verification
-- **Performance Claims**: Base any performance statements on actual measurement or analysis
+Every SKILL.md must include anti-fabrication rules — either inline or by referencing `core:anti-fabrication`. The authoritative rules (evidence-based claims via tool execution, no superlatives, no unsubstantiated metrics, no unmeasured time estimates, explicit uncertainty markers) live in the `core:anti-fabrication` skill; skill-creation-specific guidance is in `references/anti-fabrication.md`.
 
 ## Skill Examples
 

@@ -39,8 +39,6 @@ Information must be presentable to users in ways they can perceive.
 </button>
 ```
 
-For detailed guidance on text alternatives, multimedia, and color contrast, see `references/perceivable.md`.
-
 ### 2. Operable
 
 User interface components must be operable by all users.
@@ -64,8 +62,6 @@ User interface components must be operable by all users.
 </div>
 ```
 
-For keyboard patterns, focus management, and navigation, see `references/operable.md`.
-
 ### 3. Understandable
 
 Information and UI operation must be understandable.
@@ -85,8 +81,6 @@ Information and UI operation must be understandable.
        required>
 <div id="email-help">We'll never share your email</div>
 ```
-
-For form patterns, error handling, and content clarity, see `references/understandable.md`.
 
 ### 4. Robust
 
@@ -113,42 +107,28 @@ Content must work reliably across user agents and assistive technologies.
 </div>
 ```
 
-For ARIA patterns and custom components, see `references/robust.md`.
-
 ## Common Tasks
 
 ### Making Forms Accessible
 
-Consult `references/forms.md` for comprehensive form accessibility including:
-- Label association
-- Error identification and suggestions
-- Required field indication
-- Input validation patterns
+- Associate every label with its input (`for`/`id` or wrapping `<label>`)
+- Identify errors in text and link the message to the failing control
+- Indicate required fields in the label, not by color alone
+- Pair validation with specific correction guidance
 
 ### Implementing ARIA
 
-See `references/aria.md` for:
-- When to use ARIA vs semantic HTML
-- Common ARIA patterns (tabs, accordions, modals)
-- ARIA states and properties
-- Live regions for dynamic content
+- Use semantic HTML first; add ARIA only when no native element fits
+- Keep ARIA states (`aria-expanded`, `aria-selected`) in sync with component state
+- Announce dynamic content with live regions (`aria-live`, `role="status"`)
+- Follow the ARIA Authoring Practices patterns (linked under Resources) for tabs, accordions, modals, dropdown menus, and skip links
 
 ### Testing for Accessibility
 
-Consult `references/testing.md` for:
-- Keyboard navigation testing
-- Screen reader testing procedures
-- Automated testing tools
-- Color contrast checking
-
-### Common Patterns
-
-See `references/patterns.md` for accessible implementations of:
-- Modal dialogs
-- Dropdown menus
-- Tabs and accordions
-- Loading states and notifications
-- Skip links and landmarks
+- Navigate the full interface with keyboard only (Tab, Shift+Tab, Enter, Space, arrows)
+- Test with a screen reader (VoiceOver, NVDA, or JAWS)
+- Run automated checkers (axe, Lighthouse, WAVE) as a first pass, not a substitute for manual testing
+- Check color contrast against the 4.5:1 text and 3:1 UI-component minimums
 
 ## Quick Reference Checklist
 
