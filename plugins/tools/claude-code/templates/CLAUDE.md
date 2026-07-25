@@ -11,7 +11,7 @@ Phase 1: Pre flight checks
 - make sure the epic you are working, has a team defined with the relevent models for each team member
 - a members model should attempt to use haiku first if possible based on the complexity of their task
 - all tasks must have relevent skills for the work, eg: elixir skill when working with elixir
-- ensure the mandatory core skills are loaded — the ten named below, invoked by exact name (a `/core:*` glob does not expand)
+- ensure the mandatory core skills are loaded — every one named below, invoked by exact name (a `/core:*` glob does not expand)
 - instruct team members/tasks to always load these core skills first:
     - /core:anti-fabrication
     - /core:git

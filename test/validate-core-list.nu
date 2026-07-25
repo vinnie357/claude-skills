@@ -28,16 +28,27 @@
 #       what stops prose bullets (e.g. "- **Tracker state:** a repo tracked
 #       by beads loads `/core:beads` ...") from being read as load lists.
 #
-# Prose mentions outside a load list are ignored by design, so
-# restraint/SKILL.md and restraint/README.md may discuss /core:tdd freely.
+# Lists are compared per contiguous RUN of list lines, not as a file-wide
+# union of names. The union design admitted silent false passes: with a name
+# deleted from the real list, a paren-annotated prose bullet or a fenced
+# worked example elsewhere in the file put the name back into the union and
+# the file passed. A run carrying fewer than 2 /core: names is ignored, which
+# is what lets a lone prose mention exist without counting as a list. More
+# than one qualifying run in a satellite is reported as ambiguous rather than
+# guessed at.
 #
-# Both drift directions are checked: a canonical name MISSING from a
-# satellite's load list, and an EXTRA /core: name present in a load list but
-# absent from the canonical block.
+# Both drift directions are checked against that single run: a canonical name
+# MISSING from it, and an EXTRA /core: name present in it but absent from the
+# canonical block.
 #
-# Still not covered: a load list written in a form neither grammar
-# recognises. validator.md:7 is such a case (inline numbered item), which is
-# acceptable only because it is an excluded partial — see EXCLUDED_PARTIAL.
+# What this still cannot see:
+#   - A load list written in a form neither grammar recognises. validator.md:7
+#     is such a case (inline numbered item), acceptable only because it is an
+#     excluded partial — see EXCLUDED_PARTIAL.
+#   - A satellite whose real list and a worked example both match the canonical
+#     set exactly. That passes, and correctly so — both are right.
+#   - Prose mentions, by design, so restraint/SKILL.md and restraint/README.md
+#     may discuss /core:tdd freely.
 #
 # Usage:
 #   nu test/validate-core-list.nu
@@ -54,6 +65,10 @@ const CORE_NAME = '^/core:[a-z][a-z0-9-]*$'
 const SKILL_NAME = '^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$'
 
 const SATELLITES = [
+  # The canonical block lives in this file and parses as a load list, so the
+  # missing-name direction is vacuous here (canonical is always a subset of
+  # itself). Its entry earns its place on the EXTRA direction and on the
+  # single-run rule.
   "plugins/core/skills/agent-loop/SKILL.md"
   "plugins/core/skills/agent-loop/references/team-leader.md"
   "plugins/core/skills/agent-loop/references/sub-team-leader.md"
@@ -92,22 +107,36 @@ def main [] {
   for satellite in $SATELLITES {
     let path = ($repo_root | path join $satellite)
     if not ($path | path exists) {
-      $failures = ($failures | append { file: $satellite, missing: ["<file not found>"], extra: [] })
+      $failures = ($failures | append { file: $satellite, missing: ["<file not found>"], extra: [], ambiguous: [] })
       continue
     }
 
-    let found = (extract-load-list-names $path)
+    let runs = (find-load-list-runs $path)
 
-    if ($found | is-empty) {
-      $failures = ($failures | append { file: $satellite, missing: ["<no load list recognised>"], extra: [] })
+    if ($runs | is-empty) {
+      $failures = ($failures | append { file: $satellite, missing: ["<no load list recognised>"], extra: [], ambiguous: [] })
       continue
     }
 
+    # Exactly one load list per satellite. A second one is ambiguous: the
+    # check cannot know which is authoritative, and tolerating extras is what
+    # let a worked example mask the real list.
+    if ($runs | length) > 1 {
+      $failures = ($failures | append {
+        file: $satellite,
+        missing: [],
+        extra: [],
+        ambiguous: ($runs | each { |r| $"[($r | str join ', ')]" })
+      })
+      continue
+    }
+
+    let found = ($runs | first)
     let missing = ($canonical_names | where { |name| $name not-in $found })
     let extra = ($found | where { |name| $name not-in $canonical_names })
 
     if (($missing | length) > 0) or (($extra | length) > 0) {
-      $failures = ($failures | append { file: $satellite, missing: $missing, extra: $extra })
+      $failures = ($failures | append { file: $satellite, missing: $missing, extra: $extra, ambiguous: [] })
     } else {
       print $"  ✓ ($satellite)"
     }
@@ -121,6 +150,10 @@ def main [] {
       }
       if ($failure.extra | is-not-empty) {
         print $"  • ($failure.file): extra in load list — ($failure.extra | str join ', ')"
+      }
+      if ($failure.ambiguous | is-not-empty) {
+        print $"  • ($failure.file): ($failure.ambiguous | length) separate load lists found, expected 1 — ($failure.ambiguous | str join ' and ')"
+        print $"    A worked example or a prose bullet run alongside the real list is ambiguous; the check cannot tell which is authoritative."
       }
     }
     print $"\nThe canonical block is ($CANONICAL_FILE) under \"($CANONICAL_HEADING)\"."
@@ -151,15 +184,46 @@ def extract-canonical-names [file: string] {
   | where { |line| $line =~ $CORE_NAME }
 }
 
-# Collect the /core: names that appear in a LOAD LIST position in the given
-# file, per grammars G1 and G2 described in the header comment.
-def extract-load-list-names [file: string] {
+# Find the load LISTS in a file, as contiguous runs of list lines.
+#
+# Comparing a file-wide UNION of names was the original design and it admitted
+# silent false passes: with a name deleted from the real list, any second
+# occurrence elsewhere in the file restored it to the union and the file
+# passed. Both a paren-annotated prose bullet and a fenced worked example are
+# natural idioms that did this. Runs fix it — a name has to appear in the list
+# itself, not merely somewhere in the file.
+#
+# A run is a maximal sequence of consecutive lines that each parse as a list
+# line under G1 or G2. Runs carrying fewer than 2 /core: names are ignored:
+# that is what keeps a lone prose bullet or a one-name example from counting
+# as a list.
+#
+# Returns a list of runs, each a sorted list of /core: names.
+def find-load-list-runs [file: string] {
   let lines = (open --raw $file | lines)
 
-  let g1 = ($lines | each { |line| names-only-line $line } | flatten)
-  let g2 = ($lines | each { |line| bullet-leading-name $line } | flatten)
+  mut runs = []
+  mut current = []
 
-  [...$g1 ...$g2] | uniq | sort
+  for line in $lines {
+    let hits = ([...(names-only-line $line) ...(bullet-leading-name $line)] | uniq)
+
+    if ($hits | is-empty) {
+      # Run ended. Keep it only if it looks like a list rather than a mention.
+      if ($current | length) >= 2 {
+        $runs = ($runs | append [($current | uniq | sort)])
+      }
+      $current = []
+    } else {
+      $current = ($current | append $hits)
+    }
+  }
+
+  if ($current | length) >= 2 {
+    $runs = ($runs | append [($current | uniq | sort)])
+  }
+
+  $runs
 }
 
 # G1: the entire line is one or more skill-shaped names, comma-separated.
