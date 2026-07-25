@@ -11,7 +11,6 @@
     "ansible/ansible:anti_fab",
     "awman/awman:ref_depth",
     "claude-code/claude-agents:reserved",
-    "claude-code/claude-commands:anti_fab",
     "claude-code/claude-commands:reserved",
     "claude-code/claude-hooks:reserved",
     "claude-code/claude-output-styles:reserved",
