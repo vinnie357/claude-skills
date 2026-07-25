@@ -18,21 +18,9 @@ Activate when:
 
 ## Static Analysis Checks
 
-Run these checks against every skill to produce a quality scorecard:
+The check list, pass criteria, and failure keys are defined in `test/validate-skills-quality.nu` — that script is the single source of truth; do not restate its checks here. Run `mise run test:skills-quality` to produce the current scorecard.
 
-| Check | Pass Criteria |
-|-------|--------------|
-| Description length | Non-empty, max 1024 chars |
-| Description has "Use when" | Contains activation triggers |
-| Description third person | No "I can", "You can" |
-| Name kebab-case | Matches `^[a-z0-9]+(-[a-z0-9]+)*$` |
-| Name max 64 chars | Length check |
-| No reserved words | No "anthropic"/"claude" in name |
-| SKILL.md max 500 lines | Line count |
-| Has examples | Contains code blocks or example sections |
-| Reference depth | No nested references (one level only) |
-| Anti-fabrication present | Contains anti-fab rules or references `core:anti-fabrication` |
-| Source documented | Skill appears in plugin's `sources.md` |
+The checks' intent: descriptions that trigger accurately (length caps, "Use when" triggers, third person), spec-compliant naming, bounded body size, working examples, resolvable links, one-level reference depth with no orphaned files, anti-fabrication rules present, and sources documented in the plugin's `sources.md`.
 
 ## Skill Categories
 
@@ -50,6 +38,11 @@ For each skill, create:
 - 5-10 representative prompts that should trigger the skill
 - 3-5 out-of-scope prompts that should NOT trigger the skill
 - Expected behavior criteria for each prompt
+
+```
+In-scope:     "Benchmark the elixir plugin's skills"    → skill activates
+Out-of-scope: "Write an ExUnit test for this module"    → skill stays silent
+```
 
 ### A/B Testing
 
@@ -81,20 +74,13 @@ The description determines activation accuracy. Optimize for:
 
 ## Scorecard Output
 
-The benchmark produces a table per plugin:
-
-```
-Skill            | Plugin   | Desc | Lines   | Refs | Examples | Score
-─────────────────┼──────────┼──────┼─────────┼──────┼──────────┼──────
-git              | core     | Pass | 120/500 | Pass | Pass     | 9/11
-claude-skills    | cl-code  | Pass | 380/500 | Pass | Pass     | 10/11
-```
+The validator prints one row per skill: line count, score, and the failure keys for any failed checks. It also diffs results against the shrink-only ratchet in `test/quality-baseline.json`, so pre-existing failures are waived while new ones fail the run.
 
 ## Running Benchmarks
 
-- **Static analysis**: `mise test:skills-quality` — runs all static checks, produces scorecard
+- **Static analysis**: `mise run test:skills-quality` — runs all static checks, produces scorecard
 - **Command**: `/benchmark-skills` — full analysis with category classification and quality assessment
-- **Manual evals**: Use the evaluation checklist template at `templates/evaluation-checklist.md`
+- **Manual evals**: Use `/claude-code:claude-skills`'s `templates/evaluation-checklist.md`
 
 ## Iteration
 
@@ -108,21 +94,4 @@ Stop iterating when:
 
 ## Anti-Fabrication Requirements
 
-### Core Principles
-
-- Base all outputs on actual analysis using tool execution
-- Execute validation tools before making claims
-- Mark uncertain information as "requires analysis" or "needs validation"
-- Use precise, factual language without superlatives
-
-### Prohibited Language
-
-- **Superlatives**: Avoid "excellent", "comprehensive", "advanced", "optimal", "perfect"
-- **Unsubstantiated Metrics**: Never fabricate percentages, success rates, or performance numbers
-- **Assumed Capabilities**: Do not claim features exist without tool verification
-
-### Validation Requirements
-
-- **File Claims**: Use Read or Glob tools before claiming files exist
-- **Test Results**: Only report test outcomes after actual execution
-- **Performance Claims**: Base on actual measurement or analysis
+Report only measured results: run the validator or the evals before quoting any score, pass rate, or count, and mark unmeasured values as "requires analysis". The full rules live in the `core:anti-fabrication` skill.

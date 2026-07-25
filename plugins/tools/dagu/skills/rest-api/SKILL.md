@@ -34,13 +34,6 @@ Default API base URL: `http://localhost:8080/api/v1`
 
 Configure in Dagu settings if using a different host/port.
 
-## Authentication
-
-Consult `references/authentication.md` for details on:
-- API token configuration
-- Authentication headers
-- Security best practices
-
 ## Quick Start Operations
 
 ### Start a Workflow
@@ -54,7 +47,7 @@ Basic example:
 curl -X POST http://localhost:8080/api/v1/dags/my_workflow/start
 ```
 
-For parameter passing and advanced options, see `references/workflow-operations.md`.
+For parameter passing and advanced options, see `references/api-endpoints.md`.
 
 ### Get Workflow Status
 
@@ -74,12 +67,7 @@ Stops currently running execution.
 
 ## When to Consult References
 
-- **Detailed endpoint documentation**: Read `references/api-endpoints.md`
-- **Workflow operations (start/stop/retry)**: Read `references/workflow-operations.md`
-- **Status and monitoring queries**: Read `references/status-queries.md`
-- **Authentication setup**: Read `references/authentication.md`
-- **Integration examples**: Read `references/integration-examples.md`
-- **Error handling**: Read `references/error-handling.md`
+Read `references/api-endpoints.md` for the complete endpoint reference: workflow operations (start/stop/retry/restart), status and history queries, log retrieval, DAG management, response schemas, HTTP status codes, and the error response format.
 
 ## Common Use Cases
 
@@ -94,8 +82,6 @@ curl -X POST http://dagu-server:8080/api/v1/dags/deploy_production/start \
   -d '{"params": "VERSION=1.2.3 ENVIRONMENT=production"}'
 ```
 
-For complete CI/CD integration patterns, see `references/integration-examples.md`.
-
 ### Monitoring and Alerting
 
 Query workflow status for external monitoring:
@@ -105,7 +91,7 @@ Query workflow status for external monitoring:
 curl http://localhost:8080/api/v1/dags/critical_job/status
 ```
 
-Build custom alerts based on status responses. See `references/status-queries.md` for response format details.
+Build custom alerts based on status responses. See `references/api-endpoints.md` for response format details.
 
 ### Dynamic Scheduling
 
@@ -120,8 +106,6 @@ def trigger_workflow(dag_name, params=None):
     response = requests.post(url, json=data)
     return response.json()
 ```
-
-For comprehensive examples in multiple languages, see `references/integration-examples.md`.
 
 ## Response Formats
 

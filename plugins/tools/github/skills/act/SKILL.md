@@ -632,33 +632,11 @@ act --secret-file .secrets
 
 ### Installation Script
 
-The plugin includes an installation script at `scripts/install-act.sh`:
-
-```bash
-#!/usr/bin/env bash
-# Install act via mise or fallback methods
-
-if command -v mise &> /dev/null; then
-  echo "Installing act via mise..."
-  mise install act
-elif [[ "$OSTYPE" == "darwin"* ]] && command -v brew &> /dev/null; then
-  echo "Installing act via Homebrew..."
-  brew install act
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  echo "Installing act via install script..."
-  curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
-else
-  echo "Please install act manually: https://github.com/nektos/act"
-  exit 1
-fi
-
-act --version
-```
+The plugin includes an installation script at `scripts/install-act.nu` (nushell). It installs act via mise when available, falling back to Homebrew on macOS, the nektos/act install script on Linux, or Chocolatey on Windows, then verifies the install with `act --version`.
 
 Run with:
 ```bash
-chmod +x scripts/install-act.sh
-./scripts/install-act.sh
+nu scripts/install-act.nu
 ```
 
 ## Anti-Fabrication Requirements
