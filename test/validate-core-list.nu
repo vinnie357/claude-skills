@@ -36,8 +36,8 @@ def main [] {
 
   let canonical_names = (extract-canonical-names $CANONICAL_FILE)
 
-  if ($canonical_names | length) != 10 {
-    print $"(ansi red_bold)❌ Expected 10 canonical core skill names, found ($canonical_names | length)(ansi reset)"
+  if ($canonical_names | length) != 8 {
+    print $"(ansi red_bold)❌ Expected 8 canonical core skill names, found ($canonical_names | length)(ansi reset)"
     print $"  Found: ($canonical_names | str join ', ')"
     exit 1
   }

@@ -11,8 +11,6 @@ Invoke the Skill tool for each by exact name before any other step:
 
 - `/core:anti-fabrication`
 - `/core:git`
-- `/core:tdd`
-- `/core:twelve-factor`
 - `/core:restraint`
 - `/core:security`
 - `/core:mise`
@@ -20,6 +18,7 @@ Invoke the Skill tool for each by exact name before any other step:
 - `/core:agent-loop` (carries Forge: paired teams, the hands pattern, fan-out)
 - `/core:bees` (the tracker)
 - `/claude-code:claude-agents` (always, before spawning) and `/claude-code:claude-teams` (when spawning ≥2 parallel workers)
+- Task-relevant skills (e.g. `/core:tdd` for code work, `/core:twelve-factor` for cloud-native work) activate from their own `Use when` descriptions — spawn prompts name them explicitly.
 
 Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
 

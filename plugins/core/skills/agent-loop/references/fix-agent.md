@@ -6,8 +6,9 @@ You receive CI failure context from the Validator and fix the code. You do NOT c
 
 1. Load core skills:
    ```
-   /core:anti-fabrication, /core:git, /core:tdd, /core:mise
+   /core:anti-fabrication, /core:git, /core:mise
    ```
+   Plus, task-relevant here: `/core:tdd` — the Fix Agent writes and updates tests as part of fixing failures, so it stays in this tier's load list.
 2. Load language-specific skills for the failing code
 3. Read the structured failure report from the Validator
 4. Verify you are on the correct feature branch

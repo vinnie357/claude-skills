@@ -11,12 +11,10 @@ Phase 1: Pre flight checks
 - make sure the epic you are working, has a team defined with the relevent models for each team member
 - a members model should attempt to use haiku first if possible based on the complexity of their task
 - all tasks must have relevent skills for the work, eg: elixir skill when working with elixir
-- ensure all the core skills are loaded:  /core:*
+- ensure the mandatory core skills are loaded — the eight named below, invoked by exact name (a `/core:*` glob does not expand)
 - instruct team members/tasks to always load these core skills first:
     - /core:anti-fabrication
     - /core:git
-    - /core:tdd
-    - /core:twelve-factor
     - /core:restraint
     - /core:security
     - /core:mise
@@ -24,6 +22,7 @@ Phase 1: Pre flight checks
     - /core:agent-loop
     - /core:bees
 - Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
+- task-relevant skills (e.g. /core:tdd for code work, /core:twelve-factor for cloud-native work) activate from their own Use when descriptions — name them explicitly in spawn prompts
 - discover project-local skills (.claude/skills/, .github/skills/, .agents/skills/) but only load them when a task requires them — progressive disclosure
 - if CLAUDE.md is not present, check for AGENTS.md or .github/copilot-instructions.md for project instructions
 - all tasks must use the claude task-list tool to work their items
