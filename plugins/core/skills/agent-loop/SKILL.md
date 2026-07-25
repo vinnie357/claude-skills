@@ -21,12 +21,7 @@ Two disciplines make Forge cheap and reliable:
 
 ## Required plugins
 
-This skill's multi-agent workflow assumes both plugins are installed:
-
-- `core@vinnie357` (this plugin) — provides agent-loop, anti-fabrication, tdd, mise, nushell, security, bees
-- `claude-code@vinnie357` — provides claude-agents, claude-teams, plugin-marketplace, claude-hooks; carries the agent file format and team architecture knowledge that the spawning steps below reference by name
-
-When `core` is installed standalone, the spawning sections still describe the workflow but the cross-plugin skill names (e.g., `/claude-code:claude-agents`, `/elixir:tidewave`) do not resolve. Install `claude-code@vinnie357` for the full agent-loop experience, or treat those references as procedural-only.
+Assumes both `core@vinnie357` (this plugin) and `claude-code@vinnie357` (agent/team file formats, referenced by name in spawning steps) are installed. Standalone `core` still describes the workflow, but cross-plugin skill names like `/claude-code:claude-agents` won't resolve until `claude-code@vinnie357` is installed too — treat those references as procedural-only until then.
 
 ## 4-Phase Execution
 
@@ -54,23 +49,23 @@ Between Phase 1 (pre-flight) and Phase 2 (spawn), the Team Leader checks two det
 | D | Has issues | Set + file exists | Resume gap — diff proposal titles vs existing bees titles. Materialize each missing proposed item with the same rules as State C (topological order, cycle detection). Spot-check the complete set, proceed. Never re-ask, never re-decompose. |
 
 **Robustness:**
-- `DECOMPOSITION_PATH` empty string (`""`) is treated identically to unset — no log line, no warning, just proceed as State A or B per the bees-state column.
-- If `DECOMPOSITION_PATH` is set to a non-empty value but the file is missing, emit exactly one line: `agent-loop: DECOMPOSITION_PATH=<value> not found; proceeding as State <B|A>`. Proceed as B (bees empty) or A (bees has issues). Do not retry, do not search, do not crash.
-- Never search for proposal files outside `DECOMPOSITION_PATH`. Env unset or empty = no proposal, full stop.
+- Empty string (`""`) for `DECOMPOSITION_PATH` = unset — no log, proceed as State A or B per the bees-state column.
+- Set but file missing: emit exactly one line — `agent-loop: DECOMPOSITION_PATH=<value> not found; proceeding as State <B|A>` (B if bees empty, A if bees has issues). No retry, no search, no crash.
+- Never search for proposal files outside `DECOMPOSITION_PATH`. Unset or empty = no proposal, full stop.
 
 **Proposal file format:** this skill mandates only the consumption rules above; the file's on-disk schema is defined by whatever upstream process produces it. A minimum interoperable shape is a JSON array of issues each carrying `title`, `acceptance_criteria` (list), `labels` (list), and `depends_on` (list of titles or stable local keys that resolve to other entries in the same file).
 
 ### Phase 1.5a: Default to proceeding (State B only)
 
-The operative question is plan presence, not who is at the keyboard. A decomposition plan is PRESENT when any of these hold: `DECOMPOSITION_PATH` is set and the file exists, OR bees already has issues, OR an upstream proposal exists. States A / C / D are plan-present — consume, spot-check, or resume and proceed; never ask clarifying questions there.
+Plan presence, not who is at the keyboard, is the operative question. A plan is PRESENT when `DECOMPOSITION_PATH` is set and the file exists, OR bees already has issues, OR an upstream proposal exists. States A / C / D are plan-present — consume, spot-check, or resume and proceed; never ask clarifying questions there.
 
-State B is plan-absent. The lead PRODUCES the decomposition itself from the epic objective and acceptance criteria, records its assumptions as a bees comment (auditable trail), and proceeds. Default to proceeding on the most reasonable interpretation.
+State B is plan-absent: the lead PRODUCES the decomposition from the epic objective and acceptance criteria, records assumptions as a bees comment (audit trail), and proceeds on the most reasonable interpretation.
 
-Reserve AskUserQuestion ONLY for a genuine architectural fork the user owns that cannot be responsibly defaulted, or a hard blocker: missing repository, missing credential, or contradictory acceptance criteria with no clear winner. A preference question — "approach A or B?" — is NOT a blocker; pick the reasonable default, record the choice, proceed.
+Reserve AskUserQuestion for a genuine architectural fork the user owns that can't be responsibly defaulted, or a hard blocker: missing repository, missing credential, or contradictory acceptance criteria with no clear winner. A preference question — "approach A or B?" — is NOT a blocker; pick the reasonable default, record it, proceed.
 
-When you do escalate, group related questions into a single AskUserQuestion call (max 4 questions, 2–4 options each) — never one question at a time. Once you have judged a decision to be a genuine fork the user owns, do not guess — ask. This phase does not apply at all to single-file mechanical refactors, status checks, or log diagnosis.
+When escalating, group related questions into a single AskUserQuestion call (max 4 questions, 2–4 options each) — never one at a time. Once a decision is judged a genuine fork the user owns, ask rather than guess. Doesn't apply to single-file mechanical refactors, status checks, or log diagnosis.
 
-This rule applies in every context. A host that runs without a human supplies the plan (State C fires); when no plan exists the default is still proceed-on-reasonable-default.
+Applies in every context: a host running without a human supplies the plan (State C fires); with no plan, the default is still proceed-on-reasonable-default.
 
 ## 6-Tier Prompt Hierarchy
 
@@ -101,9 +96,7 @@ Model defaults per tier are exactly that — defaults. Each tier honors an env v
 
 The two hands vars follow the same contract as the tier vars: the launching process resolves them and passes the model to the spawn; no model name appears as a literal in the prompt body. The vision var is set by capability, not by a fixed name — the available multimodal model shifts with the harness and model family. See `references/researcher.md`.
 
-**Contract:** these env vars are read by the script that constructs the agent's spawn prompt — whichever process actually invokes the Agent / Task tool to launch a worker. Whoever launches that process is responsible for setting the env vars (a shell command, a CI job, a parent Claude session, an external orchestrator — any of these qualify). The spawn script reads `$AGENT_LOOP_*` and passes the resolved model to the Task tool invocation (`subagent_type`/`model` argument). The model name does NOT appear as a literal in the prompt body — that would defeat the override.
-
-Empty-string env var (`AGENT_LOOP_LEAD_MODEL=""`) is treated identically to unset, falling through to the default. This lets orchestrators emit an empty value to mean "use default" without special-casing.
+**Contract:** whoever launches the spawning process (shell command, CI job, parent Claude session, external orchestrator) sets these env vars; the spawn script reads `$AGENT_LOOP_*` and passes the resolved model to the Task tool invocation (`subagent_type`/`model` argument) — never as a literal in the prompt body. An empty string (`AGENT_LOOP_LEAD_MODEL=""`) is treated identically to unset, falling through to the default, so orchestrators can emit "" to mean "use default" without special-casing.
 
 The escalation chain is also overridable: `AGENT_LOOP_ESCALATION_CHAIN` (comma-separated names; default `haiku,sonnet,opus`).
 
@@ -175,9 +168,14 @@ Every agent at every tier loads these before any work:
 /core:bees
 ```
 
-This block is the canonical copy; every other site listing the mandatory core stack is drift-checked against it by `test/validate-core-list.nu`.
+This block is the canonical copy. `test/validate-core-list.nu` drift-checks it against the eight sites it lists — this skill, four tier references, `/core:work`, the core session-start hook, and the operator CLAUDE.md template. Other files that enumerate core skills are not covered; add a site to that script when it starts carrying the full stack.
 
-Domain-specific skills load based on issue/task labels.
+Domain-specific skills activate from their own `Use when` descriptions — that is the discovery mechanism at every tier. Two rules descriptions cannot express:
+
+- **Tracker state:** a repo tracked by beads loads `/core:beads` in place of `/core:bees`.
+- **Issue labels:** load the domain-plugin skills named by the issue's labels, by exact name.
+
+Enforcement, not description, carries a third rule: leaders name every skill explicitly in the spawn prompt's `## Load skills` block — globs do not expand, and listed is not loaded.
 
 ### Skills to load before spawning
 
@@ -221,17 +219,8 @@ Team leaders structure agent prompts with these sections:
 
 ```
 ## Load skills
-/core:anti-fabrication
-/core:git
-/core:tdd
-/core:twelve-factor
-/core:restraint
-/core:security
-/core:mise
-/core:nushell
-/core:agent-loop
-/core:bees
-<domain-specific skills based on task>
+<every name from "Core Skills (Mandatory)", one per line — never this placeholder, never a glob>
+<domain skills for this task, per the issue's labels and the tracker-state rule>
 
 ## Working directory
 cd /path/to/repo
@@ -274,7 +263,7 @@ Scale the team to the work — choose by role, not by a trivial-vs-complex guess
 | Test planning, architecture design | opus (or `Plan` subagent) | Test-list design, system integration |
 | Simple ops, monitoring, status checks | haiku | Deploy monitor, log reader, port check |
 
-Hands and reviewer models follow the Forge convention (hands = smallest model / `Explore`, vision via `AGENT_LOOP_HANDS_VISION_MODEL`; reviewers = opus) — see the "Model overrides" table above and `references/forge.md`. The escalation path (haiku → sonnet → opus) applies when an agent fails twice on the same work.
+Hands and reviewer models follow the Forge convention — see "Model overrides" above and `references/forge.md`.
 
 ## Secret Safety
 
@@ -346,10 +335,10 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 - `references/fix-agent.md` -- CI failure remediation, test fixing, escalation
 - `references/epic-authoring.md` -- User guide for writing machine-executable epics
 - `references/leader-spawn-example.md` -- Worked Phoenix-endpoint Team Leader spawn prompt with explicit `/core:*` + `/elixir:*` skill list
-- `references/dep-doc-introspection.md` — Lead-authored prompts for staged pipelines must name the runtime-introspection tools AND the specific deps the worker touches, not abstract "use the introspection tools"
-- `references/no-todos.md` — Implementer worker prompts forbid TODO/FIXME/XXX/HACK/KLUDGE/DEFERRED markers; pre-commit grep + escalate-to-lead-or-implement-now rule
-- `references/dispatch-discipline.md` — Spawn-prompt rules: explicit model, specialized subagent types, lead delegates all execution, fresh-main branch creation, no polling loops, host-inspection for tool-state claims, search ADRs before proposing architecture
-- `references/secret-provisioning.md` — Tier 1 plans for new-env-var features include symmetric provisioning (generation cmd, secret-store creation, prod deploy diff, dev environment diff); Tier 5 BLOCKER check
-- `references/workflows-execution.md` — optional Claude Code workflow substrate for the five-tier pipeline: pipeline-as-script, stage-gate assertions, escalation ladder, loop-until-green, nested `workflow()` for teams-of-teams, `isolation: 'worktree'`; the decomposition/merge boundary that stays interactive
-- `templates/five-tier-issue.workflow.js` — runnable workflow substrate template: complete five-tier pipeline script (the `N=1` linear case) with stage prompts, per-stage `skillProof` schemas, the diff-boundary gate, the escalation ladder, and the bounded fix loop
-- `templates/forge-issue.workflow.js` — runnable Forge workflow (`/forge-issue`): startup-index hands pass per principal, planner slicing, dep-wave `parallel()` implementor + test-runner fan-out, opus reviewers with haiku hands, and the remediation pair
+- `references/dep-doc-introspection.md` — Staged-pipeline prompts name the runtime-introspection tools AND the specific deps touched, never abstract "use the introspection tools"
+- `references/no-todos.md` — Implementer prompts ban TODO/FIXME/XXX/HACK/KLUDGE/DEFERRED markers, enforced by pre-commit grep; tempted workers escalate-or-implement-now instead of punting scope via a comment
+- `references/dispatch-discipline.md` — Spawn-prompt rules: explicit model, specialized subagent types, lead delegates all execution, fresh-main branch creation, no polling, host-inspection over claims, ADR search before proposing architecture
+- `references/secret-provisioning.md` — Tier 1 plans include symmetric secret provisioning (generation, store creation, prod/dev deploy diffs); Tier 5 blocker check
+- `references/workflows-execution.md` — Optional workflow substrate for the five-tier pipeline: pipeline-as-script, stage gates, escalation ladder, teams-of-teams; decomposition/merge stay interactive
+- `templates/five-tier-issue.workflow.js` — Runnable `N=1` five-tier pipeline template: stage prompts, `skillProof` schemas, diff-boundary gate, escalation ladder, bounded fix loop
+- `templates/forge-issue.workflow.js` — Runnable Forge workflow: startup-index hands, planner slicing, dep-wave fan-out, opus reviewers with haiku hands, remediation pair

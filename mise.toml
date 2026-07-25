@@ -263,6 +263,7 @@ run = """
 #!/usr/bin/env nu
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "validate-core-list.nu") --self-test
 nu ($repo_root | path join "test" "validate-core-list.nu")
 """
 

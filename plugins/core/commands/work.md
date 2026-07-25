@@ -20,6 +20,7 @@ Invoke the Skill tool for each by exact name before any other step:
 - `/core:agent-loop` (carries Forge: paired teams, the hands pattern, fan-out)
 - `/core:bees` (the tracker)
 - `/claude-code:claude-agents` (always, before spawning) and `/claude-code:claude-teams` (when spawning ≥2 parallel workers)
+- Domain skills for the target's labels, by exact name.
 
 Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
 
