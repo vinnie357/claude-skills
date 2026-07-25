@@ -20,7 +20,7 @@ Custom slash commands for Claude Code: prompt files invoked with `/name`, with a
 | Nested project skill | `apps/web/.claude/skills/deploy/SKILL.md` | `/apps/web:deploy` when the name clashes with another skill |
 
 - Use kebab-case directory and file names; the name on disk is the name typed.
-- When a skill and a command file share a name, the skill takes precedence. Across levels, enterprise overrides personal, and personal overrides project. Plugin skills are namespaced, so they cannot conflict with other levels.
+- When a skill and a command file share a name, the skill takes precedence. Across levels, personal overrides project; enterprise managed settings take precedence over both. Plugin skills are namespaced, so they cannot conflict with other levels.
 - In a plugin skill, the frontmatter `name` field replaces the last segment of the command (`my-plugin/skills/review/SKILL.md` with `name: fancy` → `/my-plugin:fancy`). In personal and project skills, `name` is only a display label — the command still comes from the directory name.
 
 ## Frontmatter Reference
@@ -81,13 +81,13 @@ Substitution rules:
 Shell output can be inlined into the command content before Claude reads it:
 
 - **Inline:** `` !`git diff HEAD` `` on a line — the command runs and its stdout replaces the placeholder.
-- **Fenced (multi-line):** a code fence opened with ```` ```! ```` runs each line and inlines the combined output.
+- **Fenced (multi-line):** a code fence opened with ```` ```! ```` runs the commands and inlines the output.
 
 This is preprocessing, not Claude executing a tool: every command runs before Claude sees anything, and Claude receives only the rendered result. Substitution runs once over the original file — command output is not re-scanned for further placeholders.
 
 The inline `!` is only recognized at the start of a line or immediately after whitespace. `` KEY=!`cmd` `` stays literal text and does not run.
 
-There is no file-inclusion placeholder. `@` is user-facing autocomplete for attaching files to a message, not command syntax — to inject a file's content, use `` !`cat path/to/file` ``.
+There is no file-inclusion placeholder. To inject a file's content, use `` !`cat path/to/file` ``.
 
 To block injection for user, project, plugin, and additional-directory sources, set `"disableSkillShellExecution": true` in settings; each command is replaced with `[shell command execution disabled by policy]`. Bundled and managed skills are not affected.
 

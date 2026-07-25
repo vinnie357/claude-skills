@@ -82,7 +82,7 @@ risks you notice such as missing error handling, hardcoded values, or tests
 that need updating. If the diff is empty, say there are no uncommitted changes.
 ```
 
-For multiple commands, a fenced block runs each line:
+For multiple commands, use a fenced block:
 
 ````markdown
 ## Environment
