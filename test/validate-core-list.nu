@@ -28,16 +28,19 @@
 #       what stops prose bullets (e.g. "- **Tracker state:** a repo tracked
 #       by beads loads `/core:beads` ...") from being read as load lists.
 #
-# Lists are compared per contiguous RUN of list lines, not as a file-wide
-# union of names. The union design admitted silent false passes: with a name
-# deleted from the real list, a paren-annotated prose bullet or a fenced
-# worked example elsewhere in the file put the name back into the union and
-# the file passed. A run carrying fewer than 2 /core: names is ignored, which
-# is what lets a lone prose mention exist without counting as a list. More
-# than one qualifying run in a satellite is reported as ambiguous rather than
-# guessed at.
+# Lists are compared per contiguous RUN of list lines, and EVERY run must
+# match the canonical set. A file-wide union of names was the original design
+# and it admitted silent false passes: with a name deleted from the real list,
+# a paren-annotated prose bullet or a fenced worked example elsewhere in the
+# file put the name back into the union and the file passed green. Checking
+# each run independently closes that, while still permitting a satellite to
+# carry more than one correct list (leader-spawn-example.md exists to hold a
+# worked example).
 #
-# Both drift directions are checked against that single run: a canonical name
+# A run carrying fewer than 2 /core: names is ignored — that is what lets a
+# lone prose mention exist without being read as a list.
+#
+# Both drift directions are checked against every run: a canonical name
 # MISSING from it, and an EXTRA /core: name present in it but absent from the
 # canonical block.
 #
@@ -45,10 +48,16 @@
 #   - A load list written in a form neither grammar recognises. validator.md:7
 #     is such a case (inline numbered item), acceptable only because it is an
 #     excluded partial — see EXCLUDED_PARTIAL.
-#   - A satellite whose real list and a worked example both match the canonical
-#     set exactly. That passes, and correctly so — both are right.
+#   - A name deleted from its position in a list and re-added elsewhere in the
+#     SAME contiguous run. The name is genuinely in the list, so this is
+#     correct behaviour rather than a gap.
 #   - Prose mentions, by design, so restraint/SKILL.md and restraint/README.md
 #     may discuss /core:tdd freely.
+#
+# Known false FAIL, accepted because it is loud: a blank line inside a single
+# logical list splits it into two runs, and a partial list (2+ names but not
+# the full set) is rejected even when deliberate. Both surface as an explicit
+# failure naming the parsed runs, never as a silent pass.
 #
 # Usage:
 #   nu test/validate-core-list.nu
@@ -67,8 +76,7 @@ const SKILL_NAME = '^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$'
 const SATELLITES = [
   # The canonical block lives in this file and parses as a load list, so the
   # missing-name direction is vacuous here (canonical is always a subset of
-  # itself). Its entry earns its place on the EXTRA direction and on the
-  # single-run rule.
+  # itself). Its entry earns its place on the EXTRA direction.
   "plugins/core/skills/agent-loop/SKILL.md"
   "plugins/core/skills/agent-loop/references/team-leader.md"
   "plugins/core/skills/agent-loop/references/sub-team-leader.md"
@@ -107,36 +115,41 @@ def main [] {
   for satellite in $SATELLITES {
     let path = ($repo_root | path join $satellite)
     if not ($path | path exists) {
-      $failures = ($failures | append { file: $satellite, missing: ["<file not found>"], extra: [], ambiguous: [] })
+      $failures = ($failures | append { file: $satellite, missing: ["<file not found>"], extra: [], lists: [] })
       continue
     }
 
     let runs = (find-load-list-runs $path)
 
     if ($runs | is-empty) {
-      $failures = ($failures | append { file: $satellite, missing: ["<no load list recognised>"], extra: [], ambiguous: [] })
+      $failures = ($failures | append { file: $satellite, missing: ["<no load list recognised>"], extra: [], lists: [] })
       continue
     }
 
-    # Exactly one load list per satellite. A second one is ambiguous: the
-    # check cannot know which is authoritative, and tolerating extras is what
-    # let a worked example mask the real list.
-    if ($runs | length) > 1 {
-      $failures = ($failures | append {
-        file: $satellite,
-        missing: [],
-        extra: [],
-        ambiguous: ($runs | each { |r| $"[($r | str join ', ')]" })
-      })
-      continue
+    # EVERY qualifying run must match the canonical set. A satellite may hold
+    # more than one list — leader-spawn-example.md exists to carry worked
+    # examples — and a second correct list is not a defect. What the union
+    # design allowed was a run that DISAGREES with canonical hiding behind one
+    # that agrees; checking each run independently closes that without
+    # forbidding legitimate duplicates.
+    mut file_missing = []
+    mut file_extra = []
+
+    for run in $runs {
+      $file_missing = ($file_missing | append ($canonical_names | where { |name| $name not-in $run }))
+      $file_extra = ($file_extra | append ($run | where { |name| $name not-in $canonical_names }))
     }
 
-    let found = ($runs | first)
-    let missing = ($canonical_names | where { |name| $name not-in $found })
-    let extra = ($found | where { |name| $name not-in $canonical_names })
+    let missing = ($file_missing | uniq | sort)
+    let extra = ($file_extra | uniq | sort)
 
     if (($missing | length) > 0) or (($extra | length) > 0) {
-      $failures = ($failures | append { file: $satellite, missing: $missing, extra: $extra, ambiguous: [] })
+      $failures = ($failures | append {
+        file: $satellite,
+        missing: $missing,
+        extra: $extra,
+        lists: (if ($runs | length) > 1 { $runs | each { |r| $"[($r | str join ', ')]" } } else { [] })
+      })
     } else {
       print $"  ✓ ($satellite)"
     }
@@ -151,9 +164,8 @@ def main [] {
       if ($failure.extra | is-not-empty) {
         print $"  • ($failure.file): extra in load list — ($failure.extra | str join ', ')"
       }
-      if ($failure.ambiguous | is-not-empty) {
-        print $"  • ($failure.file): ($failure.ambiguous | length) separate load lists found, expected 1 — ($failure.ambiguous | str join ' and ')"
-        print $"    A worked example or a prose bullet run alongside the real list is ambiguous; the check cannot tell which is authoritative."
+      if ($failure.lists | is-not-empty) {
+        print $"    ($failure.lists | length) separate lists parsed in this file; every one must match canonical — ($failure.lists | str join ' and ')"
       }
     }
     print $"\nThe canonical block is ($CANONICAL_FILE) under \"($CANONICAL_HEADING)\"."
