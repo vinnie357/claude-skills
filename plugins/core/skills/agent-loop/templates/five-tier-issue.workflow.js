@@ -140,6 +140,10 @@ function planPrompt(a) {
     `Tests will live in: ${a.testFiles.join(', ')}.`,
     'Read the existing code and test conventions in the repo before designing.',
     'STAY IN STAGE: design the test list only. Do NOT write test code,',
+    'Never run git checkout, switch, restore, stash, reset, clean, rebase,',
+    'merge, pull, cherry-pick, apply, am, or branch -f/-D against the shared',
+    'working tree, or any other command that changes HEAD, the index, or',
+    'tracked or untracked files — other agents may be writing to it.',
     'implementation code, run CI, or review work.',
     'Return one entry per test: its name and the acceptance criterion it covers.',
   ].join('\n')
@@ -188,6 +192,10 @@ function ciPrompt(a) {
     'Run mise run ci. Capture the verbatim output and report green or red.',
     'Require a clean working tree before reporting green — a dirty tree green is an illusion.',
     'STAY IN STAGE: run and report only. Do NOT fix failures, edit files,',
+    'Never run git checkout, switch, restore, stash, reset, clean, rebase,',
+    'merge, pull, cherry-pick, apply, am, or branch -f/-D against the shared',
+    'working tree, or any other command that changes HEAD, the index, or',
+    'tracked or untracked files — other agents may be writing to it.',
     'or commit anything.',
   ].join('\n')
 }

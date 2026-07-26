@@ -136,6 +136,8 @@ function startingIndex(index) {
 function handsPrompt(objective, vision) {
   return [
     'You are read-only research hands. Do NOT design, edit, write code, or commit.',
+    'Never run git commands that change HEAD, the index, or tracked or',
+    'untracked files in the shared working tree — other agents write there.',
     `Objective: ${objective}`,
     vision
       ? 'The objective requires vision: use the harness visual tools (WebFetch / Playwright / image reader).'
@@ -230,6 +232,13 @@ function ciPrompt(a, label) {
     'Run mise run ci. Capture verbatim output and report green or red.',
     'Require a clean working tree before reporting green — a dirty tree green is an illusion.',
     'STAY IN STAGE: run and report only. Do NOT fix, edit, or commit.',
+    'Never run git checkout, switch, restore, stash, reset, clean, rebase,',
+    'merge, pull, cherry-pick, apply, am, or branch -f/-D against the shared',
+    'working tree, or any other command that changes HEAD, the index, or',
+    'tracked or untracked files — other agents may be writing to it. Inspect',
+    'other refs with git show <ref>:<path> / git diff a...b / git ls-tree.',
+    'To test anything requiring mutation, git clone the repo into your',
+    'scratchpad, git remote remove origin there, and work in the copy.',
   ].join('\n')
 }
 
@@ -258,6 +267,13 @@ function reviewPrompt(a, index, role) {
     'Check for overfit-to-tests and missed edge cases. Use the starting index; spawn focused',
     'hands for anything more — do NOT sweep the tree yourself.',
     'STAY IN STAGE: read and judge only. Do NOT edit, fix, or commit.',
+    'Never run git checkout, switch, restore, stash, reset, clean, rebase,',
+    'merge, pull, cherry-pick, apply, am, or branch -f/-D against the shared',
+    'working tree, or any other command that changes HEAD, the index, or',
+    'tracked or untracked files — other agents may be writing to it. Inspect',
+    'other refs with git show <ref>:<path> / git diff a...b / git ls-tree.',
+    'To test anything requiring mutation, git clone the repo into your',
+    'scratchpad, git remote remove origin there, and work in the copy.',
     'Return approved true/false plus findings (empty when approved).',
   ].join('\n')
 }
