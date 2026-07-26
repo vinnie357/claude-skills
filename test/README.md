@@ -17,7 +17,7 @@ mise test
 
 `mise run ci` is the canonical CI gate (matches the workspace-wide convention);
 it depends on `test`, which depends on `test:claude`, `test:marketplace`,
-`test:plugins`, and `test:skills-quality`.
+`test:plugins`, `test:skills-quality`, `test:core-list`, and `test:disclosure`.
 
 `test:version-bumps` is deliberately **not** a dependency of `test` — it
 needs a real base ref to diff against, which is only meaningful with the
@@ -60,6 +60,21 @@ mise test:claude
 
 Locally, a missing mise-managed `claude` binary is a warning (skip). Under
 CI (`$env.CI` set), a missing binary is a hard failure.
+
+### Test Core Skill List
+
+Checks that the mandatory core skill list has not drifted: every satellite
+file's operative load list (located via a per-file anchor line) matches the
+canonical block in `agent-loop/SKILL.md`, every other list in those files
+agrees too, and no unregistered `.md`/`.sh` file carries a near-complete
+copy of the list. Runs its own fixture suite first:
+
+```bash
+mise test:core-list
+# or directly
+nu test/validate-core-list.nu --self-test
+nu test/validate-core-list.nu
+```
 
 ### Test Version Bumps
 
@@ -191,6 +206,7 @@ Use `/benchmark-skills` for a more detailed analysis with category classificatio
 
 - **validate-plugin.nu** — Validates a specific plugin (name, kebab-case, invalid fields, skill paths)
 - **validate-skills-quality.nu** — Skill quality scorecard plus agents/commands/hooks surface pass, both ratchet-baseline enforced (`--update-baseline` to regenerate, shrink-only)
+- **validate-core-list.nu** — Verifies the mandatory core skill list is identical across the canonical block and all anchored satellite load lists, and sweeps for unregistered files carrying a near-complete copy (`--self-test` runs its fixtures)
 - **check-version-bumps.nu** — Verifies every plugin with changed files bumped `plugin.json` and `marketplace.json` versions against a base ref; hard-fails on a missing/invalid base ref
 
 `quality-baseline.json` is the ratchet baseline data file consumed by `validate-skills-quality.nu` — not a script, but tracked here since it gates CI.

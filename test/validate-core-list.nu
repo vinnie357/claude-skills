@@ -5,99 +5,118 @@
 # The canonical copy lives in plugins/core/skills/agent-loop/SKILL.md under
 # the "## Core Skills (Mandatory)" heading. Every satellite file must carry
 # the same set of names in an actual LOAD LIST, not merely somewhere in its
-# prose.
+# prose. (Substring presence over the whole file was the original check; when
+# the list was trimmed from 10 names to 8, five satellites passed while their
+# real load lists were stale, because the removed names lingered in prose.)
 #
-# Why structural, not substring: an earlier version checked
-# `$content | str contains $name` over the whole file. When the mandatory
-# list was trimmed from 10 names to 8, five satellites passed that check
-# while their real load lists were stale, because the removed names still
-# appeared in explanatory prose. Substring presence is not list membership.
+# Structure of the check, per satellite:
 #
-# Two load-list grammars are recognised:
+#   1. GRAMMAR — a load-list line is a names-only line: after stripping list
+#      markers, whitespace and backticks, the line is one or more skill-shaped
+#      names separated by commas. A contiguous RUN of such lines carrying 2+
+#      /core: names is a load list; anything else (prose, annotated bullets,
+#      fence delimiters) is not.
 #
-#   G1  names-only line — the whole line, after stripping list markers,
-#       whitespace and backticks, is one or more skill-shaped names
-#       separated by commas. Covers the canonical fenced block, the
-#       comma-separated fences in the tier references, the mixed
-#       /core: + /elixir: block in leader-spawn-example.md, the indented
-#       bullets in the operator CLAUDE.md template, and the session-start
-#       hook's one-name-per-line list.
+#   2. EVERY RUN MUST MATCH — each run is compared to the canonical set
+#      independently, both directions (missing canonical name / extra /core:
+#      name). A file-wide union admitted silent false passes: a stale worked
+#      example or a prose bullet elsewhere in the file patched a deleted name
+#      back into the union. leader-spawn-example.md exists to carry worked
+#      examples, so this is a live risk, not hypothetical.
 #
-#   G2  bullet whose FIRST token is a /core: name — covers commands/work.md,
-#       whose bullets carry trailing annotations. The first-token rule is
-#       what stops prose bullets (e.g. "- **Tracker state:** a repo tracked
-#       by beads loads `/core:beads` ...") from being read as load lists.
+#   3. ANCHOR — each satellite registers a regex for the lead-in line that
+#      sits directly above its operative load list. The anchor must match
+#      exactly once, and the first line after it that is neither blank nor a
+#      fence delimiter must BEGIN a qualifying run. Without this, the check
+#      only proved "at least one canonical run exists and no visible run
+#      disagrees" — the operative list could be deleted outright, or
+#      annotated into invisibility (em-dash bullets fail the grammar), and
+#      CI stayed green. Anchoring is ADDITIVE: rule 2 still applies to every
+#      run, anchored or not. Lines inside fenced code blocks do not match
+#      the anchor unless the satellite opts in with anchor_in_fence — a
+#      fenced worked example that quotes the lead-in must not be able to
+#      steal the anchor from a deleted operative block.
 #
-# Lists are compared per contiguous RUN of list lines, and EVERY run must
-# match the canonical set. A file-wide union of names was the original design
-# and it admitted silent false passes: with a name deleted from the real list,
-# a paren-annotated prose bullet or a fenced worked example elsewhere in the
-# file put the name back into the union and the file passed green. Checking
-# each run independently closes that, while still permitting a satellite to
-# carry more than one correct list (leader-spawn-example.md exists to hold a
-# worked example).
+#   4. SWEEP — every git-tracked .md/.sh file NOT registered as a satellite
+#      fails if the UNION of its runs carries EXPECTED_COUNT - 2 or more
+#      CANONICAL names. A file carrying (nearly) the full stack is a
+#      de-facto ninth satellite and must be registered, or it drifts
+#      unchecked. Overlap with the canonical set is the discriminator —
+#      several files legitimately list 5 non-canonical or partial /core:
+#      stacks and must stay silent.
 #
-# A run carrying fewer than 2 /core: names is ignored — that is what lets a
-# lone prose mention exist without being read as a list.
-#
-# Both drift directions are checked against every run: a canonical name
-# MISSING from it, and an EXTRA /core: name present in it but absent from the
-# canonical block.
-#
-# What this still cannot see:
-#   - A load list written in a form neither grammar recognises. validator.md:7
-#     is such a case (inline numbered item), acceptable only because it is an
-#     excluded partial — see EXCLUDED_PARTIAL.
-#   - A paren-annotated bullet inside a run counts as an entry regardless of
-#     what the annotation SAYS. "- `/core:tdd` (NOT loaded by default)" passes.
-#     This is a real gap, not a property: the fix is deleting G2 and requiring
-#     names-only lines. Tracked in claude-skills-134, fixture in --self-test.
-#   - A real list annotated with em-dashes is invisible to both grammars, so a
-#     satellite can pass with no operative list at all. The fix is anchoring to
-#     a marker rather than searching for a list. Also claude-skills-134.
-#   - Prose mentions, by design, so restraint/SKILL.md and restraint/README.md
-#     may discuss /core:tdd freely.
-#
-# Known false FAIL, accepted because it is loud: a blank line inside a single
-# logical list splits it into two runs, and a partial list (2+ names but not
-# the full set) is rejected even when deliberate. Both surface as an explicit
-# failure naming the parsed runs, never as a silent pass.
+# Known limits, all loud or deliberate:
+#   - A blank line inside one logical list splits it into two runs and the
+#     partial runs are rejected — a false FAIL that surfaces explicitly,
+#     never a silent pass.
+#   - Prose mentions are ignored by design; restraint/SKILL.md may discuss
+#     /core:tdd freely.
+#   - Files carrying a deliberate SUBSET of the stack (fewer than
+#     EXPECTED_COUNT - 2 canonical names) are invisible to the sweep.
+#     Whether per-tier subsets are legitimate at all is claude-skills-125;
+#     today references/fix-agent.md (4 names) relies on this, and
+#     references/validator.md's inline numbered list (3 names) is a form the
+#     grammar does not parse at all.
+#   - Divergent names scattered as single-name fenced mentions escape the
+#     every-run rule, since each run falls under the 2-name threshold. Same
+#     class as prose mentions; not a plausible reader-followed idiom.
+#   - Anchors are semantics-blind regex substrings: a lead-in that NEGATES
+#     the instruction ("Do NOT ... invoke each of these by exact name")
+#     still anchors. Inherent to a grammar check.
+#   - Fence indentation is judged against the LINE, not its container: a
+#     future satellite nesting a fence 4+ spaces deep inside a sub-list
+#     would have its delimiters misread as indented-code content, because
+#     container-relative indentation is out of scope for a line-based lint.
 #
 # Usage:
 #   nu test/validate-core-list.nu
+#   nu test/validate-core-list.nu --self-test
 
 const CANONICAL_FILE = "plugins/core/skills/agent-loop/SKILL.md"
 const CANONICAL_HEADING = "## Core Skills (Mandatory)"
 const EXPECTED_COUNT = 10
 
 # One definition of each name shape, shared by the canonical extractor and
-# both grammars. Keeping these separate previously let them disagree on case
+# the grammar. Keeping these separate previously let them disagree on case
 # and digits, so a name like /core:s3-tools parsed in a satellite but was
 # dropped from the canonical block, surfacing as a confusing count mismatch.
 const CORE_NAME = '^/core:[a-z][a-z0-9-]*$'
 const SKILL_NAME = '^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$'
 
+# Each satellite pairs the file with the anchor regex for the line DIRECTLY
+# above its operative load list (blank lines and fence delimiters may sit
+# between). If a lead-in is reworded, the check fails naming the expected
+# regex — update the wording here in the same change.
+#
+# Anchors only match OUTSIDE fenced code blocks unless the satellite sets
+# anchor_in_fence: true. Otherwise a single edit that deletes the operative
+# block and "moves the load list into a worked example" quoting the same
+# lead-in inside a fence would re-anchor onto the example and go green with
+# no operative list — an innocent-looking doc restructure, not a contrived
+# attack.
 const SATELLITES = [
   # The canonical block lives in this file and parses as a load list, so the
   # missing-name direction is vacuous here (canonical is always a subset of
-  # itself). Its entry earns its place on the EXTRA direction.
-  "plugins/core/skills/agent-loop/SKILL.md"
-  "plugins/core/skills/agent-loop/references/team-leader.md"
-  "plugins/core/skills/agent-loop/references/sub-team-leader.md"
-  "plugins/core/skills/agent-loop/references/agent-worker.md"
-  "plugins/core/skills/agent-loop/references/leader-spawn-example.md"
-  "plugins/core/commands/work.md"
-  "plugins/core/hooks/session-start.sh"
-  "plugins/tools/claude-code/templates/CLAUDE.md"
-]
-
-# Files that carry a deliberate SUBSET of the core stack, so the
-# missing-name direction does not apply to them. Whether per-tier subsets
-# are legitimate at all is claude-skills-125; until that lands, list them
-# here with the reason rather than silently omitting them.
-const EXCLUDED_PARTIAL = [
-  "plugins/core/skills/agent-loop/references/validator.md"   # 3 names, inline numbered item
-  "plugins/core/skills/agent-loop/references/fix-agent.md"   # 4 names
+  # itself). Its entry earns its place on the EXTRA direction and the anchor.
+  { path: "plugins/core/skills/agent-loop/SKILL.md"
+    anchor: "Every agent at every tier loads these before any work" }
+  { path: "plugins/core/skills/agent-loop/references/team-leader.md"
+    anchor: "Load core skills" }
+  { path: "plugins/core/skills/agent-loop/references/sub-team-leader.md"
+    anchor: "Load core skills" }
+  { path: "plugins/core/skills/agent-loop/references/agent-worker.md"
+    anchor: "Load core skills" }
+  # This satellite IS a worked example: its operative list sits inside the
+  # example prompt's fence, so the anchor must be allowed to match in-fence.
+  { path: "plugins/core/skills/agent-loop/references/leader-spawn-example.md"
+    anchor: "## Load skills"
+    anchor_in_fence: true }
+  { path: "plugins/core/commands/work.md"
+    anchor: "Invoke the Skill tool for each by exact name" }
+  { path: "plugins/core/hooks/session-start.sh"
+    anchor: "invoke each of these by exact name" }
+  { path: "plugins/tools/claude-code/templates/CLAUDE.md"
+    anchor: "instruct team members/tasks to always load these core skills first" }
 ]
 
 def main [--self-test] {
@@ -122,60 +141,48 @@ def main [--self-test] {
   mut failures = []
 
   for satellite in $SATELLITES {
-    let path = ($repo_root | path join $satellite)
+    let path = ($repo_root | path join $satellite.path)
     if not ($path | path exists) {
-      $failures = ($failures | append { file: $satellite, missing: ["<file not found>"], extra: [], lists: [] })
+      $failures = ($failures | append { file: $satellite.path, errors: ["file not found"], missing: [], extra: [], lists: [] })
       continue
     }
 
-    let runs = (find-load-list-runs $path)
+    let in_fence_ok = ($satellite | get -o anchor_in_fence | default false)
+    let result = (check-satellite (open --raw $path | lines) $satellite.anchor $canonical_names $in_fence_ok)
 
-    if ($runs | is-empty) {
-      $failures = ($failures | append { file: $satellite, missing: ["<no load list recognised>"], extra: [], lists: [] })
-      continue
-    }
-
-    # EVERY qualifying run must match the canonical set. A satellite may hold
-    # more than one list — leader-spawn-example.md exists to carry worked
-    # examples — and a second correct list is not a defect. What the union
-    # design allowed was a run that DISAGREES with canonical hiding behind one
-    # that agrees; checking each run independently closes that without
-    # forbidding legitimate duplicates.
-    mut file_missing = []
-    mut file_extra = []
-
-    for run in $runs {
-      $file_missing = ($file_missing | append ($canonical_names | where { |name| $name not-in $run }))
-      $file_extra = ($file_extra | append ($run | where { |name| $name not-in $canonical_names }))
-    }
-
-    let missing = ($file_missing | uniq | sort)
-    let extra = ($file_extra | uniq | sort)
-
-    if (($missing | length) > 0) or (($extra | length) > 0) {
-      $failures = ($failures | append {
-        file: $satellite,
-        missing: $missing,
-        extra: $extra,
-        lists: (if ($runs | length) > 1 { $runs | each { |r| $"[($r | str join ', ')]" } } else { [] })
-      })
+    if (($result.errors | is-not-empty) or ($result.missing | is-not-empty) or ($result.extra | is-not-empty)) {
+      $failures = ($failures | append ($result | insert file $satellite.path))
     } else {
-      print $"  ✓ ($satellite)"
+      print $"  ✓ ($satellite.path)"
     }
   }
 
-  if ($failures | length) > 0 {
-    print $"\n(ansi red_bold)❌ Core list drift detected:(ansi reset)\n"
-    for failure in $failures {
-      if ($failure.missing | is-not-empty) {
-        print $"  • ($failure.file): missing from load list — ($failure.missing | str join ', ')"
+  let sweep_violations = (sweep-unregistered $canonical_names)
+
+  if (($failures | length) > 0) or (($sweep_violations | length) > 0) {
+    if ($failures | length) > 0 {
+      print $"\n(ansi red_bold)❌ Core list drift detected:(ansi reset)\n"
+      for failure in $failures {
+        for err in $failure.errors {
+          print $"  • ($failure.file): ($err)"
+        }
+        if ($failure.missing | is-not-empty) {
+          print $"  • ($failure.file): missing from load list — ($failure.missing | str join ', ')"
+        }
+        if ($failure.extra | is-not-empty) {
+          print $"  • ($failure.file): extra in load list — ($failure.extra | str join ', ')"
+        }
+        if ($failure.lists | is-not-empty) {
+          print $"    ($failure.lists | length) separate lists parsed in this file; every one must match canonical — ($failure.lists | str join ' and ')"
+        }
       }
-      if ($failure.extra | is-not-empty) {
-        print $"  • ($failure.file): extra in load list — ($failure.extra | str join ', ')"
+    }
+    if ($sweep_violations | length) > 0 {
+      print $"\n(ansi red_bold)❌ Unregistered file\(s\) carry a near-complete core load list:(ansi reset)\n"
+      for v in $sweep_violations {
+        print $"  • ($v.file): ($v.names | str join ', ')"
       }
-      if ($failure.lists | is-not-empty) {
-        print $"    ($failure.lists | length) separate lists parsed in this file; every one must match canonical — ($failure.lists | str join ' and ')"
-      }
+      print $"\nRegister the file in SATELLITES \(with an anchor\) in test/validate-core-list.nu, or trim the list."
     }
     print $"\nThe canonical block is ($CANONICAL_FILE) under \"($CANONICAL_HEADING)\"."
     exit 1
@@ -186,7 +193,10 @@ def main [--self-test] {
 }
 
 # Extract the /core:* names listed in the canonical block of the given file,
-# between the canonical heading and the next level-2 (## ) heading.
+# between the canonical heading and the closing fence of the first fenced
+# block after it. (Terminating at the next "## " heading was wrong: "### ..."
+# subheadings do not match it, and the parsed block absorbed bare names from
+# the following subsection.)
 def extract-canonical-names [file: string] {
   let lines = (open --raw $file | lines)
   let heading_idx = ($lines | enumerate | where { |it| $it.item == $CANONICAL_HEADING } | get -o 0.index)
@@ -196,10 +206,6 @@ def extract-canonical-names [file: string] {
     exit 1
   }
 
-  # Terminate at the closing fence of the first fenced block after the heading.
-  # Terminating at the next "## " heading was wrong: "### Skills to load before
-  # spawning" does not match it, so the parsed block ran 35 lines past the fence
-  # and absorbed any bare skill name in that subsection into the canonical set.
   let rest = ($lines | skip ($heading_idx + 1))
   let fence_open = ($rest | enumerate | where { |it| ($it.item | str trim) | str starts-with "```" } | get -o 0.index)
 
@@ -233,50 +239,232 @@ def extract-canonical-names [file: string] {
   $names
 }
 
-# Find the load LISTS in a file, as contiguous runs of list lines.
-#
-# Comparing a file-wide UNION of names was the original design and it admitted
-# silent false passes: with a name deleted from the real list, any second
-# occurrence elsewhere in the file restored it to the union and the file
-# passed. Both a paren-annotated prose bullet and a fenced worked example are
-# natural idioms that did this. Runs fix it — a name has to appear in the list
-# itself, not merely somewhere in the file.
-#
-# A run is a maximal sequence of consecutive lines that each parse as a list
-# line under G1 or G2. Runs carrying fewer than 2 /core: names are ignored:
-# that is what keeps a lone prose bullet or a one-name example from counting
-# as a list.
-#
-# Returns a list of runs, each a sorted list of /core: names.
-def find-load-list-runs [file: string] {
-  let lines = (open --raw $file | lines)
+# Validate one satellite's content: anchor uniqueness, run adjacency to the
+# anchor, and every-run-must-match. Returns
+# { errors: [...], missing: [...], extra: [...], lists: [...] }.
+# `errors` carries the anchor/adjacency hard failures; missing/extra carry the
+# per-run drift, aggregated. Unless anchor_in_fence is set, lines inside
+# fenced code blocks cannot match the anchor — a fenced worked example
+# quoting the lead-in must not steal the anchor from a deleted operative
+# block (demonstrated live on team-leader.md before this filter existed).
+def check-satellite [lines: list<string>, anchor: string, canonical: list<string>, anchor_in_fence: bool = false] {
+  let runs = (find-load-list-runs $lines)
 
-  mut runs = []
-  mut current = []
+  mut errors = []
+
+  let flags = (fence-flags $lines)
+  let anchor_hits = ($lines | enumerate | where { |it|
+    ($it.item =~ $anchor) and ($anchor_in_fence or (not ($flags | get $it.index)))
+  })
+
+  if ($anchor_hits | is-empty) {
+    $errors = ($errors | append $"anchor not found — no line outside a fenced code block matches '($anchor)'. The operative load list is anchored to that lead-in; if it was reworded, update SATELLITES in test/validate-core-list.nu in the same change")
+  } else if ($anchor_hits | length) > 1 {
+    let at = ($anchor_hits | each { |it| $it.index + 1 } | str join ', ')
+    $errors = ($errors | append $"anchor '($anchor)' matched ($anchor_hits | length) lines \(($at)\); it must match exactly one so a copied lead-in cannot steal the anchor")
+  } else {
+    let anchor_idx = ($anchor_hits | get 0.index)
+    # Adjacency: skip ONLY blank lines and fence delimiters after the anchor;
+    # the first remaining line must begin a qualifying run. "Somewhere after"
+    # would relocate the gap — an em-dash-annotated operative list plus a
+    # distant canonical fence would pass.
+    let adjacent = ($lines
+      | enumerate
+      | skip ($anchor_idx + 1)
+      | where { |it|
+          not ((($it.item | str trim) | is-empty) or (is-fence-delimiter $it.item))
+        }
+      | get -o 0.index)
+
+    if ($adjacent == null) or (not ($runs | any { |r| $r.start == $adjacent })) {
+      $errors = ($errors | append $"no load list directly after the anchor '($anchor)' — the first non-blank, non-fence line after it must begin a names-only load list \(annotated bullets do not parse as one\)")
+    }
+  }
+
+  # EVERY qualifying run must match the canonical set, anchored or not. A
+  # satellite may hold more than one list — leader-spawn-example.md exists to
+  # carry worked examples — and a second correct list is not a defect. What
+  # this forbids is a run that DISAGREES with canonical hiding behind one
+  # that agrees.
+  mut missing = []
+  mut extra = []
+
+  for run in $runs {
+    $missing = ($missing | append ($canonical | where { |name| $name not-in $run.names }))
+    $extra = ($extra | append ($run.names | where { |name| $name not-in $canonical }))
+  }
+
+  {
+    errors: $errors
+    missing: ($missing | uniq | sort)
+    extra: ($extra | uniq | sort)
+    lists: (if ($runs | length) > 1 { $runs | each { |r| $"[($r.names | str join ', ')]" } } else { [] })
+  }
+}
+
+# Coverage sweep: a git-tracked .md/.sh file that is not a registered
+# satellite must not carry EXPECTED_COUNT - 2 or more CANONICAL names across
+# its load lists — that is a de-facto satellite drifting unchecked. Overlap
+# with the canonical set is the discriminator: a threshold on any /core:
+# names would false-positive on files listing 5 non-canonical names today.
+def sweep-unregistered [canonical: list<string>] {
+  let threshold = $EXPECTED_COUNT - 2
+  let registered = ($SATELLITES | get path)
+  let tracked = (git ls-files
+    | lines
+    | where { |f| ($f | str ends-with ".md") or ($f | str ends-with ".sh") }
+    | where { |f| $f not-in $registered })
+
+  mut violations = []
+
+  for file in $tracked {
+    let raw = (open --raw $file)
+    if not ($raw | str contains "/core:") { continue }
+
+    let overlap = (file-canonical-overlap ($raw | lines) $canonical)
+    if ($overlap | length) >= $threshold {
+      $violations = ($violations | append { file: $file, names: $overlap })
+    }
+  }
+
+  $violations
+}
+
+# The sweep's measure: the UNION of run names across the whole file,
+# intersected with the canonical set. Union is safe HERE and only here — the
+# sweep detects PRESENCE (register-or-trim), not correctness, so the masking
+# argument that forced per-run comparison for satellites does not apply:
+# there is no canonical set being vouched for, only the question "does this
+# unregistered file carry a near-complete list". Per-RUN overlap was the
+# original design and it was bypassed by one blank line splitting the full
+# 10-name list 5+5, each fragment under the threshold. Do not "fix" this
+# back to per-run. Measured union overlap across all real unregistered files
+# is 5 (threshold 8), so the union costs no false positives.
+def file-canonical-overlap [lines: list<string>, canonical: list<string>] {
+  find-load-list-runs $lines
+    | each { |r| $r.names }
+    | flatten
+    | uniq
+    | where { |name| $name in $canonical }
+    | sort
+}
+
+# Per-line fence state: true for lines inside a fenced code block, and for
+# the delimiter lines themselves. Used to keep satellite anchors from
+# matching inside worked examples.
+#
+# CommonMark-faithful where it matters, on both sides of the state machine.
+#
+# OPENERS: a backtick or tilde delimiter of length 3+, indented at most 3
+# spaces, recorded with its CHARACTER and LENGTH. Two phantom shapes the
+# raw prefix regex admitted are rejected because each desyncs the state so
+# the NEXT REAL opener is consumed as a closer (classifying a genuine
+# example's interior as out-of-fence and reopening anchor theft):
+#   - a backtick "opener" whose info string contains a backtick — per
+#     CommonMark that is a paragraph with an inline code span (```nu```
+#     prose), since a backtick fence's info string may not contain
+#     backticks; tilde info strings may contain anything.
+#   - a delimiter indented 4+ spaces — at top level that is indented-code
+#     CONTENT, which is exactly how docs show fence syntax literally.
+#
+# CLOSERS: only a bare delimiter (no info string) of the SAME character
+# with AT LEAST the opener's length, indented at most 3 spaces. Naive
+# parity-flipping failed both ways: a bare ``` inside a ```` block flipped
+# state off, and ~~~ fences were not recognised at all — live shapes in
+# this repo.
+def fence-flags [lines: list<string>] {
+  mut flags = []
+  mut fence_char = null   # "`" or "~" while inside a fence, else null
+  mut fence_len = 0
 
   for line in $lines {
-    let hits = ([...(names-only-line $line) ...(bullet-leading-name $line)] | uniq)
+    let delim = ($line | parse -r '^ {0,3}(?<d>`{3,}|~{3,})' | get -o 0.d)
+    let t = ($line | str trim)
+
+    if $fence_char == null {
+      let opens = (if $delim == null {
+        false
+      } else if ($delim | str starts-with "`") {
+        $line =~ '^ {0,3}`{3,}[^`]*$'
+      } else {
+        true
+      })
+      if $opens {
+        $flags = ($flags | append true)
+        $fence_char = ($delim | str substring 0..0)
+        $fence_len = ($delim | str length)
+      } else {
+        $flags = ($flags | append false)
+      }
+    } else {
+      $flags = ($flags | append true)
+      let closes = (($delim != null)
+        and ($t == $delim)
+        and (($delim | str substring 0..0) == $fence_char)
+        and (($delim | str length) >= $fence_len))
+      if $closes {
+        $fence_char = null
+        $fence_len = 0
+      }
+    }
+  }
+
+  $flags
+}
+
+# A line that is a fence delimiter of either CommonMark kind, mirroring
+# fence-flags' opener rules (≤3-space indent; backtick-free info string for
+# backtick fences). Shared by the adjacency scan and the run-finder so they
+# cannot disagree with fence-flags about what counts as fence syntax.
+def is-fence-delimiter [line: string] {
+  ($line =~ '^ {0,3}`{3,}[^`]*$') or ($line =~ '^ {0,3}~{3,}')
+}
+
+# Find the load LISTS in the given lines, as contiguous runs of names-only
+# list lines. A run is a maximal sequence of consecutive lines that each
+# parse under the grammar; runs carrying fewer than 2 /core: names are
+# ignored — that is what keeps a lone prose bullet or a one-name example
+# from counting as a list.
+#
+# Returns a list of { start: <0-based line index>, names: <sorted /core: names> }.
+def find-load-list-runs [lines: list<string>] {
+  mut runs = []
+  mut current = []
+  mut start = 0
+
+  for it in ($lines | enumerate) {
+    # Fence delimiters are excluded from the grammar explicitly rather than
+    # relying on "```" happening to fail the name shape; like any other
+    # non-list line, they end the current run. (claude-skills-134)
+    let hits = (if (is-fence-delimiter $it.item) { [] } else { names-only-line $it.item })
 
     if ($hits | is-empty) {
       # Run ended. Keep it only if it looks like a list rather than a mention.
       if ($current | length) >= 2 {
-        $runs = ($runs | append [($current | uniq | sort)])
+        $runs = ($runs | append { start: $start, names: ($current | uniq | sort) })
       }
       $current = []
     } else {
+      if ($current | is-empty) { $start = $it.index }
       $current = ($current | append $hits)
     }
   }
 
   if ($current | length) >= 2 {
-    $runs = ($runs | append [($current | uniq | sort)])
+    $runs = ($runs | append { start: $start, names: ($current | uniq | sort) })
   }
 
   $runs
 }
 
-# G1: the entire line is one or more skill-shaped names, comma-separated.
-# Returns the /core: subset, or [] when the line is not a names-only line.
+# The grammar: the entire line, after stripping list markers, whitespace and
+# backticks, is one or more skill-shaped names separated by commas. Covers
+# the canonical fenced block, the comma-separated fences in the tier
+# references, the mixed /core: + /elixir: block in leader-spawn-example.md,
+# the bullets in commands/work.md and the operator CLAUDE.md template, and
+# the session-start hook's one-name-per-line list. Annotated bullets do NOT
+# parse — a load-list entry is a name, and annotations live in prose below
+# the list. Returns the /core: subset, or [] when the line does not parse.
 def names-only-line [line: string] {
   let bare = ($line
     | str trim
@@ -303,46 +491,11 @@ def names-only-line [line: string] {
   $tokens | where { |t| $t | str starts-with "/core:" }
 }
 
-# G2: a bullet whose FIRST token is a /core: name, allowing a parenthesised
-# annotation after it. Returns that single name, or [].
-#
-# The remainder after the name must be empty or start with "(" — that is what
-# separates a load-list entry from a prose bullet ABOUT a skill. Real
-# annotated entries in commands/work.md are paren-shaped ("- `/core:bees`
-# (the tracker)"), while documentation bullets use an em-dash ("- `/core:tdd`
-# — standing discipline, not pulled"). Without this test, any future prose
-# bullet in that idiom would be counted as a load-list entry, which could
-# MASK a genuinely missing name — the same false-pass class this check exists
-# to remove.
-def bullet-leading-name [line: string] {
-  let trimmed = ($line | str trim)
-
-  if not ($trimmed =~ '^[-*]\s') { return [] }
-
-  let after_marker = ($trimmed | str replace -r '^[-*]\s+' '' | str trim | str replace -a '`' '' | str trim)
-  let tokens = ($after_marker | split row " ")
-  let first_token = ($tokens | get -o 0 | default "" | str trim | str replace -r '[,.]$' '')
-
-  if not ($first_token =~ $CORE_NAME) { return [] }
-
-  let remainder = ($tokens | skip 1 | str join " " | str trim)
-
-  if ($remainder | is-empty) or ($remainder | str starts-with "(") {
-    [$first_token]
-  } else {
-    []
-  }
-}
-
-# Regression fixtures for the run-finder. Every case below is a real defect or
-# a real idiom found by review — three separate reviewers each found one silent
-# false pass in this parser, and every round was fixed by editing the parser
-# with no test added, which is why the next round found another. These are that
-# test. Two cases are CHARACTERISATION tests: they assert current behaviour on
-# known gaps (tracked in claude-skills-134) so that fixing the gap fails here
-# and forces the expectation to be updated deliberately.
+# Regression fixtures. Every run-finder case is a real defect or a real idiom
+# found by review — three separate reviewers each found one silent false pass
+# in this parser, and every round was fixed by editing the parser with no test
+# added, which is why the next round found another. These are that test.
 def self-test [] {
-  let dir = (mktemp -d | str trim)
   mut failures = []
 
   let cases = [
@@ -359,10 +512,16 @@ def self-test [] {
       expect: [[/core:aa /core:bb /core:cc]]
     }
     {
-      name: "paren_annotated_bullets"
-      why: "commands/work.md idiom: bullet, backticked name, paren annotation"
-      content: "- `/core:aa`\n- `/core:bb` (the tracker)\n- `/core:cc` (carries Forge)\n"
-      expect: [[/core:aa /core:bb /core:cc]]
+      name: "annotated_bullets_do_not_parse"
+      why: "a paren-annotated bullet is not a load-list entry; the annotation could NEGATE the instruction. Names-only lines are the grammar; annotations live in prose below the list (was gap F1, claude-skills-135)"
+      content: "- `/core:aa`\n- `/core:bb`\n- `/core:cc` (NOT loaded by default; skip for doc-only work)\n"
+      expect: [[/core:aa /core:bb]]
+    }
+    {
+      name: "all_bullets_annotated_no_run"
+      why: "annotated entries never join a run, so a list of them yields nothing — the anchor check is what makes that loud at the satellite level"
+      content: "- `/core:aa` (always)\n- `/core:bb` (the tracker)\n- `/core:cc` (carries Forge)\n"
+      expect: []
     }
     {
       name: "lone_em_dash_prose_bullet_ignored"
@@ -383,8 +542,8 @@ def self-test [] {
       expect: [[/core:aa /core:bb /core:cc] [/core:aa /core:bb /core:cc]]
     }
     {
-      name: "masking_paren_bullet_separate_run"
-      why: "PoC A: name deleted from the list, re-added as a detached paren bullet"
+      name: "masking_paren_bullet_invisible"
+      why: "PoC A: name deleted from the list, re-added as a detached annotated bullet — the bullet no longer parses at all, so it cannot patch anything"
       content: "- `/core:aa`\n- `/core:bb`\n\nLater, unrelated:\n\n- `/core:cc` (standing discipline)\n"
       expect: [[/core:aa /core:bb]]
     }
@@ -401,30 +560,178 @@ def self-test [] {
       expect: []
     }
     {
-      name: "KNOWN GAP F1 adjacent paren bullet joins the run"
-      why: "characterisation: a paren annotation that NEGATES the instruction still counts, because it sits in the run. Fix is deleting G2 — claude-skills-134"
-      content: "- `/core:aa`\n- `/core:bb`\n- `/core:cc` (NOT loaded by default; skip for doc-only work)\n"
-      expect: [[/core:aa /core:bb /core:cc]]
-    }
-    {
-      name: "KNOWN GAP F3 em-dash annotated operative list is invisible"
-      why: "characterisation: annotate a REAL list with em-dashes and no run is found, so a file can pass with no list at all. Fix is anchoring to a marker — claude-skills-134"
+      name: "em_dash_annotated_list_invisible_to_grammar"
+      why: "an operative list annotated with em-dashes parses as nothing — by design the grammar cannot see it; the ANCHOR check (was gap F3, claude-skills-135) is what makes this loud"
       content: "- `/core:aa` — always\n- `/core:bb` — the tracker\n- `/core:cc` — carries Forge\n"
       expect: []
     }
   ]
 
   for c in $cases {
-    let f = ($dir | path join "fixture.md")
-    $c.content | save -f $f
-    let got = (find-load-list-runs $f)
+    let got = (find-load-list-runs ($c.content | lines) | each { |r| $r.names })
     if $got != $c.expect {
       $failures = ($failures | append $"($c.name): expected ($c.expect | to nuon), got ($got | to nuon)")
     }
-    rm -f $f
   }
 
-  rm -rf $dir
+  # Satellite-level fixtures: anchor + adjacency + every-run-must-match, the
+  # composition main runs per file. `error` is a substring the errors list
+  # must contain (empty = errors must be empty).
+  let canonical = [/core:aa /core:bb /core:cc]
+
+  let satellite_cases = [
+    {
+      name: "anchored_canonical_run_passes"
+      why: "the healthy shape: anchor, blank, fence, canonical names"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n/core:cc\n```\n"
+      anchor: "Load these first"
+      error: ""
+      missing: []
+      extra: []
+    }
+    {
+      name: "anchor_missing_is_error"
+      why: "was gap F3: delete the operative list (and its lead-in) and the file passed; now the absent anchor is loud"
+      content: "Prose only.\n\n```\n/core:aa\n/core:bb\n/core:cc\n```\n"
+      anchor: "Load these first"
+      error: "anchor not found"
+      missing: []
+      extra: []
+    }
+    {
+      name: "em_dash_adjacent_list_is_error"
+      why: "was gap F3: annotate the operative list into grammar-invisibility; adjacency now fails because no run begins after the anchor"
+      content: "Load these first:\n- `/core:aa` — always\n- `/core:bb` — the tracker\n- `/core:cc` — carries Forge\n"
+      anchor: "Load these first"
+      error: "no load list directly after the anchor"
+      missing: []
+      extra: []
+    }
+    {
+      name: "divergent_later_run_still_fails"
+      why: "anchoring is ADDITIVE: a canonical anchored run does not excuse a divergent run elsewhere — every run must match"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n/core:cc\n```\n\nExample:\n\n```\n/core:aa\n/core:bb\n```\n"
+      anchor: "Load these first"
+      error: ""
+      missing: [/core:cc]
+      extra: []
+    }
+    {
+      name: "anchor_matched_twice_is_error"
+      why: "first-match-silently-wins would let a copied lead-in in an earlier example steal the anchor"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n/core:cc\n```\n\nLoad these first, again:\n"
+      anchor: "Load these first"
+      error: "matched 2 lines"
+      missing: []
+      extra: []
+    }
+    {
+      name: "anchored_run_missing_name_reported"
+      why: "teeth: the anchored run itself dropping a name surfaces through the existing missing direction"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n```\n"
+      anchor: "Load these first"
+      error: ""
+      missing: [/core:cc]
+      extra: []
+    }
+    {
+      name: "fenced_leadin_cannot_steal_anchor"
+      why: "reviewer PoC: operative block replaced with an opt-out, load list 'moved into a worked example' whose fence quotes the lead-in — the in-fence match must not anchor, so this fails loudly instead of going green with no operative list"
+      content: "1. Skip skill loading; workers handle it themselves.\n\nExample:\n\n```\n1. Load these first:\n/core:aa, /core:bb, /core:cc\n```\n"
+      anchor: "Load these first"
+      error: "anchor not found"
+      missing: []
+      extra: []
+    }
+    {
+      name: "anchor_in_fence_opt_in_matches"
+      why: "leader-spawn-example.md's operative list deliberately sits inside its example fence; the opt-in lets its anchor match there"
+      content: "An example prompt:\n\n```\n## Load these\n/core:aa\n/core:bb\n/core:cc\n```\n"
+      anchor: "## Load these"
+      in_fence: true
+      error: ""
+      missing: []
+      extra: []
+    }
+  ]
+
+  for c in $satellite_cases {
+    let got = (check-satellite ($c.content | lines) $c.anchor $canonical ($c | get -o in_fence | default false))
+    let error_ok = (if ($c.error | is-empty) {
+      $got.errors | is-empty
+    } else {
+      $got.errors | any { |e| $e | str contains $c.error }
+    })
+    if not $error_ok {
+      $failures = ($failures | append $"($c.name): expected errors matching '($c.error)', got ($got.errors | to nuon)")
+    }
+    if $got.missing != $c.missing {
+      $failures = ($failures | append $"($c.name): expected missing ($c.missing | to nuon), got ($got.missing | to nuon)")
+    }
+    if $got.extra != $c.extra {
+      $failures = ($failures | append $"($c.name): expected extra ($c.extra | to nuon), got ($got.extra | to nuon)")
+    }
+  }
+
+  # Fence-state fixtures: CommonMark closer rules, not naive parity.
+  let fence_cases = [
+    {
+      name: "four_backtick_block_inner_triple_stays_in_fence"
+      why: "reviewer PoC 7a: a bare ``` inside a ```` block is content, not a closer — parity-flipping classified everything after it out-of-fence and reopened anchor theft"
+      content: "````markdown\n```\ncontent line\n```\n````\nafter\n"
+      expect: [true true true true true false]
+    }
+    {
+      name: "tilde_fence_recognised"
+      why: "reviewer PoC 7b: ~~~ is a valid CommonMark fence; unrecognised, its whole block was classified out-of-fence"
+      content: "~~~\ncontent line\n~~~\nafter\n"
+      expect: [true true true false]
+    }
+    {
+      name: "backtick_opener_with_backtick_info_string_is_prose"
+      why: "reviewer PoC 8a: ```nu``` at line start is a paragraph with an inline code span, not a fence — a backtick info string may not contain backticks; a phantom open here consumes the next real opener as a closer"
+      content: "```nu``` is the fence form used throughout these references.\nafter\n"
+      expect: [false false]
+    }
+    {
+      name: "indented_delimiter_is_content"
+      why: "reviewer PoC 8b: a delimiter indented 4+ spaces is indented-code CONTENT at top level — how docs show fence syntax literally; a phantom open here desyncs the same way"
+      content: "    ```\nafter\n"
+      expect: [false false]
+    }
+  ]
+
+  for c in $fence_cases {
+    let got = (fence-flags ($c.content | lines))
+    if $got != $c.expect {
+      $failures = ($failures | append $"($c.name): expected ($c.expect | to nuon), got ($got | to nuon)")
+    }
+  }
+
+  # Sweep-measure fixtures: union overlap per FILE, not per run.
+  let sweep_cases = [
+    {
+      name: "sweep_union_defeats_blank_line_split"
+      why: "reviewer PoC: the full canonical list split by one blank line left each fragment under the per-run threshold; the file-wide union sees all names"
+      content: "```\n/core:aa\n/core:bb\n```\n\n```\n/core:cc\n/core:aa\n```\n"
+      expect: [/core:aa /core:bb /core:cc]
+    }
+    {
+      name: "sweep_union_counts_canonical_only"
+      why: "non-canonical names must not inflate the overlap — the threshold discriminates on the canonical set"
+      content: "```\n/core:aa\n/core:zz\n```\n"
+      expect: [/core:aa]
+    }
+  ]
+
+  for c in $sweep_cases {
+    let got = (file-canonical-overlap ($c.content | lines) $canonical)
+    if $got != $c.expect {
+      $failures = ($failures | append $"($c.name): expected ($c.expect | to nuon), got ($got | to nuon)")
+    }
+  }
+
+  let total = (($cases | length) + ($satellite_cases | length) + ($fence_cases | length) + ($sweep_cases | length))
 
   if ($failures | is-not-empty) {
     print $"(ansi red_bold)❌ Core-list self-test failed:(ansi reset)"
@@ -432,5 +739,5 @@ def self-test [] {
     exit 1
   }
 
-  print $"(ansi green_bold)✅ Core-list self-test passed \(($cases | length) cases\)(ansi reset)"
+  print $"(ansi green_bold)✅ Core-list self-test passed \(($total) cases\)(ansi reset)"
 }
