@@ -38,6 +38,35 @@ git checkout -b <branch>
 
 Without this step, the spawned agent inherits the working tree's current branch — often a sibling PR's stale branch — and produces a PR that contains both the new work and the sibling's diff.
 
+## Read-only agents never touch the shared working tree
+
+Reviewers, auditors, and research agents get this verbatim in their spawn prompt:
+
+```
+Never run git checkout, switch, restore, stash, reset, clean, rebase, merge,
+pull, cherry-pick, apply, am, or branch -f/-D against the shared working tree,
+or any other command that changes HEAD, the index, or tracked or untracked
+files. To inspect another ref: git show <ref>:<path>, git diff a...b,
+git ls-tree. To test anything that requires mutation:
+
+    git clone <repo> "$SCRATCHPAD/repo"
+    git -C "$SCRATCHPAD/repo" remote remove origin
+
+Work there and state the scratchpad path in your report. Do not write under
+.git/ directly (config, hooks, refs); git fetch is the only sanctioned .git
+write.
+```
+
+The catch-all clause matters as much as the names. A closed list recreates the failure it fixes one step over — an agent that reads literally enough to treat checkout-then-restore as net-zero will also read "rebase isn't on the list". `git clean -fd` is the worst omission a list can have: it destroys teammates' uncommitted work with no recovery, unlike the incident below, which was survivable.
+
+Removing `origin` in the clone is not optional. `git clone` from a local path sets origin to the shared repo, so a push from the scratchpad writes refs back into it; a `cp -R` that carries `.git` keeps the GitHub remote and pushes to the real one.
+
+`.git/` internals are not covered by "HEAD, the index, or tracked files" — `git status` never lists them — so the block adds: do not write under `.git/` directly (config, hooks, refs); `git fetch` is the only sanctioned `.git` write. The vector that earns the clause is `.git/hooks/*`: a hook written there executes on a teammate's next commit, which is mutation by proxy. The carve-out matters as much as the ban, since a flat "never write under `.git/`" would forbid `git fetch`, which reviewers legitimately need.
+
+Name the commands. "No git state changes" is not enough — an agent given that wording checked out a PR branch, restored main afterward, and read the round trip as net-zero. Three other agents were writing to that tree at the time; all three had their work silently moved onto the wrong branch. It was recoverable only because the branch happened to sit at the same commit and the reviewer disclosed the checkout in its report.
+
+The scratchpad copy is the half that makes the prohibition workable. A read-only reviewer that cannot mutate anything also cannot verify a destructive scenario, so it either skips the check or does it live and hopes. Working in a clone removes the tradeoff: full freedom to break things, zero risk to in-flight work. Reviewers using this pattern have demonstrated exploits — deleting a file's operative content, injecting malformed fences, adding synthetic skills — that a read-only pass would have missed entirely.
+
 ## No timed polling loops in workers
 
 Spawned agents do not sustain timed polling loops. The `Monitor` tool is restricted; `sleep` longer than a few seconds is blocked. Polling work decomposes into one-shot snapshot agents the lead re-spawns at intervals OR external orchestration that pings on event.
