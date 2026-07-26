@@ -409,3 +409,33 @@ Create a modular Claude Code plugin marketplace that:
   - Schema compliance checking
   - Automated template generation
   - Nushell-based validation scripts
+
+## Context Engineering for Claude 5 Models
+
+### The New Rules of Context Engineering for Claude 5 Generation Models
+- **URL**: https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models
+- **Author**: Thariq Shihipar, Anthropic
+- **Purpose**: How prompt, skill, and CLAUDE.md authoring changes for Claude 5 generation models (the article names Opus 5 and Fable 5); basis for the skill-authoring conventions in claude-skills
+- **Date Accessed**: 2026-07-25
+- **Key Points**:
+  - Over 80% of Claude Code's system prompt was removed for Opus 5 and Fable 5 "with no measurable loss on our coding evaluations"
+  - Judgment over rules — contextual guidance beats explicit prohibition lists (the article describes six shifts; the remaining one, CLAUDE.md memory to auto-memory, is product behaviour and is not covered in the reference)
+  - Tool design over examples — "giving examples actually constrains them to a certain exploration space"; invest in parameter and enum design
+  - Progressive disclosure over upfront loading — "consider having a tree of files that can be loaded at the right time"
+  - Single statements over repetition — state a rule once, where the thing it governs is defined
+  - Prefer code and schema over prose specs — "a HTML mockup of a design will generally produce better results than a description of the design or a screenshot"
+  - Keep CLAUDE.md lightweight; spend tokens on gotchas, not patterns Claude can observe in the code
+- **Boundary noted in the reference (this repo's conclusion, not the article's)**: rule 1 does not extend to rules a validator enforces, facts a model would otherwise fabricate, or standing disciplines that must be pushed rather than pulled — see the reference for the test
+- **Used In**: skills/claude-skills/references/context-engineering-claude-5.md, skills/claude-skills/SKILL.md
+
+### Claude Code CHANGELOG — `/doctor` and skill-description limits
+- **URL**: https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md
+- **Purpose**: Verifying what `claude doctor` and the in-session `/doctor` (alias `/checkup`) actually check, and the current skill-description listing cap
+- **Date Accessed**: 2026-07-25
+- **Key Points**:
+  - `claude doctor` (CLI) covers installation, settings, auth, and MCP diagnostics
+  - In-session `/doctor` is a full setup checkup that can diagnose and fix issues
+  - `/doctor` includes a check proposing to trim checked-in CLAUDE.md files by cutting content Claude could derive from the codebase
+  - Skill-description listing cap raised from 250 to 1,536 characters, with a startup warning when descriptions truncate
+- **Verification note**: third-party claims that `/checkup` finds unused skills or duplicate CLAUDE.md content were NOT found in the primary changelog and are excluded
+- **Used In**: skills/claude-skills/references/context-engineering-claude-5.md
