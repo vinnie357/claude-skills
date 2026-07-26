@@ -123,7 +123,7 @@ const SATELLITES = [
   # missing-name direction is vacuous here (canonical is always a subset of
   # itself). Its entry earns its place on the EXTRA direction and the anchor.
   { path: "plugins/core/skills/agent-loop/SKILL.md"
-    anchor: "Every agent at every tier loads these before any work" }
+    anchor: "Every agent that writes code loads these before any work" }
   { path: "plugins/core/skills/agent-loop/references/team-leader.md"
     anchor: "Load core skills"
     pointer: $POINTER_REGEX }

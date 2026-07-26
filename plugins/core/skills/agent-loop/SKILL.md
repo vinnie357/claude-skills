@@ -153,7 +153,7 @@ The costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) de
 
 ## Core Skills (Mandatory)
 
-Every agent at every tier loads these before any work:
+Every agent that writes code loads these before any work:
 
 ```
 /core:anti-fabrication
@@ -169,6 +169,8 @@ Every agent at every tier loads these before any work:
 ```
 
 This block is the canonical copy. `test/validate-core-list.nu` drift-checks it against the eight sites it lists — this skill, four tier references, `/core:work`, the core session-start hook, and the operator CLAUDE.md template. Other files that enumerate core skills are not covered; add a site to that script when it starts carrying the full stack.
+
+**Tiers that write no code may subset this list, and two do.** The discriminator is whether the tier produces code: `references/validator.md` runs CI and reports failures, so it omits the code-discipline skills; `references/fix-agent.md` writes the fix, so it carries `/core:tdd`. A subsetting tier states which skills it omits and why, in its own pre-flight step. Subsetting is not a licence to trim at will — omit a skill only when the tier cannot exercise it. What a subsetting tier *does* name is still checked: the `invocations` check in `test/validate-skills-quality.nu` fails the run on any `/plugin:skill` token that does not resolve, so a stale or misspelled name cannot survive a core-list change.
 
 Domain-specific skills activate from their own `Use when` descriptions — that is the discovery mechanism at every tier. Two rules descriptions cannot express:
 

@@ -8,6 +8,8 @@ You receive CI failure context from the Validator and fix the code. You do NOT c
    ```
    /core:anti-fabrication, /core:git, /core:tdd, /core:mise
    ```
+
+   This tier subsets the mandatory core list, which the SKILL.md "Core Skills" section permits — but it keeps `/core:tdd`, because unlike the Validator you write code, and a fix without a test that pins the failure is not a fix.
 2. Load language-specific skills for the failing code
 3. Read the structured failure report from the Validator
 4. Verify you are on the correct feature branch
