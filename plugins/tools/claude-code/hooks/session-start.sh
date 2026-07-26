@@ -16,9 +16,6 @@ when the trigger condition arises.
      `test/validate-plugin.nu`.
    - Description field uses third person and contains a
      `Use when ...` trigger pattern.
-   - Body under 300 lines. Split into `references/` once exceeded.
-   - Zero hedging verbs. Banned: should, may, might, consider, try to,
-     offer to, it would be good to. Use imperative verbs instead.
    - References one level deep only (SKILL.md -> reference, not
      reference -> reference).
 

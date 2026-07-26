@@ -148,7 +148,7 @@ Use patch bumps (e.g., `0.5.6` → `0.5.7`) unless the skill itself has breaking
 | Check | Command | Pass Criteria |
 |---|---|---|
 | Schema | `mise test` | All plugins pass |
-| SKILL.md length | `wc -l SKILL.md` | Under 500 lines |
+| SKILL.md length | `wc -l SKILL.md` | Under 500 lines (the `lines` check in `test/validate-skills-quality.nu`) |
 | Sources valid | `mise sources:validate` | No schema errors |
 | Commit format | — | Conventional commit, no attribution |
 

@@ -64,7 +64,7 @@ Each eval consists of a test prompt, optional context files, and expected behavi
 
 ### Guidelines
 
-- Write 5-10 evals per skill minimum
+- Write the prompt counts `/claude-code:claude-skills-benchmark` specifies
 - Cover common cases AND edge cases
 - Include at least one "should NOT activate" eval (tests false positive rate)
 - Test with and without the skill loaded for comparison
@@ -115,7 +115,7 @@ Compare skill versions or skill-vs-no-skill performance using independent compar
 - Each agent runs in a clean context — no accumulated state between evals
 - Track token and timing metrics independently per agent
 - The comparator must not know which output came from which agent
-- Run sufficient evals (10+) to establish statistical significance
+- Run enough evals to separate signal from noise — a single run proves nothing; report the actual pass/fail counts
 
 ### What to Compare
 
@@ -162,9 +162,8 @@ description: Guide for Phoenix web applications with LiveView, contexts, and Ect
 
 ### Testing Descriptions
 
-1. Create 10+ eval prompts covering the skill's domain
-2. Create 5+ eval prompts outside the skill's domain
-3. Test activation rates: target 90%+ true positives, <5% false positives
+1. Create the in-scope and out-of-scope prompt sets — counts and targets are stated once in `/claude-code:claude-skills-benchmark`
+2. Test activation rates against the targets it defines
 4. Iterate on description wording until targets are met
 
 ## Multi-Model Testing
