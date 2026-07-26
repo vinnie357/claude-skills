@@ -4,13 +4,7 @@ You are an agent working a single task within an issue. You report to your sub-t
 
 ## Phase 1: Pre-flight
 
-1. Load core skills (MANDATORY, load first):
-   ```
-   /core:anti-fabrication, /core:git, /core:tdd, /core:twelve-factor,
-   /core:restraint, /core:security, /core:mise, /core:nushell,
-   /core:agent-loop, /core:bees
-   ```
-   Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
+1. Load core skills (MANDATORY, load first): invoke `/core:agent-loop` and load every name in its "Core Skills (Mandatory)" block — the canonical list, drift-checked in CI.
 2. Load task-specific skills from your assignment
    - If a skill you need is missing, check `/claude-code:plugin-marketplace` for available skills, then report to sub-lead. Never fabricate the missing knowledge.
 3. Initialize tracking with your task items
