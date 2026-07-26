@@ -87,9 +87,9 @@ gh pr create --title "feat(auth): add JWT authentication" --body "- Add JWT gene
    - `git branch -d <branch>`
 10. **Continue**: `bees ready` for next task
 
-## Dual-Gate CI Policy
+## Three-Gate Merge Policy
 
-Two gates protect main. Neither is optional.
+Three gates protect main. None is optional, and none substitutes for another.
 
 **Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push (`/core:security`).
 
@@ -98,14 +98,45 @@ Two gates protect main. Neither is optional.
 1. Local `mise run ci` is green on the branch HEAD being merged, **and**
 2. `gh pr checks` reports every remote check passing.
 
-No `gh pr merge --squash` while either gate is red. The user approves the merge; agents never merge.
+**Gate 3 — Adversarial review (before every squash merge).** Every PR gets a review from a separate agent on the strongest model the harness offers — opus or fable, or the highest available thinking model. No exemption: not for one-line fixes, not for documentation, not for version bumps.
+
+The reviewer is briefed to **defeat the change, not approve it**. Give it the specific failure the change is meant to prevent and ask it to construct a case that still gets through. A reviewer told to "check this over" returns nothing useful; a reviewer told "assume a defect exists and find it" returns the defect.
+
+**Three focus areas are standing — every review carries them, whatever else the brief adds:**
+
+1. **Restraint** (`/core:restraint`). Does this change need to exist? Is it the minimum that works, or does it add a symbol, an abstraction, or a config knob the task never asked for? Could an existing helper, stdlib call, or platform feature have done it? A reviewer that only hunts bugs approves well-built things that should not have been built.
+
+2. **Documentation the change obligates.** If the change alters behaviour, an interface, or a decision, did it update what depends on that — user docs, READMEs, ADRs, system-design documents, and the skill or reference that describes the thing? A change that silently invalidates a document is a defect with a delayed fuse: the doc keeps being trusted after it stops being true.
+
+3. **Claims in the PR body.** Every measurement, count, and "verified" in the description is checkable. Check them. Overstated PR bodies are the most common defect this process finds, because the author writes them last and from memory.
+
+Gate 3 requirements:
+
+- **A separate agent.** The author cannot review its own work — the point is a reader without the author's assumptions.
+- **Read-only, with a scratchpad clone for destructive tests.** See `/core:agent-loop`'s `references/dispatch-discipline.md`, "Read-only agents never touch the shared working tree".
+- **Findings are addressed or answered, not waved through.** Applying a fix, disputing it with evidence, and filing it as a tracked follow-up all count. Silence does not.
+- **Verify the reviewer's claims independently** before acting on them. A review is evidence, not a verdict.
+
+No `gh pr merge --squash` while any gate is red. The user approves the merge; agents never merge.
+
+### Gate 3 is not the pipeline's review tier
+
+`/core:agent-loop`'s five-tier pipeline has its own reviewers — P5 verifies tests exercise the acceptance criteria, the test-review stage checks for redundancy. Those run **inside** an issue, before a PR exists, and judge whether the implementation meets its spec.
+
+Gate 3 runs **on the PR**, after the implementation is complete, and judges whether the change is defensible against someone trying to break it. A PR that passed every pipeline review still gets Gate 3.
+
+### Why three gates and not two
+
+Gates 1 and 2 prove the suite passes. They do not prove the change is correct, and the distinction is not theoretical: a repo-wide audit found a skill documenting a syntax that does not exist, 34 reference files promised and missing, and eight silent false passes in a drift check — every one of them green under Gates 1 and 2. Each was caught by an adversarial reviewer, several by exploits it constructed and demonstrated. Gate 3 exists because a green build is evidence the tests ran, not evidence the work is right.
 
 ## Merge Strategy
 
-Squash merge only, and only after both Dual-Gate CI gates are green:
+Squash merge only, and only after all three gates are green:
 
 ```bash
-gh pr checks <number>          # Gate 2: confirm remote green (local CI already green)
+mise run ci                    # Gate 1: local, already green before the last commit
+gh pr checks <number>          # Gate 2: remote
+# Gate 3: adversarial review reported, findings addressed or answered
 gh pr merge <number> --squash
 ```
 
