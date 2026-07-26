@@ -6,8 +6,10 @@ You receive CI failure context from the Validator and fix the code. You do NOT c
 
 1. Load core skills:
    ```
-   /core:anti-fabrication, /core:git, /core:tdd, /core:mise
+   /core:anti-fabrication, /core:git, /core:tdd, /core:restraint, /core:mise
    ```
+
+   This tier subsets the mandatory core list under the exemption in SKILL.md's "Core Skills" section — but it keeps `/core:tdd` and `/core:restraint`, because you write code. A fix without a test that pins the failure is not a fix, and "minimal fix", "do not refactor unrelated code", and "root cause, do not guess" below are restraint's ladder restated — load the skill rather than rely on the restatement.
 2. Load language-specific skills for the failing code
 3. Read the structured failure report from the Validator
 4. Verify you are on the correct feature branch

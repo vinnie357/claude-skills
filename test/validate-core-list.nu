@@ -67,11 +67,15 @@
 #   - Prose mentions are ignored by design; restraint/SKILL.md may discuss
 #     /core:tdd freely.
 #   - Files carrying a deliberate SUBSET of the stack (fewer than
-#     EXPECTED_COUNT - 2 canonical names) are invisible to the sweep.
-#     Whether per-tier subsets are legitimate at all is claude-skills-125;
-#     today references/fix-agent.md (4 names) relies on this, and
-#     references/validator.md's inline numbered list (3 names) is a form the
-#     grammar does not parse at all.
+#     EXPECTED_COUNT - 2 canonical names) are invisible to the sweep. Subsets
+#     are now policy, decided in claude-skills-125: a tier may omit a skill its
+#     role cannot exercise, per the "Core Skills (Mandatory)" section of
+#     agent-loop/SKILL.md. Today references/fix-agent.md (5 names) and
+#     references/validator.md (2 names) rely on this. Subset MEMBERSHIP is
+#     unchecked here — a tier dropping a skill it should carry passes; only the
+#     invocations check in validate-skills-quality.nu catches names that do not
+#     resolve. Adding teeth would need a subset-aware entry shape
+#     ({path, expected: [...]}); tracked as claude-skills-152.
 #   - Divergent names scattered as single-name fenced mentions escape the
 #     every-run rule, since each run falls under the 2-name threshold. Same
 #     class as prose mentions; not a plausible reader-followed idiom.

@@ -153,7 +153,7 @@ The costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) de
 
 ## Core Skills (Mandatory)
 
-Every agent at every tier loads these before any work:
+Every agent at every tier loads these before any work, with one bounded exemption below:
 
 ```
 /core:anti-fabrication
@@ -169,6 +169,10 @@ Every agent at every tier loads these before any work:
 ```
 
 This block is the canonical copy. `test/validate-core-list.nu` drift-checks it against the eight sites it lists — this skill, four tier references, `/core:work`, the core session-start hook, and the operator CLAUDE.md template. Other files that enumerate core skills are not covered; add a site to that script when it starts carrying the full stack.
+
+**The exemption: a tier may omit an individual skill its role cannot exercise — nothing more.** Apply the test per skill, not per tier. `/core:tdd` is the worked case: `references/validator.md` runs the suite and reports failures without writing code, so it omits `/core:tdd`; `references/fix-agent.md` writes the fix, so it keeps it. `/core:anti-fabrication` is never omissible — every tier reports, and a fabricated pass is worse than a red build. A subsetting tier states what it omits and why in its own pre-flight step, so the omission is a decision on the record rather than an accident.
+
+Two limits on how far this is enforced. What a subsetting tier *names* is checked: the `invocations` check in `test/validate-skills-quality.nu` scans `references/` and fails the run on any `/plugin:skill` token that does not resolve, so a stale or misspelled name cannot survive a core-list change. What a tier *omits* is not checked — a tier that drops a skill it should carry passes CI, and only review catches it.
 
 Domain-specific skills activate from their own `Use when` descriptions — that is the discovery mechanism at every tier. Two rules descriptions cannot express:
 
