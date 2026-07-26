@@ -1,5 +1,5 @@
 {
-  "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective, tracked in claude-skills-130), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count).",
+  "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective, tracked in claude-skills-130), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes.",
   "allowed_failures": [
     {
       "key": "agent-sandboxing/agent-substrate-overview:examples",
@@ -62,7 +62,7 @@
       "class": "DEBT",
       "issue": "claude-skills-134",
       "first_seen": "migrated",
-      "detail_count": null
+      "detail_count": 2
     },
     {
       "key": "claude-code/claude-agents:reserved",
@@ -111,7 +111,7 @@
       "class": "CHECK_DEFECT",
       "issue": "claude-skills-130",
       "first_seen": "migrated",
-      "detail_count": null
+      "detail_count": 1
     },
     {
       "key": "claude-code/claude-skills:reserved",
@@ -132,7 +132,7 @@
       "class": "DEBT",
       "issue": "claude-skills-134",
       "first_seen": "migrated",
-      "detail_count": null
+      "detail_count": 1
     },
     {
       "key": "claude-code/claude-teams:reserved",
@@ -153,7 +153,7 @@
       "class": "CHECK_DEFECT",
       "issue": "claude-skills-130",
       "first_seen": "migrated",
-      "detail_count": null
+      "detail_count": 1
     },
     {
       "key": "claude-code/skill-update:source",
@@ -258,7 +258,7 @@
       "class": "DEBT",
       "issue": "claude-skills-134",
       "first_seen": "migrated",
-      "detail_count": null
+      "detail_count": 2
     },
     {
       "key": "core/material-design:anti_fab",
@@ -440,7 +440,7 @@
       "class": "DEBT",
       "issue": "claude-skills-134",
       "first_seen": "migrated",
-      "detail_count": null
+      "detail_count": 1
     },
     {
       "key": "elixir/tidewave:anti_fab",
@@ -496,7 +496,7 @@
       "class": "DEBT",
       "issue": "claude-skills-134",
       "first_seen": "migrated",
-      "detail_count": null
+      "detail_count": 2
     },
     {
       "key": "runex/runex:anti_fab",
@@ -643,7 +643,7 @@
       "class": "DEBT",
       "issue": "claude-skills-134",
       "first_seen": "migrated",
-      "detail_count": null
+      "detail_count": 1
     },
     {
       "key": "slidev/syntax:anti_fab",
