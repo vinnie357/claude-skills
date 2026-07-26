@@ -140,9 +140,10 @@ mise list-plugins
 
 ## Skill Quality Checks
 
-`mise test:skills-quality` runs 17 static checks per skill and a separate
-agents/commands/hooks surface pass per plugin, enforcing both against the
-same ratchet baseline (`test/quality-baseline.json`):
+`mise test:skills-quality` runs three passes — 17 static checks per skill, an
+agents/commands/hooks surface pass per plugin, and one corpus-wide
+duplicate-block scan — enforcing all three against the same ratchet baseline
+(`test/quality-baseline.json`):
 
 - A failing check **not** in the baseline fails the run — new violations cannot land.
 - A baseline entry that now **passes** fails the run until the entry is removed —
@@ -150,8 +151,10 @@ same ratchet baseline (`test/quality-baseline.json`):
 
 Baseline entries are `plugin/skill:check` strings (or `plugin/agents/<file>:check`,
 `plugin/commands/<file>:check`, `plugin/hooks/hooks.json:check` for the
-agents/commands/hooks surfaces). When you fix a baselined violation,
-regenerate the baseline:
+agents/commands/hooks surfaces, and `dupe/<hash>:duplicate_block` for the
+duplicate-block pass). Every key ends in `:<check-name>`, which is how the
+baseline schema and ratchet identify the check. When you fix a baselined
+violation, regenerate the baseline:
 
 ```bash
 nu test/validate-skills-quality.nu --update-baseline
@@ -184,6 +187,38 @@ new violation. A deliberate net-new debt acknowledgment requires editing
 | `orphans` | Every file under `references/` and `agents/` is mentioned at least once in SKILL.md |
 | `invocations` | Every `/plugin:skill` token resolves to a real skill or command of a local plugin (external namespaces skipped) |
 | `version_pin` | A "Current stable: X" / "Currently at version X" claim matches an "X (current)" entry in `sources.md` |
+
+### Duplicate-block check
+
+Runs once over the whole corpus rather than per skill: git-tracked `.md` and
+`.sh` files under `plugins/`, plus the root `CLAUDE.md`. Files under `test/`
+and `.github/` are out of scope — the check targets authored skill content.
+
+It reports any run of **8 or more normalised lines** appearing in two or more
+files. Normalisation trims each line, strips leading bullet (`-`/`*`/`+`) and
+ordered (`N.`) markers and backticks, and collapses whitespace; blank,
+punctuation-only, and fence-delimiter lines are dropped. Single-word lines are
+deliberately **kept** — dropping them hides list-shaped duplication such as the
+mandatory core-skill list, which is the pattern this check exists to find.
+
+Findings are grouped by the **set of files** a run spans, so one duplicated
+section is one entry rather than one per overlapping window. The baseline key
+is `dupe/<hash-of-sorted-file-set>:duplicate_block`, and `detail_count` is the
+number of shared windows, so a waived group that **grows** still fails. The
+member paths are always printed — the hash alone is not actionable.
+
+Three exemptions, each absorbing duplication that is intentional:
+
+| Exemption | Reason |
+|-----------|--------|
+| Every member path contains `/templates/` | Version-pinned upstream doc snapshots are deliberately preserved copies |
+| All members belong to one skill | A worked example shared between a skill's own references is intentional |
+| The file set is owned by `validate-core-list.nu` | That script drift-checks the core-skill list with per-file anchors; one concern, one owner |
+
+The third exemption derives its file list by parsing `validate-core-list.nu`
+rather than restating it — a second hardcoded copy would be exactly the
+duplication this check reports. It defers to that script; it does not skip the
+content silently.
 
 ### Agents/commands/hooks surface checks
 
