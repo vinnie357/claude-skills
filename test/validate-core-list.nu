@@ -37,6 +37,21 @@
 #      fenced worked example that quotes the lead-in must not be able to
 #      steal the anchor from a deleted operative block.
 #
+#   3b. POINTER SHAPE — a satellite whose entry carries a `pointer` regex
+#      replaces its enumerated copy with an imperative pointer at the
+#      canonical block ("invoke /core:agent-loop and load every name ...").
+#      Used by the tier references, which are reached from agent-loop's
+#      SKILL.md — the file that carries the canonical block and is itself
+#      mandatory, so the list is already in the reader's context. The anchor
+#      rules are identical; additionally the anchor line itself, or the
+#      first non-blank/non-fence line after it, must match the pointer.
+#      Adjacency is what stops the pointer drifting into unrelated prose
+#      lower in the file — a `Canonical list:` citation surviving elsewhere
+#      cannot green a deleted load step (the string-presence-anywhere bug
+#      the satellite model exists to prevent). Rule 2 still applies: any run
+#      that DOES appear in a pointer satellite must match canonical, so a
+#      helpfully re-pasted partial list fails.
+#
 #   4. SWEEP — every git-tracked .md/.sh file NOT registered as a satellite
 #      fails if the UNION of its runs carries EXPECTED_COUNT - 2 or more
 #      CANONICAL names. A file carrying (nearly) the full stack is a
@@ -60,9 +75,11 @@
 #   - Divergent names scattered as single-name fenced mentions escape the
 #     every-run rule, since each run falls under the 2-name threshold. Same
 #     class as prose mentions; not a plausible reader-followed idiom.
-#   - Anchors are semantics-blind regex substrings: a lead-in that NEGATES
-#     the instruction ("Do NOT ... invoke each of these by exact name")
-#     still anchors. Inherent to a grammar check.
+#   - Anchors and pointers are semantics-blind regex substrings: a lead-in
+#     that NEGATES the instruction ("Do NOT ... invoke each of these by exact
+#     name") still anchors, and a pointer sentence is equally negatable
+#     ("you need not invoke /core:agent-loop ..."). Inherent to a grammar
+#     check, and identical for both satellite shapes.
 #   - Fence indentation is judged against the LINE, not its container: a
 #     future satellite nesting a fence 4+ spaces deep inside a sub-list
 #     would have its delimiters misread as indented-code content, because
@@ -94,6 +111,13 @@ const SKILL_NAME = '^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$'
 # lead-in inside a fence would re-anchor onto the example and go green with
 # no operative list — an innocent-looking doc restructure, not a contrived
 # attack.
+#
+# A `pointer` field selects the pointer shape (doc item 3b above): the file
+# carries an imperative pointer at the canonical block instead of an
+# enumerated copy. One shared regex — drift between the three pointer
+# satellites would recreate the copy-drift the shape removes.
+const POINTER_REGEX = 'invoke `/core:agent-loop` and load every name in its "Core Skills \(Mandatory\)" block'
+
 const SATELLITES = [
   # The canonical block lives in this file and parses as a load list, so the
   # missing-name direction is vacuous here (canonical is always a subset of
@@ -101,11 +125,14 @@ const SATELLITES = [
   { path: "plugins/core/skills/agent-loop/SKILL.md"
     anchor: "Every agent at every tier loads these before any work" }
   { path: "plugins/core/skills/agent-loop/references/team-leader.md"
-    anchor: "Load core skills" }
+    anchor: "Load core skills"
+    pointer: $POINTER_REGEX }
   { path: "plugins/core/skills/agent-loop/references/sub-team-leader.md"
-    anchor: "Load core skills" }
+    anchor: "Load core skills"
+    pointer: $POINTER_REGEX }
   { path: "plugins/core/skills/agent-loop/references/agent-worker.md"
-    anchor: "Load core skills" }
+    anchor: "Load core skills"
+    pointer: $POINTER_REGEX }
   # This satellite IS a worked example: its operative list sits inside the
   # example prompt's fence, so the anchor must be allowed to match in-fence.
   { path: "plugins/core/skills/agent-loop/references/leader-spawn-example.md"
@@ -148,7 +175,8 @@ def main [--self-test] {
     }
 
     let in_fence_ok = ($satellite | get -o anchor_in_fence | default false)
-    let result = (check-satellite (open --raw $path | lines) $satellite.anchor $canonical_names $in_fence_ok)
+    let pointer = ($satellite | get -o pointer | default "")
+    let result = (check-satellite (open --raw $path | lines) $satellite.anchor $canonical_names $in_fence_ok $pointer)
 
     if (($result.errors | is-not-empty) or ($result.missing | is-not-empty) or ($result.extra | is-not-empty)) {
       $failures = ($failures | append ($result | insert file $satellite.path))
@@ -239,15 +267,18 @@ def extract-canonical-names [file: string] {
   $names
 }
 
-# Validate one satellite's content: anchor uniqueness, run adjacency to the
-# anchor, and every-run-must-match. Returns
+# Validate one satellite's content: anchor uniqueness, run (or pointer)
+# adjacency to the anchor, and every-run-must-match. Returns
 # { errors: [...], missing: [...], extra: [...], lists: [...] }.
 # `errors` carries the anchor/adjacency hard failures; missing/extra carry the
 # per-run drift, aggregated. Unless anchor_in_fence is set, lines inside
 # fenced code blocks cannot match the anchor — a fenced worked example
 # quoting the lead-in must not steal the anchor from a deleted operative
 # block (demonstrated live on team-leader.md before this filter existed).
-def check-satellite [lines: list<string>, anchor: string, canonical: list<string>, anchor_in_fence: bool = false] {
+# A non-empty `pointer` selects the pointer shape: instead of a run, the
+# anchor line itself or the first non-blank/non-fence line after it must
+# match the pointer regex. Every-run still applies either way.
+def check-satellite [lines: list<string>, anchor: string, canonical: list<string>, anchor_in_fence: bool = false, pointer: string = ""] {
   let runs = (find-load-list-runs $lines)
 
   mut errors = []
@@ -265,9 +296,11 @@ def check-satellite [lines: list<string>, anchor: string, canonical: list<string
   } else {
     let anchor_idx = ($anchor_hits | get 0.index)
     # Adjacency: skip ONLY blank lines and fence delimiters after the anchor;
-    # the first remaining line must begin a qualifying run. "Somewhere after"
-    # would relocate the gap — an em-dash-annotated operative list plus a
-    # distant canonical fence would pass.
+    # the first remaining line must begin a qualifying run (enumerated shape)
+    # or match the pointer (pointer shape, which may also sit on the anchor
+    # line itself). "Somewhere after" would relocate the gap — an
+    # em-dash-annotated operative list plus a distant canonical fence, or a
+    # pointer drifted into unrelated prose, would pass.
     let adjacent = ($lines
       | enumerate
       | skip ($anchor_idx + 1)
@@ -276,8 +309,16 @@ def check-satellite [lines: list<string>, anchor: string, canonical: list<string
         }
       | get -o 0.index)
 
-    if ($adjacent == null) or (not ($runs | any { |r| $r.start == $adjacent })) {
-      $errors = ($errors | append $"no load list directly after the anchor '($anchor)' — the first non-blank, non-fence line after it must begin a names-only load list \(annotated bullets do not parse as one\)")
+    if ($pointer | is-empty) {
+      if ($adjacent == null) or (not ($runs | any { |r| $r.start == $adjacent })) {
+        $errors = ($errors | append $"no load list directly after the anchor '($anchor)' — the first non-blank, non-fence line after it must begin a names-only load list \(annotated bullets do not parse as one\)")
+      }
+    } else {
+      let on_anchor = (($lines | get $anchor_idx) =~ $pointer)
+      let on_adjacent = (($adjacent != null) and (($lines | get $adjacent) =~ $pointer))
+      if not ($on_anchor or $on_adjacent) {
+        $errors = ($errors | append $"no pointer instruction adjacent to the anchor '($anchor)' — the anchor line or the first non-blank, non-fence line after it must instruct loading the canonical block \(regex '($pointer)'\); a citation elsewhere in the file does not count")
+      }
     }
   }
 
@@ -653,10 +694,80 @@ def self-test [] {
       missing: []
       extra: []
     }
+    {
+      name: "pointer_on_anchor_line_passes"
+      why: "pointer shape (claude-skills-122): tier references replace the enumerated copy with an imperative pointer on the load-step line itself"
+      content: "1. Load these first: invoke `/core:agent-loop` and load every name in its block.\n2. Next step.\n"
+      anchor: "Load these first"
+      pointer: "invoke `/core:agent-loop` and load every name"
+      error: ""
+      missing: []
+      extra: []
+    }
+    {
+      name: "pointer_on_adjacent_line_passes"
+      why: "the pointer may sit on the first non-blank, non-fence line after the anchor — same skip rules as the enumerated adjacency scan"
+      content: "Load these first:\n\ninvoke `/core:agent-loop` and load every name in its block.\n"
+      anchor: "Load these first"
+      pointer: "invoke `/core:agent-loop` and load every name"
+      error: ""
+      missing: []
+      extra: []
+    }
+    {
+      name: "pointer_deleted_is_error"
+      why: "an anchor surviving without its pointer instruction is a gutted load step — the reader is no longer told what to load"
+      content: "1. Load these first:\n2. Next step.\n"
+      anchor: "Load these first"
+      pointer: "invoke `/core:agent-loop` and load every name"
+      error: "no pointer instruction"
+      missing: []
+      extra: []
+    }
+    {
+      name: "pointer_far_from_anchor_is_error"
+      why: "adjacency stops the pointer drifting into unrelated prose lower in the file"
+      content: "Load these first:\nDo the other steps.\n\nSee also: invoke `/core:agent-loop` and load every name in its block.\n"
+      anchor: "Load these first"
+      pointer: "invoke `/core:agent-loop` and load every name"
+      error: "no pointer instruction"
+      missing: []
+      extra: []
+    }
+    {
+      name: "pointer_step_deleted_citation_survives_is_error"
+      why: "the F3-class mutation: the whole load step is deleted while a pointer-ish citation survives elsewhere — string presence anywhere must not green the check"
+      content: "1. Do the work.\n\nCanonical list: invoke `/core:agent-loop` and load every name in its block.\n"
+      anchor: "Load these first"
+      pointer: "invoke `/core:agent-loop` and load every name"
+      error: "anchor not found"
+      missing: []
+      extra: []
+    }
+    {
+      name: "pointer_with_divergent_partial_list_fails"
+      why: "every-run still applies to pointer satellites: a helpfully re-pasted partial list must not ride under a valid pointer"
+      content: "Load these first: invoke `/core:agent-loop` and load every name in its block.\n\nExample:\n\n```\n/core:aa\n/core:bb\n```\n"
+      anchor: "Load these first"
+      pointer: "invoke `/core:agent-loop` and load every name"
+      error: ""
+      missing: [/core:cc]
+      extra: []
+    }
+    {
+      name: "pointer_anchor_matched_twice_is_error"
+      why: "anchor uniqueness applies to the pointer shape identically — a copied lead-in must not steal the anchor"
+      content: "Load these first: invoke `/core:agent-loop` and load every name in its block.\n\nLoad these first, again.\n"
+      anchor: "Load these first"
+      pointer: "invoke `/core:agent-loop` and load every name"
+      error: "matched 2 lines"
+      missing: []
+      extra: []
+    }
   ]
 
   for c in $satellite_cases {
-    let got = (check-satellite ($c.content | lines) $c.anchor $canonical ($c | get -o in_fence | default false))
+    let got = (check-satellite ($c.content | lines) $c.anchor $canonical ($c | get -o in_fence | default false) ($c | get -o pointer | default ""))
     let error_ok = (if ($c.error | is-empty) {
       $got.errors | is-empty
     } else {

@@ -10,13 +10,7 @@ You are the Team Leader for an epic. You receive the epic assignment and are res
 
 ## Phase 1: Pre-flight
 
-1. Load core skills:
-   ```
-   /core:anti-fabrication, /core:git, /core:tdd, /core:twelve-factor,
-   /core:restraint, /core:security, /core:mise, /core:nushell,
-   /core:agent-loop, /core:bees
-   ```
-   Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
+1. Load core skills: invoke `/core:agent-loop` and load every name in its "Core Skills (Mandatory)" block — the canonical list, drift-checked in CI.
 2. Create a bees epic that mirrors the upstream epic (same title, objective, slug)
 3. **If the epic carries a `spec:` field** (e.g., `spec: docs/specs/<slug>.allium`): confirm the spec file exists at that path. If the epic is a refactor and no `spec:` is set, run `/allium:distill` to capture a behavioral baseline before decomposition. Skip this step entirely if neither condition applies.
 4. **Decomposition gate** — probe two deterministic signals (no file searching):

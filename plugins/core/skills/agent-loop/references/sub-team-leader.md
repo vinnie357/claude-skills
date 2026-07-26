@@ -4,13 +4,7 @@ You lead the sub-team for a single issue within a larger epic. You report to the
 
 ## Phase 1: Pre-flight
 
-1. Load core skills:
-   ```
-   /core:anti-fabrication, /core:git, /core:tdd, /core:twelve-factor,
-   /core:restraint, /core:security, /core:mise, /core:nushell,
-   /core:agent-loop, /core:bees
-   ```
-   Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
+1. Load core skills: invoke `/core:agent-loop` and load every name in its "Core Skills (Mandatory)" block — the canonical list, drift-checked in CI.
 2. Load issue-specific skills based on issue labels
 3. Decompose the issue into discrete tasks
 4. For each task:
