@@ -64,7 +64,7 @@ Each eval consists of a test prompt, optional context files, and expected behavi
 
 ### Guidelines
 
-- Write the prompt counts `/claude-code:claude-skills-benchmark` specifies
+- Write the number of in-scope and out-of-scope eval prompts `/claude-code:claude-skills-benchmark` specifies
 - Cover common cases AND edge cases
 - Include at least one "should NOT activate" eval (tests false positive rate)
 - Test with and without the skill loaded for comparison
@@ -164,7 +164,7 @@ description: Guide for Phoenix web applications with LiveView, contexts, and Ect
 
 1. Create the in-scope and out-of-scope prompt sets — counts and targets are stated once in `/claude-code:claude-skills-benchmark`
 2. Test activation rates against the targets it defines
-4. Iterate on description wording until targets are met
+3. Iterate on description wording until targets are met
 
 ## Multi-Model Testing
 
