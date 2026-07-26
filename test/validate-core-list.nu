@@ -63,6 +63,10 @@
 #   - Anchors are semantics-blind regex substrings: a lead-in that NEGATES
 #     the instruction ("Do NOT ... invoke each of these by exact name")
 #     still anchors. Inherent to a grammar check.
+#   - Fence indentation is judged against the LINE, not its container: a
+#     future satellite nesting a fence 4+ spaces deep inside a sub-list
+#     would have its delimiters misread as indented-code content, because
+#     container-relative indentation is out of scope for a line-based lint.
 #
 # Usage:
 #   nu test/validate-core-list.nu
@@ -349,26 +353,43 @@ def file-canonical-overlap [lines: list<string>, canonical: list<string>] {
 # the delimiter lines themselves. Used to keep satellite anchors from
 # matching inside worked examples.
 #
-# CommonMark-faithful where it matters: an opener is a backtick or tilde
-# delimiter of length 3+, recorded with its CHARACTER and LENGTH; while
-# in-fence, only a bare delimiter of the SAME character with AT LEAST the
-# opener's length closes it (a closing fence carries no info string). Naive
-# parity-flipping on any ``` prefix reopened the anchor theft two ways: a
-# bare ``` inside a ```` block flipped state off and classified the rest of
-# the block out-of-fence, and ~~~ fences were not recognised at all — both
-# are live shapes in this repo (four-backtick outer fences exist precisely
-# because references documents show fenced examples).
+# CommonMark-faithful where it matters, on both sides of the state machine.
+#
+# OPENERS: a backtick or tilde delimiter of length 3+, indented at most 3
+# spaces, recorded with its CHARACTER and LENGTH. Two phantom shapes the
+# raw prefix regex admitted are rejected because each desyncs the state so
+# the NEXT REAL opener is consumed as a closer (classifying a genuine
+# example's interior as out-of-fence and reopening anchor theft):
+#   - a backtick "opener" whose info string contains a backtick — per
+#     CommonMark that is a paragraph with an inline code span (```nu```
+#     prose), since a backtick fence's info string may not contain
+#     backticks; tilde info strings may contain anything.
+#   - a delimiter indented 4+ spaces — at top level that is indented-code
+#     CONTENT, which is exactly how docs show fence syntax literally.
+#
+# CLOSERS: only a bare delimiter (no info string) of the SAME character
+# with AT LEAST the opener's length, indented at most 3 spaces. Naive
+# parity-flipping failed both ways: a bare ``` inside a ```` block flipped
+# state off, and ~~~ fences were not recognised at all — live shapes in
+# this repo.
 def fence-flags [lines: list<string>] {
   mut flags = []
   mut fence_char = null   # "`" or "~" while inside a fence, else null
   mut fence_len = 0
 
   for line in $lines {
+    let delim = ($line | parse -r '^ {0,3}(?<d>`{3,}|~{3,})' | get -o 0.d)
     let t = ($line | str trim)
-    let delim = ($t | parse -r '^(?<d>`{3,}|~{3,})' | get -o 0.d)
 
     if $fence_char == null {
-      if $delim != null {
+      let opens = (if $delim == null {
+        false
+      } else if ($delim | str starts-with "`") {
+        $line =~ '^ {0,3}`{3,}[^`]*$'
+      } else {
+        true
+      })
+      if $opens {
         $flags = ($flags | append true)
         $fence_char = ($delim | str substring 0..0)
         $fence_len = ($delim | str length)
@@ -377,8 +398,6 @@ def fence-flags [lines: list<string>] {
       }
     } else {
       $flags = ($flags | append true)
-      # A closer is ONLY the delimiter (no info string), same character,
-      # at least the opener's length.
       let closes = (($delim != null)
         and ($t == $delim)
         and (($delim | str substring 0..0) == $fence_char)
@@ -393,11 +412,12 @@ def fence-flags [lines: list<string>] {
   $flags
 }
 
-# A line that is a fence delimiter of either CommonMark kind. Shared by the
-# adjacency scan and the run-finder so they cannot disagree with fence-flags
-# about what counts as fence syntax.
+# A line that is a fence delimiter of either CommonMark kind, mirroring
+# fence-flags' opener rules (≤3-space indent; backtick-free info string for
+# backtick fences). Shared by the adjacency scan and the run-finder so they
+# cannot disagree with fence-flags about what counts as fence syntax.
 def is-fence-delimiter [line: string] {
-  ($line | str trim) =~ '^(`{3,}|~{3,})'
+  ($line =~ '^ {0,3}`{3,}[^`]*$') or ($line =~ '^ {0,3}~{3,}')
 }
 
 # Find the load LISTS in the given lines, as contiguous runs of names-only
@@ -666,6 +686,18 @@ def self-test [] {
       why: "reviewer PoC 7b: ~~~ is a valid CommonMark fence; unrecognised, its whole block was classified out-of-fence"
       content: "~~~\ncontent line\n~~~\nafter\n"
       expect: [true true true false]
+    }
+    {
+      name: "backtick_opener_with_backtick_info_string_is_prose"
+      why: "reviewer PoC 8a: ```nu``` at line start is a paragraph with an inline code span, not a fence — a backtick info string may not contain backticks; a phantom open here consumes the next real opener as a closer"
+      content: "```nu``` is the fence form used throughout these references.\nafter\n"
+      expect: [false false]
+    }
+    {
+      name: "indented_delimiter_is_content"
+      why: "reviewer PoC 8b: a delimiter indented 4+ spaces is indented-code CONTENT at top level — how docs show fence syntax literally; a phantom open here desyncs the same way"
+      content: "    ```\nafter\n"
+      expect: [false false]
     }
   ]
 
