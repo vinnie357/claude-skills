@@ -14,7 +14,7 @@
 
 ### Eval Prompts
 
-Create 5-10 representative prompts:
+Create 5-10 representative prompts (counts per `/claude-code:claude-skills-benchmark`, which is canonical):
 
 | # | Prompt | Expected | Pass? |
 |---|--------|----------|-------|

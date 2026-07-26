@@ -124,17 +124,21 @@ The content section has no structural restrictions. Include:
 
 ## Pre-edit checklist
 
-Before writing or editing any SKILL.md, verify:
+Before writing or editing any SKILL.md, verify each item. Named checks live in `test/validate-skills-quality.nu` unless noted.
 
-- [ ] Description uses third person and includes a `Use when ...` trigger pattern
-- [ ] Combined `description` + `when_to_use` under 1,536 characters
-- [ ] No `allowed-tools` field in frontmatter (this marketplace's validator rejects it; use agents for tool allowlists)
-- [ ] Body under 500 lines per upstream guideline; split into `references/` once exceeded
-- [ ] References stay one level deep (SKILL.md → reference, not reference → reference)
-- [ ] Zero hedging verbs: should, may, might, consider, try to, offer to, it would be good to
-- [ ] Anti-fabrication rules apply to this SKILL.md itself — every claim about a tool, file, or behavior is verifiable
+| Item | Enforced by |
+|------|-------------|
+| Description uses third person and includes a `Use when ...` trigger pattern | `third_person` + `use_when` checks |
+| No `allowed-tools` field in frontmatter (use agents for tool allowlists) | `allowed_tools` check; also `test/validate-plugin.nu` |
+| Body under 500 lines; split into `references/` once exceeded | `lines` check |
+| References stay one level deep (SKILL.md → reference, not reference → reference) | `ref_depth` check |
+| Anti-fabrication rules present — and every claim about a tool, file, or behavior verifiable | `anti_fab` check (presence only; soundness is on the author) |
+| Combined `description` + `when_to_use` under 1,536 characters (Claude Code's listing truncation) | judgment — no check; the `desc` check caps `description` alone at 1024 |
+| Zero hedging verbs: should, may, might, consider, try to, offer to, it would be good to | judgment — no check |
 
-A failed checkbox is a blocker, not a preference.
+A failed enforced item is a blocker — the validator rejects it. A failed judgment item is a review-time flag: fix it or state why it stays.
+
+Style beyond the checklist follows `references/context-engineering-claude-5.md` — judgment over rules, single statements, schema over prose — including its boundary test for which rules stay prescriptive.
 
 ## Skill content types
 
@@ -196,14 +200,6 @@ Analyze examples to identify needed components:
 - **Scripts**: For tasks requiring deterministic reliability or that would need repeated rewriting
 - **References**: Documentation to load into context as needed
 - **Assets**: Output files like templates or boilerplate (not loaded into context)
-
-**Example** (illustrative paths for a hypothetical git skill):
-```
-Git skill resources:
-- scripts/analyze-commit.sh - Parse git diff for commit message
-- references/conventional-commits.md - Detailed commit format spec
-- assets/gitignore-templates/ - Common .gitignore files
-```
 
 ### 3. Initialization
 
@@ -296,7 +292,7 @@ For the full framework with examples, see `references/design-patterns.md`.
 
 The context window is a shared resource (source: [Claude Code Skills docs](https://code.claude.com/docs/en/skills#add-supporting-files)):
 
-- Keep SKILL.md under **500 lines** per upstream guideline. Split detailed content into `references/` once the body exceeds 500 lines.
+- Keep SKILL.md under **500 lines** (enforced by the `lines` check in `test/validate-skills-quality.nu`, matching the upstream guideline). Split detailed content into `references/` once the body exceeds the cap.
 - Move detailed reference material (API specs, deep-dive docs, examples) to separate files. Load only when needed.
 - Monitor cumulative load: skill + prompt + conversation history must all fit.
 - Every line in SKILL.md is loaded on every activation — justify each line's presence.
@@ -310,7 +306,7 @@ Split unwieldy `SKILL.md` files into separate referenced documents:
 - Separate mutually exclusive information to reduce token usage
 - Use progressive disclosure to load details only when needed
 - **Reference depth**: Keep references one level deep only (SKILL.md → reference, not reference → reference)
-- **TOC in long references**: Add a Table of Contents to reference files over 100 lines
+- **TOC in long references**: Give a reference file a Table of Contents when a reader would jump to a section rather than read it straight through
 - **Scripts**: Execute scripts for deterministic tasks; read scripts for patterns to adapt contextually
 
 For design patterns and detailed guidance, see `references/design-patterns.md`.
@@ -323,7 +319,7 @@ Compare skill effectiveness using blind evaluation (source: Anthropic Blog Post)
 2. Each agent uses a clean context — no accumulated state between tests
 3. A comparator agent judges outputs without knowing which is which
 4. Track token usage, timing, and quality metrics independently
-5. Run 10+ evals for statistical significance
+5. Run enough evals to separate signal from noise — a single run proves nothing; report the actual pass/fail counts
 
 For detailed setup instructions, see `references/evaluation-guide.md`.
 
@@ -341,8 +337,7 @@ The skill name and description heavily influence when Claude activates it. Pay p
 **Description optimization** (source: Anthropic Blog Post):
 - **False positives**: Description too broad — add domain-specific terms
 - **False negatives**: Description too narrow — add synonyms and trigger scenarios
-- **Target**: 90%+ true positive rate, <5% false positive rate
-- Test with 10+ in-scope prompts and 5+ out-of-scope prompts
+- Activation-rate targets and eval prompt counts live in `/claude-code:claude-skills-benchmark` ("Description Optimization" and "Writing Evals")
 
 Monitor real usage patterns and iterate based on actual behavior.
 
@@ -370,8 +365,6 @@ Use clear, imperative language that Claude can follow:
 - "Follow the Conventional Commits specification"
 - "Use descriptive branch names with type prefixes"
 - "Run tests before committing"
-
-Avoid hedging language like "You should try to" or "It might be good to" or "Consider following".
 
 Include concrete examples wherever possible to illustrate patterns and approaches.
 
