@@ -98,7 +98,7 @@ Three gates protect main. None is optional, and none substitutes for another.
 1. Local `mise run ci` is green on the branch HEAD being merged, **and**
 2. `gh pr checks` reports every remote check passing.
 
-**Gate 3 — Adversarial review (before every squash merge).** Every PR gets a review from a separate agent on the strongest model the harness offers — opus or fable, or the highest available thinking model. No exemption: not for one-line fixes, not for documentation, not for version bumps.
+**Gate 3 — Adversarial review (before every squash merge).** Every PR gets a review from a separate agent on the strongest thinking model the harness offers — the same tier as `/core:agent-loop`'s reviewer default, and overridable by its model-overrides convention. Name a capability, never a model literal. No exemption: not for one-line fixes, not for documentation, not for version bumps.
 
 The reviewer is briefed to **defeat the change, not approve it**. Give it the specific failure the change is meant to prevent and ask it to construct a case that still gets through. A reviewer told to "check this over" returns nothing useful; a reviewer told "assume a defect exists and find it" returns the defect.
 
@@ -106,9 +106,9 @@ The reviewer is briefed to **defeat the change, not approve it**. Give it the sp
 
 1. **Restraint** (`/core:restraint`). Does this change need to exist? Is it the minimum that works, or does it add a symbol, an abstraction, or a config knob the task never asked for? Could an existing helper, stdlib call, or platform feature have done it? A reviewer that only hunts bugs approves well-built things that should not have been built.
 
-2. **Documentation the change obligates.** If the change alters behaviour, an interface, or a decision, did it update what depends on that — user docs, READMEs, ADRs, system-design documents, and the skill or reference that describes the thing? A change that silently invalidates a document is a defect with a delayed fuse: the doc keeps being trusted after it stops being true.
+2. **Documentation the change obligates.** If the change alters behaviour, an interface, or a decision, did it update what depends on that — user docs, READMEs, ADRs, system-design documents, and the skill or reference that describes the thing? A change that silently invalidates a document is a defect with a delayed fuse.
 
-3. **Claims in the PR body.** Every measurement, count, and "verified" in the description is checkable. Check them. Overstated PR bodies are the most common defect this process finds, because the author writes them last and from memory.
+3. **Claims in the PR body.** Every measurement, count, and "verified" in the description is checkable. Check them. Overstated PR bodies are a common defect this process finds.
 
 Gate 3 requirements:
 
@@ -116,18 +116,19 @@ Gate 3 requirements:
 - **Read-only, with a scratchpad clone for destructive tests.** See `/core:agent-loop`'s `references/dispatch-discipline.md`, "Read-only agents never touch the shared working tree".
 - **Findings are addressed or answered, not waved through.** Applying a fix, disputing it with evidence, and filing it as a tracked follow-up all count. Silence does not.
 - **Verify the reviewer's claims independently** before acting on them. A review is evidence, not a verdict.
+- **The verdict and each finding's disposition land as a durable record on the PR** — a PR comment, or a bees comment the PR links. Gates 1 and 2 have observables (`mise run ci` output, `gh pr checks`); Gate 3 needs one too, or "review done" is an unverifiable assertion of exactly the kind this gate exists to catch. Check it with `gh pr view <n> --comments`.
 
 No `gh pr merge --squash` while any gate is red. The user approves the merge; agents never merge.
 
 ### Gate 3 is not the pipeline's review tier
 
-`/core:agent-loop`'s five-tier pipeline has its own reviewers — P5 verifies tests exercise the acceptance criteria, the test-review stage checks for redundancy. Those run **inside** an issue, before a PR exists, and judge whether the implementation meets its spec.
+`/core:agent-loop`'s five-tier pipeline has its own reviewers — P5 verifies tests exercise the acceptance criteria, the test-review stage checks for redundancy. Those judge whether the implementation meets **the issue's spec**.
 
-Gate 3 runs **on the PR**, after the implementation is complete, and judges whether the change is defensible against someone trying to break it. A PR that passed every pipeline review still gets Gate 3.
+Gate 3 runs **on the PR** and judges whether the change is defensible against someone trying to break it. Identify it by its brief, not its timing: no pipeline reviewer counts, even one that read the full PR diff — Forge's Final Reviewer does exactly that and is still not Gate 3. Gate 3 is the review carrying the defeat-the-change brief and the three standing focus areas, dispatched after the pipeline reports done.
 
 ### Why three gates and not two
 
-Gates 1 and 2 prove the suite passes. They do not prove the change is correct, and the distinction is not theoretical: a repo-wide audit found a skill documenting a syntax that does not exist, 34 reference files promised and missing, and eight silent false passes in a drift check — every one of them green under Gates 1 and 2. Each was caught by an adversarial reviewer, several by exploits it constructed and demonstrated. Gate 3 exists because a green build is evidence the tests ran, not evidence the work is right.
+Gates 1 and 2 prove the suite passes, not that the change is correct. A green build is evidence the tests ran, not evidence the work is right — and the defects worth catching here are the ones a passing suite cannot see: documentation that describes behaviour the code does not have, a check that reports success without checking, a claim in a PR body that nobody verified.
 
 ## Merge Strategy
 

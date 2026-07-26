@@ -193,7 +193,7 @@ Glob patterns like `/core:*` do not expand in Agent prompts. List skill names ex
 - **Commits**: Conventional commits, no attribution, no Co-Authored-By
 - **PRs**: Minimal format (title + bullet list), no templates, no attribution
 - **TDD**: Code without tests is not complete
-- **Merge gates (three)**: Gate 1 — local `mise run ci` green before every commit; Gate 2 — local + remote `gh pr checks` green; Gate 3 — adversarial review of the PR by a separate agent on the strongest available model, findings addressed or answered. All three before any squash merge (see `/core:git` Three-Gate Merge Policy). Gate 3 is distinct from this skill's pipeline reviewers, which run inside an issue before a PR exists.
+- **Merge gates (three)**: Gate 1 — local `mise run ci` green before every commit; Gate 2 — local + remote `gh pr checks` green; Gate 3 — adversarial review of the PR by a separate agent on the strongest available model, findings addressed or answered. All three before any squash merge (see `/core:git` Three-Gate Merge Policy). Gate 3 is distinct from this skill's pipeline reviewers, including Forge's Final Reviewer — it is identified by its defeat-the-change brief, not by when it runs.
 - **Branches**: One feature branch per epic (`feature/<epic-slug>`)
 - **Merge**: Squash merge only, user approves
 
