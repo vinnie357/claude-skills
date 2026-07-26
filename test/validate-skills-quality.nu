@@ -10,7 +10,7 @@
 # - A failing check NOT in the baseline fails the run (new violations cannot land).
 # - A baselined check that now passes fails the run with a prompt to remove the
 #   stale entry (the baseline only shrinks).
-# - For detail-producing checks (lines/links/orphans/invocations/version_pin)
+# - For detail-producing checks (see DETAIL_CHECKS below)
 #   the entry's detail_count ratchets BOTH directions: current above the stored
 #   count fails as a regression, current below it fails as a stale count.
 #   Accepted residual: the ratchet bounds the NUMBER of findings per waived
@@ -25,7 +25,13 @@
 # Checks whose findings are countable at runtime; their baseline entries must
 # carry an integer detail_count so a waiver covers the recorded count, not
 # unbounded growth of the same check.
-const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth"]
+const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth" "duplicate_block"]
+
+# Sliding-window size for the corpus-wide duplicate-block check: 8 normalised
+# lines. Measured in the claude-skills-124 plan (revision 2): at N=8 with no
+# single-word-line filter the corpus yields a reviewable group count and the
+# core-list load-list duplication surfaces as a single cross-file group.
+const DUPE_WINDOW = 8
 
 # Slash-invocable targets shipped by an upstream plugin whose namespace a local
 # skill-only mirror shares. Upstream ships these as SKILLS rather than commands
@@ -678,6 +684,312 @@ def run-check-fixes-self-test [] {
     $failed
 }
 
+# Normalise one file's content for the duplicate-block scan: keep only lines
+# that carry comparable content. Fence DELIMITERS are dropped but fenced code
+# stays in the corpus — a duplicated example block is real duplication. Each
+# kept line is trimmed, stripped of leading -/*/+ bullets and N. ordered
+# markers, stripped of backticks, and has internal whitespace collapsed, so
+# a re-bulleted or re-backticked copy still unifies with its source. Blank
+# and punctuation-only lines (---, |---|, >) are dropped. Single-word lines
+# are KEPT: the core-list load lists are single-word lines, and filtering
+# them hides exactly the flagship cross-file duplication this check exists
+# to find (claude-skills-124 plan, revision 2 measurement).
+def normalise-dupe-lines [content: string] {
+    $content | lines
+        | where {|l| not ($l | str trim | str starts-with '```')}
+        | each {|l|
+            $l | str trim
+               | str replace --regex '^[-*+]\s+' ''
+               | str replace --regex '^\d+\.\s+' ''
+               | str replace --all '`' ''
+               | str replace --regex --all '\s+' ' '
+               | str trim
+        }
+        | where {|l| $l =~ '[A-Za-z0-9]'}
+}
+
+# Corpus-wide duplicate-block scan (claude-skills-124): slide a DUPE_WINDOW
+# window of normalised lines over every file and report each SET of files
+# sharing at least one window. Grouping by file set means one duplicated
+# section is ONE finding, not N overlapping windows — the group's `windows`
+# count is how many distinct windows the set shares, which is what the
+# baseline's detail_count ratchets. Scope is cross-file only (sets of ≥2
+# distinct files): within-file repetition is a style concern, not the
+# copy-drift this check exists to catch. Returns [{files: sorted list,
+# windows: int}].
+def find-duplicate-groups [files: list] {
+    let window_hits = ($files | each {|f|
+        let kept = (normalise-dupe-lines $f.content)
+        if ($kept | length) < $DUPE_WINDOW {
+            []
+        } else {
+            $kept | window $DUPE_WINDOW
+                | each {|w| $w | str join "\n" | hash md5}
+                | uniq
+                | each {|h| {hash: $h, path: $f.path}}
+        }
+    } | flatten)
+    $window_hits
+        | group-by hash
+        | transpose hash hits
+        | each {|g| ($g.hits | get path | uniq | sort)}
+        | where {|paths| ($paths | length) >= 2}
+        | each {|paths| {set_id: ($paths | str join "\n"), paths: $paths}}
+        | group-by set_id
+        | transpose set_id members
+        | each {|g| {files: ($g.members | first | get paths), windows: ($g.members | length)}}
+}
+
+# Exemptions for the duplicate-block check. Each is deliberate; a file set
+# matching none of them is a finding.
+def dupe-exempt [file_set: list, satellites: list] {
+    # Exemption 1: every member lives under a templates/ dir. Template dirs
+    # are deliberately preserved upstream doc snapshots — identical copies
+    # are their job, not drift.
+    if ($file_set | all {|p| $p | str contains "/templates/"}) { return true }
+    # Exemption 2: the file set is confined to a single skill. A worked
+    # example shared between SKILL.md and its own references (or between two
+    # references of one skill) is intentional.
+    let skill_prefixes = ($file_set | each {|p|
+        let m = ($p | parse --regex '^(?P<skill>plugins/.+?/skills/[^/]+)/')
+        if ($m | is-empty) { "" } else { $m | first | get skill }
+    })
+    if (($skill_prefixes | uniq) == [($skill_prefixes | first)]) and (($skill_prefixes | first) != "") { return true }
+    # Exemption 3: the file set is owned by test/validate-core-list.nu, which
+    # drift-checks the core-list satellites with per-file anchors and its own
+    # self-test suite. One concern, one owner — defer rather than
+    # double-report the same duplication.
+    if ($file_set | all {|p| $p in $satellites}) { return true }
+    false
+}
+
+# Stable baseline key for a duplicate group: dupe/<md5-8 of the sorted member
+# set>:duplicate_block. The hash makes the key independent of unrelated
+# corpus changes — it changes only when the group's file set changes. The
+# :duplicate_block suffix keeps the existing `<prefix>:check` key contract:
+# validate-baseline-entries derives the check name from the last :-segment
+# (so the detail_count rules apply), and ratchet-baseline is key-agnostic.
+# Member paths are printed alongside the key in main's report so a human can
+# act on a bare hash.
+def dupe-key [file_set: list] {
+    let h = ($file_set | sort | str join "\n" | hash md5 | str substring 0..7)
+    $"dupe/($h):duplicate_block"
+}
+
+# Satellite file list owned by test/validate-core-list.nu (its SATELLITES
+# const plus CANONICAL_FILE), derived by parsing that script rather than
+# hardcoding a second copy — a hardcoded copy would be the exact duplication
+# this check exists to find. If the parse ever breaks it returns fewer
+# entries and exemption 3 stops firing, which surfaces LOUDLY as new hard
+# failures (and the self-test asserts the known shapes are present).
+def core-list-satellites [script_path: string] {
+    let raw = (open --raw $script_path)
+    let sat = ($raw | parse --regex '(?m)path: "(?P<p>[^"]+)"' | get p)
+    let canonical = ($raw | parse --regex 'const CANONICAL_FILE = "(?P<p>[^"]+)"' | get p)
+    $sat | append $canonical | uniq
+}
+
+# Embedded self-test for the corpus-wide duplicate-block check
+# (claude-skills-124). Exercises normalise-dupe-lines, find-duplicate-groups,
+# dupe-exempt, dupe-key, core-list-satellites, and the baseline integration
+# (key shape + detail_count ratchet) — the same implementations main calls.
+# Returns true when any case failed.
+def run-duplicate-self-test [] {
+    mut failed = false
+    let tick1 = '`'
+    let tick3 = ([$tick1 $tick1 $tick1] | str join)
+
+    let block_lines = [
+        "alpha one" "beta two" "gamma three" "delta four"
+        "epsilon five" "zeta six" "eta seven" "theta eight"
+    ]
+    let block = ($block_lines | str join "\n")
+    let file_a = "plugins/a/skills/x/SKILL.md"
+    let file_b = "plugins/b/skills/y/SKILL.md"
+
+    # Case 1: an 8-line block shared by two files is found as one group of
+    # one window, with the member files sorted
+    let found = (find-duplicate-groups [
+        {path: $file_a, content: $block}
+        {path: $file_b, content: ([$block "unshared trailer line"] | str join "\n")}
+    ])
+    if ($found | length) != 1 or ($found | first | get windows) != 1 or (($found | first | get files) != [$file_a $file_b]) {
+        print $"(ansi red_bold)❌ duplicate self-test: shared 8-line block not found as one 1-window group(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2: a 10-line duplicated section is ONE group whose window count is
+    # the overlapping-window count (3), never three separate findings
+    let long_block = ($block_lines | append ["iota nine" "kappa ten"] | str join "\n")
+    let overlapping = (find-duplicate-groups [
+        {path: $file_a, content: $long_block}
+        {path: $file_b, content: $long_block}
+    ])
+    if ($overlapping | length) != 1 or ($overlapping | first | get windows) != 3 {
+        print $"(ansi red_bold)❌ duplicate self-test: 10-line section not grouped as one 3-window finding(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3: normalisation unifies bullet markers, ordered markers, backticks
+    # and internal whitespace; blank, punctuation-only, and fence-delimiter
+    # lines are dropped so they cannot break a window
+    let decorated = ([
+        $"- ($tick1)alpha   one($tick1)"
+        "---"
+        "* beta two"
+        ""
+        $"($tick3)nu"
+        "1. gamma three"
+        "delta    four"
+        ">"
+        $tick3
+        "2. epsilon five"
+        $"($tick1)zeta six($tick1)"
+        "|---|"
+        "+ eta seven"
+        "theta  eight"
+    ] | str join "\n")
+    let unified = (find-duplicate-groups [
+        {path: $file_a, content: $block}
+        {path: $file_b, content: $decorated}
+    ])
+    if ($unified | length) != 1 {
+        print $"(ansi red_bold)❌ duplicate self-test: normalisation did not unify decorated variant(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4: single-word lines are corpus lines — the flagship core-list
+    # load lists are single-word lines and a single-word filter hides them
+    let words = (["one" "two" "three" "four" "five" "six" "seven" "eight"] | str join "\n")
+    let single_word = (find-duplicate-groups [
+        {path: $file_a, content: $words}
+        {path: $file_b, content: $words}
+    ])
+    if ($single_word | length) != 1 {
+        print $"(ansi red_bold)❌ duplicate self-test: single-word lines were dropped \(flagship case hidden\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5: repetition confined to ONE file is out of scope (cross-file check)
+    let within = (find-duplicate-groups [
+        {path: $file_a, content: ([$block "solo divider line" $block] | str join "\n")}
+        {path: $file_b, content: "entirely unrelated content"}
+    ])
+    if ($within | is-not-empty) {
+        print $"(ansi red_bold)❌ duplicate self-test: within-one-file repetition wrongly reported(ansi reset)"
+        $failed = true
+    }
+
+    # Case 6: exemption 1 — a file set entirely under templates/ dirs is
+    # exempt; a mixed set is not
+    if not (dupe-exempt ["plugins/a/skills/x/templates/CLAUDE.md" "plugins/tools/claude-code/templates/CLAUDE.md"] []) {
+        print $"(ansi red_bold)❌ duplicate self-test: all-templates file set not exempted(ansi reset)"
+        $failed = true
+    }
+    if (dupe-exempt ["plugins/a/skills/x/templates/CLAUDE.md" $file_b] []) {
+        print $"(ansi red_bold)❌ duplicate self-test: mixed templates/non-templates set wrongly exempted(ansi reset)"
+        $failed = true
+    }
+
+    # Case 7: exemption 2 — a file set confined to a single skill is exempt;
+    # two skills, or a file with no skill prefix (root CLAUDE.md), is not
+    if not (dupe-exempt ["plugins/core/skills/tdd/SKILL.md" "plugins/core/skills/tdd/references/beck-tdd.md"] []) {
+        print $"(ansi red_bold)❌ duplicate self-test: same-skill file set not exempted(ansi reset)"
+        $failed = true
+    }
+    if (dupe-exempt ["plugins/core/skills/tdd/SKILL.md" "plugins/core/skills/restraint/SKILL.md"] []) {
+        print $"(ansi red_bold)❌ duplicate self-test: two-skill file set wrongly exempted(ansi reset)"
+        $failed = true
+    }
+    if (dupe-exempt ["CLAUDE.md" "plugins/core/skills/tdd/SKILL.md"] []) {
+        print $"(ansi red_bold)❌ duplicate self-test: root CLAUDE.md + skill file wrongly exempted(ansi reset)"
+        $failed = true
+    }
+
+    # Case 8: exemption 3 — a file set that is a subset of the core-list
+    # satellites is deferred to validate-core-list.nu; one non-satellite
+    # member breaks the exemption
+    let sats = ["plugins/core/commands/work.md" "plugins/core/hooks/session-start.sh" "plugins/core/skills/agent-loop/SKILL.md"]
+    if not (dupe-exempt ["plugins/core/commands/work.md" "plugins/core/hooks/session-start.sh"] $sats) {
+        print $"(ansi red_bold)❌ duplicate self-test: satellite-subset file set not exempted(ansi reset)"
+        $failed = true
+    }
+    if (dupe-exempt ["plugins/core/commands/work.md" "CLAUDE.md"] $sats) {
+        print $"(ansi red_bold)❌ duplicate self-test: set with non-satellite member wrongly exempted(ansi reset)"
+        $failed = true
+    }
+
+    # Case 9: key shape — stable under member order, sensitive to membership,
+    # and shaped dupe/<md5-8>:duplicate_block
+    let k_ab = (dupe-key [$file_a $file_b])
+    let k_ba = (dupe-key [$file_b $file_a])
+    let k_abc = (dupe-key [$file_a $file_b "CLAUDE.md"])
+    if $k_ab != $k_ba {
+        print $"(ansi red_bold)❌ duplicate self-test: key not stable under member order(ansi reset)"
+        $failed = true
+    }
+    if $k_ab == $k_abc {
+        print $"(ansi red_bold)❌ duplicate self-test: key not sensitive to membership change(ansi reset)"
+        $failed = true
+    }
+    if (($k_ab | parse --regex '^dupe/[0-9a-f]{8}:duplicate_block$') | is-empty) {
+        print $"(ansi red_bold)❌ duplicate self-test: key '($k_ab)' does not match dupe/<md5-8>:duplicate_block(ansi reset)"
+        $failed = true
+    }
+
+    # Case 10: baseline round-trip — a valid dupe entry passes
+    # validate-baseline-entries; duplicate_block is a detail-producing check,
+    # so a null detail_count is rejected
+    let dupe_entry = {key: $k_ab, class: "DEBT", issue: "claude-skills-900", first_seen: "2026-07-26", detail_count: 3}
+    let rt = (validate-baseline-entries [$dupe_entry])
+    if ($rt | is-not-empty) {
+        print $"(ansi red_bold)❌ duplicate self-test: valid dupe baseline entry flagged \(($rt | str join '; ')\)(ansi reset)"
+        $failed = true
+    }
+    let rt_null = (validate-baseline-entries [($dupe_entry | update detail_count null)])
+    if not ($rt_null | any {|e| $e | str contains "detail_count"}) {
+        print $"(ansi red_bold)❌ duplicate self-test: null detail_count on duplicate_block not rejected(ansi reset)"
+        $failed = true
+    }
+
+    # Case 11: a new duplicate group (not baselined) is a hard failure
+    let new_group = (ratchet-baseline [] [$k_ab] [{key: $k_ab, count: 3}])
+    if $new_group.hard_failures != [$k_ab] {
+        print $"(ansi red_bold)❌ duplicate self-test: new unbaselined group not a hard failure(ansi reset)"
+        $failed = true
+    }
+
+    # Case 12: a waived group that no longer exists is a stale key (shrink)
+    let gone = (ratchet-baseline [$dupe_entry] [] [])
+    if $gone.stale_keys != [$k_ab] {
+        print $"(ansi red_bold)❌ duplicate self-test: disappeared waived group not flagged stale(ansi reset)"
+        $failed = true
+    }
+
+    # Case 13: a waived group that GREW fails as a count regression — the
+    # waiver covers the recorded window count, not absorption of new copies
+    let grew = (ratchet-baseline [$dupe_entry] [$k_ab] [{key: $k_ab, count: 4}])
+    if ($grew.count_regressions | is-empty) {
+        print $"(ansi red_bold)❌ duplicate self-test: grown waived group not flagged as count regression(ansi reset)"
+        $failed = true
+    }
+
+    # Case 14: satellite derivation — the list parsed out of
+    # test/validate-core-list.nu carries the canonical file and the known
+    # satellite shapes; if the parse silently broke, exemption 3 would too
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let derived = (core-list-satellites ($repo_root | path join "test" "validate-core-list.nu"))
+    if ("plugins/core/skills/agent-loop/SKILL.md" not-in $derived) or ("plugins/core/hooks/session-start.sh" not-in $derived) or (($derived | length) < 5) {
+        print $"(ansi red_bold)❌ duplicate self-test: satellite derivation from validate-core-list.nu broke \(got ($derived | length) entries\)(ansi reset)"
+        $failed = true
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Duplicate-block self-test passed \(14 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -685,7 +997,8 @@ def main [--update-baseline, --self-test] {
         let skills_failed = (run-skills-self-test)
         let baseline_failed = (run-baseline-self-test)
         let checks_failed = (run-check-fixes-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed { exit 1 }
+        let duplicate_failed = (run-duplicate-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed { exit 1 }
         exit 0
     }
 
@@ -1136,6 +1449,23 @@ def main [--update-baseline, --self-test] {
         }
     }
 
+    # Pass 3: corpus-wide duplicate-block check (claude-skills-124). Corpus is
+    # every git-tracked .md/.sh file under plugins/ plus the root CLAUDE.md.
+    # Findings are grouped per file SET and keyed dupe/<hash>:duplicate_block
+    # (see dupe-key), feeding the same ratchet baseline as the per-skill
+    # checks — detail_count is the group's shared-window count.
+    let corpus_paths = (git -C $repo_root ls-files -- 'plugins/**/*.md' 'plugins/**/*.sh' 'CLAUDE.md' | lines | where {|p| $p | is-not-empty})
+    let corpus = ($corpus_paths | each {|p| {path: $p, content: (open --raw ($repo_root | path join $p))}})
+    let satellites = (core-list-satellites ($repo_root | path join "test" "validate-core-list.nu"))
+    let dupe_groups = (find-duplicate-groups $corpus
+        | where {|g| not (dupe-exempt $g.files $satellites)}
+        | each {|g| $g | insert key (dupe-key $g.files)}
+        | sort-by key)
+    for g in $dupe_groups {
+        $failing_keys = ($failing_keys | append $g.key)
+        $failing_counts = ($failing_counts | append {key: $g.key, count: $g.windows})
+    }
+
     # Accumulation loops are done — rebind as immutable so the closures below
     # can capture them (Nushell closures cannot capture mut variables).
     let failing_keys = $failing_keys
@@ -1158,6 +1488,19 @@ def main [--update-baseline, --self-test] {
     } else {
         print $"agents/commands/hooks surfaces: ($surface_results | length) finding\(s\)"
         print ($surface_results | table --expand --width 220)
+    }
+
+    # Duplicate groups are keyed by an opaque hash, so always print the member
+    # paths — a bare dupe/<hash> key in a failure list is not actionable.
+    print ""
+    if ($dupe_groups | is-empty) {
+        print "duplicate blocks: none outside exemptions"
+    } else {
+        print $"duplicate blocks: ($dupe_groups | length) cross-file group\(s\), window = ($DUPE_WINDOW) normalised lines"
+        for g in $dupe_groups {
+            print $"  ($g.key) — ($g.windows) shared window\(s\):"
+            for f in $g.files { print $"    ($f)" }
+        }
     }
 
     if $update_baseline {
@@ -1187,7 +1530,7 @@ def main [--update-baseline, --self-test] {
             }
             | sort-by key)
         {
-            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
+            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
             allowed_failures: $shrunk
         } | to json --indent 2 | save -f $baseline_path
         print ""
