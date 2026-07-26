@@ -4,15 +4,28 @@
 # Runs static analysis checks on every skill and produces a scorecard table.
 # Checks are sourced from Anthropic's skill best practices and the Agent Skills Specification.
 #
-# Enforcement uses a ratchet baseline (test/quality-baseline.json):
+# Enforcement uses a ratchet baseline (test/quality-baseline.json). Each
+# allowed_failures entry is a record {key, class, issue, first_seen,
+# detail_count} — see validate-baseline-entries for the schema.
 # - A failing check NOT in the baseline fails the run (new violations cannot land).
 # - A baselined check that now passes fails the run with a prompt to remove the
 #   stale entry (the baseline only shrinks).
+# - For detail-producing checks (lines/links/orphans/invocations/version_pin)
+#   the entry's detail_count ratchets BOTH directions: current above the stored
+#   count fails as a regression, current below it fails as a stale count.
+#   Accepted residual: the ratchet bounds the NUMBER of findings per waived
+#   check, not their identity — a same-commit swap of one finding for another
+#   of equal size passes. Closing that needs per-finding identities/hashes.
 # Regenerate the baseline with: nu test/validate-skills-quality.nu --update-baseline
 #
 # Usage:
 #   nu test/validate-skills-quality.nu              # scan all plugins
-#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter checks
+#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter + baseline schema/ratchet checks
+
+# Checks whose findings are countable at runtime; their baseline entries must
+# carry an integer detail_count so a waiver covers the recorded count, not
+# unbounded growth of the same check.
+const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth"]
 
 # Resolve every /plugin:skill token in `content` against the Pass-1 registry
 # (list of {name, dir, invocables}). Unknown (external) plugin namespaces are
@@ -206,6 +219,7 @@ def strip-fences [content: string] {
 # every bad case must be flagged, every good case must pass clean. Exercises
 # check-agent-skills directly — the same implementation the Pass-2 agent
 # loop calls — so there is no drift between what's tested and what runs.
+# Returns true when any case failed (main aggregates suites, then exits).
 def run-skills-self-test [] {
     let fake_registry = [
         {name: "rust", dir: "", invocables: [], skills: ["rust" "testing" "error-handling"]}
@@ -249,15 +263,255 @@ def run-skills-self-test [] {
         $failed = true
     }
 
-    if $failed { exit 1 }
-    print $"(ansi green_bold)✅ Agent skills: frontmatter self-test passed \(5 cases\)(ansi reset)"
-    exit 0
+    if not $failed {
+        print $"(ansi green_bold)✅ Agent skills: frontmatter self-test passed \(5 cases\)(ansi reset)"
+    }
+    $failed
+}
+
+# Validate the baseline's allowed_failures entries. Records only — a bare
+# string entry (the pre-claude-skills-132 shape) is a hard failure, because a
+# hand-added string would bypass class/issue/detail_count permanently.
+# Required: key, class (BUG|DEBT|CHECK_DEFECT), issue. first_seen is an ISO
+# date for new entries or the literal "migrated" for pre-schema ones.
+# detail_count must be an integer for detail-producing checks (DETAIL_CHECKS),
+# null otherwise. Returns a list of error strings; empty means valid.
+def validate-baseline-entries [entries: list] {
+    let valid_classes = ["BUG" "DEBT" "CHECK_DEFECT"]
+    mut errors = []
+    for entry in $entries {
+        let kind = ($entry | describe)
+        if not ($kind | str starts-with "record") {
+            if ($kind == "string") {
+                $errors = ($errors | append $"bare string entry '($entry)' — every allowed_failures entry must be a record with key/class/issue \(see _comment\)")
+            } else {
+                $errors = ($errors | append $"non-record entry of type ($kind): ($entry | to json --raw) — every allowed_failures entry must be a record with key/class/issue \(see _comment\)")
+            }
+            continue
+        }
+        let key = ($entry | get -o key | default "")
+        if ($key | is-empty) {
+            $errors = ($errors | append $"entry missing 'key': ($entry | to json --raw)")
+            continue
+        }
+        let class = ($entry | get -o class | default "")
+        if ($class | is-empty) {
+            $errors = ($errors | append $"($key): missing required 'class' \(BUG | DEBT | CHECK_DEFECT\)")
+        } else if ($class not-in $valid_classes) {
+            $errors = ($errors | append $"($key): invalid class '($class)' — must be BUG, DEBT, or CHECK_DEFECT")
+        }
+        if (($entry | get -o issue | default "") | is-empty) {
+            $errors = ($errors | append $"($key): missing required 'issue' \(tracker id the waiver is filed under\)")
+        }
+        let check = ($key | split row ":" | last)
+        if ($check in $DETAIL_CHECKS) and (($entry | get -o detail_count | describe) != "int") {
+            $errors = ($errors | append $"($key): '($check)' is a detail-producing check — detail_count must be an integer")
+        } else if ($check not-in $DETAIL_CHECKS) and (($entry | get -o detail_count) != null) {
+            # Mirror rule: a count on a boolean check would be silently
+            # accepted and never compared — reject it so the entry can't
+            # masquerade as ratcheted.
+            $errors = ($errors | append $"($key): '($check)' is a boolean check — detail_count must be null")
+        }
+    }
+    # Duplicate keys: the ratchet compares by key, so a duplicate would let
+    # one entry's count shadow the other. Hard failure.
+    let keys = ($entries
+        | where {|e| ($e | describe) | str starts-with "record"}
+        | each {|e| $e | get -o key | default ""}
+        | where {|k| $k | is-not-empty})
+    for pair in ($keys | group-by | transpose key entries) {
+        if ($pair.entries | length) > 1 {
+            $errors = ($errors | append $"duplicate baseline entries for key '($pair.key)' — keep exactly one")
+        }
+    }
+    $errors
+}
+
+# Ratchet a validated baseline against the current run. Pure — returns the
+# four finding lists for main to print:
+# - hard_failures: failing keys with no baseline entry (new violations)
+# - stale_keys: baselined keys that no longer fail (fix landed — shrink)
+# - count_regressions: current detail count ABOVE the stored count (a waived
+#   check absorbed new findings — the bug claude-skills-132 exists to stop)
+# - stale_counts: current detail count BELOW the stored count (improvement
+#   not locked in — mirror of stale_keys, one level down)
+def ratchet-baseline [baseline: list, failing_keys: list, failing_counts: list] {
+    let baseline_keys = ($baseline | each {|e| $e.key})
+    mut count_regressions = []
+    mut stale_counts = []
+    for entry in $baseline {
+        if (($entry | get -o detail_count | describe) != "int") { continue }
+        let current = ($failing_counts | where key == $entry.key)
+        if ($current | is-empty) { continue }
+        let current_count = ($current | first | get count)
+        if $current_count > $entry.detail_count {
+            $count_regressions = ($count_regressions | append {key: $entry.key, stored: $entry.detail_count, current: $current_count})
+        } else if $current_count < $entry.detail_count {
+            $stale_counts = ($stale_counts | append {key: $entry.key, stored: $entry.detail_count, current: $current_count})
+        }
+    }
+    {
+        hard_failures: ($failing_keys | where {|k| $k not-in $baseline_keys})
+        stale_keys: ($baseline_keys | where {|k| $k not-in $failing_keys})
+        count_regressions: $count_regressions
+        stale_counts: $stale_counts
+    }
+}
+
+# Burn-down split for the summary line: CHECK_DEFECT entries are defects in
+# the checks themselves (tracked in claude-skills-130), not skill debt — they
+# must be reported separately so their exclusion cannot read as progress.
+def burn-down-counts [baseline: list] {
+    let excluded = ($baseline | where {|e| ($e | get -o class) == "CHECK_DEFECT"} | length)
+    {burn: (($baseline | length) - $excluded), excluded: $excluded}
+}
+
+# Embedded self-test for the baseline schema + count ratchet
+# (claude-skills-132). Exercises validate-baseline-entries, ratchet-baseline,
+# and burn-down-counts directly — the same implementations main calls.
+# Returns true when any case failed.
+def run-baseline-self-test [] {
+    mut failed = false
+
+    # Case 1: bare string entry rejected
+    if (validate-baseline-entries ["core/mise:anti_fab"] | is-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: bare string entry not rejected(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2: missing class rejected
+    let no_class = (validate-baseline-entries [{key: "core/mise:anti_fab", issue: "claude-skills-131"}])
+    if not ($no_class | any {|e| $e | str contains "class"}) {
+        print $"(ansi red_bold)❌ baseline self-test: missing class not rejected(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3: missing issue rejected
+    let no_issue = (validate-baseline-entries [{key: "core/mise:anti_fab", class: "DEBT"}])
+    if not ($no_issue | any {|e| $e | str contains "issue"}) {
+        print $"(ansi red_bold)❌ baseline self-test: missing issue not rejected(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4: invalid class value rejected (WONTFIX must be a hard failure)
+    let bad_class = (validate-baseline-entries [{key: "core/mise:anti_fab", class: "WONTFIX", issue: "claude-skills-131"}])
+    if not ($bad_class | any {|e| $e | str contains "WONTFIX"}) {
+        print $"(ansi red_bold)❌ baseline self-test: invalid class WONTFIX not rejected(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5: detail-producing check without an integer detail_count rejected
+    let no_count = (validate-baseline-entries [{key: "core/beads:lines", class: "DEBT", issue: "claude-skills-121", first_seen: "migrated", detail_count: null}])
+    if not ($no_count | any {|e| $e | str contains "detail_count"}) {
+        print $"(ansi red_bold)❌ baseline self-test: null detail_count on a detail check not rejected(ansi reset)"
+        $failed = true
+    }
+
+    # Case 6: valid entries pass clean (non-detail check with null count,
+    # detail check with int count)
+    let valid = (validate-baseline-entries [
+        {key: "core/mise:anti_fab", class: "DEBT", issue: "claude-skills-131", first_seen: "migrated", detail_count: null}
+        {key: "core/beads:lines", class: "DEBT", issue: "claude-skills-121", first_seen: "migrated", detail_count: 735}
+    ])
+    if ($valid | is-not-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: valid entries flagged \(($valid | str join '; ')\)(ansi reset)"
+        $failed = true
+    }
+
+    let lines_entry = [{key: "x/y:lines", class: "DEBT", issue: "claude-skills-121", first_seen: "migrated", detail_count: 505}]
+
+    # Case 7: current count above stored fails as a regression
+    let above = (ratchet-baseline $lines_entry ["x/y:lines"] [{key: "x/y:lines", count: 600}])
+    if ($above.count_regressions | is-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: count above stored not flagged as regression(ansi reset)"
+        $failed = true
+    }
+
+    # Case 8: current count below stored fails as a stale count
+    let below = (ratchet-baseline $lines_entry ["x/y:lines"] [{key: "x/y:lines", count: 400}])
+    if ($below.stale_counts | is-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: count below stored not flagged as stale(ansi reset)"
+        $failed = true
+    }
+
+    # Case 9: current count equal to stored passes clean
+    let equal = (ratchet-baseline $lines_entry ["x/y:lines"] [{key: "x/y:lines", count: 505}])
+    if ($equal.count_regressions | is-not-empty) or ($equal.stale_counts | is-not-empty) or ($equal.hard_failures | is-not-empty) or ($equal.stale_keys | is-not-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: count equal to stored did not pass clean(ansi reset)"
+        $failed = true
+    }
+
+    # Case 10: CHECK_DEFECT entries excluded from the burn-down total but
+    # reported in the excluded figure
+    let bd = (burn-down-counts [
+        {key: "a/b:anti_fab", class: "DEBT", issue: "i"}
+        {key: "c/d:reserved", class: "CHECK_DEFECT", issue: "claude-skills-130"}
+    ])
+    if not ($bd.burn == 1 and $bd.excluded == 1) {
+        print $"(ansi red_bold)❌ baseline self-test: burn-down split wrong \(burn ($bd.burn), excluded ($bd.excluded)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 11: a fixed-but-still-waived key still fails as stale (the ratchet
+    # never lets a landed fix sit behind its old waiver)
+    let fixed = (ratchet-baseline [{key: "a/b:anti_fab", class: "DEBT", issue: "i", first_seen: "migrated", detail_count: null}] [] [])
+    if $fixed.stale_keys != ["a/b:anti_fab"] {
+        print $"(ansi red_bold)❌ baseline self-test: fixed-but-still-waived key not flagged as stale(ansi reset)"
+        $failed = true
+    }
+
+    # Case 12: integer detail_count on a boolean check rejected (it would be
+    # silently accepted and never compared)
+    let bool_count = (validate-baseline-entries [{key: "core/mise:anti_fab", class: "DEBT", issue: "claude-skills-131", first_seen: "migrated", detail_count: 7}])
+    if not ($bool_count | any {|e| $e | str contains "boolean check"}) {
+        print $"(ansi red_bold)❌ baseline self-test: integer detail_count on a boolean check not rejected(ansi reset)"
+        $failed = true
+    }
+
+    # Case 13: duplicate keys rejected (the ratchet compares by key)
+    let dup_entry = {key: "core/mise:anti_fab", class: "DEBT", issue: "claude-skills-131", first_seen: "migrated", detail_count: null}
+    let dup = (validate-baseline-entries [$dup_entry $dup_entry])
+    if not ($dup | any {|e| $e | str contains "duplicate"}) {
+        print $"(ansi red_bold)❌ baseline self-test: duplicate key not rejected(ansi reset)"
+        $failed = true
+    }
+
+    # Case 14: non-record, non-string entry rejected with a type-accurate
+    # message (not the bare-string wording)
+    let non_record = (validate-baseline-entries [[1 2 3]])
+    if not ($non_record | any {|e| ($e | str contains "non-record") and (not ($e | str contains "bare string"))}) {
+        print $"(ansi red_bold)❌ baseline self-test: non-record non-string entry not rejected with type-accurate message(ansi reset)"
+        $failed = true
+    }
+
+    # Case 15: ref_depth is a detail-producing check — null count rejected,
+    # and its count ratchets in the regression direction
+    let rd_null = (validate-baseline-entries [{key: "x/y:ref_depth", class: "DEBT", issue: "claude-skills-134", first_seen: "migrated", detail_count: null}])
+    if not ($rd_null | any {|e| $e | str contains "detail_count"}) {
+        print $"(ansi red_bold)❌ baseline self-test: null detail_count on ref_depth not rejected(ansi reset)"
+        $failed = true
+    }
+    let rd_entry = [{key: "x/y:ref_depth", class: "DEBT", issue: "claude-skills-134", first_seen: "migrated", detail_count: 2}]
+    let rd_above = (ratchet-baseline $rd_entry ["x/y:ref_depth"] [{key: "x/y:ref_depth", count: 3}])
+    if ($rd_above.count_regressions | is-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: ref_depth count above stored not flagged as regression(ansi reset)"
+        $failed = true
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Baseline schema/ratchet self-test passed \(15 cases\)(ansi reset)"
+    }
+    $failed
 }
 
 def main [--update-baseline, --self-test] {
     if $self_test {
-        run-skills-self-test
-        return
+        # Both suites always execute; aggregate before exiting so a failure in
+        # the first cannot mask fixtures in the second.
+        let skills_failed = (run-skills-self-test)
+        let baseline_failed = (run-baseline-self-test)
+        if $skills_failed or $baseline_failed { exit 1 }
+        exit 0
     }
 
     print "Validating skill quality across all plugins..."
@@ -274,6 +528,14 @@ def main [--update-baseline, --self-test] {
     } else {
         []
     }
+    let baseline_errors = (validate-baseline-entries $baseline)
+    if ($baseline_errors | is-not-empty) {
+        print $"(ansi red_bold)❌ ($baseline_errors | length) invalid baseline entries in ($baseline_path):(ansi reset)"
+        for e in $baseline_errors { print $"  ($e)" }
+        print "Every allowed_failures entry must be a record: {key, class (BUG|DEBT|CHECK_DEFECT), issue, first_seen, detail_count}."
+        exit 1
+    }
+    let baseline_keys = ($baseline | each {|e| $e.key})
 
     # Pass 1: registry of local plugins -> skill dir names + command names,
     # used to resolve /plugin:skill invocations found in skill content.
@@ -321,6 +583,7 @@ def main [--update-baseline, --self-test] {
     mut total_skills = 0
     mut total_pass = 0
     mut failing_keys = []
+    mut failing_counts = []
 
     for plugin in $registry {
         let plugin_dir = $plugin.dir
@@ -522,8 +785,22 @@ def main [--update-baseline, --self-test] {
             # Classify failures against the baseline
             let keys = ($failed | each {|c| $"($plugin_name)/($dir_name):($c)"})
             $failing_keys = ($failing_keys | append $keys)
-            let baselined = ($failed | each {|c| $"($plugin_name)/($dir_name):($c)"} | where {|k| $k in $baseline} | length)
-            let new_failures = ($keys | where {|k| $k not-in $baseline})
+            let new_failures = ($keys | where {|k| $k not-in $baseline_keys})
+
+            # Per-finding counts for the detail_count ratchet: a waiver covers
+            # the recorded count, not further growth of the same check.
+            for c in [
+                {check: "lines", count: $line_count}
+                {check: "links", count: ($broken_links | length)}
+                {check: "orphans", count: ($orphans | length)}
+                {check: "invocations", count: ($bad_invocations | length)}
+                {check: "version_pin", count: ($stale_pins | length)}
+                {check: "ref_depth", count: ($nested | length)}
+            ] {
+                if $c.check in $failed {
+                    $failing_counts = ($failing_counts | append {key: $"($plugin_name)/($dir_name):($c.check)", count: $c.count})
+                }
+            }
 
             let check_count = 17
             let score = $check_count - ($failed | length)
@@ -550,6 +827,12 @@ def main [--update-baseline, --self-test] {
     # the Pass-1 registry and find-bad-invocations (check 16's logic) rather
     # than a second resolver. Findings feed the same ratchet baseline as the
     # per-skill checks above.
+    # NOTE: Pass-2 checks with countable findings (bad_invocations, the
+    # skills: frontmatter checks) are NOT wired into the detail_count ratchet.
+    # No Pass-2 waivers exist today, so the hard-failure path guards them —
+    # if a Pass-2 waiver is ever added, give its check the same DETAIL_CHECKS
+    # + failing_counts treatment the per-skill checks got, or one waiver will
+    # absorb every later finding of that check on that file.
     let known_models = ["haiku" "sonnet" "opus"]
     let known_hook_events = ["PreToolUse" "PostToolUse" "SessionStart" "SessionEnd" "UserPromptSubmit" "Stop" "SubagentStop" "PreCompact" "Notification"]
     mut surface_results = []
@@ -673,6 +956,11 @@ def main [--update-baseline, --self-test] {
         }
     }
 
+    # Accumulation loops are done — rebind as immutable so the closures below
+    # can capture them (Nushell closures cannot capture mut variables).
+    let failing_keys = $failing_keys
+    let failing_counts = $failing_counts
+
     if ($results | is-empty) {
         print "No skills found to validate."
         exit 1
@@ -697,17 +985,29 @@ def main [--update-baseline, --self-test] {
         # debt. Refuse to add any key that isn't already baselined — the only
         # thing --update-baseline is allowed to do is drop entries that now
         # pass (intersect currently-failing with the existing baseline).
-        let new_keys = ($failing_keys | where {|k| $k not-in $baseline} | uniq)
+        let new_keys = ($failing_keys | where {|k| $k not-in $baseline_keys} | uniq)
         if ($new_keys | is-not-empty) {
             print ""
             print $"(ansi red_bold)❌ --update-baseline is shrink-only: refusing to add ($new_keys | length) new key\(s\):(ansi reset)"
             for key in $new_keys { print $"  ($key)" }
-            print "Fix the skill instead of baselining a new violation. A deliberate net-new debt acknowledgment requires editing test/quality-baseline.json by hand and stating why in the PR."
+            print "Fix the skill instead of baselining a new violation. A deliberate net-new debt acknowledgment requires editing test/quality-baseline.json by hand (record shape: key/class/issue/first_seen/detail_count) and stating why in the PR."
             exit 1
         }
-        let shrunk = ($baseline | where {|k| $k in $failing_keys} | uniq | sort)
+        # Filter the record list (preserves class/issue/first_seen) and lower
+        # any stale detail_count to the measured value — never raise one.
+        let shrunk = ($baseline
+            | where {|e| $e.key in $failing_keys}
+            | each {|e|
+                let current = ($failing_counts | where key == $e.key)
+                if (($e | get -o detail_count | describe) == "int") and ($current | is-not-empty) and (($current | first | get count) < $e.detail_count) {
+                    $e | update detail_count ($current | first | get count)
+                } else {
+                    $e
+                }
+            }
+            | sort-by key)
         {
-            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Entries are pre-existing failures (plugin/skill:check) allowed to keep failing. Do not add entries for new code; fix the skill instead. When a fix lands, the validator requires removing the stale entry. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — errors instead of adding new keys)."
+            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective, tracked in claude-skills-130), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
             allowed_failures: $shrunk
         } | to json --indent 2 | save -f $baseline_path
         print ""
@@ -715,30 +1015,46 @@ def main [--update-baseline, --self-test] {
         exit 0
     }
 
-    let hard_failures = ($failing_keys | where {|k| $k not-in $baseline})
-    let stale_baseline = ($baseline | where {|k| $k not-in $failing_keys})
+    let ratchet = (ratchet-baseline $baseline $failing_keys $failing_counts)
 
     mut exit_code = 0
 
-    if ($hard_failures | is-not-empty) {
+    if ($ratchet.hard_failures | is-not-empty) {
         print ""
-        print $"FAIL: ($hard_failures | length) quality violations not in the baseline:"
-        for key in $hard_failures { print $"  ($key)" }
+        print $"FAIL: ($ratchet.hard_failures | length) quality violations not in the baseline:"
+        for key in $ratchet.hard_failures { print $"  ($key)" }
         print "Fix the skill (preferred). See the 'details' column for broken links / bad invocations / stale pins / orphans."
         $exit_code = 1
     }
 
-    if ($stale_baseline | is-not-empty) {
+    if ($ratchet.stale_keys | is-not-empty) {
         print ""
-        print $"FAIL: ($stale_baseline | length) baseline entries now pass — remove them to lock in the fix:"
-        for key in $stale_baseline { print $"  ($key)" }
+        print $"FAIL: ($ratchet.stale_keys | length) baseline entries now pass — remove them to lock in the fix:"
+        for key in $ratchet.stale_keys { print $"  ($key)" }
+        print "Regenerate with: nu test/validate-skills-quality.nu --update-baseline"
+        $exit_code = 1
+    }
+
+    if ($ratchet.count_regressions | is-not-empty) {
+        print ""
+        print $"FAIL: ($ratchet.count_regressions | length) baselined detail counts exceeded — a waived check absorbed new findings:"
+        for r in $ratchet.count_regressions { print $"  ($r.key): current ($r.current) > baselined ($r.stored)" }
+        print "Fix the regression; the waiver covers the recorded count, not further growth."
+        $exit_code = 1
+    }
+
+    if ($ratchet.stale_counts | is-not-empty) {
+        print ""
+        print $"FAIL: ($ratchet.stale_counts | length) baselined detail counts are stale — current is lower, lock in the improvement:"
+        for r in $ratchet.stale_counts { print $"  ($r.key): current ($r.current) < baselined ($r.stored)" }
         print "Regenerate with: nu test/validate-skills-quality.nu --update-baseline"
         $exit_code = 1
     }
 
     if $exit_code == 0 {
         print ""
-        print $"Skill quality validation complete! Baselined failures remaining to burn down: ($baseline | length)"
+        let bd = (burn-down-counts $baseline)
+        print $"Skill quality validation complete! ($bd.burn) debt/bug entries to burn down + ($bd.excluded) check-defects excluded \(tracked in claude-skills-130\)"
     }
 
     exit $exit_code
