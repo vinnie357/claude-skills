@@ -75,9 +75,11 @@
 #   - Divergent names scattered as single-name fenced mentions escape the
 #     every-run rule, since each run falls under the 2-name threshold. Same
 #     class as prose mentions; not a plausible reader-followed idiom.
-#   - Anchors are semantics-blind regex substrings: a lead-in that NEGATES
-#     the instruction ("Do NOT ... invoke each of these by exact name")
-#     still anchors. Inherent to a grammar check.
+#   - Anchors and pointers are semantics-blind regex substrings: a lead-in
+#     that NEGATES the instruction ("Do NOT ... invoke each of these by exact
+#     name") still anchors, and a pointer sentence is equally negatable
+#     ("you need not invoke /core:agent-loop ..."). Inherent to a grammar
+#     check, and identical for both satellite shapes.
 #   - Fence indentation is judged against the LINE, not its container: a
 #     future satellite nesting a fence 4+ spaces deep inside a sub-list
 #     would have its delimiters misread as indented-code content, because
