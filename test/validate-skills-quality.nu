@@ -20,12 +20,21 @@
 #
 # Usage:
 #   nu test/validate-skills-quality.nu              # scan all plugins
-#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter + baseline schema/ratchet checks
+#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter, baseline schema/ratchet, and check-fix fixtures
 
 # Checks whose findings are countable at runtime; their baseline entries must
 # carry an integer detail_count so a waiver covers the recorded count, not
 # unbounded growth of the same check.
 const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth"]
+
+# Commands shipped by upstream plugins that exist locally as skill-only
+# mirrors. Enumerated per-command (never a blanket namespace exemption) so a
+# typo like /allium:nonexistent still fails; the list is static so CI runs
+# with zero external dependencies. Re-verify against the upstream repo when
+# adding or changing an entry.
+const UPSTREAM_COMMANDS = [
+    {ns: "allium", upstream: "https://github.com/juxt/allium", commands: ["elicit" "distill" "propagate" "tend" "weed"]}
+]
 
 # Resolve every /plugin:skill token in `content` against the Pass-1 registry
 # (list of {name, dir, invocables}). Unknown (external) plugin namespaces are
@@ -128,17 +137,30 @@ def preceding-line [content: string, path: string]: nothing -> string {
 
 # True when `content` contains at least one "references/" token that is NOT
 # cross-skill qualified (i.e. a genuine same-skill nested reference).
+# Two token shapes are exempt because they are not followable hops:
+# - Markdown heading lines (a heading is a section label, not a link).
+#   Accepted residual: a genuine sibling link placed inside a heading would
+#   escape this scan.
+# - Bare directory mentions ("move material to references/") that name no
+#   concrete sibling file. Accepted residual: a sibling pointer written
+#   without a file extension escapes (check 14's link regex shares this
+#   extension requirement).
 def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list]: nothing -> bool {
     ($content | lines | any {|line|
         if not ($line | str contains "references/") {
+            false
+        } else if (($line | parse --regex '^\s{0,3}#{1,6} ') | is-not-empty) {
             false
         } else {
             let idx = ($line | str index-of "references/")
             let prefix = ($line | str substring 0..<$idx)
             let rest = ($line | str substring $idx..)
             let path_match = ($rest | parse --regex '^(?P<path>references/[A-Za-z0-9._/-]+\.[A-Za-z0-9]{1,6})')
-            let path = if ($path_match | is-not-empty) { $path_match | first | get path } else { $rest }
-            not (cross-skill-qualified $prefix $dir_name $path $skill_dir_map $known_plugins)
+            if ($path_match | is-empty) {
+                false
+            } else {
+                not (cross-skill-qualified $prefix $dir_name ($path_match | first | get path) $skill_dir_map $known_plugins)
+            }
         }
     })
 }
@@ -202,17 +224,47 @@ def check-agent-skills [fm_lines: list, registry: list] {
 
 # Remove fenced code blocks so code examples don't trip content checks
 # (e.g. a `name: CI` line inside a GitHub Actions YAML example).
+# Fence-length-aware per CommonMark: a fence closes only on a marker whose
+# backtick run is at least as long as the opener's, so a 4-backtick outer
+# fence can embed 3-backtick inner fences as literal content.
 def strip-fences [content: string] {
-    mut in_fence = false
+    mut open_len = 0
     mut kept = []
     for line in ($content | lines) {
-        if (($line | str trim) | str starts-with "```") {
-            $in_fence = (not $in_fence)
-        } else if (not $in_fence) {
-            $kept = ($kept | append $line)
+        let fence = ($line | str trim | parse --regex '^(?P<ticks>`{3,})')
+        let tick_len = if ($fence | is-not-empty) { $fence | first | get ticks | str length } else { 0 }
+        if $open_len == 0 {
+            if $tick_len > 0 {
+                $open_len = $tick_len
+            } else {
+                $kept = ($kept | append $line)
+            }
+        } else if $tick_len >= $open_len {
+            $open_len = 0
         }
     }
     $kept | str join "\n"
+}
+
+# Reserved-name check: only an EXACT name of "claude" or "anthropic" is
+# reserved. Substring matching flagged every skill in a plugin whose domain
+# IS Claude Code (claude-agents, claude-skills, ...) — 11 of 11 findings in
+# the check's life were such false positives. A prefix rule would be wrong
+# too: names like claude-api or anthropic-sdk are legitimate domains.
+def is-reserved-name [name: string]: nothing -> bool {
+    $name in ["claude" "anthropic"]
+}
+
+# Examples check: the skill presents at least one example — a code fence or
+# an example header in SKILL.md itself, or a code fence in a reference file
+# that SKILL.md mentions by basename (the same reachability rule check 15
+# enforces). An orphaned fenced reference file does NOT satisfy the check.
+# `refs` is a list of {name (basename), content} records.
+def has-examples [content: string, refs: list]: nothing -> bool {
+    let code_fence = (['`' '`' '`'] | str join)
+    if ($content | str contains $code_fence) { return true }
+    if ($content | str downcase | str contains "## example") { return true }
+    ($refs | any {|r| ($content | str contains $r.name) and ($r.content | str contains $code_fence)})
 }
 
 # Embedded self-test for the skills: frontmatter checks (claude-skills-119):
@@ -359,8 +411,9 @@ def ratchet-baseline [baseline: list, failing_keys: list, failing_counts: list] 
 }
 
 # Burn-down split for the summary line: CHECK_DEFECT entries are defects in
-# the checks themselves (tracked in claude-skills-130), not skill debt — they
-# must be reported separately so their exclusion cannot read as progress.
+# the checks themselves (each entry's issue field names the tracker item),
+# not skill debt — they must be reported separately so their exclusion
+# cannot read as progress.
 def burn-down-counts [baseline: list] {
     let excluded = ($baseline | where {|e| ($e | get -o class) == "CHECK_DEFECT"} | length)
     {burn: (($baseline | length) - $excluded), excluded: $excluded}
@@ -504,13 +557,130 @@ def run-baseline-self-test [] {
     $failed
 }
 
+# Embedded self-test for the check fixes from claude-skills-130: reserved
+# exact-match, examples-via-reachable-reference, fence-length-aware
+# stripping, ref_depth heading/bare-token exemptions, and enumerated
+# upstream commands. Every fix is exercised in BOTH directions — the false
+# positive must be gone AND a genuine violation must still be caught — so a
+# check cannot stop misfiring by becoming permissive. Exercises the same
+# functions main calls. Returns true when any case failed.
+def run-check-fixes-self-test [] {
+    mut failed = false
+    let tick1 = '`'
+    let tick3 = ([$tick1 $tick1 $tick1] | str join)
+    let tick4 = ([$tick1 $tick1 $tick1 $tick1] | str join)
+
+    # --- reserved (exact match only) ---
+    if not (is-reserved-name "claude") {
+        print $"(ansi red_bold)❌ check-fix self-test: exact name 'claude' not flagged reserved(ansi reset)"
+        $failed = true
+    }
+    if not (is-reserved-name "anthropic") {
+        print $"(ansi red_bold)❌ check-fix self-test: exact name 'anthropic' not flagged reserved(ansi reset)"
+        $failed = true
+    }
+    if (is-reserved-name "claude-agents") {
+        print $"(ansi red_bold)❌ check-fix self-test: 'claude-agents' wrongly flagged reserved(ansi reset)"
+        $failed = true
+    }
+    if (is-reserved-name "claude-code-on-sandbox") {
+        print $"(ansi red_bold)❌ check-fix self-test: 'claude-code-on-sandbox' wrongly flagged reserved(ansi reset)"
+        $failed = true
+    }
+
+    # --- examples (fence in a reachable reference counts; orphaned doesn't) ---
+    let fenced_ref = [{name: "patterns.md", content: ([$"($tick3)nu" "code" $tick3] | str join "\n")}]
+    if not (has-examples "See references/patterns.md for worked examples." $fenced_ref) {
+        print $"(ansi red_bold)❌ check-fix self-test: reachable fenced reference did not satisfy examples(ansi reset)"
+        $failed = true
+    }
+    if (has-examples "Prose that mentions no reference file." $fenced_ref) {
+        print $"(ansi red_bold)❌ check-fix self-test: ORPHANED fenced reference satisfied examples(ansi reset)"
+        $failed = true
+    }
+    if not (has-examples ([$tick3 "code" $tick3] | str join "\n") []) {
+        print $"(ansi red_bold)❌ check-fix self-test: fence in SKILL.md itself did not satisfy examples(ansi reset)"
+        $failed = true
+    }
+    if (has-examples "Prose only, no fences, no example header." []) {
+        print $"(ansi red_bold)❌ check-fix self-test: skill with no examples anywhere passed(ansi reset)"
+        $failed = true
+    }
+
+    # --- strip-fences (fence-length-aware per CommonMark) ---
+    let nested = ([$"($tick4)markdown" $tick3 "inner content" $tick3 "see references/foo.md" $tick4 "kept after"] | str join "\n")
+    let stripped = (strip-fences $nested)
+    if ($stripped | str contains "references/foo.md") or ($stripped | str contains "inner content") or (not ($stripped | str contains "kept after")) {
+        print $"(ansi red_bold)❌ check-fix self-test: 4-backtick outer fence did not contain 3-backtick inner fences(ansi reset)"
+        $failed = true
+    }
+    let plain = (strip-fences ([$tick3 "secret" $tick3 "kept"] | str join "\n"))
+    if ($plain | str contains "secret") or (not ($plain | str contains "kept")) {
+        print $"(ansi red_bold)❌ check-fix self-test: plain 3-backtick fence no longer stripped(ansi reset)"
+        $failed = true
+    }
+
+    # --- ref_depth token scan (heading + bare-directory exemptions) ---
+    if (has-unqualified-references-token "### references/command-reference.md (if present)" "myskill" [] []) {
+        print $"(ansi red_bold)❌ check-fix self-test: heading line wrongly counted as nested reference(ansi reset)"
+        $failed = true
+    }
+    if not (has-unqualified-references-token "See references/foo.md for detail." "myskill" [] []) {
+        print $"(ansi red_bold)❌ check-fix self-test: genuine sibling reference link not flagged(ansi reset)"
+        $failed = true
+    }
+    if (has-unqualified-references-token $"- Move detailed reference material to ($tick1)references/($tick1)" "myskill" [] []) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare references/ directory mention wrongly flagged(ansi reset)"
+        $failed = true
+    }
+    # Composition with strip-fences: a sibling link INSIDE a 4-backtick outer
+    # fence is example content (not flagged); outside any fence it is flagged.
+    if (has-unqualified-references-token (strip-fences $nested) "myskill" [] []) {
+        print $"(ansi red_bold)❌ check-fix self-test: sibling link inside nested fence wrongly flagged(ansi reset)"
+        $failed = true
+    }
+    if not (has-unqualified-references-token (strip-fences ([$tick3 "code" $tick3 "see references/foo.md"] | str join "\n")) "myskill" [] []) {
+        print $"(ansi red_bold)❌ check-fix self-test: sibling link outside fences not flagged after stripping(ansi reset)"
+        $failed = true
+    }
+
+    # --- invocations (enumerated upstream commands, no namespace exemption) ---
+    let allium_cmds = ($UPSTREAM_COMMANDS | where ns == "allium" | first | get commands)
+    let reg = [
+        {name: "allium", dir: "", invocables: (["allium"] | append $allium_cmds), skills: ["allium"]}
+        {name: "core", dir: "", invocables: ["tdd"], skills: ["tdd"]}
+    ]
+    if (find-bad-invocations "/allium:elicit and /allium:weed" $reg | is-not-empty) {
+        print $"(ansi red_bold)❌ check-fix self-test: upstream allium commands not resolvable(ansi reset)"
+        $failed = true
+    }
+    if ("/allium:nonexistent" not-in (find-bad-invocations "/allium:nonexistent" $reg)) {
+        print $"(ansi red_bold)❌ check-fix self-test: /allium:nonexistent not flagged \(namespace became exempt\)(ansi reset)"
+        $failed = true
+    }
+    if ("/core:nonexistent" not-in (find-bad-invocations "/core:nonexistent" $reg)) {
+        print $"(ansi red_bold)❌ check-fix self-test: bad target in another local namespace not flagged(ansi reset)"
+        $failed = true
+    }
+    if (find-bad-invocations "/unknownexternal:thing" $reg | is-not-empty) {
+        print $"(ansi red_bold)❌ check-fix self-test: unknown external namespace no longer skipped(ansi reset)"
+        $failed = true
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Check-fix self-test passed \(19 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
-        # Both suites always execute; aggregate before exiting so a failure in
-        # the first cannot mask fixtures in the second.
+        # All suites always execute; aggregate before exiting so a failure in
+        # an earlier one cannot mask fixtures in a later one.
         let skills_failed = (run-skills-self-test)
         let baseline_failed = (run-baseline-self-test)
-        if $skills_failed or $baseline_failed { exit 1 }
+        let checks_failed = (run-check-fixes-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed { exit 1 }
         exit 0
     }
 
@@ -520,7 +690,6 @@ def main [--update-baseline, --self-test] {
     let repo_root = (git rev-parse --show-toplevel | str trim)
     let marketplace_path = ($repo_root | path join ".claude-plugin" "marketplace.json")
     let marketplace = (open $marketplace_path)
-    let code_fence = (['`' '`' '`'] | str join)
 
     let baseline_path = ($repo_root | path join "test" "quality-baseline.json")
     let baseline = if ($baseline_path | path exists) {
@@ -571,10 +740,16 @@ def main [--update-baseline, --self-test] {
         } else {
             []
         }
+        # Upstream-shipped commands for skill-only local mirrors (see
+        # UPSTREAM_COMMANDS) join invocables — but never `skills`, since an
+        # agent's skills: frontmatter cannot preload a command.
+        let upstream_cmds = ($UPSTREAM_COMMANDS
+            | where ns == $plugin_json.name
+            | each {|u| $u.commands} | flatten)
         $registry = ($registry | append {
             name: $plugin_json.name
             dir: $plugin_dir
-            invocables: ($skill_names | append $command_names)
+            invocables: ($skill_names | append $command_names | append $upstream_cmds)
             skills: $skill_names
         })
     }
@@ -672,30 +847,30 @@ def main [--update-baseline, --self-test] {
             let name_len = ($name | str length)
             if not ($name_len <= 64 and $name_len > 0) { $failed = ($failed | append "name_len") }
 
-            # 6. No reserved words
-            let has_anthropic = ($name | str contains "anthropic")
-            let has_claude = ($name | str contains "claude")
-            if ($has_anthropic or $has_claude) { $failed = ($failed | append "reserved") }
+            # 6. No reserved words (exact-match only — see is-reserved-name)
+            if (is-reserved-name $name) { $failed = ($failed | append "reserved") }
 
             # 7. SKILL.md ≤500 lines
             if $line_count > 500 { $failed = ($failed | append "lines") }
 
-            # 8. Has examples (code blocks or example sections)
-            let has_code_fence = ($content | str contains $code_fence)
-            let has_example_header = ($content | str downcase | str contains "## example")
-            if not ($has_code_fence or $has_example_header) { $failed = ($failed | append "examples") }
-
-            # 9. Reference depth (no nested references; code examples don't count).
-            # A references/ token qualified as pointing at another skill (see
-            # cross-skill-qualified above) is not a same-skill nesting violation.
+            # Reference files, read once for checks 8, 9, and 16.
             let refs_dir = ($skill_dir | path join "references")
             let ref_files = if ($refs_dir | path exists) {
                 glob ($refs_dir | path join "*.md")
             } else {
                 []
             }
-            let nested = ($ref_files | where {|f|
-                has-unqualified-references-token (strip-fences (open --raw $f)) $dir_name $skill_dir_map ($registry | get name)
+            let refs = ($ref_files | each {|f| {name: ($f | path basename), content: (open --raw $f)}})
+
+            # 8. Has examples: code fence / example header in SKILL.md, or a
+            # code fence in a reference file SKILL.md mentions (see has-examples)
+            if not (has-examples $content $refs) { $failed = ($failed | append "examples") }
+
+            # 9. Reference depth (no nested references; code examples don't count).
+            # A references/ token qualified as pointing at another skill (see
+            # cross-skill-qualified above) is not a same-skill nesting violation.
+            let nested = ($refs | where {|r|
+                has-unqualified-references-token (strip-fences $r.content) $dir_name $skill_dir_map ($registry | get name)
             })
             if ($nested | length) > 0 { $failed = ($failed | append "ref_depth") }
 
@@ -766,7 +941,7 @@ def main [--update-baseline, --self-test] {
             # 16. Cross-skill invocations resolve: every /plugin:skill token in
             # SKILL.md or references must name a real skill or command of a local
             # plugin. Unknown (external) plugin namespaces are skipped.
-            let invocation_content = ($ref_files | each {|f| open --raw $f} | prepend $content | str join "\n")
+            let invocation_content = ($refs | each {|r| $r.content} | prepend $content | str join "\n")
             let bad_invocations = (find-bad-invocations $invocation_content $registry)
             if ($bad_invocations | is-not-empty) { $failed = ($failed | append "invocations") }
 
@@ -1007,7 +1182,7 @@ def main [--update-baseline, --self-test] {
             }
             | sort-by key)
         {
-            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective, tracked in claude-skills-130), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
+            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
             allowed_failures: $shrunk
         } | to json --indent 2 | save -f $baseline_path
         print ""
@@ -1054,7 +1229,11 @@ def main [--update-baseline, --self-test] {
     if $exit_code == 0 {
         print ""
         let bd = (burn-down-counts $baseline)
-        print $"Skill quality validation complete! ($bd.burn) debt/bug entries to burn down + ($bd.excluded) check-defects excluded \(tracked in claude-skills-130\)"
+        if $bd.excluded > 0 {
+            print $"Skill quality validation complete! ($bd.burn) debt/bug entries to burn down + ($bd.excluded) check-defects excluded \(see each entry's issue field\)"
+        } else {
+            print $"Skill quality validation complete! ($bd.burn) debt/bug entries to burn down"
+        }
     }
 
     exit $exit_code

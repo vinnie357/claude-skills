@@ -60,7 +60,7 @@ Examples:
 
 **Category**: Encoded Preference — encodes team-specific workflows, formatting, and conventions. May need updates when models change.
 
-```markdown
+````markdown
 ---
 name: phoenix
 description: Guide for building Phoenix web applications with LiveView, contexts, and best practices. Use when developing Elixir Phoenix apps, implementing LiveView, or designing contexts.
@@ -104,7 +104,7 @@ For detailed context patterns, see references/contexts.md
 ## LiveView
 
 For real-time interfaces, see references/liveview-guide.md
-```
+````
 
 **Why this works**: Uses progressive disclosure — core patterns inline, detailed references separate. Description includes "Use when" triggers.
 
