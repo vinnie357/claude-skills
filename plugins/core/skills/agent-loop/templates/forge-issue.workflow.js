@@ -199,6 +199,13 @@ function testReviewPrompt(a, plan, index) {
     JSON.stringify(plan.slices),
     '2. Are any tests redundant or duplicated? Flag them.',
     'STAY IN STAGE: read and judge only. Do NOT edit tests or write implementation.',
+    'Never run git checkout, switch, restore, stash, reset, clean, rebase,',
+    'merge, pull, cherry-pick, apply, am, or branch -f/-D against the shared',
+    'working tree, or any other command that changes HEAD, the index, or',
+    'tracked or untracked files — other agents may be writing to it. Inspect',
+    'other refs with git show <ref>:<path> / git diff a...b / git ls-tree.',
+    'To test anything requiring mutation, git clone the repo into your',
+    'scratchpad, git remote remove origin there, and work in the copy.',
     'Return approved true/false plus findings (empty when approved).',
   ].join('\n')
 }
