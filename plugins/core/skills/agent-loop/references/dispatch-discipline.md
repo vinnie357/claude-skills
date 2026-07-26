@@ -38,6 +38,21 @@ git checkout -b <branch>
 
 Without this step, the spawned agent inherits the working tree's current branch — often a sibling PR's stale branch — and produces a PR that contains both the new work and the sibling's diff.
 
+## Read-only agents never touch the shared working tree
+
+Reviewers, auditors, and research agents get this verbatim in their spawn prompt:
+
+```
+Never run git checkout, switch, restore, stash, or reset against the shared
+working tree. To inspect another ref: git show <ref>:<path>, git diff a...b,
+git ls-tree. To test anything that requires mutation, copy the repo into your
+scratchpad and work there; state the scratchpad path in your report.
+```
+
+Name the commands. "No git state changes" is not enough — an agent given that wording checked out a PR branch, restored main afterward, and read the round trip as net-zero. Three other agents were writing to that tree at the time; all three had their work silently moved onto the wrong branch. It was recoverable only because the branch happened to sit at the same commit and the reviewer disclosed the checkout in its report.
+
+The scratchpad copy is the half that makes the prohibition workable. A read-only reviewer that cannot mutate anything also cannot verify a destructive scenario, so it either skips the check or does it live and hopes. Working in a clone removes the tradeoff: full freedom to break things, zero risk to in-flight work. Reviewers using this pattern have demonstrated exploits — deleting a file's operative content, injecting malformed fences, adding synthetic skills — that a read-only pass would have missed entirely.
+
 ## No timed polling loops in workers
 
 Spawned agents do not sustain timed polling loops. The `Monitor` tool is restricted; `sleep` longer than a few seconds is blocked. Polling work decomposes into one-shot snapshot agents the lead re-spawns at intervals OR external orchestration that pings on event.
