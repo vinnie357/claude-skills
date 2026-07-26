@@ -1,5 +1,5 @@
 {
-  "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective, tracked in claude-skills-130), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes.",
+  "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes.",
   "allowed_failures": [
     {
       "key": "agent-sandboxing/agent-substrate-overview:examples",
@@ -7,20 +7,6 @@
       "issue": "claude-skills-142",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "agent-sandboxing/claude-code-on-sandbox:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "allium/allium:invocations",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": 5
     },
     {
       "key": "ansible/ansible-inventory:anti_fab",
@@ -60,98 +46,14 @@
     {
       "key": "awman/awman:ref_depth",
       "class": "DEBT",
-      "issue": "claude-skills-134",
+      "issue": "claude-skills-145",
       "first_seen": "migrated",
       "detail_count": 2
     },
     {
-      "key": "claude-code/claude-agents:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-commands:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-hooks:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-output-styles:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-plugins:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-skills-benchmark:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-skills:ref_depth",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": 1
-    },
-    {
-      "key": "claude-code/claude-skills:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-statusline:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "claude-code/claude-teams:ref_depth",
       "class": "DEBT",
-      "issue": "claude-skills-134",
-      "first_seen": "migrated",
-      "detail_count": 1
-    },
-    {
-      "key": "claude-code/claude-teams:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-workflows:reserved",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "claude-code/skill-update:ref_depth",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
+      "issue": "claude-skills-145",
       "first_seen": "migrated",
       "detail_count": 1
     },
@@ -168,13 +70,6 @@
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "core/agent-loop:invocations",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": 3
     },
     {
       "key": "core/beads:anti_fab",
@@ -256,7 +151,7 @@
     {
       "key": "core/git:ref_depth",
       "class": "DEBT",
-      "issue": "claude-skills-134",
+      "issue": "claude-skills-145",
       "first_seen": "migrated",
       "detail_count": 2
     },
@@ -438,7 +333,7 @@
     {
       "key": "elixir/testing:ref_depth",
       "class": "DEBT",
-      "issue": "claude-skills-134",
+      "issue": "claude-skills-145",
       "first_seen": "migrated",
       "detail_count": 1
     },
@@ -494,7 +389,7 @@
     {
       "key": "qa/qa:ref_depth",
       "class": "DEBT",
-      "issue": "claude-skills-134",
+      "issue": "claude-skills-145",
       "first_seen": "migrated",
       "detail_count": 2
     },
@@ -502,41 +397,6 @@
       "key": "runex/runex:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "rust/async:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "rust/error-handling:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "rust/ownership:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "rust/testing:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "rust/troubleshooting:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -555,13 +415,6 @@
       "detail_count": null
     },
     {
-      "key": "slidev/code:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "slidev/code:name_dir",
       "class": "DEBT",
       "issue": "claude-skills-139",
@@ -572,13 +425,6 @@
       "key": "slidev/export:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "slidev/export:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -641,7 +487,7 @@
     {
       "key": "slidev/styles:ref_depth",
       "class": "DEBT",
-      "issue": "claude-skills-134",
+      "issue": "claude-skills-145",
       "first_seen": "migrated",
       "detail_count": 1
     },
@@ -649,13 +495,6 @@
       "key": "slidev/syntax:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "slidev/syntax:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -670,13 +509,6 @@
       "key": "slidev/troubleshooting:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "slidev/troubleshooting:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -716,13 +548,6 @@
       "detail_count": null
     },
     {
-      "key": "wasm/wasmtime:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "wasm/wit:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -733,13 +558,6 @@
       "key": "zig/allocators:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/allocators:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -758,13 +576,6 @@
       "detail_count": null
     },
     {
-      "key": "zig/build:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "zig/build:name_dir",
       "class": "DEBT",
       "issue": "claude-skills-139",
@@ -775,13 +586,6 @@
       "key": "zig/c-interop:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/c-interop:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -807,13 +611,6 @@
       "detail_count": null
     },
     {
-      "key": "zig/language:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "zig/language:name_dir",
       "class": "DEBT",
       "issue": "claude-skills-139",
@@ -828,13 +625,6 @@
       "detail_count": null
     },
     {
-      "key": "zig/testing:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "zig/testing:name_dir",
       "class": "DEBT",
       "issue": "claude-skills-139",
@@ -845,13 +635,6 @@
       "key": "zig/troubleshooting:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/troubleshooting:examples",
-      "class": "CHECK_DEFECT",
-      "issue": "claude-skills-130",
       "first_seen": "migrated",
       "detail_count": null
     },
