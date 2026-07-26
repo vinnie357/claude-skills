@@ -1,5 +1,5 @@
 {
-  "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes.",
+  "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes.",
   "allowed_failures": [
     {
       "key": "agent-sandboxing/agent-substrate-overview:examples",
@@ -252,6 +252,55 @@
       "issue": "claude-skills-139",
       "first_seen": "migrated",
       "detail_count": null
+    },
+    {
+      "key": "dupe/1182fd06:duplicate_block",
+      "class": "DEBT",
+      "issue": "claude-skills-149",
+      "first_seen": "2026-07-26",
+      "detail_count": 5
+    },
+    {
+      "key": "dupe/22d40d6a:duplicate_block",
+      "class": "DEBT",
+      "issue": "claude-skills-150",
+      "first_seen": "2026-07-26",
+      "detail_count": 1
+    },
+    {
+      "key": "dupe/6365464e:duplicate_block",
+      "class": "DEBT",
+      "issue": "claude-skills-148",
+      "first_seen": "2026-07-26",
+      "detail_count": 7
+    },
+    {
+      "key": "dupe/639413bb:duplicate_block",
+      "class": "DEBT",
+      "issue": "claude-skills-149",
+      "first_seen": "2026-07-26",
+      "detail_count": 1
+    },
+    {
+      "key": "dupe/abe3453c:duplicate_block",
+      "class": "DEBT",
+      "issue": "claude-skills-149",
+      "first_seen": "2026-07-26",
+      "detail_count": 2
+    },
+    {
+      "key": "dupe/ccc3a496:duplicate_block",
+      "class": "DEBT",
+      "issue": "claude-skills-149",
+      "first_seen": "2026-07-26",
+      "detail_count": 7
+    },
+    {
+      "key": "dupe/da5499df:duplicate_block",
+      "class": "DEBT",
+      "issue": "claude-skills-149",
+      "first_seen": "2026-07-26",
+      "detail_count": 2
     },
     {
       "key": "elixir/anti-patterns:anti_fab",
