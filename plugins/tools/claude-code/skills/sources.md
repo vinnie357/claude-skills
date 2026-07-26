@@ -419,7 +419,7 @@ Create a modular Claude Code plugin marketplace that:
 - **Date Accessed**: 2026-07-25
 - **Key Points**:
   - Over 80% of Claude Code's system prompt was removed for Opus 5 and Fable 5 "with no measurable loss on our coding evaluations"
-  - Judgment over rules — contextual guidance beats explicit prohibition lists (the article describes six shifts; the sixth, CLAUDE.md memory to auto-memory, is product behaviour and is not covered in the reference)
+  - Judgment over rules — contextual guidance beats explicit prohibition lists (the article describes six shifts; the remaining one, CLAUDE.md memory to auto-memory, is product behaviour and is not covered in the reference)
   - Tool design over examples — "giving examples actually constrains them to a certain exploration space"; invest in parameter and enum design
   - Progressive disclosure over upfront loading — "consider having a tree of files that can be loaded at the right time"
   - Single statements over repetition — state a rule once, where the thing it governs is defined

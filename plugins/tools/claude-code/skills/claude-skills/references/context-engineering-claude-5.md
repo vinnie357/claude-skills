@@ -8,8 +8,8 @@ Anthropic reports: "We removed over 80% of Claude Code's system prompt for model
 and Claude Fable 5 with no measurable loss on our coding evaluations."
 
 The article describes six shifts. Five of them govern skill authoring and are covered below. The
-sixth — moving memory out of CLAUDE.md and into auto-memory — is product behaviour rather than
-authoring guidance, so it is not covered here.
+remaining one — moving memory out of CLAUDE.md and into auto-memory — is product behaviour rather
+than authoring guidance, so it is not covered here.
 
 ## 1. Judgment over rules
 
@@ -88,7 +88,7 @@ rely on an agent recognising a need it does not yet have, keep it prescriptive.
 Verified verbatim against `github.com/anthropics/claude-code/CHANGELOG.md`:
 
 - "`/doctor` is now a full setup checkup that can diagnose and fix issues; `/checkup` is its alias"
-- "Added a `/doctor` check that proposes trimming checked-in CLAUDE.md files by cutting content
+- "Added a `/doctor` check that proposes trimming checked-in `CLAUDE.md` files by cutting content
   Claude could derive from the codebase" — rule 3 applied to project instructions.
 - "raised the listing cap from 250 to 1,536 characters and added a startup warning when descriptions
   are truncated". Note this repo's own validator enforces a stricter 1024-character cap on
