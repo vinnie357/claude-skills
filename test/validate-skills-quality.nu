@@ -27,11 +27,13 @@
 # unbounded growth of the same check.
 const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth"]
 
-# Commands shipped by upstream plugins that exist locally as skill-only
-# mirrors. Enumerated per-command (never a blanket namespace exemption) so a
-# typo like /allium:nonexistent still fails; the list is static so CI runs
-# with zero external dependencies. Re-verify against the upstream repo when
-# adding or changing an entry.
+# Slash-invocable targets shipped by an upstream plugin whose namespace a local
+# skill-only mirror shares. Upstream ships these as SKILLS rather than commands
+# (verified against github.com/juxt/allium); either way they are invocable as
+# /ns:target, which is what this resolves. Enumerated per-target — never a
+# blanket namespace exemption — so a typo like /allium:nonexistent still fails.
+# The list is static so CI runs with zero external dependencies. Re-verify
+# against the upstream repo when adding or changing an entry.
 const UPSTREAM_COMMANDS = [
     {ns: "allium", upstream: "https://github.com/juxt/allium", commands: ["elicit" "distill" "propagate" "tend" "weed"]}
 ]
@@ -264,7 +266,10 @@ def has-examples [content: string, refs: list]: nothing -> bool {
     let code_fence = (['`' '`' '`'] | str join)
     if ($content | str contains $code_fence) { return true }
     if ($content | str downcase | str contains "## example") { return true }
-    ($refs | any {|r| ($content | str contains $r.name) and ($r.content | str contains $code_fence)})
+    # Match the `references/<basename>` token, not the bare basename: a bare
+    # match lets an unrelated mention count, e.g. SKILL.md naming
+    # `counterexamples.md` would satisfy a reference file called `examples.md`.
+    ($refs | any {|r| ($content | str contains $"references/($r.name)") and ($r.content | str contains $code_fence)})
 }
 
 # Embedded self-test for the skills: frontmatter checks (claude-skills-119):
