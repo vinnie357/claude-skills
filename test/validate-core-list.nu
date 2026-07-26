@@ -268,8 +268,7 @@ def check-satellite [lines: list<string>, anchor: string, canonical: list<string
       | enumerate
       | skip ($anchor_idx + 1)
       | where { |it|
-          let t = ($it.item | str trim)
-          not (($t | is-empty) or ($t | str starts-with "```"))
+          not ((($it.item | str trim) | is-empty) or (is-fence-delimiter $it.item))
         }
       | get -o 0.index)
 
@@ -346,23 +345,59 @@ def file-canonical-overlap [lines: list<string>, canonical: list<string>] {
     | sort
 }
 
-# Per-line fence parity: true for lines inside a fenced code block, and for
+# Per-line fence state: true for lines inside a fenced code block, and for
 # the delimiter lines themselves. Used to keep satellite anchors from
 # matching inside worked examples.
+#
+# CommonMark-faithful where it matters: an opener is a backtick or tilde
+# delimiter of length 3+, recorded with its CHARACTER and LENGTH; while
+# in-fence, only a bare delimiter of the SAME character with AT LEAST the
+# opener's length closes it (a closing fence carries no info string). Naive
+# parity-flipping on any ``` prefix reopened the anchor theft two ways: a
+# bare ``` inside a ```` block flipped state off and classified the rest of
+# the block out-of-fence, and ~~~ fences were not recognised at all — both
+# are live shapes in this repo (four-backtick outer fences exist precisely
+# because references documents show fenced examples).
 def fence-flags [lines: list<string>] {
   mut flags = []
-  mut in_fence = false
+  mut fence_char = null   # "`" or "~" while inside a fence, else null
+  mut fence_len = 0
 
   for line in $lines {
-    if (($line | str trim) | str starts-with "```") {
-      $flags = ($flags | append true)
-      $in_fence = (not $in_fence)
+    let t = ($line | str trim)
+    let delim = ($t | parse -r '^(?<d>`{3,}|~{3,})' | get -o 0.d)
+
+    if $fence_char == null {
+      if $delim != null {
+        $flags = ($flags | append true)
+        $fence_char = ($delim | str substring 0..0)
+        $fence_len = ($delim | str length)
+      } else {
+        $flags = ($flags | append false)
+      }
     } else {
-      $flags = ($flags | append $in_fence)
+      $flags = ($flags | append true)
+      # A closer is ONLY the delimiter (no info string), same character,
+      # at least the opener's length.
+      let closes = (($delim != null)
+        and ($t == $delim)
+        and (($delim | str substring 0..0) == $fence_char)
+        and (($delim | str length) >= $fence_len))
+      if $closes {
+        $fence_char = null
+        $fence_len = 0
+      }
     }
   }
 
   $flags
+}
+
+# A line that is a fence delimiter of either CommonMark kind. Shared by the
+# adjacency scan and the run-finder so they cannot disagree with fence-flags
+# about what counts as fence syntax.
+def is-fence-delimiter [line: string] {
+  ($line | str trim) =~ '^(`{3,}|~{3,})'
 }
 
 # Find the load LISTS in the given lines, as contiguous runs of names-only
@@ -381,8 +416,7 @@ def find-load-list-runs [lines: list<string>] {
     # Fence delimiters are excluded from the grammar explicitly rather than
     # relying on "```" happening to fail the name shape; like any other
     # non-list line, they end the current run. (claude-skills-134)
-    let is_fence = (($it.item | str trim) | str starts-with "```")
-    let hits = (if $is_fence { [] } else { names-only-line $it.item })
+    let hits = (if (is-fence-delimiter $it.item) { [] } else { names-only-line $it.item })
 
     if ($hits | is-empty) {
       # Run ended. Keep it only if it looks like a list rather than a mention.
@@ -619,6 +653,29 @@ def self-test [] {
     }
   }
 
+  # Fence-state fixtures: CommonMark closer rules, not naive parity.
+  let fence_cases = [
+    {
+      name: "four_backtick_block_inner_triple_stays_in_fence"
+      why: "reviewer PoC 7a: a bare ``` inside a ```` block is content, not a closer — parity-flipping classified everything after it out-of-fence and reopened anchor theft"
+      content: "````markdown\n```\ncontent line\n```\n````\nafter\n"
+      expect: [true true true true true false]
+    }
+    {
+      name: "tilde_fence_recognised"
+      why: "reviewer PoC 7b: ~~~ is a valid CommonMark fence; unrecognised, its whole block was classified out-of-fence"
+      content: "~~~\ncontent line\n~~~\nafter\n"
+      expect: [true true true false]
+    }
+  ]
+
+  for c in $fence_cases {
+    let got = (fence-flags ($c.content | lines))
+    if $got != $c.expect {
+      $failures = ($failures | append $"($c.name): expected ($c.expect | to nuon), got ($got | to nuon)")
+    }
+  }
+
   # Sweep-measure fixtures: union overlap per FILE, not per run.
   let sweep_cases = [
     {
@@ -642,7 +699,7 @@ def self-test [] {
     }
   }
 
-  let total = (($cases | length) + ($satellite_cases | length) + ($sweep_cases | length))
+  let total = (($cases | length) + ($satellite_cases | length) + ($fence_cases | length) + ($sweep_cases | length))
 
   if ($failures | is-not-empty) {
     print $"(ansi red_bold)❌ Core-list self-test failed:(ansi reset)"
