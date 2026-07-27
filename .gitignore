@@ -1,5 +1,6 @@
 # Beads SQLite cache (local only, not committed)
 .beads.sqlite
+.beads/
 
 # Operator-local disclosure blocklist (real hostnames — never publish;
 # test/validate-disclosure.nu hard-fails if this file is ever tracked)
