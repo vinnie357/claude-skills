@@ -79,7 +79,7 @@ type(scope): description
 
 **Examples:**
 ```bash
-feat(beads): integrate task management with mise automation
+feat(bees): integrate issue tracking with mise automation
 fix(security): resolve variable closure bug in gitleaks tasks
 docs(readme): add installation instructions
 chore(deps): bump plugin versions
@@ -106,9 +106,9 @@ type(scope): description
 
 **Example:**
 ```bash
-gh pr create --title "feat(beads): integrate task management with mise automation" --body "- Add beads tool to mise.toml with multi-arch support
-- Add 20 mise tasks for beads CLI operations
-- Initialize beads with repository configuration"
+gh pr create --title "feat(bees): integrate issue tracking with mise automation" --body "- Add bees tool to mise.toml with multi-arch support
+- Add mise tasks for bees CLI operations
+- Initialize bees with repository configuration"
 ```
 
 **Rules:**
@@ -125,15 +125,15 @@ Follow this workflow when creating PRs:
 1. **Push**: `git push -u origin <branch>`
 2. **Create PR**: `gh pr create` with minimal format (title + bullets)
 3. **Watch CI**: `gh pr checks --watch` (wait for CI to complete)
-4. **After CI passes** (if using beads):
-   - `bd close <task-id>`
-   - `git add .beads/ && git commit -m "chore(beads): close <task-id>"`
+4. **After CI passes**:
+   - `bees close <issue-id> -r "<reason>"`
+   - `git add .bees/ && git commit -m "chore(bees): close <issue-id>"`
    - `git push`
 5. **Notify user**: "CI passed, PR ready for merge review"
 6. **Cleanup** (after user merges):
    - `git checkout main && git pull`
    - `git branch -d <branch>`
-7. **Continue**: `bd ready` for next task
+7. **Continue**: `bees ready` for next issue
 
 ### Key Rules
 
