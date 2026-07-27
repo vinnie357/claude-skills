@@ -93,13 +93,6 @@
       "detail_count": null
     },
     {
-      "key": "core/bees:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 581
-    },
-    {
       "key": "core/code-review:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",

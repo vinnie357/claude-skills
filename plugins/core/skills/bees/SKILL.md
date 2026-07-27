@@ -31,43 +31,7 @@ Bees is a lightweight, local-first issue tracker designed for AI-augmented devel
 
 ## Installation
 
-### mise (Preferred)
-
-Add to your `mise.toml`:
-
-```toml
-[tools."github:ctxshift/bees"]
-version = "latest"
-
-[tools."github:ctxshift/bees".platforms]
-linux-x64 = { asset_pattern = "bees-linux-x86_64.tar.gz" }
-linux-arm64 = { asset_pattern = "bees-linux-aarch64.tar.gz" }
-macos-arm64 = { asset_pattern = "bees-macos-aarch64.tar.gz" }
-macos-x64 = { asset_pattern = "bees-macos-x86_64.tar.gz" }
-```
-
-See `templates/mise.toml` for the full mise task definitions.
-
-### Pre-built Binaries
-
-Download from [GitHub Releases](https://github.com/ctxshift/bees/releases):
-
-| Platform | Asset |
-|----------|-------|
-| Linux x86_64 | `bees-linux-x86_64.tar.gz` |
-| Linux aarch64 | `bees-linux-aarch64.tar.gz` |
-| macOS aarch64 | `bees-macos-aarch64.tar.gz` |
-| macOS x86_64 | `bees-macos-x86_64.tar.gz` |
-
-### Build from Source
-
-Requires Zig 0.15.0+:
-
-```bash
-git clone https://github.com/ctxshift/bees.git
-cd bees
-zig build -Doptimize=ReleaseSafe
-```
+Install via mise: add `[tools."github:ctxshift/bees"]` with `version = "latest"` to `mise.toml` (see `templates/mise.toml`), then `mise install`. Full install matrix, platform asset patterns, pre-built binaries, source build, and VS Code extensions: `references/installation.md`.
 
 ## Getting Started
 
@@ -113,149 +77,17 @@ Returns issues with no unresolved dependencies.
 
 ## Commands Reference
 
-### create
-
-Create a new issue:
-
-```bash
-bees create "Title"
-bees create "Title" -d "Description text"
-bees create "Title" -l "bug,priority:high"
-bees create "Title" -a "alice" -o "bob"
-bees create "Title" -p <parent-id>
-```
-
-Flags:
-- `-d` / `--description`: Issue description
-- `-l` / `--labels`: Comma-separated labels
-- `-a` / `--assignee`: Assignee name
-- `-o` / `--owner`: Owner name
-- `-p` / `--parent`: Parent issue ID
-
-### list
-
-List issues with filtering:
-
-```bash
-bees list
-bees list --status open
-bees list --status closed
-bees list --labels "bug"
-bees list --assignee "alice"
-bees list --json
-```
-
-### show
-
-Show issue details:
-
-```bash
-bees show <id>
-bees show <id> --json
-```
-
-### update
-
-Update issue fields:
-
-```bash
-bees update <id> -d "Updated description"
-bees update <id> -a "bob"
-bees update <id> --status in_progress
-```
-
-### close
-
-Close an issue:
-
-```bash
-bees close <id>
-bees close <id> -r "Completed in PR #42"
-```
-
-The `-r` flag adds a closing reason.
-
-### ready
-
-List issues with no unresolved dependencies:
-
-```bash
-bees ready
-bees ready --json
-bees ready --labels "priority:high"
-```
-
-### dep
-
-Manage dependencies between issues:
-
-```bash
-bees dep add <id> <blocker-id>           # id depends on blocker-id
-bees dep add <id> <related-id> -t related  # related relationship
-bees dep remove <id> <blocker-id>
-bees dep list <id>
-```
-
-Dependency types (via `-t` flag):
-- `blocks` (default): Blocker relationship
-- `related`: Related issue, no blocking
-- `parent`: Parent-child hierarchy
-
-### label
-
-Manage labels on issues:
-
-```bash
-bees label add <id> "bug,priority:high"
-bees label remove <id> "wip"
-```
-
-### comment
-
-Add and list comments on issues:
-
-```bash
-bees comment add <id> "Working on this now"
-bees comment list <id>
-```
-
-### config
-
-View and set configuration:
-
-```bash
-bees config                    # Show current config
-bees config set key value      # Set a config value
-bees config get key            # Get a config value
-```
-
-### sync
-
-Export issues to JSONL format:
-
-```bash
-bees sync
-```
-
-Writes issues from the SQLite database to `issues.jsonl` in the `.bees/` directory. This is a one-directional export (database to JSONL).
-
-### prime
-
-Generate markdown output for LLM context:
-
-```bash
-bees prime
-bees prime --status open
-bees prime --labels "sprint:current"
-```
-
-Outputs a formatted markdown summary of issues suitable for including in AI agent prompts.
+Per-flag syntax for all 12 subcommands (`create`, `list`, `show`, `update`, `close`, `ready`, `dep`, `label`, `comment`, `config`, `sync`, `prime`): `references/commands.md`.
 
 ## Dependency Management
 
 ### Dependency Types
 
-Bees supports three relationship types between issues:
+Bees supports three relationship types between issues. Argument order is a gotcha — the dependent issue comes first:
+
+```bash
+bees dep add <id> <blocker-id>           # id depends on blocker-id
+```
 
 | Type | Flag | Behavior |
 |------|------|----------|
@@ -302,28 +134,7 @@ bees prime
 
 Output includes issue titles, descriptions, labels, dependencies, and status in a readable markdown format. Pipe directly into agent prompts or save to file.
 
-### JSON Output
-
-All list commands support `--json` for machine-readable output:
-
-```bash
-bees list --json
-bees ready --json
-bees show <id> --json
-```
-
-### Parse JSON in Scripts
-
-```bash
-# Get first ready issue ID
-TASK_ID=$(bees ready --json | jq -r '.[0].id')
-
-# Count open issues
-bees list --json | jq 'length'
-
-# Get issue titles
-bees list --json | jq -r '.[].title'
-```
+`--json` flag coverage and jq scripting recipes: `references/commands.md`.
 
 ## Storage and File Structure
 
@@ -403,47 +214,11 @@ bees ready                       # Find next issue
 
 ### AI Agent Task Loop
 
-```bash
-#!/bin/bash
-while true; do
-  TASK=$(bees ready --json | jq -r '.[0] // empty')
-
-  if [ -z "$TASK" ]; then
-    echo "No ready issues"
-    break
-  fi
-
-  TASK_ID=$(echo "$TASK" | jq -r '.id')
-  TITLE=$(echo "$TASK" | jq -r '.title')
-
-  echo "Working on: $TITLE ($TASK_ID)"
-
-  # Do work...
-
-  bees close "$TASK_ID"
-  bees sync
-done
-```
+An automated task-loop script (poll `bees ready --json`, work, close, sync): `references/commands.md`.
 
 ## VS Code Integration
 
-Bees creates a `.beads` symlink to `.bees/` for compatibility with the beads VS Code extensions:
-
-### Beads Extension (`planet57.vscode-beads`)
-
-```bash
-code --install-extension planet57.vscode-beads
-```
-
-Task list sidebar, syntax highlighting, and issue ID autocompletion.
-
-### Beads Kanban (`DavidCForbes.beads-kanban`)
-
-```bash
-code --install-extension DavidCForbes.beads-kanban
-```
-
-Drag-and-drop kanban board with dependency visualization.
+The `.beads` symlink makes the beads VS Code extensions work with bees; extension install commands: `references/installation.md`.
 
 ## Bees vs Beads
 
@@ -480,7 +255,7 @@ Bees issues carry one of two complexity labels. The label tells the picker wheth
 - `complexity:trivial` → dispatch one haiku worker (see "Workflow Examples")
 - `complexity:complex` → dispatch the five-tier pipeline internally (see `/core:agent-loop` "Five-Tier Decomposition Pipeline")
 
-Apply with `bees update <id> --labels "..."`, not `bees label add` — only `bees update --labels` keeps the priority field synced with the `priority:pN` label.
+Apply with `bees label add <id> <label>`, one label per invocation — `bees update` has no `--labels` flag, and a comma-separated string becomes a single literal label. Adding a `priority:pN` label does not change the issue's priority field; set that separately with `bees update <id> -p <N>`.
 
 Bees never carries `team:*` labels. The five tier names (`team:opus-planner`, `team:sonnet-test`, `team:sonnet-impl`, `team:haiku-ci`, `team:opus-review`) are dispatch-time strings the Sub-team Leader puts inside each Task spawn prompt. They identify the stage being dispatched, not the bees row.
 
@@ -513,7 +288,7 @@ bees comment list <id>
 
 Bees that an agent loop picks up directly need structured labels and a structured description body. Single-paragraph bees are appropriate for operator-only notes; agent-targeted bees follow this shape:
 
-**Labels** (apply via `bees update <id> --labels "..."` to keep priority in sync):
+**Labels** (apply via `bees label add <id> <label>`, one label per call; set priority itself with `bees update <id> -p <N>`):
 - `team:*` — the agent team that owns the work (e.g., `team:opus-planner`, `team:sonnet-impl`)
 - `skill:<plugin>:<skill>` — domain skills the worker loads (e.g., `skill:elixir:phoenix`)
 - `model:<model>` — initial model assignment (`model:haiku`, `model:sonnet`, `model:opus`)
@@ -553,14 +328,7 @@ lsof .bees/bees.db
 
 ### Build Issues (from source)
 
-```bash
-# Verify Zig version (requires 0.15.0+)
-zig version
-
-# Clean build
-rm -rf zig-cache zig-out
-zig build -Doptimize=ReleaseSafe
-```
+Troubleshooting for source builds lives with the build instructions: `references/installation.md`.
 
 ### JSONL Out of Sync
 
@@ -572,6 +340,8 @@ bees sync
 
 ## References
 
+- `references/commands.md`: Per-flag syntax for all 12 subcommands, `--json` output, jq scripting recipes, and the agent task-loop script
+- `references/installation.md`: Install matrix (mise, pre-built binaries, source build), VS Code extensions, and build troubleshooting
 - `references/teams-integration.md`: Protocol for mirroring bees issues into Claude's task list for Agent Teams coordination
 - `references/migration-from-beads.md`: Guide for migrating from beads to bees
 
