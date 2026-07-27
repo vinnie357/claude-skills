@@ -721,9 +721,18 @@ def normalise-dupe-lines [content: string] {
 # git-tracked but missing from the working tree (an uncommitted deletion).
 # Callers MUST report the missing list rather than dropping it silently.
 def split-corpus-paths [entries: list] {
+    let missing = ($entries | where {|e| not $e.exists} | get path)
     {
         present: ($entries | where exists | get path)
-        missing: ($entries | where {|e| not $e.exists} | get path)
+        missing: $missing
+        # The announcement is RETURNED rather than printed inside main, so a
+        # self-test can assert it exists. A caller that drops it reintroduces
+        # the silent-shrink failure this helper exists to prevent, and an
+        # unenforced "callers MUST report" comment does not stop that.
+        warnings: (if ($missing | is-empty) { [] } else {
+            ([$"⚠  duplicate-block scan skipped ($missing | length) tracked file\(s\) missing from the working tree \(uncommitted deletions\):"]
+                | append ($missing | each {|m| $"     ($m)"}))
+        })
     }
 }
 def find-duplicate-groups [files: list] {
@@ -1013,6 +1022,16 @@ def run-duplicate-self-test [] {
     let none_missing = (split-corpus-paths [{path: "plugins/a/SKILL.md", exists: true}])
     if ($none_missing.missing | is-not-empty) {
         print $"(ansi red_bold)❌ duplicate self-test: clean corpus wrongly reported missing paths(ansi reset)"
+        $failed = true
+    }
+    # The announcement is the point of the skip, so it is asserted here — a
+    # warning that only lived in main could be deleted with every test green.
+    if ($split.warnings | is-empty) or (not (($split.warnings | str join "\n") | str contains "plugins/gone/SKILL.md")) {
+        print $"(ansi red_bold)❌ duplicate self-test: skip warning missing or did not name the skipped path(ansi reset)"
+        $failed = true
+    }
+    if ($none_missing.warnings | is-not-empty) {
+        print $"(ansi red_bold)❌ duplicate self-test: clean corpus emitted a skip warning(ansi reset)"
         $failed = true
     }
 
@@ -1888,10 +1907,7 @@ def main [--update-baseline, --self-test] {
     let corpus_split = (split-corpus-paths ($corpus_paths | each {|p|
         {path: $p, exists: ($repo_root | path join $p | path exists)}
     }))
-    if ($corpus_split.missing | is-not-empty) {
-        print $"(ansi yellow)⚠  duplicate-block scan skipped ($corpus_split.missing | length) tracked file\(s\) missing from the working tree \(uncommitted deletions\):(ansi reset)"
-        for m in $corpus_split.missing { print $"     ($m)" }
-    }
+    for w in $corpus_split.warnings { print $"(ansi yellow)($w)(ansi reset)" }
     let corpus = ($corpus_split.present | each {|p| {path: $p, content: (open --raw ($repo_root | path join $p))}})
     let satellites = (core-list-satellites ($repo_root | path join "test" "validate-core-list.nu"))
     let dupe_groups = (find-duplicate-groups $corpus
