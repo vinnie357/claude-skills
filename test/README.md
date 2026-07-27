@@ -243,9 +243,11 @@ Use `/benchmark-skills` for a more detailed analysis with category classificatio
 
 For each format this repo both documents and contains, the check extracts the
 **documented** token vocabulary (from the documenting skill's `SKILL.md` plus
-`references/*.md` — prose and tables included, never just fenced blocks) and
-the **real** vocabulary (from the repo's own instances), and fires when the
-sets are disjoint or the doc carries a foreign-family token. The baseline key
+`references/*.md` — prose and tables included, never just fenced blocks, with
+the doc file's own frontmatter stripped so its `name:`/`description:`
+metadata cannot fake an intersection) and the **real** vocabulary (from the
+repo's own instances), and fires when the sets are disjoint or the doc
+carries a foreign-family token. The baseline key
 is `syntax/<format>:vocab_disjoint`; `detail_count` is the size of the
 disjoint documented set. Both vocabularies are printed on failure.
 
@@ -264,16 +266,28 @@ Handlebars syntax that never mentioned `$ARGUMENTS`), not a general guarantee
 of doc accuracy. Documented-but-unused tokens are deliberately NOT flagged:
 correct reference docs cover features this repo does not exercise.
 
-Two asymmetric guards:
+Three asymmetric guards:
 
 - An **empty documented vocabulary is a hard error** (extractor canary, not a
   baselineable finding): the three skills are known to document tokens, so
   extracting none means the extractor broke — silence would hide the format
   forever. An empty **real** vocabulary stays silent.
+- A **real-instance file count below the per-format floor is a hard error**
+  (`VOCAB_REAL_FLOORS`, measured counts): "empty real → silent" cannot
+  distinguish a format with no instances from broken glob plumbing, and an
+  under-matching glob can even leave the vocabulary intact — the single-star
+  `plugins/*/commands/*.md` matches 9 of the 25 files including both
+  `$ARGUMENTS` users — so the matched file count is the only observable that
+  catches it. Lower the floor deliberately when instances are genuinely
+  removed.
 - The **foreign-family rule fires regardless of intersection**: since the real
   command vocabulary is a single token, pure disjointness has a one-token
   margin — a doc full of fabricated brace syntax plus one `$ARGUMENTS` mention
-  would otherwise pass.
+  would otherwise pass. This closes the margin for the **brace family only**:
+  same-family fabrication — a doc inventing `$ARGV`/`$INPUT` alongside one
+  real token — stays silent. That residual is accepted rather than closed
+  mechanically, because an uppercase-`$` foreign rule would false-positive on
+  bash examples in doc prose, the same pollution the real side already avoids.
 
 The real side never runs a general `\$[a-z_]+` regex — real command files
 carry plain bash (`$USER`, `$SESSION_ID`, `$BUILD_DIR`) in example scripts.

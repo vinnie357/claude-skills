@@ -1014,13 +1014,31 @@ def frontmatter-lines [content: string] {
 # enumerations: named args are arbitrary identifiers, so both sides
 # normalise them to one "$name" family token instead of enumerating.
 
+# Drop a doc file's own leading frontmatter block before doc-side token
+# extraction. The documenting skills' OWN frontmatter contaminates the doc
+# vocabulary: claude-agents' frontmatter keys (name:, description:) are
+# always in the real agent key set, so without stripping, the agents leg
+# could never fire and its doc-empty canary was unreachable;
+# claude-commands' description mentions $ARGUMENTS/$N and claude-hooks'
+# mentions SessionStart, which would keep those legs intersecting even
+# after a fabricated body rewrite. Skill-activation metadata is not
+# documentation content.
+def strip-doc-frontmatter [content: string] {
+    let fm = (frontmatter-lines $content)
+    if ($fm | is-empty) { return $content }
+    # Skip the frontmatter lines plus the two --- marker lines.
+    $content | lines | skip (($fm | length) + 2) | str join "\n"
+}
+
 # Documented command-token vocabulary from doc content (SKILL.md or a
-# reference file, raw). Tokens: "$ARGUMENTS", "$N" (any $<digit> or the
-# literal $N), "$name" (named-arg family: any $<lowercase-identifier>),
-# "!`cmd`" (bash injection), and "{{}}" (brace family — FOREIGN for this
-# format; its presence in a doc is itself a finding, see
-# check-vocab-disjoint).
+# reference file; the file's own frontmatter is stripped, everything else
+# — prose, tables, fences — is in scope). Tokens: "$ARGUMENTS", "$N" (any
+# $<digit> or the literal $N), "$name" (named-arg family: any
+# $<lowercase-identifier>), "!`cmd`" (bash injection), and "{{}}" (brace
+# family — FOREIGN for this format; its presence in a doc is itself a
+# finding, see check-vocab-disjoint).
 def extract-command-doc-vocab [content: string] {
+    let content = (strip-doc-frontmatter $content)
     mut vocab = []
     if ($content | str contains "$ARGUMENTS") { $vocab = ($vocab | append "$ARGUMENTS") }
     if (($content | parse --regex '\$\d') | is-not-empty) or ($content | str contains "$N") {
@@ -1050,12 +1068,13 @@ def extract-command-real-vocab [content: string] {
 }
 
 # Documented agent-frontmatter keys: line-start `key:` tokens anywhere in
-# the raw doc (prose, tables, and fenced YAML examples alike). Lowercase
-# first letter keeps prose labels like "See:" / "Example:" out; residual
-# doc-side pollution (a prose line like "note: ...") only inflates the
-# documented set and cannot mask a disjointness finding.
+# the doc body (prose, tables, and fenced YAML examples alike; the doc
+# file's own frontmatter is stripped — see strip-doc-frontmatter).
+# Lowercase first letter keeps prose labels like "See:" / "Example:" out;
+# residual doc-side pollution (a prose line like "note: ...") only
+# inflates the documented set and cannot mask a disjointness finding.
 def extract-agent-doc-keys [content: string] {
-    $content | parse --regex '(?m)^(?P<key>[a-z][a-zA-Z_-]*):' | get key | uniq
+    strip-doc-frontmatter $content | parse --regex '(?m)^(?P<key>[a-z][a-zA-Z_-]*):' | get key | uniq
 }
 
 # Real agent-frontmatter keys: top-level keys of the file's frontmatter
@@ -1066,12 +1085,12 @@ def extract-agent-real-keys [content: string] {
         | flatten | get -o key | default [] | uniq
 }
 
-# Documented hook event names: CamelCase multi-hump tokens in the raw doc
-# (SessionStart, PreToolUse, ...). Non-event CamelCase words (MultiEdit)
-# are doc-side pollution — harmless for disjointness, same argument as
-# extract-agent-doc-keys.
+# Documented hook event names: CamelCase multi-hump tokens in the doc body
+# (SessionStart, PreToolUse, ...; own frontmatter stripped). Non-event
+# CamelCase words (MultiEdit) are doc-side pollution — harmless for
+# disjointness, same argument as extract-agent-doc-keys.
 def extract-hook-doc-events [content: string] {
-    $content | parse --regex '\b(?P<ev>[A-Z][a-z]+(?:[A-Z][a-z]*)+)\b' | get ev | uniq
+    strip-doc-frontmatter $content | parse --regex '\b(?P<ev>[A-Z][a-z]+(?:[A-Z][a-z]*)+)\b' | get ev | uniq
 }
 
 # Real hook event names: the top-level keys of a parsed hooks.json's
@@ -1079,6 +1098,27 @@ def extract-hook-doc-events [content: string] {
 # bad_wrapper check already owns that failure.
 def extract-hook-real-events [parsed] {
     $parsed | get -o hooks | default {} | columns
+}
+
+# Minimum real-instance file counts per syntax-vs-usage format (measured
+# 2026-07-27: 25 command files, 29 agent files, 2 hooks.json). The real
+# side's mirror of the doc-empty canary: "empty real vocabulary → silent"
+# cannot distinguish a format with no instances from broken glob plumbing,
+# and an under-matching glob can even leave the VOCABULARY intact —
+# plugins/*/commands/*.md matches 9 of the 25 files including both
+# $ARGUMENTS users — so the matched FILE COUNT is the only observable that
+# catches it. A count below the floor is a hard error naming the format.
+# Adding instances never requires an update; deliberately removing
+# instances below a floor means lowering the measured value here.
+const VOCAB_REAL_FLOORS = {commands: 25, agents: 29, hooks: 2}
+
+# Real-side glob canary: the formats whose matched file count fell below
+# their VOCAB_REAL_FLOORS floor. Input [{format, matched}]; returns
+# [{format, matched, floor}] — non-empty is a hard error in main.
+def vocab-real-floor-errors [format_counts: list] {
+    $format_counts
+        | each {|fc| $fc | insert floor ($VOCAB_REAL_FLOORS | get $fc.format)}
+        | where {|fc| $fc.matched < $fc.floor}
 }
 
 # Core rule. Returns {status, disjoint} where status is one of:
@@ -1173,9 +1213,14 @@ def run-vocab-self-test [] {
     # ($USER / $SESSION_ID in example scripts), because the real extractor
     # never runs a general \$[a-z_]+ regex; a named-arg token counts only
     # when declared in that file's arguments: frontmatter
+    # Fixture carries lowercase bash vars ($file, $claim) as well as
+    # uppercase ones: a mutated extractor using a general \$[a-z_]+ regex
+    # would map them to the $name family marker and pass a purely
+    # uppercase fixture ($claim is real — agent-sandboxing/commands/reap.md).
     let polluted_real = (extract-command-real-vocab ([
         "---" "description: deploy" "---"
         "Run the script as $USER with $SESSION_ID and $BUILD_DIR set."
+        "Loop over each $file and post the $claim payload."
     ] | str join "\n"))
     if ($polluted_real | is-not-empty) {
         print $"(ansi red_bold)❌ vocab self-test: bash \$-vars polluted the real vocabulary \(($polluted_real | str join ' ')\)(ansi reset)"
@@ -1257,8 +1302,72 @@ def run-vocab-self-test [] {
         $failed = true
     }
 
+    # Case 9: the documenting skill's OWN frontmatter never contaminates
+    # the doc vocabulary. Without stripping, claude-agents' frontmatter
+    # keys (name:, description:) always intersect the real agent key set,
+    # so the agents leg could NEVER fire — a check that reports clean
+    # without checking.
+    let fabricated_agent_doc = (extract-agent-doc-keys ([
+        "---" "name: claude-agents" "description: fabricated rewrite" "---"
+        "Agents are defined by these frontmatter fields:"
+        "role: what the agent does"
+        "capabilities: tool grants"
+        "persona: voice and tone"
+    ] | str join "\n"))
+    if ("name" in $fabricated_agent_doc) or ("description" in $fabricated_agent_doc) {
+        print $"(ansi red_bold)❌ vocab self-test: doc skill's own frontmatter keys leaked into the doc vocabulary(ansi reset)"
+        $failed = true
+    }
+    let c9 = (check-vocab-disjoint $fabricated_agent_doc ["name" "description" "model" "tools" "skills"] [])
+    if $c9.status != "fires" {
+        print $"(ansi red_bold)❌ vocab self-test: fabricated agent-doc rewrite \(role/capabilities/persona\) did not fire(ansi reset)"
+        $failed = true
+    }
+    # Same contamination path for hooks (description mentions SessionStart)
+    # and commands (description mentions $ARGUMENTS): a doc whose only
+    # tokens live in its own frontmatter must extract EMPTY, hitting the
+    # doc-empty canary instead of silently intersecting.
+    let hooks_fm_only = (extract-hook-doc-events ([
+        "---" "description: Configure SessionStart and PreToolUse hooks" "---"
+        "Body prose documenting nothing."
+    ] | str join "\n"))
+    let commands_fm_only = (extract-command-doc-vocab ([
+        "---" "description: writing $ARGUMENTS or $N substitutions" "---"
+        "Body prose documenting nothing."
+    ] | str join "\n"))
+    if ($hooks_fm_only | is-not-empty) or ($commands_fm_only | is-not-empty) {
+        print $"(ansi red_bold)❌ vocab self-test: hooks/commands doc frontmatter values leaked \(hooks: ($hooks_fm_only | str join ' '); commands: ($commands_fm_only | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 10: real-side glob floor — a matched file count below the
+    # known floor is a hard error per format. "Empty real → silent"
+    # cannot distinguish a format with no instances from broken glob
+    # plumbing, and an under-matching glob can even keep the vocabulary
+    # intact (plugins/*/commands/*.md matches 9 of 25 files INCLUDING
+    # both $ARGUMENTS users), so the count is the only observable.
+    let floor_zero = (vocab-real-floor-errors [
+        {format: "commands", matched: 0} {format: "agents", matched: 0} {format: "hooks", matched: 0}
+    ])
+    if ($floor_zero | length) != 3 {
+        print $"(ansi red_bold)❌ vocab self-test: zero matched files did not floor-error for all three formats(ansi reset)"
+        $failed = true
+    }
+    let floor_under = (vocab-real-floor-errors [{format: "commands", matched: 9}])
+    if ($floor_under | length) != 1 {
+        print $"(ansi red_bold)❌ vocab self-test: under-matched commands glob \(9 files\) did not floor-error(ansi reset)"
+        $failed = true
+    }
+    let floor_ok = (vocab-real-floor-errors [
+        {format: "commands", matched: 25} {format: "agents", matched: 40} {format: "hooks", matched: 2}
+    ])
+    if ($floor_ok | is-not-empty) {
+        print $"(ansi red_bold)❌ vocab self-test: at-or-above-floor counts wrongly floor-errored(ansi reset)"
+        $failed = true
+    }
+
     if not $failed {
-        print $"(ansi green_bold)✅ Vocab self-test passed \(8 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Vocab self-test passed \(10 cases\)(ansi reset)"
     }
     $failed
 }
@@ -1756,11 +1865,28 @@ def main [--update-baseline, --self-test] {
     # vocabulary stays silent. Real globs use ** deliberately:
     # plugins/*/commands/ matches only 9 of the 25 command files.
     let doc_skills_root = ($repo_root | path join "plugins" "tools" "claude-code" "skills")
-    let command_real = (glob ($repo_root | path join "plugins" "**" "commands" "*.md")
+    let command_files = (glob ($repo_root | path join "plugins" "**" "commands" "*.md"))
+    let agent_vocab_files = (glob ($repo_root | path join "plugins" "**" "agents" "*.md"))
+    let hook_files = (glob ($repo_root | path join "plugins" "**" "hooks" "hooks.json"))
+    # Real-side glob canary BEFORE the vocabulary comparison: an
+    # under-matching or mispointed glob must fail on its file count, not
+    # slip through as "empty real → silent" (see VOCAB_REAL_FLOORS).
+    let floor_errors = (vocab-real-floor-errors [
+        {format: "commands", matched: ($command_files | length)}
+        {format: "agents", matched: ($agent_vocab_files | length)}
+        {format: "hooks", matched: ($hook_files | length)}
+    ])
+    if ($floor_errors | is-not-empty) {
+        print $"(ansi red_bold)❌ syntax-vs-usage: real-instance file count below floor:(ansi reset)"
+        for e in $floor_errors { print $"  ($e.format): matched ($e.matched) file\(s\), floor ($e.floor)" }
+        print "The glob plumbing broke (wrong directory or an under-matching pattern), or instances were genuinely removed — in that case lower VOCAB_REAL_FLOORS to the new measured count. This is a hard error, not a baselineable finding."
+        exit 1
+    }
+    let command_real = ($command_files
         | each {|f| extract-command-real-vocab (open --raw $f)} | flatten | uniq)
-    let agent_real = (glob ($repo_root | path join "plugins" "**" "agents" "*.md")
+    let agent_real = ($agent_vocab_files
         | each {|f| extract-agent-real-keys (open --raw $f)} | flatten | uniq)
-    let hook_real = (glob ($repo_root | path join "plugins" "**" "hooks" "hooks.json")
+    let hook_real = ($hook_files
         | each {|f|
             let parsed = (try { open $f } catch { null })
             if $parsed == null { [] } else { extract-hook-real-events $parsed }

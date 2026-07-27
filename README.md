@@ -513,10 +513,11 @@ mise test:skills-quality
 mise test
 ```
 
-This produces a scorecard table (17 per-skill checks, plus a separate
-agents/commands/hooks surface pass) enforced against a shrink-only ratchet
-baseline (`test/quality-baseline.json`) so pre-existing debt can't regress
-and new debt can't be baselined away. See
+This produces a scorecard table from four passes (17 per-skill checks, an
+agents/commands/hooks surface pass, a corpus-wide duplicate-block scan, and
+a syntax-vs-usage vocabulary cross-check) enforced against a shrink-only
+ratchet baseline (`test/quality-baseline.json`) so pre-existing debt can't
+regress and new debt can't be baselined away. See
 [test/README.md](test/README.md#skill-quality-checks) for the full list of
 check keys and their meanings.
 
