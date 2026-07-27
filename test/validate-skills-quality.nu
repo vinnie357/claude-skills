@@ -1307,15 +1307,21 @@ def run-vocab-self-test [] {
     # keys (name:, description:) always intersect the real agent key set,
     # so the agents leg could NEVER fire — a check that reports clean
     # without checking.
+    # `role:` is deliberately the FIRST body line, and the assertion is set
+    # EQUALITY rather than membership: a strip that overshoots by one line
+    # (eating the first body line) would still satisfy a membership check.
     let fabricated_agent_doc = (extract-agent-doc-keys ([
         "---" "name: claude-agents" "description: fabricated rewrite" "---"
-        "Agents are defined by these frontmatter fields:"
         "role: what the agent does"
         "capabilities: tool grants"
         "persona: voice and tone"
     ] | str join "\n"))
     if ("name" in $fabricated_agent_doc) or ("description" in $fabricated_agent_doc) {
         print $"(ansi red_bold)❌ vocab self-test: doc skill's own frontmatter keys leaked into the doc vocabulary(ansi reset)"
+        $failed = true
+    }
+    if ($fabricated_agent_doc | sort) != ["capabilities" "persona" "role"] {
+        print $"(ansi red_bold)❌ vocab self-test: doc frontmatter strip did not preserve the first body line \(got ($fabricated_agent_doc | sort))(ansi reset)"
         $failed = true
     }
     let c9 = (check-vocab-disjoint $fabricated_agent_doc ["name" "description" "model" "tools" "skills"] [])
@@ -1353,9 +1359,14 @@ def run-vocab-self-test [] {
         print $"(ansi red_bold)❌ vocab self-test: zero matched files did not floor-error for all three formats(ansi reset)"
         $failed = true
     }
-    let floor_under = (vocab-real-floor-errors [{format: "commands", matched: 9}])
-    if ($floor_under | length) != 1 {
-        print $"(ansi red_bold)❌ vocab self-test: under-matched commands glob \(9 files\) did not floor-error(ansi reset)"
+    # Every format gets an under-match row, not just commands: pinning one
+    # format leaves the others' floors free to drift toward 1 unnoticed, and
+    # a floor of 1 is a guard that cannot fire.
+    let floor_under = (vocab-real-floor-errors [
+        {format: "commands", matched: 9} {format: "agents", matched: 9} {format: "hooks", matched: 1}
+    ])
+    if ($floor_under | length) != 3 {
+        print $"(ansi red_bold)❌ vocab self-test: under-matched globs did not floor-error for all three formats(ansi reset)"
         $failed = true
     }
     let floor_ok = (vocab-real-floor-errors [
