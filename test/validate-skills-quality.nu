@@ -25,7 +25,7 @@
 # Checks whose findings are countable at runtime; their baseline entries must
 # carry an integer detail_count so a waiver covers the recorded count, not
 # unbounded growth of the same check.
-const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth" "duplicate_block"]
+const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth" "duplicate_block" "vocab_disjoint"]
 
 # Sliding-window size for the corpus-wide duplicate-block check: 8 normalised
 # lines. Measured in the claude-skills-124 plan (revision 2): at N=8 with no
@@ -990,6 +990,279 @@ def run-duplicate-self-test [] {
     $failed
 }
 
+# Frontmatter lines of a markdown file's content (between the leading ---
+# markers), or [] when there is no frontmatter block.
+def frontmatter-lines [content: string] {
+    let all_lines = ($content | lines)
+    if ($all_lines | is-empty) { return [] }
+    if (($all_lines | first | str trim) != "---") { return [] }
+    let rest = ($all_lines | skip 1)
+    let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
+    if ($end_matches | is-empty) { return [] }
+    $rest | first ($end_matches | first | get index)
+}
+
+# --- syntax-vs-usage vocabulary cross-check (claude-skills-141) ---
+#
+# For each format this repo both documents and contains, compare the
+# DOCUMENTED token vocabulary against the REAL one and fire when the sets
+# are disjoint or the doc carries a foreign-family token. Extraction scope
+# for the doc side is the RAW text — prose and tables included, never just
+# fenced blocks: the current claude-commands/SKILL.md keeps every token in
+# prose/tables (zero fences), so a fence-scoped extractor would return
+# empty and silence the format forever. Families are markers, not
+# enumerations: named args are arbitrary identifiers, so both sides
+# normalise them to one "$name" family token instead of enumerating.
+
+# Documented command-token vocabulary from doc content (SKILL.md or a
+# reference file, raw). Tokens: "$ARGUMENTS", "$N" (any $<digit> or the
+# literal $N), "$name" (named-arg family: any $<lowercase-identifier>),
+# "!`cmd`" (bash injection), and "{{}}" (brace family — FOREIGN for this
+# format; its presence in a doc is itself a finding, see
+# check-vocab-disjoint).
+def extract-command-doc-vocab [content: string] {
+    mut vocab = []
+    if ($content | str contains "$ARGUMENTS") { $vocab = ($vocab | append "$ARGUMENTS") }
+    if (($content | parse --regex '\$\d') | is-not-empty) or ($content | str contains "$N") {
+        $vocab = ($vocab | append "$N")
+    }
+    if (($content | parse --regex '\$[a-z][a-zA-Z_]*') | is-not-empty) { $vocab = ($vocab | append "$name") }
+    if (($content | parse --regex '!`[^`]+`') | is-not-empty) { $vocab = ($vocab | append ('!' + '`cmd`')) }
+    if ($content | str contains '{{') { $vocab = ($vocab | append '{{}}') }
+    $vocab
+}
+
+# Real command-token vocabulary from one command file's content. Deliberately
+# narrow: "$ARGUMENTS" when literally present, plus the "$name" family
+# marker ONLY when the file declares `arguments:` in its frontmatter. Never
+# a general \$[a-z_]+ regex — real command files carry plain bash like
+# $USER / $SESSION_ID / $BUILD_DIR in example scripts, and counting those
+# would fabricate an intersection. Staleness direction: unknown tokens are
+# dropped, so the real set shrinks toward empty and the check goes QUIET,
+# never noisy — bounded by the doc-empty canary.
+def extract-command-real-vocab [content: string] {
+    mut vocab = []
+    if ($content | str contains "$ARGUMENTS") { $vocab = ($vocab | append "$ARGUMENTS") }
+    if (frontmatter-lines $content | any {|l| $l | str starts-with "arguments:"}) {
+        $vocab = ($vocab | append "$name")
+    }
+    $vocab
+}
+
+# Documented agent-frontmatter keys: line-start `key:` tokens anywhere in
+# the raw doc (prose, tables, and fenced YAML examples alike). Lowercase
+# first letter keeps prose labels like "See:" / "Example:" out; residual
+# doc-side pollution (a prose line like "note: ...") only inflates the
+# documented set and cannot mask a disjointness finding.
+def extract-agent-doc-keys [content: string] {
+    $content | parse --regex '(?m)^(?P<key>[a-z][a-zA-Z_-]*):' | get key | uniq
+}
+
+# Real agent-frontmatter keys: top-level keys of the file's frontmatter
+# block only — body content never contributes.
+def extract-agent-real-keys [content: string] {
+    frontmatter-lines $content
+        | each {|l| $l | parse --regex '^(?P<key>[a-z][a-zA-Z_-]*):'}
+        | flatten | get -o key | default [] | uniq
+}
+
+# Documented hook event names: CamelCase multi-hump tokens in the raw doc
+# (SessionStart, PreToolUse, ...). Non-event CamelCase words (MultiEdit)
+# are doc-side pollution — harmless for disjointness, same argument as
+# extract-agent-doc-keys.
+def extract-hook-doc-events [content: string] {
+    $content | parse --regex '\b(?P<ev>[A-Z][a-z]+(?:[A-Z][a-z]*)+)\b' | get ev | uniq
+}
+
+# Real hook event names: the top-level keys of a parsed hooks.json's
+# `hooks` object. Malformed wrappers contribute nothing here — Pass 2's
+# bad_wrapper check already owns that failure.
+def extract-hook-real-events [parsed] {
+    $parsed | get -o hooks | default {} | columns
+}
+
+# Core rule. Returns {status, disjoint} where status is one of:
+# - "doc_empty" — the documented vocabulary is empty. For the three known
+#   formats this is a HARD ERROR (extractor canary): the documenting skill
+#   is known to document tokens, so extracting none means the extractor
+#   broke, and silence here would hide the format forever.
+# - "fires" — the doc carries a foreign-family token (fires regardless of
+#   intersection: pure disjointness has a one-token margin, since the real
+#   command vocabulary is exactly $ARGUMENTS), OR the sets are disjoint
+#   with a non-empty real side.
+# - "silent" — vocabularies overlap and no foreign token, or the real side
+#   is empty (a format with no instances proves nothing).
+# `disjoint` is the documented-but-not-real set — the baseline's
+# detail_count for a fired finding.
+def check-vocab-disjoint [doc_vocab: list, real_vocab: list, foreign_tokens: list] {
+    if ($doc_vocab | is-empty) {
+        return {status: "doc_empty", disjoint: []}
+    }
+    let disjoint_doc = ($doc_vocab | where {|t| $t not-in $real_vocab})
+    let foreign_hit = ($doc_vocab | any {|t| $t in $foreign_tokens})
+    let no_overlap = (($disjoint_doc | length) == ($doc_vocab | length))
+    if $foreign_hit or ($no_overlap and ($real_vocab | is-not-empty)) {
+        {status: "fires", disjoint: $disjoint_doc}
+    } else {
+        {status: "silent", disjoint: []}
+    }
+}
+
+# Doc corpus for a documenting skill: SKILL.md plus references/*.md when
+# present, raw contents joined.
+def vocab-doc-content [skill_dir: string] {
+    let refs = (glob ($skill_dir | path join "references" "*.md"))
+    $refs | prepend ($skill_dir | path join "SKILL.md") | each {|f| open --raw $f} | str join "\n"
+}
+
+# Embedded self-test for the syntax-vs-usage vocabulary cross-check
+# (claude-skills-141). Exercises check-vocab-disjoint and the per-format
+# extractors — the same implementations Pass 4 in main calls. The historical
+# replay (case 7) inlines defect-era and fixed-era content as fixtures so
+# the test does not depend on git history staying reachable. Returns true
+# when any case failed.
+def run-vocab-self-test [] {
+    mut failed = false
+    let tick1 = '`'
+    let brace2 = '{{'
+
+    # Case 1: disjoint vocabularies fire, and the disjoint set (which the
+    # baseline's detail_count ratchets) is the full documented set
+    let c1 = (check-vocab-disjoint ["alpha" "beta"] ["gamma"] [])
+    if $c1.status != "fires" or ($c1.disjoint | sort) != ["alpha" "beta"] {
+        print $"(ansi red_bold)❌ vocab self-test: disjoint vocabularies did not fire(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2: overlapping vocabularies are silent — exercised end-to-end
+    # through the hook extractors (doc prose mentions SessionStart; real
+    # hooks.json wires SessionStart)
+    let hook_doc = (extract-hook-doc-events "Runs on SessionStart and PreToolUse. MultiEdit is unrelated prose.")
+    let hook_real = (extract-hook-real-events {hooks: {SessionStart: []}})
+    if ("SessionStart" not-in $hook_doc) or ($hook_real != ["SessionStart"]) {
+        print $"(ansi red_bold)❌ vocab self-test: hook extractors missed SessionStart(ansi reset)"
+        $failed = true
+    }
+    if (check-vocab-disjoint $hook_doc $hook_real []).status != "silent" {
+        print $"(ansi red_bold)❌ vocab self-test: overlapping hook vocabularies not silent(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3: doc superset of real is silent (the agent shape — 16 keys
+    # documented, 5 used — punishing good reference docs is a non-goal)
+    let agent_doc = (extract-agent-doc-keys ([
+        "name: reviewer" "description: reviews" "model: sonnet" "tools: Read"
+        "skills:" "maxTurns: 3" "color: red" "permissionMode: default"
+        "memory: user" "isolation: worktree" "effort: xhigh" "background: true"
+        "disallowedTools: Bash" "systemPrompt: x" "outputStyle: terse" "hooks: none"
+    ] | str join "\n"))
+    let agent_real = (extract-agent-real-keys ([
+        "---" "name: worker" "description: works" "model: haiku" "tools: Read, Grep" "skills:" "  - core:tdd" "---" "body prose"
+    ] | str join "\n"))
+    if ($agent_doc | length) != 16 or ($agent_real | sort) != ["description" "model" "name" "skills" "tools"] {
+        print $"(ansi red_bold)❌ vocab self-test: agent extractors wrong \(doc ($agent_doc | length), real ($agent_real | sort | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+    if (check-vocab-disjoint $agent_doc $agent_real []).status != "silent" {
+        print $"(ansi red_bold)❌ vocab self-test: doc-superset-of-real not silent(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4: bash pollution — a doc that documents only brace-family syntax
+    # still fires against a real file whose only $-tokens are plain bash
+    # ($USER / $SESSION_ID in example scripts), because the real extractor
+    # never runs a general \$[a-z_]+ regex; a named-arg token counts only
+    # when declared in that file's arguments: frontmatter
+    let polluted_real = (extract-command-real-vocab ([
+        "---" "description: deploy" "---"
+        "Run the script as $USER with $SESSION_ID and $BUILD_DIR set."
+    ] | str join "\n"))
+    if ($polluted_real | is-not-empty) {
+        print $"(ansi red_bold)❌ vocab self-test: bash \$-vars polluted the real vocabulary \(($polluted_real | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+    let declared_real = (extract-command-real-vocab ([
+        "---" "description: fix" "arguments: [issue, branch]" "---"
+        "Fix $issue on $branch."
+    ] | str join "\n"))
+    if ("$name" not-in $declared_real) {
+        print $"(ansi red_bold)❌ vocab self-test: declared arguments: frontmatter did not yield the named-arg family marker(ansi reset)"
+        $failed = true
+    }
+    let brace_doc = (extract-command-doc-vocab $"Use ($brace2)arg}} placeholders everywhere.")
+    let c4 = (check-vocab-disjoint $brace_doc $polluted_real [$"($brace2)}}"])
+    if $c4.status != "fires" {
+        print $"(ansi red_bold)❌ vocab self-test: brace-only doc vs bash-polluted real did not fire(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5a: empty REAL vocabulary is silent (a format with no instances
+    # proves nothing)
+    if (check-vocab-disjoint ["$ARGUMENTS"] [] [$"($brace2)}}"]).status != "silent" {
+        print $"(ansi red_bold)❌ vocab self-test: empty real vocabulary not silent(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5b: empty DOC vocabulary is a hard error, never silence — the
+    # extractor canary (these skills are known to document tokens)
+    if (check-vocab-disjoint [] ["$ARGUMENTS"] []).status != "doc_empty" {
+        print $"(ansi red_bold)❌ vocab self-test: empty doc vocabulary did not report doc_empty(ansi reset)"
+        $failed = true
+    }
+
+    # Case 6: mixed case — a doc carrying brace-family syntax AND one real
+    # token still fires via family-presence (pure disjointness has a
+    # one-token margin the foreign-family rule exists to close)
+    let mixed_doc = (extract-command-doc-vocab $"Substitute with \$ARGUMENTS or ($brace2)arg}}.")
+    let c6 = (check-vocab-disjoint $mixed_doc ["$ARGUMENTS"] [$"($brace2)}}"])
+    if $c6.status != "fires" {
+        print $"(ansi red_bold)❌ vocab self-test: doc with brace-family plus \$ARGUMENTS did not fire(ansi reset)"
+        $failed = true
+    }
+
+    # Case 7: historical replay, both states inlined as fixtures. The
+    # defect-era claude-commands/SKILL.md (pre-#134, 5ec8039~1) documented
+    # Handlebars with zero $ARGUMENTS mentions; the rewrite documents the
+    # real token families in prose/tables with zero fenced blocks.
+    let defect_doc_content = ([
+        "Hello, {{arg}}! Welcome to the project."
+        "Deploy {{environment}} environment to {{region}}."
+        "{{#if verbose}}"
+        "{{shell:git status}}"
+        "{{file:PROJECT_STRUCTURE.md}}"
+    ] | str join "\n")
+    let fixed_doc_content = ([
+        $"| ($tick1)\$ARGUMENTS($tick1) | The full argument string as typed |"
+        $"| ($tick1)\$N($tick1) | Shorthand for ($tick1)\$ARGUMENTS[N]($tick1) |"
+        $"| ($tick1)\$name($tick1) | The named argument declared in ($tick1)arguments:($tick1) frontmatter |"
+        $"- **Inline:** ($tick1)($tick1) !($tick1)git diff HEAD($tick1) ($tick1)($tick1) on a line"
+    ] | str join "\n")
+    let replay_real = (extract-command-real-vocab "Fix the issue described in $ARGUMENTS.")
+    if $replay_real != ["$ARGUMENTS"] {
+        print $"(ansi red_bold)❌ vocab self-test: real \$ARGUMENTS usage not extracted(ansi reset)"
+        $failed = true
+    }
+    let defect_vocab = (extract-command-doc-vocab $defect_doc_content)
+    if (check-vocab-disjoint $defect_vocab $replay_real [$"($brace2)}}"]).status != "fires" {
+        print $"(ansi red_bold)❌ vocab self-test: defect-era doc fixture did not fire(ansi reset)"
+        $failed = true
+    }
+    let fixed_vocab = (extract-command-doc-vocab $fixed_doc_content)
+    if ($fixed_vocab | sort) != (["$ARGUMENTS" "$N" $"!($tick1)cmd($tick1)" "$name"] | sort) {
+        print $"(ansi red_bold)❌ vocab self-test: fixed-era doc fixture extracted \(($fixed_vocab | str join ' ')\) — prose/table extraction broke(ansi reset)"
+        $failed = true
+    }
+    if (check-vocab-disjoint $fixed_vocab $replay_real [$"($brace2)}}"]).status != "silent" {
+        print $"(ansi red_bold)❌ vocab self-test: fixed-era doc fixture not silent(ansi reset)"
+        $failed = true
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Vocab self-test passed \(8 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -998,7 +1271,8 @@ def main [--update-baseline, --self-test] {
         let baseline_failed = (run-baseline-self-test)
         let checks_failed = (run-check-fixes-self-test)
         let duplicate_failed = (run-duplicate-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed { exit 1 }
+        let vocab_failed = (run-vocab-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed { exit 1 }
         exit 0
     }
 
@@ -1466,10 +1740,62 @@ def main [--update-baseline, --self-test] {
         $failing_counts = ($failing_counts | append {key: $g.key, count: $g.windows})
     }
 
+    # Pass 4: syntax-vs-usage vocabulary cross-check (claude-skills-141).
+    # For each format this repo both documents and contains, compare the
+    # DOCUMENTED token vocabulary (the documenting skill's SKILL.md +
+    # references/*.md, prose and tables included) against the REAL
+    # vocabulary in this repo's instances. This is a tripwire, not a net:
+    # real vocabularies are tiny (1 command token, 1 hook event, 5 agent
+    # keys), so it effectively asks "does the doc mention ANY token reality
+    # uses, and does it avoid foreign-family syntax" — exactly the observed
+    # defect class (the pre-#134 claude-commands SKILL.md documented
+    # fabricated Handlebars {{...}} and never mentioned $ARGUMENTS). Key
+    # shape syntax/<format>:vocab_disjoint; detail_count is the size of the
+    # disjoint documented set. An empty DOC vocabulary is a hard error
+    # (extractor canary — see check-vocab-disjoint); an empty REAL
+    # vocabulary stays silent. Real globs use ** deliberately:
+    # plugins/*/commands/ matches only 9 of the 25 command files.
+    let doc_skills_root = ($repo_root | path join "plugins" "tools" "claude-code" "skills")
+    let command_real = (glob ($repo_root | path join "plugins" "**" "commands" "*.md")
+        | each {|f| extract-command-real-vocab (open --raw $f)} | flatten | uniq)
+    let agent_real = (glob ($repo_root | path join "plugins" "**" "agents" "*.md")
+        | each {|f| extract-agent-real-keys (open --raw $f)} | flatten | uniq)
+    let hook_real = (glob ($repo_root | path join "plugins" "**" "hooks" "hooks.json")
+        | each {|f|
+            let parsed = (try { open $f } catch { null })
+            if $parsed == null { [] } else { extract-hook-real-events $parsed }
+        } | flatten | uniq)
+    let vocab_formats = [
+        {format: "commands", doc: (extract-command-doc-vocab (vocab-doc-content ($doc_skills_root | path join "claude-commands"))), real: $command_real, foreign: ['{{}}']}
+        {format: "agents", doc: (extract-agent-doc-keys (vocab-doc-content ($doc_skills_root | path join "claude-agents"))), real: $agent_real, foreign: []}
+        {format: "hooks", doc: (extract-hook-doc-events (vocab-doc-content ($doc_skills_root | path join "claude-hooks"))), real: $hook_real, foreign: []}
+    ]
+    mut vocab_findings = []
+    mut vocab_doc_empty = []
+    for vf in $vocab_formats {
+        let res = (check-vocab-disjoint $vf.doc $vf.real $vf.foreign)
+        if $res.status == "doc_empty" {
+            $vocab_doc_empty = ($vocab_doc_empty | append $vf.format)
+        } else if $res.status == "fires" {
+            let key = $"syntax/($vf.format):vocab_disjoint"
+            $failing_keys = ($failing_keys | append $key)
+            $failing_counts = ($failing_counts | append {key: $key, count: ($res.disjoint | length)})
+            $vocab_findings = ($vocab_findings | append {
+                format: $vf.format, key: $key, doc: $vf.doc, real: $vf.real
+            })
+        }
+    }
+    if ($vocab_doc_empty | is-not-empty) {
+        print $"(ansi red_bold)❌ syntax-vs-usage: EMPTY documented vocabulary for format\(s\): ($vocab_doc_empty | str join ', ')(ansi reset)"
+        print "These skills are known to document tokens, so extracting none means the doc extractor broke (or the doc lost its syntax section). Fix the extractor or the doc — this is a hard error, not a baselineable finding."
+        exit 1
+    }
+
     # Accumulation loops are done — rebind as immutable so the closures below
     # can capture them (Nushell closures cannot capture mut variables).
     let failing_keys = $failing_keys
     let failing_counts = $failing_counts
+    let vocab_findings = $vocab_findings
 
     if ($results | is-empty) {
         print "No skills found to validate."
@@ -1503,6 +1829,20 @@ def main [--update-baseline, --self-test] {
         }
     }
 
+    # Vocab findings are keyed by format, so always print both vocabularies —
+    # a bare syntax/<format> key in a failure list is not actionable.
+    print ""
+    if ($vocab_findings | is-empty) {
+        print "syntax-vs-usage vocabularies: documented and real overlap for commands/agents/hooks"
+    } else {
+        print $"syntax-vs-usage: ($vocab_findings | length) format\(s\) documenting disjoint or foreign-family syntax:"
+        for v in $vocab_findings {
+            print $"  ($v.key) — format '($v.format)'"
+            print $"    documented vocabulary: ($v.doc | str join ' ')"
+            print $"    real-usage vocabulary: ($v.real | str join ' ')"
+        }
+    }
+
     if $update_baseline {
         # Shrink-only: the baseline is a ratchet, never a place to stash new
         # debt. Refuse to add any key that isn't already baselined — the only
@@ -1530,7 +1870,7 @@ def main [--update-baseline, --self-test] {
             }
             | sort-by key)
         {
-            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
+            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths; syntax-vs-usage vocabulary findings use syntax/<format>:vocab_disjoint for the formats commands/agents/hooks — the validator prints both vocabularies), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block/vocab_disjoint; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
             allowed_failures: $shrunk
         } | to json --indent 2 | save -f $baseline_path
         print ""

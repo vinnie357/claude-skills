@@ -140,9 +140,10 @@ mise list-plugins
 
 ## Skill Quality Checks
 
-`mise test:skills-quality` runs three passes — 17 static checks per skill, an
-agents/commands/hooks surface pass per plugin, and one corpus-wide
-duplicate-block scan — enforcing all three against the same ratchet baseline
+`mise test:skills-quality` runs four passes — 17 static checks per skill, an
+agents/commands/hooks surface pass per plugin, one corpus-wide
+duplicate-block scan, and a syntax-vs-usage vocabulary cross-check —
+enforcing all four against the same ratchet baseline
 (`test/quality-baseline.json`):
 
 - A failing check **not** in the baseline fails the run — new violations cannot land.
@@ -151,8 +152,9 @@ duplicate-block scan — enforcing all three against the same ratchet baseline
 
 Baseline entries are `plugin/skill:check` strings (or `plugin/agents/<file>:check`,
 `plugin/commands/<file>:check`, `plugin/hooks/hooks.json:check` for the
-agents/commands/hooks surfaces, and `dupe/<hash>:duplicate_block` for the
-duplicate-block pass). Every key ends in `:<check-name>`, which is how the
+agents/commands/hooks surfaces, `dupe/<hash>:duplicate_block` for the
+duplicate-block pass, and `syntax/<format>:vocab_disjoint` for the
+syntax-vs-usage pass). Every key ends in `:<check-name>`, which is how the
 baseline schema and ratchet identify the check. When you fix a baselined
 violation, regenerate the baseline:
 
@@ -237,10 +239,51 @@ directories, and `hooks/hooks.json`:
 
 Use `/benchmark-skills` for a more detailed analysis with category classification and quality assessment.
 
+### Syntax-vs-usage vocabulary check
+
+For each format this repo both documents and contains, the check extracts the
+**documented** token vocabulary (from the documenting skill's `SKILL.md` plus
+`references/*.md` — prose and tables included, never just fenced blocks) and
+the **real** vocabulary (from the repo's own instances), and fires when the
+sets are disjoint or the doc carries a foreign-family token. The baseline key
+is `syntax/<format>:vocab_disjoint`; `detail_count` is the size of the
+disjoint documented set. Both vocabularies are printed on failure.
+
+| Format | Documenting skill | Real instances | Foreign family |
+|--------|-------------------|----------------|----------------|
+| `commands` | `claude-commands` | `plugins/**/commands/*.md` | Handlebars-style `{{...}}` |
+| `agents` | `claude-agents` | frontmatter keys of `plugins/**/agents/*.md` | — |
+| `hooks` | `claude-hooks` | `hooks` keys of `plugins/**/hooks/hooks.json` | — |
+
+**This is a tripwire, not a net.** The real vocabularies are tiny — 1 command
+token (`$ARGUMENTS`), 1 hook event (`SessionStart`), 5 agent frontmatter keys —
+so the check effectively asks "does the doc mention any token reality uses,
+and does it avoid foreign-family syntax". That is exactly the one observed
+defect class (a rewrite of `claude-commands/SKILL.md` replaced fabricated
+Handlebars syntax that never mentioned `$ARGUMENTS`), not a general guarantee
+of doc accuracy. Documented-but-unused tokens are deliberately NOT flagged:
+correct reference docs cover features this repo does not exercise.
+
+Two asymmetric guards:
+
+- An **empty documented vocabulary is a hard error** (extractor canary, not a
+  baselineable finding): the three skills are known to document tokens, so
+  extracting none means the extractor broke — silence would hide the format
+  forever. An empty **real** vocabulary stays silent.
+- The **foreign-family rule fires regardless of intersection**: since the real
+  command vocabulary is a single token, pure disjointness has a one-token
+  margin — a doc full of fabricated brace syntax plus one `$ARGUMENTS` mention
+  would otherwise pass.
+
+The real side never runs a general `\$[a-z_]+` regex — real command files
+carry plain bash (`$USER`, `$SESSION_ID`, `$BUILD_DIR`) in example scripts.
+A named-arg token counts only when the file declares `arguments:` in its
+frontmatter; both sides normalise named args to one `$name` family marker.
+
 ## Scripts
 
 - **validate-plugin.nu** — Validates a specific plugin (name, kebab-case, invalid fields, skill paths)
-- **validate-skills-quality.nu** — Skill quality scorecard plus agents/commands/hooks surface pass, both ratchet-baseline enforced (`--update-baseline` to regenerate, shrink-only)
+- **validate-skills-quality.nu** — Skill quality scorecard plus agents/commands/hooks surface pass, duplicate-block scan, and syntax-vs-usage vocabulary check, all ratchet-baseline enforced (`--update-baseline` to regenerate, shrink-only)
 - **validate-core-list.nu** — Verifies the mandatory core skill list is identical across the canonical block and all anchored satellite load lists, and sweeps for unregistered files carrying a near-complete copy (`--self-test` runs its fixtures)
 - **check-version-bumps.nu** — Verifies every plugin with changed files bumped `plugin.json` and `marketplace.json` versions against a base ref; hard-fails on a missing/invalid base ref
 
@@ -275,7 +318,7 @@ depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quali
 # Validates a specific plugin
 
 [tasks."test:skills-quality"]
-# Skill quality scorecard + agents/commands/hooks surfaces, ratchet-baseline enforced
+# Skill quality scorecard + agents/commands/hooks surfaces + duplicate-block + syntax-vs-usage, ratchet-baseline enforced
 
 [tasks."test:version-bumps"]
 # NOT a dependency of test — run directly or via the dedicated CI job
@@ -289,7 +332,7 @@ ci
     ├── test:claude          (claude plugin validate . via mise-managed CLI)
     ├── test:marketplace     (marketplace.json + version-sync validation)
     ├── test:plugins         (all plugin.json files)
-    └── test:skills-quality  (skill quality scorecard + agents/commands/hooks surfaces)
+    └── test:skills-quality  (skill quality scorecard + surfaces + duplicates + syntax-vs-usage)
 
 test:plugin <name>       (validates a specific plugin, standalone)
 test:version-bumps <base> (standalone — also runs as a dedicated CI job on PRs)
