@@ -1,5 +1,5 @@
 ---
-name: slidev-code
+name: code
 description: Guide for Slidev code block features. Use when configuring syntax highlighting, line highlighting, Monaco editor, Magic Move animations, TwoSlash type annotations, or code groups.
 ---
 

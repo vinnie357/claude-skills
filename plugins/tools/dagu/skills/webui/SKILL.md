@@ -1,5 +1,5 @@
 ---
-name: dagu-webui
+name: webui
 description: Guide for using the Dagu Web UI. Use when monitoring workflow executions, managing DAGs through the browser, or troubleshooting workflow issues.
 ---
 

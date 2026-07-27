@@ -1,5 +1,5 @@
 ---
-name: zig-language
+name: language
 description: Guide for Zig core language features. Use when writing Zig code with comptime, error handling, data types, slices, optionals, defer, or following Zig idioms.
 ---
 

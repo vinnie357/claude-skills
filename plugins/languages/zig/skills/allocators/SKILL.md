@@ -1,5 +1,5 @@
 ---
-name: zig-allocators
+name: allocators
 description: Guide for Zig memory management and allocators. Use when choosing allocators, managing memory lifecycle, debugging leaks, or understanding arena vs page vs fixed-buffer allocation patterns.
 ---
 

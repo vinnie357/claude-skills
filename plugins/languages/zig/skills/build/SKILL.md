@@ -1,5 +1,5 @@
 ---
-name: zig-build
+name: build
 description: Guide for the Zig build system and CI integration. Use when configuring build.zig, adding build steps, cross-compiling, managing dependencies, or setting up CI pipelines.
 ---
 

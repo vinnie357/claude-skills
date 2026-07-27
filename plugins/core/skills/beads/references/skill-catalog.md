@@ -64,9 +64,9 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 
 | Skill | Trigger Keywords |
 |-------|-----------------|
-| `dagu-workflows` | dagu, workflow definition, DAG, YAML workflow, scheduling |
-| `dagu-webui` | dagu UI, workflow monitoring, DAG browser |
-| `dagu-rest-api` | dagu API, workflow API, execution status API |
+| `workflows` | dagu, workflow definition, DAG, YAML workflow, scheduling |
+| `webui` | dagu UI, workflow monitoring, DAG browser |
+| `rest-api` | dagu API, workflow API, execution status API |
 
 ### elixir Plugin
 
@@ -98,10 +98,10 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 | Skill | Trigger Keywords |
 |-------|-----------------|
 | `slidev` | slidev, sli.dev, presentation, slides, deck |
-| `slidev-syntax` | slide syntax, slide layout, frontmatter, markdown slides, presenter notes |
-| `slidev-code` | code block, syntax highlighting, monaco, magic move, twoslash, code group |
-| `slidev-export` | export PDF, export PPTX, slidev build, static SPA, slidev export |
-| `slidev-troubleshooting` | slidev error, export failure, font issue, slidev debug |
+| `syntax` | slide syntax, slide layout, frontmatter, markdown slides, presenter notes |
+| `code` | code block, syntax highlighting, monaco, magic move, twoslash, code group |
+| `export` | export PDF, export PPTX, slidev build, static SPA, slidev export |
+| `troubleshooting` | slidev error, export failure, font issue, slidev debug |
 
 ### ui Plugin
 

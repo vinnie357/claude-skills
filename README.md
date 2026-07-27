@@ -145,10 +145,10 @@ Slidev markdown-based presentation development.
 
 **Skills:**
 - **slidev** - Overview, project setup, and routing to sub-skills
-- **slidev-syntax** - Slide separators, frontmatter, layouts, MDC, notes, transitions
-- **slidev-code** - Shiki highlighting, Monaco editor, Magic Move, TwoSlash, code groups
-- **slidev-export** - PDF, PPTX, PNG export, SPA build, CLI flags
-- **slidev-troubleshooting** - Export failures, font issues, configuration debugging
+- **syntax** - Slide separators, frontmatter, layouts, MDC, notes, transitions
+- **code** - Shiki highlighting, Monaco editor, Magic Move, TwoSlash, code groups
+- **export** - PDF, PPTX, PNG export, SPA build, CLI flags
+- **troubleshooting** - Export failures, font issues, configuration debugging
 
 **Keywords**: slidev, presentation, slides, markdown, vite
 

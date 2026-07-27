@@ -187,7 +187,7 @@ This file documents the sources used to create the slidev plugin skills.
 - **Name**: slidev
 - **Version**: 0.2.0
 - **Description**: Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting
-- **Skills**: 8 (slidev, slidev-syntax, slidev-code, slidev-export, slidev-troubleshooting, slidev-presentations, slidev-styles, slidev-interactive)
+- **Skills**: 8 (slidev, syntax, code, export, troubleshooting, presentations, styles, interactive)
 - **Agents**: 3 (content-strategist, brand-discoverer, slide-builder)
 - **Created**: 2026-02-21
 - **Updated**: 2026-04-04

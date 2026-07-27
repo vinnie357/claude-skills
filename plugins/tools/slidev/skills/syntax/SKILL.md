@@ -1,5 +1,5 @@
 ---
-name: slidev-syntax
+name: syntax
 description: Guide for Slidev slide syntax and structure. Use when working with slide separators, frontmatter, layouts, MDC syntax, presenter notes, click animations, or transitions.
 ---
 

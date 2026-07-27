@@ -1,5 +1,5 @@
 ---
-name: zig-testing
+name: testing
 description: Guide for Zig built-in testing framework. Use when writing tests, using test allocator for leak detection, filtering tests, setting up build.zig test steps, or integrating tests into CI.
 ---
 

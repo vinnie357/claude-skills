@@ -1,5 +1,5 @@
 ---
-name: slidev-styles
+name: styles
 description: Guide for brand discovery, theme generation, and style validation for Slidev presentations. Use when extracting brand tokens from websites, creating Slidev themes from brand guidelines, validating slide compliance with brand standards, or configuring colors, fonts, and spacing.
 ---
 

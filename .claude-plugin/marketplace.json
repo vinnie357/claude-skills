@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.63",
+      "version": "0.4.64",
       "category": "meta",
       "keywords": [
         "all",
@@ -114,7 +114,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.31",
+      "version": "0.2.32",
       "category": "development",
       "keywords": [
         "git",
@@ -135,7 +135,7 @@
       "source": "./plugins/tools/dagu",
       "strict": true,
       "description": "Dagu workflow orchestration: workflows, web UI, REST API",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "category": "tools",
       "keywords": [
         "dagu",
@@ -165,7 +165,7 @@
       "source": "./plugins/tools/github",
       "strict": true,
       "description": "GitHub Actions, Workflows, act local testing, community health files, Dependabot consolidation, and PR review",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "category": "tools",
       "keywords": [
         "github",
@@ -383,7 +383,7 @@
       "source": "./plugins/tools/slidev",
       "strict": true,
       "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "tools",
       "keywords": [
         "slidev",
@@ -467,7 +467,7 @@
       "source": "./plugins/languages/zig",
       "strict": true,
       "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, testing, and troubleshooting",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "category": "language",
       "keywords": [
         "zig",
