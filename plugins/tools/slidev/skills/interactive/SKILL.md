@@ -1,5 +1,5 @@
 ---
-name: slidev-interactive
+name: interactive
 description: Guide for embedding interactive demos and mock UIs in Slidev presentations. Use when adding clickable prototypes, animated workflows, Vue components, or standalone HTML5 mock pages to slide decks.
 ---
 

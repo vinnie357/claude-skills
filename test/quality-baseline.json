@@ -198,13 +198,6 @@
       "detail_count": null
     },
     {
-      "key": "dagu/rest-api:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "dagu/rest-api:source",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -215,13 +208,6 @@
       "key": "dagu/webui:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "dagu/webui:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -245,13 +231,6 @@
       "issue": "claude-skills-143",
       "first_seen": "migrated",
       "detail_count": 833
-    },
-    {
-      "key": "dagu/workflows:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
     },
     {
       "key": "dupe/1182fd06:duplicate_block",
@@ -401,20 +380,6 @@
       "detail_count": 653
     },
     {
-      "key": "github/actions:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "github/community-health:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "github/community-health:source",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -427,13 +392,6 @@
       "issue": "claude-skills-143",
       "first_seen": "migrated",
       "detail_count": 887
-    },
-    {
-      "key": "github/workflows:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
     },
     {
       "key": "qa/qa:ref_depth",
@@ -464,23 +422,9 @@
       "detail_count": null
     },
     {
-      "key": "slidev/code:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "slidev/export:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "slidev/export:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -492,23 +436,9 @@
       "detail_count": null
     },
     {
-      "key": "slidev/interactive:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "slidev/presentations:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "slidev/presentations:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -527,13 +457,6 @@
       "detail_count": null
     },
     {
-      "key": "slidev/styles:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "slidev/styles:ref_depth",
       "class": "DEBT",
       "issue": "claude-skills-145",
@@ -548,23 +471,9 @@
       "detail_count": null
     },
     {
-      "key": "slidev/syntax:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "slidev/troubleshooting:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "slidev/troubleshooting:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -611,13 +520,6 @@
       "detail_count": null
     },
     {
-      "key": "zig/allocators:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "zig/build:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -625,23 +527,9 @@
       "detail_count": null
     },
     {
-      "key": "zig/build:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "zig/c-interop:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/c-interop:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
       "first_seen": "migrated",
       "detail_count": null
     },
@@ -660,13 +548,6 @@
       "detail_count": null
     },
     {
-      "key": "zig/language:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "zig/testing:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -674,23 +555,9 @@
       "detail_count": null
     },
     {
-      "key": "zig/testing:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "zig/troubleshooting:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/troubleshooting:name_dir",
-      "class": "DEBT",
-      "issue": "claude-skills-139",
       "first_seen": "migrated",
       "detail_count": null
     },

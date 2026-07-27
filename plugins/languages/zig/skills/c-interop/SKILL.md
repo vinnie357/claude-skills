@@ -1,5 +1,5 @@
 ---
-name: zig-c-interop
+name: c-interop
 description: Guide for Zig and C interoperability. Use when importing C headers with @cImport, exporting Zig functions to C, mapping C types, using translate-c, or linking C libraries.
 ---
 

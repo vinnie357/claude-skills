@@ -1,5 +1,5 @@
 ---
-name: github-community-health
+name: community-health
 description: Guide for setting up GitHub community health files for open source repositories. Use when preparing repos for public release, adding community standards files, or configuring issue/PR templates.
 ---
 

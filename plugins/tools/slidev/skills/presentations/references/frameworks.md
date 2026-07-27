@@ -1,6 +1,6 @@
 # Presentation Frameworks Reference
 
-Deep reference for the core presentation strategy frameworks used in the `slidev-presentations` skill.
+Deep reference for the core presentation strategy frameworks used in the `presentations` skill.
 
 ## Table of Contents
 

@@ -1,5 +1,5 @@
 ---
-name: github-actions
+name: actions
 description: Create and configure GitHub Actions. Use when building custom actions, setting up runners, implementing security practices, or publishing to the marketplace.
 ---
 

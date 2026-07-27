@@ -1,5 +1,5 @@
 ---
-name: github-workflows
+name: workflows
 description: Write and optimize GitHub Actions workflows. Use when creating CI/CD pipelines, configuring workflow triggers, managing artifacts, or debugging workflow runs.
 ---
 

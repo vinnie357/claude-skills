@@ -1,5 +1,5 @@
 ---
-name: zig-troubleshooting
+name: troubleshooting
 description: Guide for debugging and troubleshooting Zig programs. Use when diagnosing compiler errors, runtime panics, memory issues, build failures, or common Zig pitfalls.
 ---
 

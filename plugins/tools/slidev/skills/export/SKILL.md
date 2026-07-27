@@ -1,5 +1,5 @@
 ---
-name: slidev-export
+name: export
 description: Guide for exporting Slidev presentations. Use when exporting to PDF, PPTX, PNG, building static SPA sites, or configuring export CLI flags.
 ---
 

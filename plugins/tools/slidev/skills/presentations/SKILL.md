@@ -1,5 +1,5 @@
 ---
-name: slidev-presentations
+name: presentations
 description: Guide for presentation strategy and best practices. Use when planning slide decks, choosing audience-appropriate formats, structuring problem-first narratives, creating one-pagers, or following presentation design principles like rule of threes and assertion-evidence.
 ---
 
