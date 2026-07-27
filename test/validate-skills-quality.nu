@@ -717,6 +717,24 @@ def normalise-dupe-lines [content: string] {
 # distinct files): within-file repetition is a style concern, not the
 # copy-drift this check exists to catch. Returns [{files: sorted list,
 # windows: int}].
+# Split a corpus path list into files present on disk and files that are
+# git-tracked but missing from the working tree (an uncommitted deletion).
+# Callers MUST report the missing list rather than dropping it silently.
+def split-corpus-paths [entries: list] {
+    let missing = ($entries | where {|e| not $e.exists} | get path)
+    {
+        present: ($entries | where exists | get path)
+        missing: $missing
+        # The announcement is RETURNED rather than printed inside main, so a
+        # self-test can assert it exists. A caller that drops it reintroduces
+        # the silent-shrink failure this helper exists to prevent, and an
+        # unenforced "callers MUST report" comment does not stop that.
+        warnings: (if ($missing | is-empty) { [] } else {
+            ([$"⚠  duplicate-block scan skipped ($missing | length) tracked file\(s\) missing from the working tree \(uncommitted deletions\):"]
+                | append ($missing | each {|m| $"     ($m)"}))
+        })
+    }
+}
 def find-duplicate-groups [files: list] {
     let window_hits = ($files | each {|f|
         let kept = (normalise-dupe-lines $f.content)
@@ -984,8 +1002,41 @@ def run-duplicate-self-test [] {
         $failed = true
     }
 
+    # Case 15: a git-tracked file deleted from the working tree but not yet
+    # committed must not crash the corpus scan (claude-skills-155). It is
+    # skipped, and the skip is REPORTED — a corpus that silently shrinks is
+    # how this check would go quiet.
+    let split = (split-corpus-paths [
+        {path: "plugins/a/SKILL.md", exists: true}
+        {path: "plugins/gone/SKILL.md", exists: false}
+        {path: "CLAUDE.md", exists: true}
+    ])
+    if ($split.present | length) != 2 {
+        print $"(ansi red_bold)❌ duplicate self-test: corpus split dropped or kept the wrong present paths(ansi reset)"
+        $failed = true
+    }
+    if $split.missing != ["plugins/gone/SKILL.md"] {
+        print $"(ansi red_bold)❌ duplicate self-test: deleted-but-tracked path was not reported as missing(ansi reset)"
+        $failed = true
+    }
+    let none_missing = (split-corpus-paths [{path: "plugins/a/SKILL.md", exists: true}])
+    if ($none_missing.missing | is-not-empty) {
+        print $"(ansi red_bold)❌ duplicate self-test: clean corpus wrongly reported missing paths(ansi reset)"
+        $failed = true
+    }
+    # The announcement is the point of the skip, so it is asserted here — a
+    # warning that only lived in main could be deleted with every test green.
+    if ($split.warnings | is-empty) or (not (($split.warnings | str join "\n") | str contains "plugins/gone/SKILL.md")) {
+        print $"(ansi red_bold)❌ duplicate self-test: skip warning missing or did not name the skipped path(ansi reset)"
+        $failed = true
+    }
+    if ($none_missing.warnings | is-not-empty) {
+        print $"(ansi red_bold)❌ duplicate self-test: clean corpus emitted a skip warning(ansi reset)"
+        $failed = true
+    }
+
     if not $failed {
-        print $"(ansi green_bold)✅ Duplicate-block self-test passed \(14 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Duplicate-block self-test passed \(15 cases\)(ansi reset)"
     }
     $failed
 }
@@ -1849,7 +1900,15 @@ def main [--update-baseline, --self-test] {
     # (see dupe-key), feeding the same ratchet baseline as the per-skill
     # checks — detail_count is the group's shared-window count.
     let corpus_paths = (git -C $repo_root ls-files -- 'plugins/**/*.md' 'plugins/**/*.sh' 'CLAUDE.md' | lines | where {|p| $p | is-not-empty})
-    let corpus = ($corpus_paths | each {|p| {path: $p, content: (open --raw ($repo_root | path join $p))}})
+    # A tracked file deleted from the working tree but not yet committed is
+    # skipped rather than opened — opening it aborted the whole run with a
+    # raw "File not found" trace (claude-skills-155). The skip is announced:
+    # a corpus that silently shrinks is how this check would go quiet.
+    let corpus_split = (split-corpus-paths ($corpus_paths | each {|p|
+        {path: $p, exists: ($repo_root | path join $p | path exists)}
+    }))
+    for w in $corpus_split.warnings { print $"(ansi yellow)($w)(ansi reset)" }
+    let corpus = ($corpus_split.present | each {|p| {path: $p, content: (open --raw ($repo_root | path join $p))}})
     let satellites = (core-list-satellites ($repo_root | path join "test" "validate-core-list.nu"))
     let dupe_groups = (find-duplicate-groups $corpus
         | where {|g| not (dupe-exempt $g.files $satellites)}

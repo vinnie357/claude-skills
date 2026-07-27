@@ -196,6 +196,12 @@ Runs once over the whole corpus rather than per skill: git-tracked `.md` and
 `.sh` files under `plugins/`, plus the root `CLAUDE.md`. Files under `test/`
 and `.github/` are out of scope — the check targets authored skill content.
 
+A file that is still git-tracked but has been deleted from the working tree —
+an uncommitted deletion, the ordinary mid-refactor state — is skipped rather
+than opened, and the skip is printed with the path. Opening it used to abort
+the whole run with a raw "File not found" trace. The skip is announced
+deliberately: a corpus that shrinks silently is how this check would go quiet.
+
 It reports any run of **8 or more normalised lines** appearing in two or more
 files. Normalisation trims each line, strips leading bullet (`-`/`*`/`+`) and
 ordered (`N.`) markers and backticks, and collapses whitespace; blank,

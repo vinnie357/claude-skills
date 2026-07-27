@@ -355,10 +355,22 @@ def check-satellite [lines: list<string>, anchor: string, canonical: list<string
 def sweep-unregistered [canonical: list<string>] {
   let threshold = $EXPECTED_COUNT - 2
   let registered = ($SATELLITES | get path)
-  let tracked = (git ls-files
+  let tracked_all = (git ls-files
     | lines
     | where { |f| ($f | str ends-with ".md") or ($f | str ends-with ".sh") }
     | where { |f| $f not-in $registered })
+
+  # A tracked file deleted from the working tree but not yet committed would
+  # abort this sweep on `open --raw` with a raw "does not exist" trace — the
+  # same class as claude-skills-155 in validate-skills-quality.nu, which is
+  # the very next script in `mise test`. Skip them, and SAY which: a sweep
+  # that quietly covers less than it claims is worse than one that crashes.
+  let missing = ($tracked_all | where { |f| not ($f | path exists) })
+  let tracked = ($tracked_all | where { |f| $f | path exists })
+  if ($missing | is-not-empty) {
+    print $"(ansi yellow)⚠  core-list sweep skipped ($missing | length) tracked file\(s\) missing from the working tree \(uncommitted deletions\):(ansi reset)"
+    for m in $missing { print $"     ($m)" }
+  }
 
   mut violations = []
 
