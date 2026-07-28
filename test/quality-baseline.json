@@ -58,13 +58,6 @@
       "detail_count": null
     },
     {
-      "key": "beads/beads:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 735
-    },
-    {
       "key": "claude-code/claude-teams:ref_depth",
       "class": "DEBT",
       "issue": "claude-skills-145",
@@ -182,13 +175,6 @@
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "dagu/workflows:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 833
     },
     {
       "key": "design/accessibility:anti_fab",

@@ -113,158 +113,16 @@ steps:
 
 ## Executors
 
-### Command Executor (Default)
+Command (default), Docker, SSH, HTTP, Mail, and JQ executor configuration: see executors.md.
 
-```yaml
-steps:
-  - name: shell_command
-    command: ./script.sh
-```
-
-### Docker Executor
-
-```yaml
-steps:
-  - name: run_in_container
-    executor:
-      type: docker
-      config:
-        image: alpine:latest
-    command: echo "Running in Docker"
-
-  - name: with_volumes
-    executor:
-      type: docker
-      config:
-        image: node:18
-        volumes:
-          - /host/path:/container/path
-        env:
-          - NODE_ENV=production
-    command: npm run build
-```
-
-### SSH Executor
-
-```yaml
-steps:
-  - name: remote_execution
-    executor:
-      type: ssh
-      config:
-        user: deploy
-        host: server.example.com
-        key: /path/to/ssh/key
-    command: ./remote_script.sh
-```
-
-### HTTP Executor
-
-```yaml
-steps:
-  - name: api_call
-    executor:
-      type: http
-      config:
-        method: POST
-        url: https://api.example.com/webhook
-        headers:
-          Content-Type: application/json
-          Authorization: Bearer $API_TOKEN
-        body: |
-          {
-            "event": "workflow_complete",
-            "timestamp": "{{.timestamp}}"
-          }
-```
-
-### Mail Executor
-
-```yaml
-steps:
-  - name: send_notification
-    executor:
-      type: mail
-      config:
-        to: user@example.com
-        from: dagu@example.com
-        subject: Workflow Complete
-        message: |
-          The workflow has completed successfully.
-          Time: {{.timestamp}}
-```
-
-### JQ Executor
-
-```yaml
-steps:
-  - name: transform_json
-    executor:
-      type: jq
-      config:
-        query: '.users[] | select(.active == true) | .email'
-    command: cat users.json
-```
+Gotcha: the default executor (no `executor:` block) is the Command Executor — set
+`executor.type` only when a step needs Docker, SSH, HTTP, Mail, or JQ.
 
 ## Step Dependencies
 
-### Simple Dependencies
+Simple, multiple, and parallel dependency patterns via `depends:`: see steps-and-flow.md.
 
-```yaml
-steps:
-  - name: download
-    command: wget https://example.com/data.zip
-
-  - name: extract
-    depends:
-      - download
-    command: unzip data.zip
-
-  - name: process
-    depends:
-      - extract
-    command: ./process.sh
-```
-
-### Multiple Dependencies
-
-```yaml
-steps:
-  - name: fetch_data
-    command: ./fetch.sh
-
-  - name: fetch_config
-    command: ./fetch_config.sh
-
-  - name: process
-    depends:
-      - fetch_data
-      - fetch_config
-    command: ./process.sh
-```
-
-### Parallel Execution
-
-```yaml
-# These run in parallel (no dependencies)
-steps:
-  - name: task1
-    command: ./task1.sh
-
-  - name: task2
-    command: ./task2.sh
-
-  - name: task3
-    command: ./task3.sh
-
-  # This waits for all above to complete
-  - name: finalize
-    depends:
-      - task1
-      - task2
-      - task3
-    command: ./finalize.sh
-```
+Gotcha: steps with no `depends:` run in parallel by default — sequencing is opt-in.
 
 ## Conditional Execution
 
@@ -330,36 +188,7 @@ steps:
 
 ## Data Flow
 
-### Output Variables
-
-```yaml
-steps:
-  - name: generate_id
-    command: echo "ID_$(date +%s)"
-    output: PROCESS_ID
-
-  - name: use_id
-    depends:
-      - generate_id
-    command: echo "Processing with ID: $PROCESS_ID"
-```
-
-### Script Output
-
-```yaml
-steps:
-  - name: get_config
-    script: |
-      #!/bin/bash
-      export DB_HOST="localhost"
-      export DB_PORT="5432"
-    output: DB_CONFIG
-
-  - name: connect
-    depends:
-      - get_config
-    command: ./connect.sh $DB_HOST $DB_PORT
-```
+Passing step output to later steps via `output:` and captured `script:` variables: see steps-and-flow.md.
 
 ## Scheduling
 
@@ -391,361 +220,31 @@ schedule:
 
 ## Environment Variables
 
-### Global Environment
-
-```yaml
-env:
-  - ENVIRONMENT: production
-  - LOG_LEVEL: info
-  - API_URL: https://api.example.com
-
-steps:
-  - name: use_env
-    command: echo "Environment: $ENVIRONMENT"
-```
-
-### Step-Level Environment
-
-```yaml
-steps:
-  - name: with_custom_env
-    env:
-      - CUSTOM_VAR: value
-      - OVERRIDE: step_value
-    command: ./script.sh
-```
-
-### Environment from File
-
-```yaml
-env:
-  - .env  # Load from .env file
-
-steps:
-  - name: use_env_file
-    command: echo "DB_HOST: $DB_HOST"
-```
+Global, step-level, and file-loaded (`.env`) environment variables: see steps-and-flow.md.
 
 ## Parameters
 
-### Defining Parameters
-
-```yaml
-params: ENVIRONMENT=development VERSION=1.0.0
-
-steps:
-  - name: deploy
-    command: ./deploy.sh $ENVIRONMENT $VERSION
-```
-
-### Using Parameters
-
-```bash
-# Run with default parameters
-dagu start workflow.yaml
-
-# Override parameters
-dagu start workflow.yaml ENVIRONMENT=production VERSION=2.0.0
-```
+Defining workflow `params:` and overriding them from the CLI: see steps-and-flow.md.
 
 ## Sub-Workflows
 
-### Calling Sub-Workflows
-
-```yaml
-# main.yaml
-steps:
-  - name: run_sub_workflow
-    run: sub_workflow.yaml
-    params: PARAM=value
-
-  - name: another_sub
-    run: workflows/another.yaml
-```
-
-### Hierarchical Workflows
-
-```yaml
-# orchestrator.yaml
-steps:
-  - name: data_ingestion
-    run: workflows/ingest.yaml
-
-  - name: data_processing
-    depends:
-      - data_ingestion
-    run: workflows/process.yaml
-
-  - name: data_export
-    depends:
-      - data_processing
-    run: workflows/export.yaml
-```
+Calling and nesting sub-workflows with `run:`: see steps-and-flow.md.
 
 ## Handlers
 
-### Cleanup Handler
+Exit, failure, and success handlers via `handlerOn:`: see steps-and-flow.md.
 
-```yaml
-handlerOn:
-  exit:
-    - name: cleanup
-      command: ./cleanup.sh
-
-steps:
-  - name: main_task
-    command: ./task.sh
-```
-
-### Error Handler
-
-```yaml
-handlerOn:
-  failure:
-    - name: send_alert
-      executor:
-        type: mail
-        config:
-          to: alerts@example.com
-          subject: "Workflow Failed"
-          message: "Workflow {{.Name}} failed at {{.timestamp}}"
-
-steps:
-  - name: risky_operation
-    command: ./operation.sh
-```
-
-### Success Handler
-
-```yaml
-handlerOn:
-  success:
-    - name: notify_success
-      command: ./notify.sh "Workflow completed successfully"
-
-steps:
-  - name: task
-    command: ./task.sh
-```
+Gotcha: `handlerOn` is declared once per workflow, alongside `steps:` — it is not nested inside an individual step.
 
 ## Templates and Variables
 
-### Built-in Variables
+Built-in (`{{.Name}}`, `{{.Step.Name}}`, `{{.timestamp}}`, `{{.requestId}}`) and custom `params:`-backed templates: see steps-and-flow.md.
 
-```yaml
-steps:
-  - name: use_variables
-    command: |
-      echo "Workflow: {{.Name}}"
-      echo "Step: {{.Step.Name}}"
-      echo "Timestamp: {{.timestamp}}"
-      echo "Request ID: {{.requestId}}"
-```
-
-### Custom Templates
-
-```yaml
-params: USER=alice
-
-steps:
-  - name: templated
-    command: echo "Hello, {{.Params.USER}}!"
-```
+Gotcha: custom parameters are referenced as `{{.Params.NAME}}`, not bare `{{.NAME}}` — the bare form is reserved for built-ins.
 
 ## Common Patterns
 
-### ETL Pipeline
-
-```yaml
-name: etl_pipeline
-description: Extract, Transform, Load data pipeline
-
-schedule: "0 2 * * *"  # Daily at 2 AM
-
-env:
-  - DATA_SOURCE: s3://bucket/data
-  - TARGET_DB: postgresql://localhost/warehouse
-
-steps:
-  - name: extract
-    command: ./extract.sh $DATA_SOURCE
-    output: EXTRACTED_FILE
-
-  - name: transform
-    depends:
-      - extract
-    command: ./transform.sh $EXTRACTED_FILE
-    output: TRANSFORMED_FILE
-
-  - name: load
-    depends:
-      - transform
-    command: ./load.sh $TRANSFORMED_FILE $TARGET_DB
-
-  - name: cleanup
-    depends:
-      - load
-    command: rm -f $EXTRACTED_FILE $TRANSFORMED_FILE
-
-handlerOn:
-  failure:
-    - name: alert
-      executor:
-        type: mail
-        config:
-          to: data-team@example.com
-          subject: "ETL Pipeline Failed"
-```
-
-### Multi-Environment Deployment
-
-```yaml
-name: deploy
-description: Deploy application to multiple environments
-
-params: ENVIRONMENT=staging VERSION=latest
-
-steps:
-  - name: build
-    command: docker build -t app:$VERSION .
-
-  - name: test
-    depends:
-      - build
-    command: docker run app:$VERSION npm test
-
-  - name: deploy_staging
-    depends:
-      - test
-    preconditions:
-      - condition: "`echo $ENVIRONMENT`"
-        expected: "staging"
-    executor:
-      type: ssh
-      config:
-        user: deploy
-        host: staging.example.com
-    command: ./deploy.sh $VERSION
-
-  - name: deploy_production
-    depends:
-      - test
-    preconditions:
-      - condition: "`echo $ENVIRONMENT`"
-        expected: "production"
-    executor:
-      type: ssh
-      config:
-        user: deploy
-        host: prod.example.com
-    command: ./deploy.sh $VERSION
-```
-
-### Data Backup Workflow
-
-```yaml
-name: database_backup
-description: Automated database backup workflow
-
-schedule: "0 3 * * *"  # Daily at 3 AM
-
-env:
-  - DB_HOST: localhost
-  - DB_NAME: myapp
-  - BACKUP_DIR: /backups
-  - S3_BUCKET: s3://backups/db
-
-steps:
-  - name: create_backup
-    command: |
-      TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-      pg_dump -h $DB_HOST $DB_NAME > $BACKUP_DIR/backup_$TIMESTAMP.sql
-      echo "backup_$TIMESTAMP.sql"
-    output: BACKUP_FILE
-
-  - name: compress
-    depends:
-      - create_backup
-    command: gzip $BACKUP_DIR/$BACKUP_FILE
-    output: COMPRESSED_FILE
-
-  - name: upload_to_s3
-    depends:
-      - compress
-    command: aws s3 cp $BACKUP_DIR/$COMPRESSED_FILE.gz $S3_BUCKET/
-
-  - name: cleanup_old_backups
-    depends:
-      - upload_to_s3
-    command: |
-      find $BACKUP_DIR -name "*.sql.gz" -mtime +30 -delete
-      aws s3 ls $S3_BUCKET/ | awk '{print $4}' | head -n -30 | xargs -I {} aws s3 rm $S3_BUCKET/{}
-
-handlerOn:
-  failure:
-    - name: alert_failure
-      executor:
-        type: mail
-        config:
-          to: dba@example.com
-          subject: "Backup Failed"
-  success:
-    - name: log_success
-      command: echo "Backup completed at $(date)" >> /var/log/backups.log
-```
-
-### Monitoring and Alerts
-
-```yaml
-name: health_check
-description: Monitor services and send alerts
-
-schedule: "*/5 * * * *"  # Every 5 minutes
-
-steps:
-  - name: check_web_service
-    command: curl -f https://app.example.com/health
-    retryPolicy:
-      limit: 3
-      intervalSec: 10
-    continueOn:
-      failure: true
-
-  - name: check_api_service
-    command: curl -f https://api.example.com/health
-    retryPolicy:
-      limit: 3
-      intervalSec: 10
-    continueOn:
-      failure: true
-
-  - name: check_database
-    command: pg_isready -h db.example.com
-    continueOn:
-      failure: true
-
-handlerOn:
-  failure:
-    - name: alert_on_failure
-      executor:
-        type: http
-        config:
-          method: POST
-          url: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-          headers:
-            Content-Type: application/json
-          body: |
-            {
-              "text": "⚠️ Service health check failed",
-              "attachments": [{
-                "color": "danger",
-                "fields": [
-                  {"title": "Workflow", "value": "{{.Name}}", "short": true},
-                  {"title": "Time", "value": "{{.timestamp}}", "short": true}
-                ]
-              }]
-            }
-```
+Complete ETL pipeline, multi-environment deployment, database backup, and health-check monitoring workflow artifacts: see common-patterns.md.
 
 ## Best Practices
 
@@ -831,3 +330,9 @@ steps:
 - **Document workflows**: Add clear names and descriptions
 - **Test workflows**: Start with small, focused workflows
 - **Monitor and alert**: Use handlers to track workflow health
+
+## References
+
+- `references/executors.md` — Command (default), Docker, SSH, HTTP, Mail, and JQ executor configuration
+- `references/steps-and-flow.md` — step dependencies, data flow, environment variables, parameters, sub-workflows, handlers, templating
+- `references/common-patterns.md` — complete ETL, multi-environment deployment, backup, and monitoring workflow artifacts
