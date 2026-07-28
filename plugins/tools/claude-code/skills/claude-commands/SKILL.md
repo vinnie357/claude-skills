@@ -51,7 +51,11 @@ Do not put `allowed-tools` on skills in THIS marketplace — `test/validate-plug
 
 ## Argument Substitution
 
-Placeholders in the body are replaced before Claude sees the content. **This means a doc that shows the literal token gets it substituted too when the doc itself loads as a skill.** Every `\$ARGUMENTS`/`${CLAUDE_*}` placeholder below carries a leading backslash (`\`) — the documented escape for a literal `$` (see "Substitution rules" below) — so this reference survives its own loading. Drop the backslash to get the real placeholder. Digit-indexed forms (`$0`, `$1`, `$2`, ...) and an undeclared `$name` need no such marker: with no arguments passed at load time they render unchanged, which is why plain `$0`/`$1` appear undecorated elsewhere on this page.
+Placeholders in the body are replaced before Claude sees the content. **This means a doc that shows the literal token gets it substituted too when the doc itself loads as a skill.** Two different markers keep this page intact, because one escape does not cover both forms:
+
+- **`\$ARGUMENTS` forms carry a leading backslash** — the documented escape for a literal `$` (see "Substitution rules" below). Drop the backslash to get the real placeholder.
+- **The `CLAUDE_*` names are written bare**, because that same backslash does not escape the braced form. See the note under the table.
+- **Digit-indexed forms (`$0`, `$1`, `$2`, ...) and an undeclared `$name` need no marker**: with no arguments passed at load time they render unchanged, which is why they appear undecorated throughout this page.
 
 | Placeholder | Expands to |
 |-------------|-----------|
@@ -73,7 +77,7 @@ Substitution rules:
 - **Quoting is shell-style.** `/my-skill "hello world" second` gives `$0` = `hello world`, `$1` = `second`. `\$ARGUMENTS` always gets the full string as typed.
 - **Missing arguments differ by kind.** An indexed placeholder with no corresponding argument (`$2` when only one argument was passed) stays in the content unchanged — this is exactly why the digit-indexed examples on this page (`$0`, `$1`, `$2`) are safe to show undecorated: this skill declares no `arguments:` and loads with none, so every indexed placeholder above has "no corresponding argument" and renders literally. A named placeholder with no matching argument expands to an empty string.
 - **Named arguments map by position.** With `arguments: [issue, branch]`, `$issue` expands to the first argument and `$branch` to the second.
-- **Escaping a literal `$`:** a single backslash directly before the token, e.g. `\$1.00`. A doubled backslash (`\\$1`) does NOT escape — both backslashes stay and `$1` still expands. A backslash before any other `$` is left unchanged. This same backslash is the marker used throughout this page's `\$ARGUMENTS` placeholders, while the `CLAUDE_*` names below are shown bare examples to keep them literal while this doc itself loads.
+- **Escaping a literal `$`:** a single backslash directly before the token, e.g. `\$1.00`. A doubled backslash (`\\$1`) does NOT escape — both backslashes stay and `$1` still expands. A backslash before any other `$` is left unchanged. This same backslash is the marker used throughout this page's `\$ARGUMENTS` placeholders so they stay literal while this doc itself loads. The `CLAUDE_*` names in the table above are shown bare instead, because the backslash does not escape the braced form.
 - **No `\$ARGUMENTS` in the body?** When a command is invoked with arguments but contains no `\$ARGUMENTS`, Claude Code appends `ARGUMENTS: <input>` to the end of the content so Claude still sees what was typed.
 - **Stacked invocations:** typing `/write-tests /fix-issue 123` at the start of one message loads both commands and passes the trailing text `123` as `\$ARGUMENTS` to each.
 - `CLAUDE_SKILL_DIR` and `CLAUDE_PROJECT_DIR` also substitute inside Bash rules in `allowed-tools`, so a command can pre-approve exactly the bundled script its body tells Claude to run.
