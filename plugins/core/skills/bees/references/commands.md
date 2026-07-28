@@ -1,6 +1,8 @@
 # Bees Commands Reference
 
-Per-flag syntax for every `bees` subcommand, JSON output for scripting, and the agent task-loop script. Decision-shaped guidance (dependency types, ready queue, workflows, best practices) stays in the skill body.
+Per-flag syntax for the 13 day-to-day `bees` subcommands, JSON output for scripting, and the agent task-loop script. Decision-shaped guidance (dependency types, ready queue, workflows, best practices) stays in the skill body.
+
+bees 0.4.0 has 19 top-level commands. The rest (`init`, `upgrade`, `edit`, `rename-prefix`, `daemon`, `version`, and the `ls` alias for `list`) are out of scope here — run `bees <cmd> --help` for their syntax. Exception: do NOT run `bees upgrade --help` casually — it executes a real database migration instead of printing help (verified against bees 0.4.0).
 
 ## Commands Reference
 
@@ -33,10 +35,17 @@ List issues with filtering:
 bees list
 bees list --status open
 bees list --status closed
-bees list --labels "bug"
 bees list --assignee "alice"
 bees list --json
 ```
+
+Flags (from `bees list --help`, bees 0.4.0):
+- `-s` / `--status`: Filter by status (open, in_progress, closed, deferred)
+- `-p` / `--priority`: Filter by priority
+- `-a` / `--assignee`: Filter by assignee
+- `--json`: Output as JSON array
+
+There is **no** label filter — `bees list --labels` exits 1 with `Error: InvalidArgument`. Filter labels client-side: `bees list --json | jq '[.[] | select(.labels | index("bug"))]'`.
 
 ### show
 
@@ -70,13 +79,14 @@ The `-r` flag adds a closing reason.
 
 ### ready
 
-List issues with no unresolved dependencies:
+List open issues with no unresolved blocking dependencies:
 
 ```bash
 bees ready
 bees ready --json
-bees ready --labels "priority:high"
 ```
+
+`--json` is the **only** flag `ready` accepts (`bees ready --help`, bees 0.4.0); `bees ready --labels` exits 1. Only `blocks`-type dependencies gate readiness — see "Ready Queue" in the skill body.
 
 ### dep
 
@@ -117,13 +127,14 @@ bees comment list <id>
 
 ### config
 
-View and set configuration:
+Get and set configuration values:
 
 ```bash
-bees config                    # Show current config
-bees config set key value      # Set a config value
-bees config get key            # Get a config value
+bees config get <key>          # Get a config value
+bees config set <key> <value>  # Set a config value
 ```
+
+A bare `bees config` does not show the current config — it exits 1 with `Error: subcommand required (get, set)`.
 
 ### sync
 
@@ -135,17 +146,25 @@ bees sync
 
 Writes issues from the SQLite database to `issues.jsonl` in the `.bees/` directory. This is a one-directional export (database to JSONL).
 
+### import
+
+Rebuild the database from JSONL:
+
+```bash
+bees import
+```
+
+Rebuilds the database from `issues.jsonl` — drops and re-creates `.bees/bees.db` (`bees import --help`). Use after pulling a new `issues.jsonl`. This is bees' equivalent of beads' `bd rebuild`.
+
 ### prime
 
-Generate markdown output for LLM context:
+Dump the static agent-workflow cheatsheet:
 
 ```bash
 bees prime
-bees prime --status open
-bees prime --labels "sprint:current"
 ```
 
-Outputs a formatted markdown summary of issues suitable for including in AI agent prompts.
+Outputs a fixed markdown workflow-context dump for AI agents (core rules, essential commands, session-recovery guidance). The output contains **no issue data** — verified against bees 0.4.0: a repo with 4 issues produced 58 lines with zero mentions of any issue id. `prime` accepts no flags; `bees prime --status` and `bees prime --labels` both exit 1. For issue context, use `bees list --json` and `bees show <id> --json`.
 
 ## JSON Output and Scripting
 
