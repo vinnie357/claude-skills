@@ -1,5 +1,5 @@
-Before starting any work, make sure you have used `bees ready` (/core:bees) or `bd ready` (/core:beads).
-load our /core:bees or /core:beads skill depending on which tracker is initialized in the project.
+Before starting any work, make sure you have used `bees ready` (/core:bees) or `bd ready` (/beads:beads).
+load our /core:bees or /beads:beads skill depending on which tracker is initialized in the project.
 if you find neither, use our /core:bees skill to setup bees.
 to ensure we are working on an epic or task created and tracked by one of these project tracking tools.
 all epics should be aware of claude-code teams, and have teams defined in the epic with models assigned by complexity of the task, all epics should have

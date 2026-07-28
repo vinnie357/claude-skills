@@ -1,0 +1,22 @@
+{
+  "name": "beads",
+  "version": "0.1.0",
+  "description": "Beads (bd) distributed git-backed graph issue tracker: task management, dependency tracking, AI agent workflows",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": [
+    "beads",
+    "task-management",
+    "issue-tracker",
+    "dependency-tracking"
+  ],
+  "skills": [
+    "./skills/beads"
+  ],
+  "agents": [
+    "./skills/beads/agents/beads-worker.md"
+  ]
+}

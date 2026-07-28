@@ -176,7 +176,7 @@ Two limits on how far this is enforced. What a subsetting tier *names* is checke
 
 Domain-specific skills activate from their own `Use when` descriptions — that is the discovery mechanism at every tier. Two rules descriptions cannot express:
 
-- **Tracker state:** a repo tracked by beads loads `/core:beads` in place of `/core:bees`.
+- **Tracker state:** a repo tracked by beads loads `/beads:beads` in place of `/core:bees`.
 - **Issue labels:** load the domain-plugin skills named by the issue's labels, by exact name.
 
 Enforcement, not description, carries a third rule: leaders name every skill explicitly in the spawn prompt's `## Load skills` block — globs do not expand, and listed is not loaded.

@@ -95,7 +95,7 @@ bd show <task_id> --json | jq -r '.labels[] | select(startswith("skill:")) | ltr
 Note the suggested skills for activation during execution. When resolving skills:
 
 1. **Explicit `skill:` labels** - Use directly (highest priority). These may reference any installed skill, not just those in the static catalog.
-2. **Static catalog** - If no `skill:` labels are present, consult `references/skill-catalog.md` to match task keywords to relevant skills.
+2. **Static catalog** - If no `skill:` labels are present, consult `/core:bees`'s `references/skill-catalog.md` to match task keywords to relevant skills.
 3. **Runtime discovery** - Also check available skills in the current session. Any loaded skill whose name or description matches the task domain is a valid candidate, even if it does not appear in the static catalog.
 
 Activate any valid skill from the available skills list during execution, regardless of whether it appears in the static catalog.

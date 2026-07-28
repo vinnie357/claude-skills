@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.68",
+  "version": "0.4.69",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -26,6 +26,7 @@
     "./plugins/tools/ansible/skills/ansible-roles",
     "./plugins/tools/ansible/skills/ansible-vault",
     "./plugins/tools/ansible/skills/ansible-testing",
+    "./plugins/tools/beads/skills/beads",
     "./plugins/tools/claude-code/skills/plugin-marketplace",
     "./plugins/tools/claude-code/skills/claude-plugins",
     "./plugins/tools/claude-code/skills/claude-commands",
@@ -46,7 +47,6 @@
     "./plugins/core/skills/twelve-factor",
     "./plugins/core/skills/anti-fabrication",
     "./plugins/core/skills/security",
-    "./plugins/core/skills/beads",
     "./plugins/core/skills/bees",
     "./plugins/core/skills/container",
     "./plugins/core/skills/tdd",

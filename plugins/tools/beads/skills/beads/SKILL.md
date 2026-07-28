@@ -610,7 +610,7 @@ When creating tasks, analyze the task domain and suggest relevant marketplace sk
 **How to suggest skills:**
 
 1. Identify the task domain from its title, description, and labels
-2. Consult `references/skill-catalog.md` for the keyword-to-skill mapping (Tier 1: static catalog)
+2. Consult `/core:bees`'s `references/skill-catalog.md` for the keyword-to-skill mapping (Tier 1: static catalog)
 3. Check available skills in the current session for additional matches beyond the catalog (Tier 2: runtime discovery)
 4. Add 1-3 `skill:` labels for the most relevant skills from either tier
 
@@ -719,7 +719,7 @@ bd show abc12345678
 
 ## References
 
-- `references/skill-catalog.md`: Skill catalog with keyword triggers for task matching
+- Consult `/core:bees`'s `references/skill-catalog.md` for the keyword-to-skill mapping used in task matching
 - `references/teams-integration.md`: Full protocol for mirroring beads tasks into Claude's task list for Agent Teams coordination
 
 ## Paired agents
