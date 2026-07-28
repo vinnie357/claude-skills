@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "0.2.37",
+  "version": "0.2.38",
   "description": "Essential development skills: Git, documentation, code review, security",
   "author": {
     "name": "vinnie357"
@@ -19,7 +19,8 @@
     "container",
     "tdd",
     "agent-loop",
-    "restraint"
+    "restraint",
+    "forge"
   ],
   "skills": [
     "./skills/git",

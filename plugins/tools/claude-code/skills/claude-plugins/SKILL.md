@@ -138,6 +138,10 @@ This validates:
 - Field type correctness
 - Path accessibility (for relative paths)
 - Invalid field detection
+- `description` and `keywords` agreement with the plugin's `marketplace.json` entry, when
+  invoked with `--marketplace` and the entry's `source` is a local path. `plugin.json` is
+  authoritative. Entries whose `source` is a GitHub object are skipped — there is no local
+  manifest to compare. A field absent from either side is not a mismatch.
 
 ### 2. Initialization Helper
 

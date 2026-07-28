@@ -82,7 +82,14 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
   }
 
   # Run validation
-  let result = validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose
+  # Compare description/keywords against the marketplace entry only for local
+  # (non-external) sources — a GitHub-object source has no local plugin.json
+  # to compare against the clone's, so that comparison is skipped entirely.
+  let result = if $is_ext {
+    validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose
+  } else {
+    validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose --mkt-description ($plugin_entry | get -o description | default "") --mkt-keywords ($plugin_entry | get -o keywords | default [])
+  }
 
   # Cleanup temp directory
   cleanup-temp $temp_dir $is_ext
@@ -181,6 +188,8 @@ def validate-plugin-content [
   source_dir: string
   is_external: bool
   verbose: bool
+  --mkt-description: string = ""   # marketplace.json entry's description, for local sources only
+  --mkt-keywords: list<string> = [] # marketplace.json entry's keywords, for local sources only
 ] {
   let plugin = try {
     open $plugin_path
@@ -241,6 +250,22 @@ def validate-plugin-content [
     $warnings = ($warnings | append "Missing recommended field: description")
   } else if $verbose {
     print $"  ✓ description: ($plugin.description)"
+  }
+
+  # Description agreement with the marketplace entry — plugin.json is
+  # authoritative, the marketplace entry is the copy. Only compared when
+  # both sides define the field (an omission on either side is not a
+  # failure) and only for local sources (see the caller for the gate).
+  # NOTE: `mise update-all-skills` does NOT maintain the all-skills
+  # description, so that one entry can drift again after this check passes.
+  if ($mkt_description | is-not-empty) {
+    let pj_description = ($plugin | get -o description)
+    if ($pj_description | is-not-empty) and ($pj_description != $mkt_description) {
+      let regen_note = if ($plugin | get -o name) == "all-skills" {
+        " \(mise update-all-skills does not maintain this description, so it can drift again\)"
+      } else { "" }
+      $errors = ($errors | append $"description mismatch — plugin.json is authoritative: plugin.json='($pj_description)' marketplace.json='($mkt_description)'($regen_note)")
+    }
   }
 
   if ($plugin | get -o license) == null {
@@ -383,6 +408,15 @@ def validate-plugin-content [
       $errors = ($errors | append "'keywords' must be an array")
     } else if $verbose {
       print $"\n(ansi cyan)Keywords:(ansi reset) (($plugin.keywords | length)) entries"
+    }
+  }
+
+  # Keywords agreement with the marketplace entry — same authority rule and
+  # same omission-is-not-a-failure rule as description, above.
+  if ($mkt_keywords | is-not-empty) {
+    let pj_keywords = ($plugin | get -o keywords)
+    if ($pj_keywords | is-not-empty) and ($pj_keywords != $mkt_keywords) {
+      $errors = ($errors | append $"keywords mismatch — plugin.json is authoritative: plugin.json=($pj_keywords) marketplace.json=($mkt_keywords)")
     }
   }
 

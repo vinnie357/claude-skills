@@ -12,12 +12,18 @@
     {
       "name": "all-skills",
       "source": "./",
-      "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.73",
+      "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
+      "version": "0.4.74",
       "category": "meta",
       "keywords": [
-        "all",
+        "skills",
+        "development",
+        "elixir",
+        "rust",
+        "wasm",
+        "zig",
         "complete",
+        "all",
         "bundle"
       ],
       "license": "MIT"
@@ -26,14 +32,15 @@
       "name": "allium",
       "source": "./plugins/tools/allium",
       "strict": true,
-      "description": "Opinionated Allium integration for /core:agent-loop",
-      "version": "0.1.0",
+      "description": "Opinionated Allium integration for /core:agent-loop: attach behavioral specs to epics, propagate TDD tests, weed-check semantic divergence post-CI.",
+      "version": "0.1.1",
       "category": "tools",
       "keywords": [
         "allium",
         "agent-loop",
         "tdd",
-        "behavioral-spec"
+        "behavioral-spec",
+        "epic"
       ],
       "license": "MIT"
     },
@@ -78,7 +85,7 @@
       "source": "./plugins/tools/ansible",
       "strict": true,
       "description": "Ansible automation skills: playbooks, inventory, roles, vault secrets, and Molecule testing",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "tools",
       "keywords": [
         "ansible",
@@ -86,7 +93,9 @@
         "configuration-management",
         "devops",
         "playbooks",
-        "molecule"
+        "molecule",
+        "roles",
+        "vault"
       ],
       "license": "MIT"
     },
@@ -109,19 +118,24 @@
       "name": "claude-code",
       "source": "./plugins/tools/claude-code",
       "strict": true,
-      "description": "Claude Code-specific skills: plugin marketplace management and validation",
-      "version": "0.2.27",
+      "description": "Claude Code-specific skills for plugin marketplace management, validation, and component creation",
+      "version": "0.2.28",
       "category": "tools",
       "keywords": [
         "claude-code",
         "marketplace",
         "validation",
+        "plugin-management",
+        "commands",
+        "agents",
+        "skills",
+        "hooks",
         "teams",
-        "benchmark",
-        "skill-update",
         "output-styles",
         "statusline",
-        "workflows"
+        "workflows",
+        "benchmark",
+        "skill-update"
       ]
     },
     {
@@ -129,32 +143,36 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, security",
-      "version": "0.2.37",
+      "version": "0.2.38",
       "category": "development",
       "keywords": [
         "git",
         "documentation",
         "code-review",
         "tools",
+        "twelve-factor-app",
+        "security",
+        "gitleaks",
         "bees",
         "container",
         "tdd",
         "agent-loop",
-        "forge",
-        "restraint"
+        "restraint",
+        "forge"
       ]
     },
     {
       "name": "dagu",
       "source": "./plugins/tools/dagu",
       "strict": true,
-      "description": "Dagu workflow orchestration: workflows, web UI, REST API",
-      "version": "0.1.5",
+      "description": "Dagu workflow orchestration: workflow authoring, web UI, and REST API",
+      "version": "0.1.6",
       "category": "tools",
       "keywords": [
         "dagu",
         "workflow",
-        "orchestration"
+        "orchestration",
+        "automation"
       ]
     },
     {
@@ -178,8 +196,8 @@
       "name": "elixir",
       "source": "./plugins/languages/elixir",
       "strict": true,
-      "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style",
-      "version": "0.1.15",
+      "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style, and anti-patterns",
+      "version": "0.1.16",
       "category": "language",
       "keywords": [
         "elixir",
@@ -188,7 +206,8 @@
         "ports",
         "ecto",
         "style",
-        "beam"
+        "beam",
+        "erlang"
       ]
     },
     {
@@ -236,8 +255,8 @@
       "name": "agent-sandboxing",
       "source": "./plugins/tools/agent-sandboxing",
       "strict": true,
-      "description": "Agent sandboxing for AI coding agents: 7 skills (including a sandbox index for progressive disclosure) + 6 slash commands for microVM and kernel-isolated execution on Kubernetes (kind+Kata, GKE+Kata, kina+Apple Container). Designed to grow to non-k8s sandboxing paths.",
-      "version": "0.2.4",
+      "description": "Agent sandboxing for AI coding agents: microVM and kernel-isolated execution environments. Index skill (sandbox) routes to substrate-specific paths. Currently covers the kubernetes-sigs/agent-sandbox path on kind, GKE, and kina (Kubernetes-in-Apple-Containers), with Kata, gVisor, and Apple Container microVM substrates. Ships 7 skills + 6 slash commands + nushell scripts. Designed to expand to non-k8s sandboxing paths.",
+      "version": "0.2.5",
       "category": "tools",
       "keywords": [
         "agent-sandbox",
@@ -381,8 +400,8 @@
       "name": "rust",
       "source": "./plugins/languages/rust",
       "strict": true,
-      "description": "Rust programming skills + anti-patterns + CLI apps + adversarial-TDD worker agents (rust-test-author, rust-implementer)",
-      "version": "0.1.7",
+      "description": "Rust programming skills: ownership, borrowing, lifetimes, async, best practices, anti-patterns, CLI apps, and adversarial-TDD worker agents",
+      "version": "0.1.8",
       "category": "language",
       "keywords": [
         "rust",
@@ -449,13 +468,15 @@
       "name": "ui",
       "source": "./plugins/ui",
       "strict": true,
-      "description": "UI framework skills: daisyUI components and theming",
-      "version": "0.1.3",
+      "description": "UI framework skills: daisyUI components, theming, and responsive design",
+      "version": "0.1.4",
       "category": "frontend",
       "keywords": [
         "ui",
         "daisyui",
-        "tailwind"
+        "tailwind",
+        "components",
+        "design"
       ]
     },
     {
@@ -479,8 +500,8 @@
       "name": "whamm",
       "source": "./plugins/tools/whamm",
       "strict": true,
-      "description": "whamm! WebAssembly bytecode instrumentation: mise install, the instr/info CLI, injection strategies, and the DTrace-inspired .mm monitor DSL",
-      "version": "0.1.0",
+      "description": "whamm! WebAssembly bytecode instrumentation: install via mise, the instr/info CLI, injection strategies, and the DTrace-inspired .mm monitor DSL",
+      "version": "0.1.1",
       "category": "tools",
       "keywords": [
         "whamm",
@@ -489,7 +510,8 @@
         "instrumentation",
         "bytecode",
         "dtrace",
-        "profiling"
+        "profiling",
+        "wasmtime"
       ],
       "license": "MIT"
     },
