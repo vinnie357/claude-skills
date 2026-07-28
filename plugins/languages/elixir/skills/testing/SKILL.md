@@ -52,42 +52,7 @@ defmodule MyApp.MathTest do
 end
 ```
 
-### Assertions
-
-Common assertion patterns:
-
-```elixir
-# Equality
-assert actual == expected
-refute actual == unexpected
-
-# Boolean
-assert is_binary(value)
-assert is_integer(value)
-refute is_nil(value)
-
-# Pattern matching
-assert {:ok, result} = function_call()
-assert %User{name: "Alice"} = user
-
-# Exceptions
-assert_raise ArgumentError, fn ->
-  String.to_integer("not a number")
-end
-
-assert_raise ArgumentError, "invalid argument", fn ->
-  dangerous_function()
-end
-
-# Messages
-send(self(), :hello)
-assert_received :hello
-
-assert_receive :message, 1000  # With timeout
-
-refute_received :unwanted
-refute_receive :unwanted, 100
-```
+Assertion patterns and the full `setup`/`setup_all`/conditional-setup catalog live in `references/exunit-reference.md`.
 
 ### Test Organization
 
@@ -139,77 +104,7 @@ end
 # mix test --exclude external
 ```
 
-### Setup and Teardown
-
-#### Test context
-
-```elixir
-defmodule MyApp.UserTest do
-  use ExUnit.Case
-
-  setup do
-    user = %User{name: "Alice", email: "alice@example.com"}
-    {:ok, user: user}
-  end
-
-  test "user has name", %{user: user} do
-    assert user.name == "Alice"
-  end
-
-  test "user has email", %{user: user} do
-    assert user.email == "alice@example.com"
-  end
-end
-```
-
-#### Setup with describe
-
-```elixir
-describe "authenticated user" do
-  setup do
-    user = insert(:user)
-    token = generate_token(user)
-    {:ok, user: user, token: token}
-  end
-
-  test "can access protected resource", %{token: token} do
-    # ...
-  end
-end
-```
-
-#### Module setup
-
-```elixir
-setup_all do
-  # Runs once before all tests in module
-  start_supervised!(MyApp.Cache)
-  :ok
-end
-
-setup do
-  # Runs before each test
-  :ok = Ecto.Adapters.SQL.Sandbox.checkout(MyApp.Repo)
-end
-```
-
-#### Conditional setup
-
-```elixir
-setup context do
-  if context[:integration] do
-    start_external_service()
-    on_exit(fn -> stop_external_service() end)
-  end
-
-  :ok
-end
-
-@tag :integration
-test "integration test" do
-  # ...
-end
-```
+Setup and teardown forms (`setup`, `setup_all`, describe-scoped setup, conditional setup) live in `references/exunit-reference.md`. Every `setup` that starts an owned resource or mutates shared state pairs it with `on_exit(fn -> ... end)` to restore it — the mechanism behind this workspace's binding test-isolation rules (restore `Application.put_env`, clean up `Process.put` keys, remove temp dirs).
 
 ## Database Testing
 
@@ -247,263 +142,11 @@ defmodule MyApp.DataCase do
 end
 ```
 
-### Test Factories
-
-Use ExMachina for test data:
-
-```elixir
-# test/support/factory.ex
-defmodule MyApp.Factory do
-  use ExMachina.Ecto, repo: MyApp.Repo
-
-  def user_factory do
-    %MyApp.User{
-      name: "Jane Smith",
-      email: sequence(:email, &"email-#{&1}@example.com"),
-      age: 25
-    }
-  end
-
-  def admin_factory do
-    struct!(
-      user_factory(),
-      %{role: :admin}
-    )
-  end
-
-  def post_factory do
-    %MyApp.Post{
-      title: "A title",
-      body: "Some content",
-      author: build(:user)
-    }
-  end
-end
-
-# In tests
-defmodule MyApp.UserTest do
-  use MyApp.DataCase
-  import MyApp.Factory
-
-  test "creates user" do
-    user = insert(:user)
-    assert user.id
-  end
-
-  test "creates admin" do
-    admin = insert(:admin)
-    assert admin.role == :admin
-  end
-
-  test "builds without inserting" do
-    user = build(:user, name: "Custom Name")
-    assert user.name == "Custom Name"
-    refute user.id
-  end
-end
-```
-
-### Testing Changesets
-
-```elixir
-defmodule MyApp.UserTest do
-  use MyApp.DataCase
-
-  describe "changeset/2" do
-    test "valid changeset with valid attributes" do
-      attrs = %{name: "Alice", email: "alice@example.com", age: 25}
-      changeset = User.changeset(%User{}, attrs)
-
-      assert changeset.valid?
-    end
-
-    test "invalid without email" do
-      attrs = %{name: "Alice", age: 25}
-      changeset = User.changeset(%User{}, attrs)
-
-      refute changeset.valid?
-      assert "can't be blank" in errors_on(changeset).email
-    end
-
-    test "invalid with short password" do
-      attrs = %{email: "test@example.com", password: "123"}
-      changeset = User.changeset(%User{}, attrs)
-
-      assert "should be at least 8 character(s)" in errors_on(changeset).password
-    end
-  end
-end
-
-# Helper function
-def errors_on(changeset) do
-  Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-    Regex.replace(~r"%{(\w+)}", message, fn _, key ->
-      opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-    end)
-  end)
-end
-```
+Test factories (ExMachina) and changeset test patterns live in `references/database-testing.md`.
 
 ## Phoenix Testing
 
-### Controller Tests
-
-```elixir
-defmodule MyAppWeb.UserControllerTest do
-  use MyAppWeb.ConnCase
-  import MyApp.Factory
-
-  describe "index" do
-    test "lists all users", %{conn: conn} do
-      user = insert(:user)
-
-      conn = get(conn, ~p"/users")
-
-      assert html_response(conn, 200) =~ "Listing Users"
-      assert html_response(conn, 200) =~ user.name
-    end
-  end
-
-  describe "create" do
-    test "creates user with valid data", %{conn: conn} do
-      attrs = %{name: "Alice", email: "alice@example.com"}
-
-      conn = post(conn, ~p"/users", user: attrs)
-
-      assert redirected_to(conn) =~ ~p"/users"
-
-      conn = get(conn, redirected_to(conn))
-      assert html_response(conn, 200) =~ "Alice"
-    end
-
-    test "renders errors with invalid data", %{conn: conn} do
-      conn = post(conn, ~p"/users", user: %{})
-
-      assert html_response(conn, 200) =~ "New User"
-    end
-  end
-end
-```
-
-### LiveView Tests
-
-```elixir
-defmodule MyAppWeb.UserLiveTest do
-  use MyAppWeb.ConnCase
-  import Phoenix.LiveViewTest
-  import MyApp.Factory
-
-  describe "Index" do
-    test "displays users", %{conn: conn} do
-      user = insert(:user)
-
-      {:ok, view, html} = live(conn, ~p"/users")
-
-      assert html =~ "Listing Users"
-      assert has_element?(view, "#user-#{user.id}")
-      assert render(view) =~ user.name
-    end
-
-    test "creates new user", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/users/new")
-
-      assert view
-             |> form("#user-form", user: %{name: "Alice", email: "alice@example.com"})
-             |> render_submit()
-
-      assert_patch(view, ~p"/users")
-
-      html = render(view)
-      assert html =~ "Alice"
-    end
-
-    test "updates user", %{conn: conn} do
-      user = insert(:user)
-
-      {:ok, view, _html} = live(conn, ~p"/users/#{user.id}/edit")
-
-      assert view
-             |> form("#user-form", user: %{name: "Updated Name"})
-             |> render_submit()
-
-      assert_patch(view, ~p"/users/#{user.id}")
-
-      html = render(view)
-      assert html =~ "Updated Name"
-    end
-
-    test "deletes user", %{conn: conn} do
-      user = insert(:user)
-
-      {:ok, view, _html} = live(conn, ~p"/users")
-
-      assert view
-             |> element("#user-#{user.id} a", "Delete")
-             |> render_click()
-
-      refute has_element?(view, "#user-#{user.id}")
-    end
-  end
-
-  describe "form validation" do
-    test "validates on change", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/users/new")
-
-      result =
-        view
-        |> form("#user-form", user: %{email: "invalid"})
-        |> render_change()
-
-      assert result =~ "must have the @ sign"
-    end
-  end
-
-  describe "real-time updates" do
-    test "receives updates from PubSub", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/users")
-
-      user = insert(:user)
-
-      # Trigger PubSub event
-      Phoenix.PubSub.broadcast(MyApp.PubSub, "users", {:user_created, user})
-
-      assert render(view) =~ user.name
-    end
-  end
-end
-```
-
-### Channel Tests
-
-```elixir
-defmodule MyAppWeb.RoomChannelTest do
-  use MyAppWeb.ChannelCase
-
-  setup do
-    {:ok, _, socket} =
-      MyAppWeb.UserSocket
-      |> socket("user_id", %{user_id: 42})
-      |> subscribe_and_join(MyAppWeb.RoomChannel, "room:lobby")
-
-    %{socket: socket}
-  end
-
-  test "ping replies with pong", %{socket: socket} do
-    ref = push(socket, "ping", %{"hello" => "there"})
-    assert_reply ref, :ok, %{"hello" => "there"}
-  end
-
-  test "shout broadcasts to room:lobby", %{socket: socket} do
-    push(socket, "shout", %{"hello" => "all"})
-    assert_broadcast "shout", %{"hello" => "all"}
-  end
-
-  test "broadcasts are pushed to the client", %{socket: socket} do
-    broadcast_from!(socket, "broadcast", %{"some" => "data"})
-    assert_push "broadcast", %{"some" => "data"}
-  end
-end
-```
+Controller, LiveView, and Channel test examples live in `references/phoenix-testing.md`.
 
 ## Mocking and Stubbing
 
@@ -589,66 +232,7 @@ end
 
 ## Property-Based Testing
 
-Use StreamData for property-based tests:
-
-```elixir
-defmodule MyApp.MathPropertyTest do
-  use ExUnit.Case
-  use ExUnitProperties
-
-  property "addition is commutative" do
-    check all a <- integer(),
-              b <- integer() do
-      assert Math.add(a, b) == Math.add(b, a)
-    end
-  end
-
-  property "list reversal is involutive" do
-    check all list <- list_of(integer()) do
-      assert Enum.reverse(Enum.reverse(list)) == list
-    end
-  end
-
-  property "concatenation length" do
-    check all list1 <- list_of(term()),
-              list2 <- list_of(term()) do
-      concatenated = list1 ++ list2
-      assert length(concatenated) == length(list1) + length(list2)
-    end
-  end
-end
-```
-
-### Custom Generators
-
-```elixir
-defmodule MyApp.Generators do
-  use ExUnitProperties
-
-  def email do
-    gen all username <- string(:alphanumeric, min_length: 1),
-            domain <- string(:alphanumeric, min_length: 1),
-            tld <- member_of(["com", "org", "net"]) do
-      "#{username}@#{domain}.#{tld}"
-    end
-  end
-
-  def user do
-    gen all name <- string(:alphanumeric, min_length: 1),
-            email <- email(),
-            age <- integer(18..100) do
-      %User{name: name, email: email, age: age}
-    end
-  end
-end
-
-# Use in tests
-property "validates email format" do
-  check all email <- MyApp.Generators.email() do
-    assert User.valid_email?(email)
-  end
-end
-```
+Property-based tests with StreamData, including custom generators, live in `references/property-based-testing.md`.
 
 ## Testing Async and Concurrent Code
 
@@ -698,32 +282,7 @@ end
 
 ## Test Coverage
 
-### Generate Coverage Reports
-
-```bash
-mix test --cover
-
-# Detailed coverage
-MIX_ENV=test mix coveralls
-MIX_ENV=test mix coveralls.html
-```
-
-### Coverage Configuration
-
-```elixir
-# mix.exs
-def project do
-  [
-    # ...
-    test_coverage: [tool: ExCoveralls],
-    preferred_cli_env: [
-      coveralls: :test,
-      "coveralls.detail": :test,
-      "coveralls.html": :test
-    ]
-  ]
-end
-```
+Generating coverage reports and configuring thresholds lives in `references/exunit-reference.md`.
 
 ## Best Practices
 
@@ -848,6 +407,9 @@ mix test --max-cases 1
 
 ## References
 
+- `references/exunit-reference.md` — Assertion patterns, setup/teardown forms, and coverage tooling
+- `references/database-testing.md` — Test factories (ExMachina) and changeset test patterns
+- `references/phoenix-testing.md` — Controller, LiveView, and Channel test examples
+- `references/property-based-testing.md` — StreamData property tests and custom generators
 - `references/os-subprocess-adapter.md` — Elixir @callback + Mox shape for wrapping `System.cmd` / `Port.open` calls behind a mockable seam; config wiring per environment
-
 - `references/elixir-tdd-discipline.md` — Elixir-specific TDD defaults: `@cmd_mod` compile-time seam, `async: true` everywhere, mock external boundaries (HTTP / OS / time / third-party APIs), no `:integration` tags, no log noise, no error-swallowing `else _ -> :ok`
