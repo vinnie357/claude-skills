@@ -113,14 +113,14 @@ steps:
 
 ## Executors
 
-Command (default), Docker, SSH, HTTP, Mail, and JQ executor configuration: see executors.md.
+Command (default), Docker, SSH, HTTP, Mail, and JQ executor configuration: see `references/executors.md`.
 
 Gotcha: the default executor (no `executor:` block) is the Command Executor — set
 `executor.type` only when a step needs Docker, SSH, HTTP, Mail, or JQ.
 
 ## Step Dependencies
 
-Simple, multiple, and parallel dependency patterns via `depends:`: see steps-and-flow.md.
+Simple, multiple, and parallel dependency patterns via `depends:`: see `references/steps-and-flow.md`.
 
 Gotcha: steps with no `depends:` run in parallel by default — sequencing is opt-in.
 
@@ -188,7 +188,7 @@ steps:
 
 ## Data Flow
 
-Passing step output to later steps via `output:` and captured `script:` variables: see steps-and-flow.md.
+Passing step output to later steps via `output:` and captured `script:` variables: see `references/steps-and-flow.md`.
 
 ## Scheduling
 
@@ -220,31 +220,31 @@ schedule:
 
 ## Environment Variables
 
-Global, step-level, and file-loaded (`.env`) environment variables: see steps-and-flow.md.
+Global, step-level, and file-loaded (`.env`) environment variables: see `references/steps-and-flow.md`.
 
 ## Parameters
 
-Defining workflow `params:` and overriding them from the CLI: see steps-and-flow.md.
+Defining workflow `params:` and overriding them from the CLI: see `references/steps-and-flow.md`.
 
 ## Sub-Workflows
 
-Calling and nesting sub-workflows with `run:`: see steps-and-flow.md.
+Calling and nesting sub-workflows with `run:`: see `references/steps-and-flow.md`.
 
 ## Handlers
 
-Exit, failure, and success handlers via `handlerOn:`: see steps-and-flow.md.
+Exit, failure, and success handlers via `handlerOn:`: see `references/steps-and-flow.md`.
 
 Gotcha: `handlerOn` is declared once per workflow, alongside `steps:` — it is not nested inside an individual step.
 
 ## Templates and Variables
 
-Built-in (`{{.Name}}`, `{{.Step.Name}}`, `{{.timestamp}}`, `{{.requestId}}`) and custom `params:`-backed templates: see steps-and-flow.md.
+Built-in (`{{.Name}}`, `{{.Step.Name}}`, `{{.timestamp}}`, `{{.requestId}}`) and custom `params:`-backed templates: see `references/steps-and-flow.md`.
 
 Gotcha: custom parameters are referenced as `{{.Params.NAME}}`, not bare `{{.NAME}}` — the bare form is reserved for built-ins.
 
 ## Common Patterns
 
-Complete ETL pipeline, multi-environment deployment, database backup, and health-check monitoring workflow artifacts: see common-patterns.md.
+Complete ETL pipeline, multi-environment deployment, database backup, and health-check monitoring workflow artifacts: see `references/common-patterns.md`.
 
 ## Best Practices
 
