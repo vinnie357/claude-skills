@@ -16,7 +16,8 @@ Add the marketplace and install plugins:
 /plugin install all-skills@vinnie357
 
 # Or install individual plugins selectively:
-/plugin install core@vinnie357        # Git, documentation, code review, accessibility
+/plugin install core@vinnie357        # Git, documentation, code review, security
+/plugin install design@vinnie357      # Accessibility (WCAG), Material Design 3
 /plugin install elixir@vinnie357      # Elixir, Phoenix, OTP, testing
 /plugin install rust@vinnie357        # Rust language features
 /plugin install wasm@vinnie357        # WebAssembly and Wasmtime
@@ -55,8 +56,6 @@ Fundamental development tools and best practices.
 - **nushell** - Modern shell with structured data pipelines
 - **documentation** - Technical writing, README files, API documentation
 - **code-review** - Code review best practices for security and maintainability
-- **accessibility** - Web accessibility standards (WCAG, ARIA)
-- **material-design** - Material Design 3 design system
 - **twelve-factor** - Cloud-native application design principles
 - **anti-fabrication** - Ensure factual accuracy through tool validation
 - **security** - Secret detection and credential scanning with gitleaks
@@ -117,6 +116,16 @@ Dagu workflow orchestration and automation.
 - **rest-api** - Programmatic workflow control via REST API
 
 **Keywords**: dagu, workflow, orchestration
+
+### `design` - Design Standards and Design Systems
+
+Framework-agnostic standards and design systems — what you review an implementation against, and plan a compliant new one from. Framework-specific component libraries live in `ui`.
+
+**Skills:**
+- **accessibility** - Web accessibility standards (WCAG, ARIA)
+- **material-design** - Material Design 3 design system
+
+**Keywords**: design, accessibility, wcag, material-design, design-systems, standards
 
 ### `ui` - UI Development
 

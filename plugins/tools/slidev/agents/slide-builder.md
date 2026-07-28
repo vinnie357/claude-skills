@@ -10,7 +10,7 @@ Load these skills before any work:
 - `/slidev:syntax` (Slidev markdown syntax)
 - `/slidev:styles` (brand theming — if brand config provided)
 - `/slidev:interactive` (interactive demos — if mocks needed)
-- `/core:accessibility` (ensure accessible output)
+- `/design:accessibility` (ensure accessible output)
 
 # Slide Builder Agent
 

@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.67",
+  "version": "0.4.68",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -43,8 +43,6 @@
     "./plugins/core/skills/nushell",
     "./plugins/core/skills/documentation",
     "./plugins/core/skills/code-review",
-    "./plugins/core/skills/accessibility",
-    "./plugins/core/skills/material-design",
     "./plugins/core/skills/twelve-factor",
     "./plugins/core/skills/anti-fabrication",
     "./plugins/core/skills/security",
@@ -57,6 +55,8 @@
     "./plugins/tools/dagu/skills/workflows",
     "./plugins/tools/dagu/skills/webui",
     "./plugins/tools/dagu/skills/rest-api",
+    "./plugins/design/skills/accessibility",
+    "./plugins/design/skills/material-design",
     "./plugins/languages/elixir/skills/anti-patterns",
     "./plugins/languages/elixir/skills/phoenix",
     "./plugins/languages/elixir/skills/otp",

@@ -11,7 +11,7 @@ Compliance validation for Slidev presentations against brand standards and WCAG 
 5. [Logo Verification](#logo-verification)
 6. [Automated Checks via browser_evaluate](#automated-checks-via-browser_evaluate)
 7. [Manual Review Checklist](#manual-review-checklist)
-8. [Integration with core:accessibility](#integration-with-coreaccessibility)
+8. [Integration with design:accessibility](#integration-with-designaccessibility)
 
 ---
 
@@ -314,14 +314,14 @@ Complete this checklist after automated checks pass:
 
 ---
 
-## Integration with core:accessibility
+## Integration with design:accessibility
 
-Load `core:accessibility` when:
+Load `design:accessibility` when:
 - Automated contrast checks report failures requiring remediation guidance
 - Slides contain charts, diagrams, or images that may need alt text
 - Reviewing keyboard navigation for interactive slide components
 
-WCAG 2.1 AA requirements enforced by this checklist align with `core:accessibility` guidelines. For remediation steps when contrast checks fail:
+WCAG 2.1 AA requirements enforced by this checklist align with `design:accessibility` guidelines. For remediation steps when contrast checks fail:
 
 1. Darken the foreground color until the ratio meets the threshold
 2. Or lighten the background color until the ratio meets the threshold

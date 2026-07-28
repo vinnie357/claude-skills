@@ -68,45 +68,6 @@ This file documents the sources used to create the core plugin skills.
   - Mark uncertain information appropriately
   - Avoid superlatives and unsubstantiated metrics
 
-## Accessibility Skill
-
-### W3C Web Accessibility Initiative (WAI)
-- **URL**: https://www.w3.org/WAI/fundamentals/accessibility-principles/
-- **Purpose**: Foundation for accessibility skill - comprehensive web accessibility principles
-- **Date Accessed**: 2025-11-15
-- **Key Topics**: WCAG guidelines, POUR principles (Perceivable, Operable, Understandable, Robust)
-- **Key Concepts**:
-  - Text alternatives for non-text content
-  - Keyboard accessibility
-  - Readable and understandable text
-  - Robust content compatible with assistive technologies
-  - ARIA (Accessible Rich Internet Applications)
-
-## Material Design Skill
-
-### Material Design 3 Documentation
-- **URL**: https://m3.material.io/
-- **Purpose**: Foundation for Material Design skill - Google's latest design system
-- **Date Accessed**: 2025-11-15
-- **Key Resources**:
-  - Typography: https://m3.material.io/styles/typography/overview
-  - Color System: https://m3.material.io/styles/color/system/overview
-  - Layout: https://m3.material.io/foundations/layout/understanding-layout/overview
-  - Foundations: https://m3.material.io/foundations
-- **Key Topics**:
-  - Dynamic color system with HCT color space
-  - Typography scales and responsive text
-  - Layout grids and breakpoints
-  - Material You personalization
-  - Component specifications
-  - Motion and animation principles
-  - Accessibility-first design
-
-### Material Design 3 Guide
-- **URL**: https://oritop.co/google-material-design-a-complete-breakdown-of-material-design-3/
-- **Purpose**: Supplementary resource for Material Design 3 overview
-- **Key Topics**: MD2 vs MD3 comparison, dynamic color, enhanced components
-
 ## Twelve-Factor App Skill
 
 ### 12-Factor App Methodology
@@ -360,6 +321,6 @@ This file documents the sources used to create the core plugin skills.
 
 - **Name**: core
 - **Version**: 0.1.19
-- **Description**: Essential development skills: Git, documentation, code review, accessibility, security
+- **Description**: Essential development skills: Git, documentation, code review, security
 - **Skills**: 12 skills covering fundamental development tools and best practices
 - **Created**: 2025-11-15

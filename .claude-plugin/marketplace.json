@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.28"
+    "version": "1.0.29"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.67",
+      "version": "0.4.68",
       "category": "meta",
       "keywords": [
         "all",
@@ -113,8 +113,8 @@
       "name": "core",
       "source": "./plugins/core",
       "strict": true,
-      "description": "Essential development skills: Git, documentation, code review, accessibility, security",
-      "version": "0.2.34",
+      "description": "Essential development skills: Git, documentation, code review, security",
+      "version": "0.2.35",
       "category": "development",
       "keywords": [
         "git",
@@ -142,6 +142,23 @@
         "workflow",
         "orchestration"
       ]
+    },
+    {
+      "name": "design",
+      "source": "./plugins/design",
+      "strict": true,
+      "description": "Framework-agnostic standards and design systems: accessibility (WCAG) and Material Design 3 — what you review an implementation against, and plan a compliant new one from",
+      "version": "0.1.0",
+      "category": "frontend",
+      "keywords": [
+        "design",
+        "accessibility",
+        "wcag",
+        "material-design",
+        "design-systems",
+        "standards"
+      ],
+      "license": "MIT"
     },
     {
       "name": "elixir",
@@ -383,7 +400,7 @@
       "source": "./plugins/tools/slidev",
       "strict": true,
       "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "category": "tools",
       "keywords": [
         "slidev",

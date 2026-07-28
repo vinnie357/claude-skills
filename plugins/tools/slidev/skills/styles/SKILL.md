@@ -99,7 +99,7 @@ After applying a theme, validate compliance by:
 4. Checking all colors against the brand palette within a tolerance of ±5 hex units per channel
 5. Confirming logo placement and sizing
 
-WCAG 2.1 AA requirements (per `core:accessibility`):
+WCAG 2.1 AA requirements (per `design:accessibility`):
 - Normal text (< 18pt): minimum contrast ratio **4.5:1**
 - Large text (≥ 18pt or ≥ 14pt bold): minimum contrast ratio **3:1**
 - UI components and graphical objects: minimum contrast ratio **3:1**
@@ -140,9 +140,9 @@ Logo Questionnaire
 
 Populate the brand config JSON from questionnaire answers, then proceed to theme generation.
 
-## Integration with core:accessibility
+## Integration with design:accessibility
 
-Load `core:accessibility` when:
+Load `design:accessibility` when:
 - Validating contrast ratios for slide text and UI components
 - Reviewing color combinations for color-blindness considerations
 - Checking that information is not conveyed by color alone
