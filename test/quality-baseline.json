@@ -261,25 +261,11 @@
       "detail_count": null
     },
     {
-      "key": "elixir/anti-patterns:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 589
-    },
-    {
       "key": "elixir/config:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "elixir/config:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 616
     },
     {
       "key": "elixir/otp:anti_fab",
@@ -294,20 +280,6 @@
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "elixir/phoenix:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 599
-    },
-    {
-      "key": "elixir/style:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 514
     },
     {
       "key": "elixir/testing:anti_fab",

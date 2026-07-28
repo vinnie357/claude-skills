@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.71",
+      "version": "0.4.72",
       "category": "meta",
       "keywords": [
         "all",
@@ -179,7 +179,7 @@
       "source": "./plugins/languages/elixir",
       "strict": true,
       "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style",
-      "version": "0.1.14",
+      "version": "0.1.15",
       "category": "language",
       "keywords": [
         "elixir",
