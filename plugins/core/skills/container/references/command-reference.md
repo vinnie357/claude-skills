@@ -60,6 +60,13 @@ Common combinations:
 - `-d --name` - Named background service
 - `-d -p -v -e --name --rm` - Full service with ports, volumes, env vars
 
+To reach a service running on the host from inside a container, use the `host.docker.internal`
+hostname (0.9.0+):
+
+```
+container run -e API_URL=http://host.docker.internal:3000 myapp:latest
+```
+
 ### `container create`
 
 Create a container without starting it.
