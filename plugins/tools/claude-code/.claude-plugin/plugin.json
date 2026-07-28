@@ -19,7 +19,9 @@
     "teams",
     "output-styles",
     "statusline",
-    "workflows"
+    "workflows",
+    "benchmark",
+    "skill-update"
   ],
   "skills": [
     "./skills/plugin-marketplace",

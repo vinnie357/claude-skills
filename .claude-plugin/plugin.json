@@ -15,7 +15,9 @@
     "rust",
     "wasm",
     "zig",
-    "complete"
+    "complete",
+    "all",
+    "bundle"
   ],
   "skills": [
     "./plugins/tools/allium/skills/allium",

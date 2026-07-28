@@ -19,7 +19,8 @@
     "container",
     "tdd",
     "agent-loop",
-    "restraint"
+    "restraint",
+    "forge"
   ],
   "skills": [
     "./skills/git",

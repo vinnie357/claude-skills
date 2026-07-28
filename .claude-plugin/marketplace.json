@@ -22,7 +22,9 @@
         "rust",
         "wasm",
         "zig",
-        "complete"
+        "complete",
+        "all",
+        "bundle"
       ],
       "license": "MIT"
     },
@@ -131,7 +133,9 @@
         "teams",
         "output-styles",
         "statusline",
-        "workflows"
+        "workflows",
+        "benchmark",
+        "skill-update"
       ]
     },
     {
@@ -153,7 +157,8 @@
         "container",
         "tdd",
         "agent-loop",
-        "restraint"
+        "restraint",
+        "forge"
       ]
     },
     {
