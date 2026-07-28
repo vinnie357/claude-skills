@@ -676,13 +676,6 @@ def run-baseline-self-test [] {
     $failed
 }
 
-# Embedded self-test for the check fixes from claude-skills-130: reserved
-# exact-match, examples-via-reachable-reference, fence-length-aware
-# stripping, ref_depth heading/bare-token exemptions, and enumerated
-# upstream commands. Every fix is exercised in BOTH directions — the false
-# positive must be gone AND a genuine violation must still be caught — so a
-# check cannot stop misfiring by becoming permissive. Exercises the same
-# functions main calls. Returns true when any case failed.
 # Check 15 (orphans) predicate, extracted so it can be self-tested.
 # A bundled file counts as mentioned only when SKILL.md cites it by a path
 # that RESOLVES from the skill dir — `references/x.md`, never a bare `x.md`.
@@ -724,6 +717,13 @@ def run-orphans-self-test [] {
     $failed
 }
 
+# Embedded self-test for the check fixes from claude-skills-130: reserved
+# exact-match, examples-via-reachable-reference, fence-length-aware
+# stripping, ref_depth heading/bare-token exemptions, and enumerated
+# upstream commands. Every fix is exercised in BOTH directions — the false
+# positive must be gone AND a genuine violation must still be caught — so a
+# check cannot stop misfiring by becoming permissive. Exercises the same
+# functions main calls. Returns true when any case failed.
 def run-check-fixes-self-test [] {
     mut failed = false
     let tick1 = '`'
@@ -1973,9 +1973,13 @@ def main [--update-baseline, --self-test] {
             #
             # Scope note: this check covers references/ and agents/ only.
             # templates/ and scripts/ files are NOT policed here — expanding to
-            # them was measured and rejected (9 files never mentioned at all,
-            # plus false positives where a version string like templates/0.9.0
-            # matches a file basename).
+            # them was measured and rejected on two counts. Nine such files are
+            # never mentioned in their SKILL.md at all and would become new
+            # findings. And a per-file rule misreads collective citation: the
+            # container skill has 11 `templates/<version>/commands.md` files but
+            # documents them as a family, naming only two versions explicitly,
+            # so expanding per file flags the other nine despite the set being
+            # legitimately documented.
             let agents_dir = ($skill_dir | path join "agents")
             let agent_files = if ($agents_dir | path exists) {
                 glob ($agents_dir | path join "*.md")
