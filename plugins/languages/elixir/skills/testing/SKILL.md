@@ -280,6 +280,10 @@ test "concurrent updates are handled correctly" do
 end
 ```
 
+## Test Coverage
+
+Generating coverage reports and configuring thresholds lives in `references/exunit-reference.md`.
+
 ## Best Practices
 
 ### Test Organization
