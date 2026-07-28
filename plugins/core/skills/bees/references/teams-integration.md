@@ -65,7 +65,8 @@ Only mirror direct dependencies. Claude's task system handles transitive blockin
 ### Create
 
 ```bash
-bees create "Issue title" -l "story,skill:git"
+bees create "Issue title" -t story
+bees label add <id> skill:git      # create has no label flag; one label per call
 # Then mirror:
 TaskCreate subject="[bees:<id>] Issue title" description="..."
 ```
