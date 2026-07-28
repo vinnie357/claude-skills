@@ -6,10 +6,10 @@ Read-only bees surface for pm-discovery's bees-map shard and the provenance cita
 
 The bees-map shard and pm-spec-writer use only these commands:
 
-- `bees list --status open|closed --labels <tag> --assignee <name> --json`
+- `bees list [--status open|closed] [--assignee <name>] [--json]` — no label filter exists; filter labels client-side via `--json` + jq
 - `bees show <id> [--json]`
-- `bees ready [--json --labels <tag>]`
-- `bees prime [--status open --labels <tag>]` — markdown export, LLM-ready
+- `bees ready [--json]` — the only flag `ready` accepts
+- `bees prime` — static agent-workflow cheatsheet, no flags, contains no issue data
 - `bees dep list <id>`
 - `bees comment list <id>`
 - `bees config get <key>`
@@ -39,7 +39,7 @@ Spec harvesting reads the prototype's existing tracker state; it never mutates i
 
 ## Detection
 
-Check for a `.bees/` directory at the prototype root before running the bees-map shard. A bees repository contains `bees.db` (SQLite, WAL mode), `issues.jsonl`, `metadata.json`, `config.json`, and a `.beads` compatibility symlink.
+Check for a `.bees/` directory at the prototype root before running the bees-map shard. A bees repository contains `bees.db` (SQLite, WAL mode), `issues.jsonl`, `metadata.json`, and `config.json`.
 
 When `.bees/` is absent:
 - Skip the bees-map shard entirely.

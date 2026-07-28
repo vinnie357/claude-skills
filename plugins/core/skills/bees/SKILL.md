@@ -12,7 +12,7 @@ This skill activates when working with Bees for issue tracking, dependency manag
 
 Activate when:
 - Managing issues with dependencies in a local repository
-- Exporting issue context for AI agents (`bees prime`)
+- Exporting issue context for AI agents (`bees list --json`, `bees show --json`)
 - Tracking issue hierarchies and dependency graphs
 - Needing SQLite-backed performance for large issue sets
 - Syncing issues to JSONL for portability (`bees sync`)
@@ -24,14 +24,13 @@ Bees is a lightweight, local-first issue tracker designed for AI-augmented devel
 
 - **SQLite storage**: WAL-mode SQLite database for fast queries
 - **Single binary**: Written in Zig, compiles to a small static binary
-- **AI-augmented**: `bees prime` outputs markdown for LLM context, `bees sync` exports JSONL
+- **AI-augmented**: `bees prime` dumps a workflow cheatsheet for agents, `bees sync` exports JSONL, `--json` flags on read commands
 - **Dependency-aware**: Query ready issues with `bees ready`, supports blocks/related/parent-child
-- **VS Code integration**: Compatible with beads VS Code extensions via `.beads` symlink
 - **Local-first**: No server required, everything stored in `.bees/` directory
 
 ## Installation
 
-Install via mise: add `[tools."github:ctxshift/bees"]` with `version = "latest"` to `mise.toml` (see `templates/mise.toml`), then `mise install`. Full install matrix, platform asset patterns, pre-built binaries, source build, and VS Code extensions: `references/installation.md`.
+Install via mise: add `[tools."github:ctxshift/bees"]` with `version = "latest"` to `mise.toml` (see `templates/mise.toml`), then `mise install`. Full install matrix, platform asset patterns, pre-built binaries, and source build: `references/installation.md`.
 
 ## Getting Started
 
@@ -77,7 +76,7 @@ Returns issues with no unresolved dependencies.
 
 ## Commands Reference
 
-Per-flag syntax for all 12 subcommands (`create`, `list`, `show`, `update`, `close`, `ready`, `dep`, `label`, `comment`, `config`, `sync`, `prime`): `references/commands.md`.
+Per-flag syntax for the 13 day-to-day subcommands (`create`, `list`, `show`, `update`, `close`, `ready`, `dep`, `label`, `comment`, `config`, `sync`, `import`, `prime`): `references/commands.md`. bees 0.4.0 has 19 top-level commands; for the rest (`upgrade`, `edit`, `rename-prefix`, `daemon`, `version`, and the `ls` alias) run `bees <cmd> --help` — except `bees upgrade --help`, which executes a real database migration instead of printing help (see Troubleshooting).
 
 ## Dependency Management
 
@@ -100,7 +99,8 @@ bees dep add <id> <blocker-id>           # id depends on blocker-id
 `bees ready` returns issues where:
 - Status is `open`
 - No open `blocks` dependencies remain
-- Parent issues (if any) are still open
+
+Only `blocks`-type dependencies gate readiness. `parent-child` and `related` dependencies never do — a child issue stays in `bees ready` whether its parent is open or closed (verified against bees 0.4.0). To make a child wait on its parent, add an explicit `blocks` edge.
 
 ### Cycles are NOT rejected — check before adding a reverse edge
 
@@ -129,15 +129,15 @@ bees sync
 
 The JSONL file contains one JSON object per line, compatible with standard data processing tools.
 
-### bees prime (Markdown for LLMs)
+### bees prime (Agent Workflow Cheatsheet)
 
-Generate a markdown summary for LLM context windows:
+Dump the static workflow-context cheatsheet for AI agents:
 
 ```bash
 bees prime
 ```
 
-Output includes issue titles, descriptions, labels, dependencies, and status in a readable markdown format. Pipe directly into agent prompts or save to file.
+The output is a fixed markdown dump of workflow rules and essential commands — it contains **no issue data** (verified against bees 0.4.0: a repo with 4 issues produced zero mentions of any issue id). It takes no flags. For issue context — titles, descriptions, labels, dependencies, status — use `bees list --json` and `bees show <id> --json`.
 
 `--json` flag coverage and jq scripting recipes: `references/commands.md`.
 
@@ -149,19 +149,15 @@ Output includes issue titles, descriptions, labels, dependencies, and status in 
 ├── issues.jsonl     # JSONL export (created by bees sync)
 ├── metadata.json    # Repository metadata
 ├── config.json      # Local configuration
-└── .beads           # Symlink for VS Code extension compatibility
+└── .gitignore       # Excludes bees.db from version control
 ```
 
 ### SQLite as Primary Storage
 
 Unlike beads (which uses JSONL as primary with SQLite cache), bees uses SQLite as the primary data store:
 - WAL mode for concurrent read access
-- No need for `rebuild` commands
 - `bees sync` exports to JSONL for portability
-
-### The .beads Symlink
-
-Bees creates a `.beads` symlink pointing to the `.bees/` directory. This enables compatibility with VS Code extensions designed for beads (`vscode-beads` and `beads-kanban`).
+- `bees import` rebuilds the database from `issues.jsonl` (drops and re-creates `bees.db`) — use after pulling a new `issues.jsonl`
 
 ## Workflow Examples
 
@@ -221,10 +217,6 @@ bees ready                       # Find next issue
 
 An automated task-loop script (poll `bees ready --json`, work, close, sync): `references/commands.md`.
 
-## VS Code Integration
-
-The `.beads` symlink makes the beads VS Code extensions work with bees; extension install commands: `references/installation.md`.
-
 ## Bees vs Beads
 
 | Feature | Bees | Beads |
@@ -233,12 +225,11 @@ The `.beads` symlink makes the beads VS Code extensions work with bees; extensio
 | Language | Zig | Go |
 | Binary | Single static binary | Go binary |
 | Sync model | One-directional export (`bees sync`) | Bidirectional git sync (`bd sync`/`bd pull`) |
-| AI context | `bees prime` (markdown output) | `--json` flags only |
+| AI context | `bees prime` (static workflow cheatsheet); issue data via `--json` flags | `--json` flags only |
 | Init modes | Local-first only | Full, stealth, contributor |
 | Comments | `bees comment add` | `bd comment` |
 | Dependency types | blocks, related, parent (`-t` flag) | blocks only |
-| VS Code | Via `.beads` symlink | Native |
-| Conflict resolution | Not needed (SQLite primary) | `bd rebuild` from JSONL |
+| Rebuild from JSONL | `bees import` | `bd rebuild` |
 
 ## Best Practices
 
@@ -275,7 +266,7 @@ One bees issue == one slice. A complex slice still gets ONE bees issue; the five
 
 ### AI Integration Tips
 
-- Use `bees prime` to inject issue context into agent prompts
+- Use `bees prime` to inject the workflow cheatsheet into agent prompts; inject issue context with `bees list --json` / `bees show <id> --json`
 - Use `bees ready --json` for automated task queue polling
 - Use `bees sync` to create portable JSONL snapshots
 - Close issues atomically after completion
@@ -331,6 +322,10 @@ sqlite3 .bees/bees.db "PRAGMA integrity_check;"
 lsof .bees/bees.db
 ```
 
+### `bees upgrade --help` runs the migration
+
+`bees upgrade --help` does not print help — it executes the real upgrade (refreshes `.bees/.gitignore` and applies schema migrations to `bees.db`), verified against bees 0.4.0. Do not probe `upgrade` with `--help` on a tracker you are not ready to migrate.
+
 ### Build Issues (from source)
 
 Troubleshooting for source builds lives with the build instructions: `references/installation.md`.
@@ -345,8 +340,8 @@ bees sync
 
 ## References
 
-- `references/commands.md`: Per-flag syntax for all 12 subcommands, `--json` output, jq scripting recipes, and the agent task-loop script
-- `references/installation.md`: Install matrix (mise, pre-built binaries, source build), VS Code extensions, and build troubleshooting
+- `references/commands.md`: Per-flag syntax for the 13 day-to-day subcommands, `--json` output, jq scripting recipes, and the agent task-loop script
+- `references/installation.md`: Install matrix (mise, pre-built binaries, source build) and build troubleshooting
 - `references/teams-integration.md`: Protocol for mirroring bees issues into Claude's task list for Agent Teams coordination
 - `references/migration-from-beads.md`: Guide for migrating from beads to bees
 

@@ -1,6 +1,6 @@
 # Bees Installation
 
-Full install matrix (mise, pre-built binaries, source build), VS Code integration, and build troubleshooting. The mise route is the common case; a stub remains in the skill body.
+Full install matrix (mise, pre-built binaries, source build) and build troubleshooting. The mise route is the common case; a stub remains in the skill body.
 
 ## Installation
 
@@ -41,26 +41,6 @@ git clone https://github.com/ctxshift/bees.git
 cd bees
 zig build -Doptimize=ReleaseSafe
 ```
-
-## VS Code Integration
-
-Bees creates a `.beads` symlink to `.bees/` for compatibility with the beads VS Code extensions:
-
-### Beads Extension (`planet57.vscode-beads`)
-
-```bash
-code --install-extension planet57.vscode-beads
-```
-
-Task list sidebar, syntax highlighting, and issue ID autocompletion.
-
-### Beads Kanban (`DavidCForbes.beads-kanban`)
-
-```bash
-code --install-extension DavidCForbes.beads-kanban
-```
-
-Drag-and-drop kanban board with dependency visualization.
 
 ## Troubleshooting
 

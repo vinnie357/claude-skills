@@ -64,29 +64,32 @@ def main [issue_id: string] {
 description = "Create a new issue"
 run = '''
 #!/usr/bin/env nu
+# bees create has NO label flag and NO parent flag; its -p is PRIORITY.
+# Add labels after creation with `bees label add <id> <label>` (one per call);
+# add parent links with `bees dep add <child> <parent> -t parent-child`.
 def main [
     title: string
     --description (-d): string  # Issue description
-    --labels (-l): string       # Comma-separated labels
+    --type (-t): string         # Issue type (task, bug, feature, epic, story)
+    --priority (-p): int        # Priority (1=critical .. 4=low)
     --assignee (-a): string     # Assignee name
     --owner (-o): string        # Owner name
-    --parent (-p): string       # Parent issue ID
 ] {
     mut args = ["create", $title]
     if ($description | is-not-empty) {
         $args = ($args | append ["-d", $description])
     }
-    if ($labels | is-not-empty) {
-        $args = ($args | append ["-l", $labels])
+    if ($type | is-not-empty) {
+        $args = ($args | append ["-t", $type])
+    }
+    if ($priority | is-not-empty) {
+        $args = ($args | append ["-p", ($priority | into string)])
     }
     if ($assignee | is-not-empty) {
         $args = ($args | append ["-a", $assignee])
     }
     if ($owner | is-not-empty) {
         $args = ($args | append ["-o", $owner])
-    }
-    if ($parent | is-not-empty) {
-        $args = ($args | append ["-p", $parent])
     }
     ^bees ...$args
 }
@@ -138,37 +141,27 @@ def main [
 description = "Export issues to JSONL format"
 run = "bees sync"
 
-[tasks."bees:prime"]
-description = "Generate markdown output for LLM context"
-run = '''
-#!/usr/bin/env nu
-def main [
-    --status (-s): string   # Filter by status
-    --labels (-l): string   # Filter by labels
-] {
-    mut args = ["prime"]
-    if ($status | is-not-empty) {
-        $args = ($args | append ["--status", $status])
-    }
-    if ($labels | is-not-empty) {
-        $args = ($args | append ["--labels", $labels])
-    }
-    ^bees ...$args
-}
-'''
+[tasks."bees:import"]
+description = "Rebuild the database from issues.jsonl (drops and re-creates bees.db)"
+run = "bees import"
 
+# bees prime takes no flags and outputs a static workflow cheatsheet (no issue
+# data). For issue context use bees:list / bees:show, which wrap --json.
+[tasks."bees:prime"]
+description = "Dump the static agent workflow cheatsheet"
+run = "bees prime"
+
+# bees config requires a get/set subcommand; a bare `bees config` exits 1.
 [tasks."bees:config"]
-description = "Show or set bees configuration"
+description = "Get or set a bees configuration value"
 run = '''
 #!/usr/bin/env nu
 def main [
-    action?: string  # "set" or "get" (omit to show all)
-    key?: string     # Config key
+    action: string   # "set" or "get"
+    key: string      # Config key
     value?: string   # Config value (for set)
 ] {
-    if ($action | is-empty) {
-        bees config
-    } else if $action == "set" {
+    if $action == "set" {
         bees config set $key $value
         print $"(ansi green)Set ($key) = ($value)(ansi reset)"
     } else if $action == "get" {
@@ -241,28 +234,30 @@ def main [issue_id: string] {
 }
 '''
 
+# bees label takes ONE label per invocation — a comma-separated string is
+# stored verbatim as a single literal label (e.g. "a,b").
 [tasks."bees:label:add"]
-description = "Add labels to an issue"
+description = "Add a label to an issue (one label per call)"
 run = '''
 #!/usr/bin/env nu
 def main [
     issue_id: string # Issue ID
-    labels: string   # Comma-separated labels to add
+    label: string    # Single label to add
 ] {
-    bees label add $issue_id $labels
-    print $"(ansi cyan)Added labels to ($issue_id): ($labels)(ansi reset)"
+    bees label add $issue_id $label
+    print $"(ansi cyan)Added label to ($issue_id): ($label)(ansi reset)"
 }
 '''
 
 [tasks."bees:label:remove"]
-description = "Remove labels from an issue"
+description = "Remove a label from an issue (one label per call)"
 run = '''
 #!/usr/bin/env nu
 def main [
     issue_id: string # Issue ID
-    labels: string   # Comma-separated labels to remove
+    label: string    # Single label to remove
 ] {
-    bees label remove $issue_id $labels
-    print $"(ansi yellow)Removed labels from ($issue_id): ($labels)(ansi reset)"
+    bees label remove $issue_id $label
+    print $"(ansi yellow)Removed label from ($issue_id): ($label)(ansi reset)"
 }
 '''
