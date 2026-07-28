@@ -11,9 +11,8 @@ Create a new issue:
 ```bash
 bees create "Title"
 bees create "Title" -d "Description text"
-bees create "Title" -l "bug,priority:high"
+bees create "Title" -t bug -p 2
 bees create "Title" -a "alice" -o "bob"
-bees create "Title" -p <parent-id>
 ```
 
 Flags:
@@ -94,11 +93,14 @@ Dependency types (via `-t` flag):
 
 ### label
 
-Manage labels on issues:
+Manage labels on issues. **One label per invocation** — `bees label add <id> "a,b"` creates a single
+literal label named `a,b`, verified against the installed binary (`--json` shows `["a,b"]`, versus
+`["a","b"]` when added separately). `bees create` has **no** label flag:
 
 ```bash
-bees label add <id> "bug,priority:high"
-bees label remove <id> "wip"
+bees label add <id> bug
+bees label add <id> priority:high
+bees label remove <id> wip
 ```
 
 ### comment
