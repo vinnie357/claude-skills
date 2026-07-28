@@ -240,8 +240,24 @@ directories, and `hooks/hooks.json`:
 | `missing_desc` | agent, command | Frontmatter has no `description:` |
 | `bad_model` | agent | Frontmatter `model:` is present but not one of `haiku`, `sonnet`, `opus` |
 | `bad_invocations` | agent, command | An `/plugin:skill` token in the file does not resolve |
+| `links` | agent, command | Every `references/`, `templates/`, `scripts/`, `agents/`, `hooks/` path mentioned in the file resolves — see below for how this differs from the per-skill `links` check |
 | `bad_wrapper` | hooks | `hooks/hooks.json` is not valid JSON, or has no top-level `hooks` object |
 | `bad_event` | hooks | A hook event name is not one of `PreToolUse`, `PostToolUse`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `Stop`, `SubagentStop`, `PreCompact`, `Notification` |
+
+**How the agent/command `links` check differs from the per-skill `links` check (above):** the
+per-skill check resolves every path against ONE fixed `skill_dir` — a SKILL.md always has exactly
+one owning skill. An `agents/*.md` or `commands/*.md` file has no single owning skill (many are
+plugin-level, not nested in any skill at all), so resolution tries four bases in order and accepts
+the first that resolves: (1) the citing file's own directory — the enclosing skill's dir for a
+skill-nested agent, or the plugin dir for a plugin-level agent or any command; (2) a
+`/plugin:skill`-qualified pointer into a different, real skill (reuses the same cross-skill
+resolution the per-skill `ref_depth` and `links` checks use); (3) exactly one sibling skill under
+the same plugin's `skills/*/` containing the path — more than one match is ambiguous and counts as
+unresolved, never silently picked; (4) the plugin root directly. Directory-gating for
+`scripts/`/`templates/`/`hooks/` widens accordingly: a dir-gated token is in scope if that
+directory exists at the citing file's own level, under any sibling skill in the same plugin, or at
+the plugin root — narrower gating (own level only) would silently exclude a plugin-level file's
+citation of a sibling skill's `templates/` dir from evaluation.
 
 Use `/benchmark-skills` for a more detailed analysis with category classification and quality assessment.
 

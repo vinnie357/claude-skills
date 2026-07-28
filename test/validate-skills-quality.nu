@@ -176,6 +176,13 @@ def extract-link-path-tokens [content: string]: nothing -> list<string> {
 #      own tree contains the path. Load-bearing, not a nicety — e.g.
 #      beads-worker.md's references/skill-catalog.md citation resolves only
 #      here, since that file lives under core/skills/bees/references/.
+#      Inherited exemption: an UNKNOWN skill/plugin name (not in the local
+#      marketplace) cannot be existence-checked, so cross-skill-qualified
+#      treats it as exempt (resolved) rather than broken — the same
+#      leniency checks 9, 14, and 16 already apply to genuinely external
+#      references. A citation qualified by a namespace this repo doesn't
+#      know about therefore passes silently; that is accepted, documented
+#      behavior, not a gap in this check.
 #   3. <plugin>/skills/*/<path> — exactly one sibling skill in the SAME
 #      plugin contains the path. More than one match is AMBIGUOUS, which
 #      counts as unresolved — this never silently picks the first match.
@@ -211,6 +218,29 @@ def resolve-pass2-path [
         return false
     }
     ($plugin_dir | path join $path) | path exists
+}
+
+# Directory-gating scope test for the Pass-2 scripts/templates/hooks tokens
+# (references/agents are never gated — see the two call sites). A dir-gated
+# token is only evaluated when that top-level directory exists SOMEWHERE
+# resolve-pass2-path would actually look: the citing file's own level, ANY
+# sibling skill in the same plugin, or the plugin root. Gating on own-level
+# alone (the per-skill check-14 rule) excluded 6 of 33 real Pass-2 pointers
+# from evaluation entirely — e.g. a plugin-level agent citing
+# `templates/prd.md` when that plugin has no plugin-level templates/ dir,
+# only a sibling skill's — so a rename under that sibling skill would have
+# landed green (Gate 3 finding, PR 160). Widening the gate to match every
+# base resolve-pass2-path tries keeps the original anti-false-positive
+# intent (a mention of `templates/foo.md` when no templates/ dir exists
+# ANYWHERE nearby stays unflagged) while covering every base.
+def pass2-dir-in-scope [top: string, own_dir: string, plugin_dir: string]: nothing -> bool {
+    if (($own_dir | path join $top) | path exists) { return true }
+    if (($plugin_dir | path join $top) | path exists) { return true }
+    let skills_root = ($plugin_dir | path join "skills")
+    if not ($skills_root | path exists) { return false }
+    (glob ($skills_root | path join "*")
+        | where {|d| ($d | path type) == "dir"}
+        | any {|d| ($d | path join $top) | path exists})
 }
 
 # True when `content` contains at least one "references/" token that is NOT
@@ -1586,6 +1616,19 @@ def run-pass2-links-self-test [] {
         $failed = true
     }
 
+    # Case: base 2 negative — a real /ns:skill qualifier naming a real,
+    # KNOWN skill whose directory does NOT contain the cited path. Must
+    # NOT resolve: cross-skill-qualified's leniency is for UNKNOWN skill
+    # names only (see resolve-pass2-path's docstring); a known skill that
+    # genuinely lacks the file is a real broken pointer. Without this case,
+    # every case above would still pass even if cross-skill-qualified
+    # started over-triggering for known-but-wrong skills, since the
+    # broken-pointer case above uses an empty (unqualified) prefix line.
+    if (resolve-pass2-path "references/nonexistent-in-qualified.md" "see /pluginb:qualified for detail" $isolated_dir "" $isolated_dir $cross_map ["pluginb"]) {
+        print $"(ansi red_bold)❌ pass2-links self-test: base 2 wrongly resolved a KNOWN skill's nonexistent path(ansi reset)"
+        $failed = true
+    }
+
     # Case: base 3 — exactly one sibling skill under the SAME plugin
     # contains the path. own_dir here has neither the path nor a matching
     # qualifier, so only the single-match sibling scan can resolve it.
@@ -1609,7 +1652,7 @@ def run-pass2-links-self-test [] {
     rm -rf $root
 
     if not $failed {
-        print $"(ansi green_bold)✅ Pass-2 links self-test passed \(7 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Pass-2 links self-test passed \(8 cases\)(ansi reset)"
     }
     $failed
 }
@@ -2024,16 +2067,18 @@ def main [--update-baseline, --self-test] {
             let bad_invocations = (find-bad-invocations $content $registry)
             if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
 
-            # links (claude-skills-164): same dir-gating rule as check 14 —
-            # scripts/templates/hooks tokens are only in scope when that dir
-            # exists at this file's own level (skill dir if nested, plugin
-            # dir if plugin-level); references/agents are always in scope.
+            # links (claude-skills-164): dir-gating uses pass2-dir-in-scope —
+            # WIDER than check 14's own-level-only rule, since a Pass-2 file
+            # has no single owning skill dir and resolve-pass2-path itself
+            # checks own level, sibling skills, AND the plugin root; gating
+            # on own-level alone excluded real pointers from evaluation
+            # (Gate 3 finding, PR 160). references/agents are always in scope.
             let agent_stripped = (strip-fences $content)
             let agent_link_paths = (extract-link-path-tokens $agent_stripped)
             let agent_broken_links = ($agent_link_paths | where {|p|
                 let top = ($p | split row "/" | first)
                 let dir_gated = $top in ["scripts" "templates" "hooks"]
-                let in_scope = (not $dir_gated) or (($entry.own_dir | path join $top) | path exists)
+                let in_scope = (not $dir_gated) or (pass2-dir-in-scope $top $entry.own_dir $plugin_dir)
                 $in_scope and not (resolve-pass2-path $p (preceding-line $agent_stripped $p) $entry.own_dir $entry.dir_name $plugin_dir $skill_dir_map ($registry | get name))
             })
             if ($agent_broken_links | is-not-empty) { $failed = ($failed | append "links") }
@@ -2074,13 +2119,17 @@ def main [--update-baseline, --self-test] {
 
             # links (claude-skills-164): commands are always plugin-level, so
             # own_dir == plugin_dir — bases 1 and 4 of resolve-pass2-path
-            # collapse to the same check for command files.
+            # collapse to the same check for command files. Dir-gating uses
+            # pass2-dir-in-scope so a command's citation of a SIBLING skill's
+            # templates/ dir (e.g. linear's plan-epic.md -> a skill-owned
+            # templates/0.1.0/epic.md) is still evaluated even though the
+            # plugin itself has no plugin-level templates/ dir.
             let cmd_stripped = (strip-fences $content)
             let cmd_link_paths = (extract-link-path-tokens $cmd_stripped)
             let cmd_broken_links = ($cmd_link_paths | where {|p|
                 let top = ($p | split row "/" | first)
                 let dir_gated = $top in ["scripts" "templates" "hooks"]
-                let in_scope = (not $dir_gated) or (($plugin_dir | path join $top) | path exists)
+                let in_scope = (not $dir_gated) or (pass2-dir-in-scope $top $plugin_dir $plugin_dir)
                 $in_scope and not (resolve-pass2-path $p (preceding-line $cmd_stripped $p) $plugin_dir "" $plugin_dir $skill_dir_map ($registry | get name))
             })
             if ($cmd_broken_links | is-not-empty) { $failed = ($failed | append "links") }
