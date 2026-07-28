@@ -676,6 +676,47 @@ def run-baseline-self-test [] {
     $failed
 }
 
+# Check 15 (orphans) predicate, extracted so it can be self-tested.
+# A bundled file counts as mentioned only when SKILL.md cites it by a path
+# that RESOLVES from the skill dir — `references/x.md`, never a bare `x.md`.
+# See the call site for why the bare form used to pass.
+def find-orphan-files [content: string, files: list]: nothing -> list {
+    $files | where {|f|
+        let subdir = ($f | path dirname | path basename)
+        not ($content | str contains $"($subdir)/($f | path basename)")
+    }
+}
+
+def run-orphans-self-test [] {
+    mut failed = false
+    let refs = ["/tmp/skill/references/alpha.md"]
+    let agents = ["/tmp/skill/agents/worker.md"]
+
+    let cases = [
+        # [label, content, files, expect_orphan_count]
+        ["dir-prefixed reference cited" "See `references/alpha.md` for detail." $refs 0]
+        ["bare basename does NOT satisfy" "See `alpha.md` for detail." $refs 1]
+        ["uncited reference is an orphan" "No mention here." $refs 1]
+        ["dir-prefixed agent cited" "Hand off to `agents/worker.md`." $agents 0]
+        ["bare agent basename does NOT satisfy" "Hand off to `worker.md`." $agents 1]
+        ["wrong subdir does NOT satisfy" "See `agents/alpha.md` for detail." $refs 1]
+    ]
+
+    for c in $cases {
+        let got = (find-orphan-files ($c | get 1) ($c | get 2) | length)
+        let want = ($c | get 3)
+        if $got != $want {
+            print $"(ansi red_bold)❌ orphans self-test: ($c | get 0) — want ($want) orphan\(s\), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Orphans self-test passed \(($cases | length) cases\)(ansi reset)"
+    }
+    $failed
+}
+
 # Embedded self-test for the check fixes from claude-skills-130: reserved
 # exact-match, examples-via-reachable-reference, fence-length-aware
 # stripping, ref_depth heading/bare-token exemptions, and enumerated
@@ -1675,7 +1716,8 @@ def main [--update-baseline, --self-test] {
         let duplicate_failed = (run-duplicate-self-test)
         let vocab_failed = (run-vocab-self-test)
         let pass2_links_failed = (run-pass2-links-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed { exit 1 }
+        let orphans_failed = (run-orphans-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed { exit 1 }
         exit 0
     }
 
@@ -1920,16 +1962,31 @@ def main [--update-baseline, --self-test] {
             if ($broken_links | is-not-empty) { $failed = ($failed | append "links") }
 
             # 15. No orphan files: every references/*.md and agents/*.md must be
-            # mentioned at least once from SKILL.md.
+            # mentioned at least once from SKILL.md, by a citation that RESOLVES
+            # — i.e. `references/x.md`, not a bare `x.md`.
+            #
+            # A bare basename used to satisfy this check while pointing at
+            # nothing: from the skill dir, `group-by-risk.md` does not exist.
+            # That made the suite reward an unresolvable spelling — check 14
+            # only parses dir-prefixed paths, so the bare form was invisible to
+            # it while still clearing check 15 (claude-skills-164, PR 162).
+            #
+            # Scope note: this check covers references/ and agents/ only.
+            # templates/ and scripts/ files are NOT policed here — expanding to
+            # them was measured and rejected on two counts. Nine such files are
+            # never mentioned in their SKILL.md at all and would become new
+            # findings. And a per-file rule misreads collective citation: the
+            # container skill has 11 `templates/<version>/commands.md` files but
+            # documents them as a family, naming only two versions explicitly,
+            # so expanding per file flags the other nine despite the set being
+            # legitimately documented.
             let agents_dir = ($skill_dir | path join "agents")
             let agent_files = if ($agents_dir | path exists) {
                 glob ($agents_dir | path join "*.md")
             } else {
                 []
             }
-            let orphans = ($ref_files | append $agent_files | where {|f|
-                not ($content | str contains ($f | path basename))
-            })
+            let orphans = (find-orphan-files $content ($ref_files | append $agent_files))
             if ($orphans | is-not-empty) { $failed = ($failed | append "orphans") }
 
             # 16. Cross-skill invocations resolve: every /plugin:skill token in
