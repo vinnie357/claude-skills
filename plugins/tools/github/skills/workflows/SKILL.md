@@ -5,7 +5,7 @@ description: Write and optimize GitHub Actions workflows. Use when creating CI/C
 
 # GitHub Workflows
 
-Activate when creating, modifying, debugging, or optimizing GitHub Actions workflow files. This skill covers workflow syntax, structure, best practices, and common CI/CD patterns.
+Activate when creating, modifying, debugging, or optimizing GitHub Actions workflow files. This skill covers workflow structure, best practices, and common CI/CD patterns; full YAML syntax detail lives in `references/`.
 
 ## When to Use This Skill
 
@@ -21,636 +21,61 @@ Activate when:
 
 ## Workflow File Structure
 
-### Basic Anatomy
-
-```yaml
-name: CI                              # Workflow name (optional)
-
-on:                                   # Trigger events
-  push:
-    branches: [main, develop]
-  pull_request:
-
-env:                                  # Global environment variables
-  NODE_VERSION: '20'
-
-jobs:                                 # Job definitions
-  build:
-    name: Build and Test            # Job name (optional)
-    runs-on: ubuntu-latest          # Runner environment
-
-    steps:
-      - name: Checkout code         # Step name (optional)
-        uses: actions/checkout@v4   # Use an action
-
-      - name: Run tests
-        run: npm test               # Run command
-```
-
-### File Location
-
-Workflows must be in `.github/workflows/` directory:
-```
-.github/
-└── workflows/
-    ├── ci.yml
-    ├── deploy.yml
-    └── release.yml
-```
+File anatomy (`name:`, `on:`, `env:`, `jobs:`) and the `.github/workflows/` location requirement: see `references/workflow-syntax.md`.
 
 ## Trigger Events (on:)
 
-### Push Events
-
-```yaml
-on:
-  push:
-    branches:
-      - main
-      - 'release/**'        # Glob patterns
-    tags:
-      - 'v*'                # Version tags
-    paths:
-      - 'src/**'            # Only when these paths change
-      - '!docs/**'          # Ignore docs changes
-```
-
-### Pull Request Events
-
-```yaml
-on:
-  pull_request:
-    types:
-      - opened
-      - synchronize       # New commits pushed
-      - reopened
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-```
-
-### Schedule (Cron)
-
-```yaml
-on:
-  schedule:
-    # Every day at 2am UTC
-    - cron: '0 2 * * *'
-    # Every Monday at 9am UTC
-    - cron: '0 9 * * 1'
-```
-
-### Manual Trigger (workflow_dispatch)
-
-```yaml
-on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        type: choice
-        options:
-          - development
-          - staging
-          - production
-      debug:
-        description: 'Enable debug logging'
-        required: false
-        type: boolean
-        default: false
-```
-
-### Multiple Events
-
-```yaml
-on:
-  push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly
-```
+Push/PR branch, tag, and path filters, cron schedules, `workflow_dispatch` inputs, and multi-event triggers: see `references/workflow-syntax.md`.
 
 ## Jobs
 
-### Basic Job Configuration
-
-```yaml
-jobs:
-  build:
-    name: Build Application
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci
-      - run: npm run build
-```
-
-### Runner Selection
-
-```yaml
-jobs:
-  test:
-    runs-on: ubuntu-latest        # Ubuntu (fastest, most common)
-
-  test-macos:
-    runs-on: macos-latest         # macOS
-
-  test-windows:
-    runs-on: windows-latest       # Windows
-
-  test-specific:
-    runs-on: ubuntu-22.04         # Specific version
-```
-
-### Matrix Strategy
-
-```yaml
-jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [18, 20, 21]
-        exclude:
-          - os: macos-latest
-            node: 18
-      fail-fast: false            # Continue on failure
-      max-parallel: 4             # Concurrent jobs limit
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-      - run: npm test
-```
-
-### Job Dependencies
-
-```yaml
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - run: npm run build
-
-  test:
-    needs: build                  # Wait for build
-    runs-on: ubuntu-latest
-    steps:
-      - run: npm test
-
-  deploy:
-    needs: [build, test]          # Wait for multiple jobs
-    runs-on: ubuntu-latest
-    steps:
-      - run: npm run deploy
-```
-
-### Conditional Execution
-
-```yaml
-jobs:
-  deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - run: npm run deploy
-
-  notify:
-    if: failure()                 # Run only if previous jobs failed
-    needs: [build, test]
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Build failed"
-```
+Runner selection, matrix strategy, `needs:` dependencies, and conditional job execution: see `references/jobs-and-steps.md`.
 
 ## Steps
 
-### Using Actions
-
-```yaml
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
-    with:
-      fetch-depth: 0              # Full history
-      submodules: recursive       # Include submodules
-
-  - name: Setup Node.js
-    uses: actions/setup-node@v4
-    with:
-      node-version: '20'
-      cache: 'npm'
-```
-
-### Running Commands
-
-```yaml
-steps:
-  - name: Single command
-    run: npm install
-
-  - name: Multi-line script
-    run: |
-      echo "Installing dependencies"
-      npm ci
-      npm run build
-
-  - name: Shell selection
-    shell: bash
-    run: echo "Using bash"
-```
-
-### Conditional Steps
-
-```yaml
-steps:
-  - name: Run on main branch only
-    if: github.ref == 'refs/heads/main'
-    run: npm run deploy
-
-  - name: Run on PR only
-    if: github.event_name == 'pull_request'
-    run: npm run test:pr
-```
-
-### Continue on Error
-
-```yaml
-steps:
-  - name: Lint (optional)
-    continue-on-error: true
-    run: npm run lint
-
-  - name: Test (required)
-    run: npm test
-```
+Using actions, `run:` commands, conditional steps, and `continue-on-error`: see `references/jobs-and-steps.md`.
 
 ## Environment Variables and Secrets
 
-### Global Variables
+Global/job/step-level `env`, `secrets.*` usage, and inter-step outputs: see `references/jobs-and-steps.md`.
 
-```yaml
-env:
-  NODE_ENV: production
-  API_URL: https://api.example.com
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo $NODE_ENV
-```
-
-### Job-Level Variables
-
-```yaml
-jobs:
-  build:
-    env:
-      BUILD_TYPE: release
-    steps:
-      - run: echo $BUILD_TYPE
-```
-
-### Step-Level Variables
-
-```yaml
-steps:
-  - name: Configure
-    env:
-      CONFIG_PATH: ./config.json
-    run: cat $CONFIG_PATH
-```
-
-### Using Secrets
-
-```yaml
-steps:
-  - name: Deploy
-    env:
-      API_KEY: ${{ secrets.API_KEY }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-    run: ./deploy.sh
-```
-
-### Setting Variables Between Steps
-
-```yaml
-steps:
-  - name: Set version
-    id: version
-    run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
-
-  - name: Use version
-    run: echo "Version is ${{ steps.version.outputs.VERSION }}"
-```
+Gotcha: pass values between steps with `echo "key=value" >> $GITHUB_OUTPUT` — the deprecated `set-output` command no longer works.
 
 ## Contexts
 
-### github Context
-
-```yaml
-steps:
-  - name: Context information
-    run: |
-      echo "Repository: ${{ github.repository }}"
-      echo "Branch: ${{ github.ref_name }}"
-      echo "SHA: ${{ github.sha }}"
-      echo "Actor: ${{ github.actor }}"
-      echo "Event: ${{ github.event_name }}"
-      echo "Run ID: ${{ github.run_id }}"
-```
-
-### env Context
-
-```yaml
-env:
-  MY_VAR: value
-
-steps:
-  - run: echo "${{ env.MY_VAR }}"
-```
-
-### job Context
-
-```yaml
-steps:
-  - name: Job status
-    if: job.status == 'success'
-    run: echo "Job succeeded"
-```
-
-### steps Context
-
-```yaml
-steps:
-  - id: first-step
-    run: echo "output=hello" >> $GITHUB_OUTPUT
-
-  - run: echo "${{ steps.first-step.outputs.output }}"
-```
-
-### runner Context
-
-```yaml
-steps:
-  - run: |
-      echo "OS: ${{ runner.os }}"
-      echo "Arch: ${{ runner.arch }}"
-      echo "Temp: ${{ runner.temp }}"
-```
-
-### matrix Context
-
-```yaml
-strategy:
-  matrix:
-    version: [18, 20]
-
-steps:
-  - run: echo "Node ${{ matrix.version }}"
-```
+`github`, `env`, `job`, `steps`, `runner`, and `matrix` context fields: see `references/contexts-and-expressions.md`.
 
 ## Expressions
 
-### Operators
+Operators, status functions (`success()`, `failure()`, `always()`), and string/JSON/hash functions: see `references/contexts-and-expressions.md`.
 
-```yaml
-steps:
-  # Comparison
-  - if: github.ref == 'refs/heads/main'
-
-  # Logical
-  - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  - if: github.event_name == 'pull_request' || github.event_name == 'push'
-
-  # Negation
-  - if: "!cancelled()"
-
-  # Contains
-  - if: contains(github.event.head_commit.message, '[skip ci]')
-
-  # StartsWith/EndsWith
-  - if: startsWith(github.ref, 'refs/tags/v')
-  - if: endsWith(github.ref, '-beta')
-```
-
-### Functions
-
-```yaml
-steps:
-  # Status functions
-  - if: success()        # Previous steps succeeded
-  - if: failure()        # Any previous step failed
-  - if: always()         # Always run
-  - if: cancelled()      # Workflow cancelled
-
-  # String functions
-  - run: echo "${{ format('Hello {0}', github.actor) }}"
-  - if: contains(github.event.pull_request.labels.*.name, 'deploy')
-
-  # JSON functions
-  - run: echo '${{ toJSON(github.event) }}'
-  - run: echo '${{ fromJSON(env.CONFIG).database.host }}'
-
-  # Hash function
-  - run: echo "${{ hashFiles('**/package-lock.json') }}"
-```
+Gotcha: quote expression negations — `if: "!cancelled()"` — because a bare leading `!` is a YAML tag and breaks parsing.
 
 ## Artifacts
 
-### Upload Artifacts
-
-```yaml
-steps:
-  - name: Build
-    run: npm run build
-
-  - name: Upload artifacts
-    uses: actions/upload-artifact@v4
-    with:
-      name: build-files
-      path: |
-        dist/
-        build/
-      retention-days: 7
-      if-no-files-found: error
-```
-
-### Download Artifacts
-
-```yaml
-jobs:
-  build:
-    steps:
-      - run: npm run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-  test:
-    needs: build
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - run: npm test
-```
+`upload-artifact` / `download-artifact` usage, retention, and cross-job handoff: see `references/workflow-syntax.md`.
 
 ## Caching
 
-### npm Cache
-
-```yaml
-steps:
-  - uses: actions/checkout@v4
-  - uses: actions/setup-node@v4
-    with:
-      node-version: '20'
-      cache: 'npm'
-  - run: npm ci
-```
-
-### Manual Cache
-
-```yaml
-steps:
-  - uses: actions/cache@v4
-    with:
-      path: |
-        ~/.npm
-        node_modules
-      key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-      restore-keys: |
-        ${{ runner.os }}-node-
-```
+`setup-node` built-in caching and manual `actions/cache` key construction: see `references/workflow-syntax.md`.
 
 ## Permissions
 
-### Repository Token Permissions
+Workflow- and job-level `GITHUB_TOKEN` permission scopes: see `references/workflow-syntax.md`.
 
-```yaml
-permissions:
-  contents: read              # Repository content
-  pull-requests: write        # PR comments
-  issues: write              # Issue creation/comments
-  checks: write              # Check runs
-  statuses: write            # Commit statuses
-  deployments: write         # Deployments
-  packages: write            # Package registry
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-```
-
-### Job-Level Permissions
-
-```yaml
-jobs:
-  build:
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-```
+Grant least privilege: declare an explicit `permissions:` block (e.g. `contents: read`) rather than inheriting the default token scope.
 
 ## Concurrency
 
-### Prevent Concurrent Runs
-
-```yaml
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true    # Cancel running workflows
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - run: ./deploy.sh
-```
-
-### Job-Level Concurrency
-
-```yaml
-jobs:
-  deploy:
-    concurrency:
-      group: deploy-${{ github.ref }}
-      cancel-in-progress: false
-    steps:
-      - run: ./deploy.sh
-```
+Workflow- and job-level concurrency groups and `cancel-in-progress`: see `references/workflow-syntax.md`.
 
 ## Reusable Workflows
 
-### Define Reusable Workflow
-
-```yaml
-# .github/workflows/reusable-test.yml
-name: Reusable Test Workflow
-
-on:
-  workflow_call:
-    inputs:
-      node-version:
-        required: true
-        type: string
-      coverage:
-        required: false
-        type: boolean
-        default: false
-    outputs:
-      test-result:
-        description: "Test execution result"
-        value: ${{ jobs.test.outputs.result }}
-    secrets:
-      token:
-        required: true
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    outputs:
-      result: ${{ steps.test.outputs.result }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ inputs.node-version }}
-      - run: npm test
-        id: test
-```
-
-### Call Reusable Workflow
-
-```yaml
-jobs:
-  test:
-    uses: ./.github/workflows/reusable-test.yml
-    with:
-      node-version: '20'
-      coverage: true
-    secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
-```
+`workflow_call` inputs/outputs/secrets and calling syntax: see `references/workflow-syntax.md`.
 
 ## Common CI/CD Patterns
+
+Complete Docker build-and-push and deploy-on-release workflow artifacts: see `references/workflow-syntax.md`. The two patterns below stay here because agents adapt them in-conversation.
 
 ### Node.js CI
 
@@ -679,75 +104,6 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
-```
-
-### Docker Build and Push
-
-```yaml
-name: Docker
-
-on:
-  push:
-    branches: [main]
-    tags: ['v*']
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-```
-
-### Deploy on Release
-
-```yaml
-name: Deploy
-
-on:
-  release:
-    types: [published]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://example.com
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to production
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-        run: ./deploy.sh
 ```
 
 ### Monorepo with Path Filtering
@@ -832,46 +188,7 @@ steps:
 
 ## Performance Optimization
 
-### Use Caching
-
-```yaml
-- uses: actions/cache@v4
-  with:
-    path: ~/.npm
-    key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-```
-
-### Optimize Checkout
-
-```yaml
-- uses: actions/checkout@v4
-  with:
-    fetch-depth: 1              # Shallow clone
-    sparse-checkout: |          # Partial checkout
-      src/
-      tests/
-```
-
-### Concurrent Jobs
-
-```yaml
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - run: npm run lint
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - run: npm test
-
-  build:
-    needs: [lint, test]         # Parallel lint and test
-    runs-on: ubuntu-latest
-    steps:
-      - run: npm run build
-```
+Dependency caching, shallow/sparse checkout, and parallel job graphs: see `references/workflow-syntax.md`.
 
 ## Anti-Fabrication Requirements
 
@@ -885,3 +202,9 @@ jobs:
 - Report actual permission errors from workflow runs, not fabricated authorization issues
 - Execute actual cache operations before claiming cache hit/miss percentages
 - Use Read tool on action.yml files to verify action inputs/outputs before documenting usage
+
+## References
+
+- `references/workflow-syntax.md` — file structure, triggers, artifacts, caching, permissions, concurrency, reusable workflows, performance optimization, complete Docker/deploy examples
+- `references/jobs-and-steps.md` — job configuration, runners, matrix strategy, dependencies, step mechanics, environment variables and secrets
+- `references/contexts-and-expressions.md` — context objects, operators, and built-in expression functions
