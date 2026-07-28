@@ -78,6 +78,9 @@ Create `.actrc` in repository root or home directory:
 # Container architecture
 --container-architecture linux/amd64
 
+# Where the local artifact server writes (see Artifact Server below)
+--artifact-server-path /tmp/artifacts
+
 # Verbose output
 -v
 ```

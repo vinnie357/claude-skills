@@ -382,7 +382,7 @@ Commit an `.actrc` so every run gets the same platform image, secrets file, and 
 
 ### Conditional Logic for Local Testing
 
-act sets the `ACT` environment variable inside its containers (per nektos/act docs) and passes the real event name through, so there is no `act` event to test for:
+act sets the `ACT` environment variable inside its containers — per nektos/act docs, which give this exact `!env.ACT` form. The event name is whatever you invoke (`act pull_request` runs as `pull_request`; a bare `act` runs as `push`), so there is no `act` event to test for:
 
 ```yaml
 steps:
