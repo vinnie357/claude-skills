@@ -152,6 +152,8 @@ Three patterns from the upstream docs guide what to put in the body:
 
 Skills support runtime substitution before content reaches the model. Source: [Claude Code Skills docs](https://code.claude.com/docs/en/skills#inject-dynamic-context).
 
+**This section documents syntax that executes or expands at load time — including the load of this very skill.** Every example below carries one of two inert markers so this doc survives its own loading: a `KEY=` prefix immediately before a `!` shell-injection trigger, or a leading backslash before a `\$ARGUMENTS`/`${CLAUDE_*}` placeholder (the documented escape for a literal `$`). Drop the marker to get the real syntax. Digit-indexed forms (`$0`, `$1`, `$N`) and an undeclared `$name` need no marker — with no arguments declared or passed, they render unchanged rather than expanding.
+
 **Shell injection** — Claude Code can run shell commands embedded in a skill before the body reaches the model; the command's stdout replaces the placeholder. Two forms:
 
 - **Inline**: a bang character followed by a backtick-quoted command on a single line.
@@ -159,21 +161,25 @@ Skills support runtime substitution before content reaches the model. Source: [C
 
 `````markdown
 ## Current diff
-!`git diff HEAD`
+KEY=!`git diff HEAD`
 
-```!
+```KEY=!
 node --version
 npm --version
 ```
 `````
 
+Fencing does not protect this example — nesting it inside a five-backtick outer fence was tested and it still executed, which is why the `KEY=` markers above are load-bearing, not decorative.
+
 **String substitutions** in skill content:
-- `$ARGUMENTS` — full arguments string
-- `$ARGUMENTS[N]` or `$N` — argument by 0-based index
+- `\$ARGUMENTS` — full arguments string
+- `\$ARGUMENTS[N]` or `$N` — argument by 0-based index
 - `$name` — named argument when `arguments:` declared in frontmatter
-- `${CLAUDE_SESSION_ID}` — current session ID
-- `${CLAUDE_EFFORT}` — current effort level
-- `${CLAUDE_SKILL_DIR}` — absolute path to this skill's directory (use for bundled scripts: `bash ${CLAUDE_SKILL_DIR}/scripts/foo.sh`)
+- `CLAUDE_SESSION_ID` — current session ID
+- `CLAUDE_EFFORT` — current effort level
+- `CLAUDE_SKILL_DIR` — absolute path to this skill's directory (use for bundled scripts: `bash <CLAUDE_SKILL_DIR>/scripts/foo.sh`)
+
+The three `CLAUDE_*` names are written bare because they are used as brace expansions in real files and **the leading-backslash escape does not work on the braced form** — verified by loading: the backslash survives and the token still expands, printing the live session ID and paths. See `/claude-code:claude-commands` "Argument Substitution" for the full rule.
 
 Disable shell injection across user/project/plugin skills via `"disableSkillShellExecution": true` in settings — useful for managed environments.
 
