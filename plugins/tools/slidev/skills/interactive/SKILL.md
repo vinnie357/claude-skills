@@ -424,7 +424,7 @@ Always add annotation bullets below each Mermaid block:
 
 ## Accessibility Requirements
 
-All interactive demos must meet these requirements. Load `core:accessibility` for full WCAG guidance.
+All interactive demos must meet these requirements. Load `design:accessibility` for full WCAG guidance.
 
 ### Keyboard Navigation
 

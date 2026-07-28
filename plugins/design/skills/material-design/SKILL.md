@@ -159,7 +159,7 @@ Material Design 3 prioritizes accessibility:
 - Screen reader support
 - Semantic color usage (not color-only indicators)
 
-Load `/core:accessibility` for WCAG implementation guidance.
+Load `/design:accessibility` for WCAG implementation guidance.
 
 ## Key Principles
 

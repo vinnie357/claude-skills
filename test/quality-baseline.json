@@ -65,13 +65,6 @@
       "detail_count": null
     },
     {
-      "key": "core/accessibility:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "core/beads:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -149,13 +142,6 @@
       "detail_count": 2
     },
     {
-      "key": "core/material-design:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "core/mise:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -224,6 +210,20 @@
       "issue": "claude-skills-143",
       "first_seen": "migrated",
       "detail_count": 833
+    },
+    {
+      "key": "design/accessibility:anti_fab",
+      "class": "DEBT",
+      "issue": "claude-skills-144",
+      "first_seen": "migrated",
+      "detail_count": null
+    },
+    {
+      "key": "design/material-design:anti_fab",
+      "class": "DEBT",
+      "issue": "claude-skills-144",
+      "first_seen": "migrated",
+      "detail_count": null
     },
     {
       "key": "dupe/1182fd06:duplicate_block",

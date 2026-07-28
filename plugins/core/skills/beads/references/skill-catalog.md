@@ -50,8 +50,6 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 | `nushell` | nushell, nu script, structured data, pipeline, cross-platform script |
 | `documentation` | documentation, README, API docs, guide, technical writing |
 | `code-review` | code review, pull request review, audit, code quality, feedback |
-| `accessibility` | accessibility, WCAG, a11y, screen reader, WAI, ARIA |
-| `material-design` | material design, material you, android theme, dynamic color |
 | `twelve-factor` | twelve-factor, 12-factor, microservice, cloud-native, kubernetes |
 | `anti-fabrication` | validation, claims verification, factual accuracy, metrics |
 | `security` | security, secret detection, gitleaks, credential scan, API key leak |
@@ -67,6 +65,13 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 | `workflows` | dagu, workflow definition, DAG, YAML workflow, scheduling |
 | `webui` | dagu UI, workflow monitoring, DAG browser |
 | `rest-api` | dagu API, workflow API, execution status API |
+
+### design Plugin
+
+| Skill | Trigger Keywords |
+|-------|-----------------|
+| `accessibility` | accessibility, WCAG, a11y, screen reader, WAI, ARIA |
+| `material-design` | material design, material you, android theme, dynamic color |
 
 ### elixir Plugin
 
