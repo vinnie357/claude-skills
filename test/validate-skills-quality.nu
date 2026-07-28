@@ -233,7 +233,7 @@ def has-unqualified-references-token [content: string, dir_name: string, skill_d
             let idx = ($line | str index-of "references/")
             let prefix = ($line | str substring 0..<$idx)
             let rest = ($line | str substring $idx..)
-            let path_match = ($rest | parse --regex '^(?P<path>references/[A-Za-z0-9._/-]+\.[A-Za-z0-9]{1,6})')
+            let path_match = ($rest | parse --regex '^(?P<path>references/[A-Za-z0-9._/-]+\.[A-Za-z0-9-]{1,20})')
             if ($path_match | is-empty) {
                 false
             } else {
