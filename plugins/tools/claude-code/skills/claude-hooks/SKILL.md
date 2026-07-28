@@ -29,32 +29,12 @@ Plugin hooks at `<plugin-root>/hooks/hooks.json` are auto-discovered. No registr
 
 ## Plugin Hook File Structure
 
-Plugin `hooks/hooks.json` uses the wrapper format:
-
-```json
-{
-  "description": "Brief explanation of what these hooks do",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+Plugin `hooks/hooks.json` uses the wrapper format — see `references/hook-examples.md` ("Plugin hooks.json wrapper format") for the complete file.
 
 - `description` — optional, surfaced in plugin metadata
 - `hooks` — required wrapper containing event arrays
 - `matcher` — regex of tool names (PreToolUse/PostToolUse) or session lifecycle phases (SessionStart)
-- `${CLAUDE_PLUGIN_ROOT}` — absolute path to the plugin root, expanded at runtime
+- `CLAUDE_PLUGIN_ROOT` — absolute path to the plugin root, expanded at runtime. Written bare here (not as `${...}`) because the braced form itself expands when this skill loads — see `references/hook-examples.md` for the real brace-expansion usage.
 
 ## Hook Events
 
@@ -74,15 +54,7 @@ Plugin `hooks/hooks.json` uses the wrapper format:
 
 ### Command Hooks
 
-Execute a shell command. Deterministic, fast.
-
-```json
-{
-  "type": "command",
-  "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh",
-  "timeout": 60
-}
-```
+Execute a shell command. Deterministic, fast. See `references/hook-examples.md` ("Command hook") for an example.
 
 ### Prompt Hooks
 
@@ -102,27 +74,7 @@ Supported events for prompt hooks: `Stop`, `SubagentStop`, `UserPromptSubmit`, `
 
 `SessionStart` is the strongest compliance mechanism: stdout from the hook script becomes part of the model's first input. Memory and skills inform; SessionStart compels.
 
-Plugin example (`plugins/example/hooks/hooks.json`):
-
-```json
-{
-  "description": "Inject project conventions at session start",
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume|clear",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+Plugin example (`plugins/example/hooks/hooks.json`) — see `references/hook-examples.md` ("SessionStart — plugin example").
 
 Companion script (`plugins/example/hooks/session-start.sh`):
 
@@ -151,49 +103,13 @@ Exit code from a `PreToolUse` command hook controls whether the tool runs:
 - Exit 0: continue
 - Exit non-zero: block the tool, show stderr to the user
 
-Example — block force-push to main:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/guard-push.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+Example — block force-push to main: see `references/hook-examples.md` ("PreToolUse — block force-push to main").
 
 `guard-push.sh` reads the tool input from stdin (JSON), parses with `jq`, and exits non-zero on a forbidden pattern.
 
 ## PostToolUse — Auto-Format, Lint, Sync
 
-`PostToolUse` runs after the tool completes. Exit codes are logged but do not affect the tool result.
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/format.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+`PostToolUse` runs after the tool completes. Exit codes are logged but do not affect the tool result. See `references/hook-examples.md` ("PostToolUse — auto-format after edits") for an example.
 
 The hook reads the tool input from stdin and runs the formatter on the modified file.
 
@@ -223,7 +139,7 @@ Stdout from `SessionStart` and `UserPromptSubmit` hooks is injected into the mod
 ## Best Practices
 
 - **Keep hooks fast.** Hooks block the harness. Aim for under 1 second for `PreToolUse`/`PostToolUse`. Set explicit `timeout` values.
-- **Use `${CLAUDE_PLUGIN_ROOT}`.** Never hardcode plugin paths.
+- **Use `CLAUDE_PLUGIN_ROOT`** (as a brace expansion in real hook commands — see `references/hook-examples.md`). Never hardcode plugin paths.
 - **Validate stdin.** Hook input is JSON; use `jq` and exit cleanly on parse failure.
 - **Scope matchers narrowly.** Match `Write|Edit` over matching all tools.
 - **Mark scripts executable.** `chmod +x` after creating shell scripts; the hook will fail silently otherwise.
@@ -242,7 +158,7 @@ Validate hook behavior with actual execution before claiming it works. Run the h
 
 ## Templates
 
-- `templates/plugin-hook.md` — plugin `hooks/hooks.json` configuration with `PostToolUse`, `Write|Edit` matcher, and `${CLAUDE_PLUGIN_ROOT}`
+- `templates/plugin-hook.md` — plugin `hooks/hooks.json` configuration with `PostToolUse`, `Write|Edit` matcher, and `CLAUDE_PLUGIN_ROOT`
 - `templates/skill-hook.md` — skill/subagent frontmatter hook example for `PreToolUse`, `PostToolUse`, `Stop`
 
 ## References
