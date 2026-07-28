@@ -199,7 +199,7 @@ def cmd-export [args: list<string>] {
     ensure-running
     if ($args | is-empty) {
         print $"(ansi red)Error:(ansi reset) Container name or ID required"
-        print "Usage: container-lifecycle.nu export <container> [-o file] [-t tag]"
+        print "Usage: container-lifecycle.nu export <container> [-o file]"
         exit 1
     }
     let result = (do { ^container export ...$args } | complete)

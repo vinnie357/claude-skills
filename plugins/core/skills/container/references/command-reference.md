@@ -22,7 +22,7 @@ container run [FLAGS] IMAGE [COMMAND] [ARGS...]
 | `--publish` | `-p` | Publish port(s) `host:container` |
 | `--volume` | `-v` | Bind mount a volume `host:container[:ro]` |
 | `--env` | `-e` | Set environment variable `KEY=VALUE` |
-| `--network` | | Connect to a network |
+| `--network` | | Connect to a network (format: `<name>[,mac=XX:XX:XX:XX:XX:XX][,mtu=VALUE]` — this is also how to set a custom MAC address; there is no separate `--mac-address` flag) |
 | `--platform` | | Target platform (e.g., `linux/arm64`) |
 | `--user` | `-u` | Run as user `UID[:GID]` |
 | `--workdir` | `-w` | Working directory inside the container |
@@ -33,7 +33,6 @@ container run [FLAGS] IMAGE [COMMAND] [ARGS...]
 | `--memory` | | Memory limit, e.g., `4g` (0.9.0+) |
 | `--read-only` | | Read-only rootfs (0.8.0+) |
 | `--rosetta` | | Enable Rosetta x86_64 emulation (0.7.0+) |
-| `--mac-address` | | Custom MAC address (0.7.0+) |
 | `--dns` | | DNS server address |
 | `--dns-domain` | | DNS domain |
 | `--dns-option` | | DNS option |
@@ -186,7 +185,7 @@ container prune
 
 ### `container export`
 
-Create an OCI layout tar from a container. (0.10.0+; 0.11.0+ supports stopped containers)
+Export a container's filesystem as a tar archive. (0.10.0+; 0.11.0+ supports stopped containers) This is a filesystem tar only — it does not create or tag an image; there is no `-t/--tag` flag.
 
 ```
 container export [FLAGS] CONTAINER
@@ -194,8 +193,7 @@ container export [FLAGS] CONTAINER
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--output` | `-o` | Output file path |
-| `--tag` | `-t` | Name and tag for the exported image |
+| `--output` | `-o` | Output file path (defaults to stdout) |
 
 ### `container list` / `container ls`
 
@@ -228,6 +226,8 @@ container image pull [FLAGS] IMAGE
 | `--arch` | Target architecture |
 | `--os` | Target OS |
 | `--scheme` | Image scheme (e.g., `oci`) |
+
+Architecture aliases (0.8.0+): `amd64`=`x86_64`, `arm64`=`aarch64`. Set `CONTAINER_DEFAULT_PLATFORM` (0.11.0+) to avoid specifying `--platform` on every pull/build.
 
 ### `container image push`
 
@@ -346,6 +346,8 @@ container build [FLAGS] PATH
 | `--vsock-port` | | Vsock port for builder |
 | `--dns` | | DNS server for build (0.9.0+) |
 
+**Note**: When no `Dockerfile` is found, the builder falls back to `Containerfile` (0.6.0+). Multiple `-t` tags supported (0.6.0+); build from stdin with `-f -` (0.7.0+).
+
 ### `container builder start`
 
 Start the builder process.
@@ -391,8 +393,11 @@ container network create [FLAGS] NAME
 | Flag | Description |
 |------|-------------|
 | `--subnet` | Subnet in CIDR format (e.g., `10.0.0.0/24`) (0.6.0+) |
-| `--labels` | Labels for the network (0.5.0+) |
-| `--mtu` | MTU for the network attachment (0.11.0+) |
+| `--subnet-v6` | IPv6 prefix for the network |
+| `--label` | Set metadata on the network (0.5.0+; singular flag, repeatable) |
+| `--internal` | Restrict to a host-only network |
+| `--option` | Plugin-specific option (`key=value`) |
+| `--plugin` | Network plugin to use (default: `container-network-vmnet`) |
 
 **Note**: Full IPv6 support in 0.8.0+. Host-only and isolated network capabilities in 0.9.0+ (verify flag syntax with `container network create --help`). MTU network attachment option added in 0.11.0+.
 
@@ -443,7 +448,6 @@ container volume create [FLAGS] [NAME]
 | `--size` | `-s` | Size limit (e.g., `10G`) |
 | `--label` | | Label for the volume |
 | `--opt` | | Driver-specific options (e.g., `type=tmpfs`) |
-| `--journal` | | Enable journaling for the volume (0.12.0+) |
 
 ### `container volume delete`
 
@@ -565,32 +569,45 @@ Show disk usage of container resources.
 container system df
 ```
 
+### System Configuration (TOML, 1.0.0+)
+
+> **⚠ BREAKING — 1.0.0:** A TOML configuration file replaces the UserDefaults-backed system properties. `container system property get`, `set`, and `clear` are REMOVED.
+
+Configuration lives at `~/.config/container/config.toml`, with a package-shipped fallback at `<installRoot>/etc/container/config.toml` (first match wins; missing keys fall back to built-in defaults):
+
+```toml
+[container]
+cpus = 8
+memory = "4g"
+
+[dns]
+domain = "test"
+```
+
+Top-level tables: `[container]`, `[dns]`, `[build]`, `[kernel]`, `[network]`, `[registry]`, `[vminit]`. Apply changes by restarting the service (`container system stop && container system start`).
+
 ### `container system property list`
 
-List the merged system configuration. (0.5.0+ consolidated; read-only view of `config.toml` in 1.0.0+)
+Read-only view of the merged configuration. (0.5.0+ consolidated; reads `config.toml` in 1.0.0+)
 
 ```
 container system property list [--format json]
 container system property ls
 ```
 
-### `container system property get` / `set` / `clear`
-
-**REMOVED in 1.0.0.** A TOML configuration file at `~/.config/container/config.toml` (fallback `<installRoot>/etc/container/config.toml`) replaces the UserDefaults-backed properties. Edit the file, then restart the service with `container system stop && container system start`. Pre-1.0.0 syntax:
-
-```
-container system property get KEY     # removed in 1.0.0
-container system property set KEY VALUE   # removed in 1.0.0
-container system property clear KEY   # removed in 1.0.0
-```
+Pre-1.0.0 `get`/`set`/`clear` subcommands are **removed in 1.0.0** — edit `config.toml` directly instead.
 
 ### `container system dns create`
 
-Create a DNS entry.
+Create a local DNS domain for containers. Requires administrator privileges — this manages local DNS domains, not per-host DNS records, and takes no IP argument.
 
 ```
-container system dns create NAME IP
+container system dns create [--localhost <ip>] DOMAIN-NAME
 ```
+
+| Flag | Description |
+|------|-------------|
+| `--localhost` | IP address to redirect to localhost |
 
 **Security (0.12.3+)**: Path/rule injection is prevented — inputs are sanitized.
 
