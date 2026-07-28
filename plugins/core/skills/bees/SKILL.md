@@ -102,14 +102,19 @@ bees dep add <id> <blocker-id>           # id depends on blocker-id
 - No open `blocks` dependencies remain
 - Parent issues (if any) are still open
 
-### Cycle Detection
+### Cycles are NOT rejected — check before adding a reverse edge
 
-Bees detects circular dependencies and rejects them:
+Bees does **not** detect circular dependencies. Both edges are accepted, and the pair then
+deadlocks: each blocks the other, so neither ever appears in `bees ready`.
 
 ```bash
-bees dep add taskA taskB
-bees dep add taskB taskA  # Error: would create cycle
+bees dep add taskA taskB   # accepted
+bees dep add taskB taskA   # ALSO accepted, exit 0 — no cycle error
+bees ready                 # "No ready issues." — both are now unreachable
 ```
+
+Verified against bees 0.4.0. Inspect `bees dep list <id>` before adding an edge in the reverse
+direction; nothing else will stop you.
 
 ## AI Integration
 

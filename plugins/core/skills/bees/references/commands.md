@@ -15,12 +15,15 @@ bees create "Title" -t bug -p 2
 bees create "Title" -a "alice" -o "bob"
 ```
 
-Flags:
-- `-d` / `--description`: Issue description
-- `-l` / `--labels`: Comma-separated labels
+Flags (from `bees create --help`, bees 0.4.0 — there is **no** label flag and **no** parent flag):
+- `-t` / `--type`: Issue type (task, bug, feature, epic, story)
+- `-p` / `--priority`: Priority, 1=critical to 4=low
 - `-a` / `--assignee`: Assignee name
 - `-o` / `--owner`: Owner name
-- `-p` / `--parent`: Parent issue ID
+- `-d` / `--description`: Issue description
+- `--design`, `--acceptance`, `--notes`, `--external-ref`, `--due`, `--defer`, `--json`
+
+Labels are added after creation with `bees label add <id> <label>`.
 
 ### list
 
