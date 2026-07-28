@@ -261,7 +261,10 @@ def validate-plugin-content [
   if ($mkt_description | is-not-empty) {
     let pj_description = ($plugin | get -o description)
     if ($pj_description | is-not-empty) and ($pj_description != $mkt_description) {
-      $errors = ($errors | append $"description mismatch — plugin.json is authoritative: plugin.json='($pj_description)' marketplace.json='($mkt_description)' \(mise update-all-skills does not maintain the all-skills description\)")
+      let regen_note = if ($plugin | get -o name) == "all-skills" {
+        " \(mise update-all-skills does not maintain this description, so it can drift again\)"
+      } else { "" }
+      $errors = ($errors | append $"description mismatch — plugin.json is authoritative: plugin.json='($pj_description)' marketplace.json='($mkt_description)'($regen_note)")
     }
   }
 
