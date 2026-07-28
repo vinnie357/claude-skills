@@ -47,16 +47,18 @@ Only `description` is recommended (so Claude knows when to invoke the skill).
 
 ## String substitutions in skill content
 
+**This file is itself loaded as reference content for a skill, so a live placeholder shown below would expand when read, not just when some other skill uses it.** Every `\$ARGUMENTS`/`${CLAUDE_*}` row carries a leading backslash — the documented escape for a literal `$` — so the table stays literal. Drop the backslash to get the real placeholder. `$N` and `$name` need no marker: with no arguments declared or passed, they render unchanged.
+
 | Variable | Expansion |
 |---|---|
-| `$ARGUMENTS` | All arguments passed when invoking the skill. |
-| `$ARGUMENTS[N]` / `$N` | Single argument by 0-based index. |
+| `\$ARGUMENTS` | All arguments passed when invoking the skill. |
+| `\$ARGUMENTS[N]` / `$N` | Single argument by 0-based index. |
 | `$name` | Named argument from the `arguments:` frontmatter list. |
-| `${CLAUDE_SESSION_ID}` | Current session ID. |
-| `${CLAUDE_EFFORT}` | Current effort level. |
-| `${CLAUDE_SKILL_DIR}` | Absolute path to the skill's directory. Use for referencing bundled scripts: `bash ${CLAUDE_SKILL_DIR}/scripts/foo.sh`. |
+| `\${CLAUDE_SESSION_ID}` | Current session ID. |
+| `\${CLAUDE_EFFORT}` | Current effort level. |
+| `\${CLAUDE_SKILL_DIR}` | Absolute path to the skill's directory. Use for referencing bundled scripts: `bash \${CLAUDE_SKILL_DIR}/scripts/foo.sh`. |
 
-Indexed arguments use shell-style quoting. Wrap multi-word values in quotes: `/skill "hello world" second` makes `$0 = "hello world"`, `$1 = "second"`. `$ARGUMENTS` always expands to the full string as typed.
+Indexed arguments use shell-style quoting. Wrap multi-word values in quotes: `/skill "hello world" second` makes `$0 = "hello world"`, `$1 = "second"`. `\$ARGUMENTS` always expands to the full string as typed.
 
 ## Dynamic context injection
 
@@ -65,12 +67,14 @@ Shell commands embedded in skill content run before the body reaches Claude; the
 - **Inline**: a bang character followed by a backtick-quoted command on a single line.
 - **Fenced**: a code fence whose opening line is three backticks followed by a bang.
 
+**The examples below carry a `KEY=` prefix immediately before each `!` trigger so this reference doesn't run them while loading — fencing alone does not stop this, even nested five backticks deep. Drop `KEY=` to get the real syntax.**
+
 `````markdown
 ## Current changes
-!`git diff HEAD`
+KEY=!`git diff HEAD`
 
 ## Environment
-```!
+```KEY=!
 node --version
 npm --version
 ```
