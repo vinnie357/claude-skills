@@ -33,7 +33,7 @@ Classify each PR as config-only Actions or code/package bump before creating the
 - **Config-only Actions bumps** (`.github/workflows/*.yml` only): validated authoritatively by real GitHub CI running on the pushed branch. Low risk; consolidate freely.
 - **Language/package bumps** (Cargo.toml, package.json, go.mod, etc.): breaking MAJORs may need local compile, test, and code changes. Higher risk; consider splitting from Actions bumps if any contain MAJOR version changes.
 
-See `group-by-risk.md` for the full ecosystem × risk taxonomy.
+See `references/group-by-risk.md` for the full ecosystem × risk taxonomy.
 
 ## Consolidation procedure
 
@@ -56,7 +56,7 @@ git cherry-pick <pr-head-sha>
 
 **Lockfile handling**: Before assuming a lockfile needs a manual update, run `git check-ignore <lockfile>`. If the lockfile is tracked, commit the updated version. For Cargo: `cargo update -p <dep>` for the specific crate only — do not run a global `cargo update`.
 
-See `consolidation-algorithm.md` for full cherry-pick mechanics and edge cases.
+See `references/consolidation-algorithm.md` for full cherry-pick mechanics and edge cases.
 
 ## Verify with baseline-diff gates
 
@@ -70,9 +70,9 @@ Gate discipline:
 4. Diff: classify only gates that were PASSING on main and are now FAILING on branch as blocking.
 5. Gates that fail identically on both sides are pre-existing failures — not regressions.
 
-**Local integration gates**: some gates cannot run in GitHub CI (Apple Container cluster spawn, hardware-dependent tests). Run these on the operator machine under the same baseline-diff discipline. See `local-integration-gates.md` and `/core:container` for container-spawn patterns.
+**Local integration gates**: some gates cannot run in GitHub CI (Apple Container cluster spawn, hardware-dependent tests). Run these on the operator machine under the same baseline-diff discipline. See `references/local-integration-gates.md` and `/core:container` for container-spawn patterns.
 
-See `baseline-diff-verification.md` for worked kina examples and the full gate enumeration workflow.
+See `references/baseline-diff-verification.md` for worked kina examples and the full gate enumeration workflow.
 
 Use `/github:act` to replay GitHub CI gates locally before pushing. See `/github:workflows` for workflow file interpretation.
 
@@ -101,11 +101,11 @@ gh pr view <n> --json state
 
 Verify the `state` field is `MERGED` or `CLOSED`. Do not assume Dependabot auto-closes — confirm with `gh pr view` for each one.
 
-See `merge-and-closeout.md` for the full close-out checklist.
+See `references/merge-and-closeout.md` for the full close-out checklist.
 
 ## Delegation
 
-Hand mechanical cherry-picking to `dependabot-consolidator-worker.md`. Read-only PR collection goes to `dependabot-collector.md`.
+Hand mechanical cherry-picking to `agents/dependabot-consolidator-worker.md`. Read-only PR collection goes to `agents/dependabot-collector.md`.
 
 **Stop-and-report gates** (worker must halt, not thrash):
 
@@ -117,7 +117,7 @@ Hand mechanical cherry-picking to `dependabot-consolidator-worker.md`. Read-only
 
 ## Registration
 
-See `registration.md` for the build checklist covering marketplace.json, plugin.json, and sources.md edits, plus the two validators to run before committing.
+See `references/registration.md` for the build checklist covering marketplace.json, plugin.json, and sources.md edits, plus the two validators to run before committing.
 
 ## Related skills
 
