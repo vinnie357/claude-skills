@@ -344,6 +344,7 @@ bees sync
 - `references/installation.md`: Install matrix (mise, pre-built binaries, source build) and build troubleshooting
 - `references/teams-integration.md`: Protocol for mirroring bees issues into Claude's task list for Agent Teams coordination
 - `references/migration-from-beads.md`: Guide for migrating from beads to bees
+- `references/skill-catalog.md`: Marketplace-wide skill catalog with keyword triggers for matching tracker issues to skills
 
 ## Paired agents
 

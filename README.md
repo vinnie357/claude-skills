@@ -59,12 +59,11 @@ Fundamental development tools and best practices.
 - **twelve-factor** - Cloud-native application design principles
 - **anti-fabrication** - Ensure factual accuracy through tool validation
 - **security** - Secret detection and credential scanning with gitleaks
-- **beads** - Distributed git-backed graph issue tracker
 - **bees** - Bees issue tracking and task management
 - **container** - Apple Container CLI for Linux containers on macOS
 - **tdd** - Test-driven development practices and workflows
 
-**Keywords**: git, documentation, code-review, tools, beads, bees, container, tdd
+**Keywords**: git, documentation, code-review, tools, bees, container, tdd
 
 ### `elixir` - Elixir Development
 
@@ -205,6 +204,15 @@ Claude Code plugin marketplace management and validation.
 - Schema compliance checking
 
 **Keywords**: claude-code, marketplace, validation
+
+### `beads` - Beads Issue Tracker
+
+Beads (bd) distributed git-backed graph issue tracker.
+
+**Skills:**
+- **beads** - Distributed git-backed graph issue tracker: task management, dependency tracking, AI agent workflows
+
+**Keywords**: beads, task-management, issue-tracker, dependency-tracking
 
 ### `ansible` - Ansible Automation
 

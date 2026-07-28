@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.29"
+    "version": "1.0.30"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.68",
+      "version": "0.4.69",
       "category": "meta",
       "keywords": [
         "all",
@@ -91,11 +91,26 @@
       "license": "MIT"
     },
     {
+      "name": "beads",
+      "source": "./plugins/tools/beads",
+      "strict": true,
+      "description": "Beads (bd) distributed git-backed graph issue tracker: task management, dependency tracking, AI agent workflows",
+      "version": "0.1.0",
+      "category": "tools",
+      "keywords": [
+        "beads",
+        "task-management",
+        "issue-tracker",
+        "dependency-tracking"
+      ],
+      "license": "MIT"
+    },
+    {
       "name": "claude-code",
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills: plugin marketplace management and validation",
-      "version": "0.2.26",
+      "version": "0.2.27",
       "category": "tools",
       "keywords": [
         "claude-code",
@@ -114,14 +129,13 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, documentation, code review, security",
-      "version": "0.2.35",
+      "version": "0.2.36",
       "category": "development",
       "keywords": [
         "git",
         "documentation",
         "code-review",
         "tools",
-        "beads",
         "bees",
         "container",
         "tdd",

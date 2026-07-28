@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "0.2.35",
+  "version": "0.2.36",
   "description": "Essential development skills: Git, documentation, code review, security",
   "author": {
     "name": "vinnie357"
@@ -15,7 +15,6 @@
     "twelve-factor-app",
     "security",
     "gitleaks",
-    "beads",
     "bees",
     "container",
     "tdd",
@@ -31,7 +30,6 @@
     "./skills/twelve-factor",
     "./skills/anti-fabrication",
     "./skills/security",
-    "./skills/beads",
     "./skills/bees",
     "./skills/container",
     "./skills/tdd",
@@ -39,7 +37,6 @@
     "./skills/restraint"
   ],
   "agents": [
-    "./skills/beads/agents/beads-worker.md",
     "./skills/bees/agents/bees-worker.md",
     "./skills/bees/agents/bees-manager.md"
   ]

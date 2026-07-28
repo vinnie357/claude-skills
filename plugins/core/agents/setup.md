@@ -169,7 +169,8 @@ discovery (<id1>)
 
 ### Next Steps
 Run `bd ready` to see available tasks, then start with the discovery task.
-Use the beads-worker agent or work tasks manually.
+Work tasks manually, or install the beads plugin for its worker agent:
+`/plugin install beads@vinnie357` (beads-worker moved out of core with the skill).
 ```
 
 ## Guidelines
