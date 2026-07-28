@@ -20,41 +20,7 @@ Activate when:
 
 ## Installation
 
-### Using mise (Recommended for this project)
-
-The act tool is configured in the github plugin's mise.toml:
-
-```bash
-# Install act via mise
-mise install act
-
-# Verify installation
-act --version
-```
-
-### Alternative Installation Methods
-
-**macOS (Homebrew):**
-```bash
-brew install act
-```
-
-**Linux (via script):**
-```bash
-curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
-```
-
-**From source:**
-```bash
-git clone https://github.com/nektos/act.git
-cd act
-make install
-```
-
-**Windows (Chocolatey):**
-```powershell
-choco install act-cli
-```
+Install via mise: `mise install act` (pinned in the github plugin's mise.toml), then verify with `act --version`. Homebrew, Linux script, source, and Chocolatey methods: see `references/setup-and-config.md`.
 
 ## How act Works
 
@@ -69,13 +35,7 @@ act reads workflow files from `.github/workflows/` and:
 
 ## Prerequisites
 
-- **Docker**: act requires Docker to run workflows
-- **Workflow files**: Valid `.github/workflows/*.yml` files in repository
-
-Verify Docker is running:
-```bash
-docker ps
-```
+act requires a running Docker daemon (verify with `docker ps`) and valid `.github/workflows/*.yml` files. Details: see `references/setup-and-config.md`.
 
 ## Basic Usage
 
@@ -132,43 +92,7 @@ act -n -v
 
 ## Event Payloads
 
-### Custom Event Data
-
-Create event JSON file:
-
-```json
-{
-  "pull_request": {
-    "number": 123,
-    "head": {
-      "ref": "feature-branch"
-    },
-    "base": {
-      "ref": "main"
-    }
-  }
-}
-```
-
-Use with act:
-```bash
-act pull_request -e event.json
-```
-
-### workflow_dispatch Inputs
-
-```json
-{
-  "inputs": {
-    "environment": "staging",
-    "debug": true
-  }
-}
-```
-
-```bash
-act workflow_dispatch -e inputs.json
-```
+Custom event JSON and `workflow_dispatch` input payloads, passed with `-e file.json`: see `references/setup-and-config.md`. A worked PR-event example stays under Common Patterns below.
 
 ## Secrets Management
 
@@ -209,58 +133,7 @@ act -s MY_SECRET
 
 ## Configuration
 
-### .actrc File
-
-Create `.actrc` in repository root or home directory:
-
-```
-# Use specific platform
--P ubuntu-latest=catthehacker/ubuntu:act-latest
-
-# Default secrets file
---secret-file .secrets
-
-# Default environment
---env-file .env
-
-# Container architecture
---container-architecture linux/amd64
-
-# Verbose output
--v
-```
-
-### Custom Runner Images
-
-```bash
-# Use custom image for platform
-act -P ubuntu-latest=my-custom-image:latest
-
-# Use medium size images (recommended)
-act -P ubuntu-latest=catthehacker/ubuntu:act-latest
-
-# Use micro images (faster, less compatible)
-act -P ubuntu-latest=node:16-buster-slim
-```
-
-### Recommended Images
-
-act supports different image sizes:
-
-**Medium images (recommended):**
-- Better compatibility with GitHub Actions
-- More pre-installed tools
-- Slower startup but fewer failures
-
-```bash
--P ubuntu-latest=catthehacker/ubuntu:act-latest
--P ubuntu-22.04=catthehacker/ubuntu:act-22.04
-```
-
-**Micro images:**
-- Faster startup
-- Minimal pre-installed tools
-- May require additional setup
+`.actrc` defaults, custom runner images, and image size trade-offs (medium `catthehacker/ubuntu:act-latest` recommended over micro): see `references/setup-and-config.md`.
 
 ## Environment Variables
 
@@ -286,55 +159,7 @@ act --env NODE_ENV=test --env API_URL=http://localhost:3000
 
 ## Advanced Usage
 
-### Bind Workspace
-
-Mount local directory into container:
-```bash
-act --bind
-```
-
-### Reuse Containers
-
-Keep containers between runs for faster execution:
-```bash
-act --reuse
-```
-
-### Specific Platforms
-
-```bash
-# Run on specific platform
-act -P ubuntu-latest=ubuntu:latest
-
-# Multiple platforms
-act -P ubuntu-latest=ubuntu:latest \
-    -P windows-latest=windows:latest
-```
-
-### Container Architecture
-
-```bash
-# Specify architecture (useful for M1/M2 Macs)
-act --container-architecture linux/amd64
-```
-
-### Network Configuration
-
-```bash
-# Use host network
-act --container-daemon-socket -
-
-# Custom network
-act --network my-network
-```
-
-### Artifact Server
-
-```bash
-# Enable artifact server on specific port
-act --artifact-server-path /tmp/artifacts \
-    --artifact-server-port 34567
-```
+`--bind`, `--reuse`, per-platform images, `--container-architecture` (needed on Apple silicon), networking (`--network` defaults to host; `--container-daemon-socket` is the Docker socket URI), and the artifact server: see `references/setup-and-config.md`.
 
 ## Debugging
 
@@ -353,13 +178,6 @@ act -vv
 ```bash
 # Watch for file changes and re-run
 act --watch
-```
-
-### Interactive Shell
-
-```bash
-# Drop into shell on failure
-act --shell bash
 ```
 
 ### Container Inspection
@@ -527,9 +345,10 @@ act --secret-file .secrets
 # Some actions may not work locally
 
 # Use alternative actions if needed
-# Or skip problematic steps locally:
+# Or skip problematic steps under act. There is no 'act' event — act passes
+# the real event name — so test the ACT env var (per nektos/act docs):
 - name: Problematic step
-  if: github.event_name != 'act'  # Skip in act
+  if: ${{ !env.ACT }}
   uses: some/action@v1
 ```
 
@@ -548,13 +367,7 @@ act -P ubuntu-latest=catthehacker/ubuntu:act-latest
 
 ### .actrc Configuration
 
-Create `.actrc` in repository:
-```
--P ubuntu-latest=catthehacker/ubuntu:act-latest
---secret-file .secrets
---container-architecture linux/amd64
---artifact-server-path /tmp/artifacts
-```
+Commit an `.actrc` so every run gets the same platform image, secrets file, and architecture flags — full example in `references/setup-and-config.md`.
 
 ### .gitignore Entries
 
@@ -569,16 +382,18 @@ Create `.actrc` in repository:
 
 ### Conditional Logic for Local Testing
 
+act sets the `ACT` environment variable inside its containers — per nektos/act docs, which give this exact `!env.ACT` form. The event name is whatever you invoke (`act pull_request` runs as `pull_request`; a bare `act` runs as `push`), so there is no `act` event to test for:
+
 ```yaml
 steps:
   # Skip in local testing
   - name: Deploy
-    if: github.event_name != 'act'
+    if: ${{ !env.ACT }}
     run: ./deploy.sh
 
   # Run only in local testing
   - name: Local setup
-    if: github.event_name == 'act'
+    if: ${{ env.ACT }}
     run: ./local-setup.sh
 ```
 
@@ -608,25 +423,7 @@ act -j test && git commit -m "message"
 act -j test --quiet
 ```
 
-### Quick Validation
-
-```bash
-# Validate workflow syntax
-act -n
-
-# Test specific changes
-act -j affected-job
-```
-
-### CI Parity
-
-```bash
-# Use same images as CI
-act -P ubuntu-latest=ubuntu:22.04
-
-# Use same secrets structure
-act --secret-file .secrets
-```
+For quick validation use the dry run (`act -n`, see Basic Usage). For CI parity, pin the same runner images and secrets structure locally via `.actrc` — see `references/setup-and-config.md`.
 
 ## Scripts and Automation
 
@@ -651,3 +448,7 @@ nu scripts/install-act.nu
 - Execute `act -v` to observe actual error messages before documenting troubleshooting steps
 - Use Read tool to verify workflow files exist before testing them with act
 - Run actual event payloads through act before claiming they work correctly
+
+## References
+
+- `references/setup-and-config.md` — installation methods, prerequisites, `.actrc` configuration, runner images, event payloads, and advanced flags (`--bind`, `--reuse`, networking, artifact server)

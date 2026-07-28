@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all available skills from all plugins",
-      "version": "0.4.66",
+      "version": "0.4.67",
       "category": "meta",
       "keywords": [
         "all",
@@ -165,7 +165,7 @@
       "source": "./plugins/tools/github",
       "strict": true,
       "description": "GitHub Actions, Workflows, act local testing, community health files, Dependabot consolidation, and PR review",
-      "version": "0.3.4",
+      "version": "0.3.5",
       "category": "tools",
       "keywords": [
         "github",

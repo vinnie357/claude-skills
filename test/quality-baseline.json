@@ -366,25 +366,11 @@
       "detail_count": null
     },
     {
-      "key": "github/act:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 653
-    },
-    {
       "key": "github/community-health:source",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "github/workflows:lines",
-      "class": "DEBT",
-      "issue": "claude-skills-143",
-      "first_seen": "migrated",
-      "detail_count": 887
     },
     {
       "key": "qa/qa:ref_depth",
