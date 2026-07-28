@@ -54,9 +54,11 @@ Only `description` is recommended (so Claude knows when to invoke the skill).
 | `\$ARGUMENTS` | All arguments passed when invoking the skill. |
 | `\$ARGUMENTS[N]` / `$N` | Single argument by 0-based index. |
 | `$name` | Named argument from the `arguments:` frontmatter list. |
-| `\${CLAUDE_SESSION_ID}` | Current session ID. |
-| `\${CLAUDE_EFFORT}` | Current effort level. |
-| `\${CLAUDE_SKILL_DIR}` | Absolute path to the skill's directory. Use for referencing bundled scripts: `bash \${CLAUDE_SKILL_DIR}/scripts/foo.sh`. |
+| `CLAUDE_SESSION_ID` | Current session ID. |
+| `CLAUDE_EFFORT` | Current effort level. |
+| `CLAUDE_SKILL_DIR` | Absolute path to the skill's directory. Use for referencing bundled scripts: `bash <CLAUDE_SKILL_DIR>/scripts/foo.sh`. |
+
+The three `CLAUDE_*` names are written bare because they are used as brace expansions in real files and **the leading-backslash escape does not work on the braced form** — verified by loading: the backslash survives and the token still expands, printing the live session ID and paths. See `/claude-code:claude-commands` "Argument Substitution" for the full rule.
 
 Indexed arguments use shell-style quoting. Wrap multi-word values in quotes: `/skill "hello world" second` makes `$0 = "hello world"`, `$1 = "second"`. `\$ARGUMENTS` always expands to the full string as typed.
 

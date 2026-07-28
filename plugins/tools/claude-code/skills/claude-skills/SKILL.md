@@ -175,9 +175,11 @@ Fencing does not protect this example — nesting it inside a five-backtick oute
 - `\$ARGUMENTS` — full arguments string
 - `\$ARGUMENTS[N]` or `$N` — argument by 0-based index
 - `$name` — named argument when `arguments:` declared in frontmatter
-- `\${CLAUDE_SESSION_ID}` — current session ID
-- `\${CLAUDE_EFFORT}` — current effort level
-- `\${CLAUDE_SKILL_DIR}` — absolute path to this skill's directory (use for bundled scripts: `bash \${CLAUDE_SKILL_DIR}/scripts/foo.sh`)
+- `CLAUDE_SESSION_ID` — current session ID
+- `CLAUDE_EFFORT` — current effort level
+- `CLAUDE_SKILL_DIR` — absolute path to this skill's directory (use for bundled scripts: `bash <CLAUDE_SKILL_DIR>/scripts/foo.sh`)
+
+The three `CLAUDE_*` names are written bare because they are used as brace expansions in real files and **the leading-backslash escape does not work on the braced form** — verified by loading: the backslash survives and the token still expands, printing the live session ID and paths. See `/claude-code:claude-commands` "Argument Substitution" for the full rule.
 
 Disable shell injection across user/project/plugin skills via `"disableSkillShellExecution": true` in settings — useful for managed environments.
 

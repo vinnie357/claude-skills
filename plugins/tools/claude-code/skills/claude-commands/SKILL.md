@@ -59,10 +59,12 @@ Placeholders in the body are replaced before Claude sees the content. **This mea
 | `\$ARGUMENTS[N]` | The argument at **0-based** index N |
 | `$N` | Shorthand for `\$ARGUMENTS[N]` |
 | `$name` | The named argument declared in `arguments:` frontmatter |
-| `\${CLAUDE_SESSION_ID}` | The current session ID |
-| `\${CLAUDE_EFFORT}` | The current effort level |
-| `\${CLAUDE_SKILL_DIR}` | The directory containing the command's SKILL.md |
-| `\${CLAUDE_PROJECT_DIR}` | The project root directory |
+| `CLAUDE_SESSION_ID` | The current session ID |
+| `CLAUDE_EFFORT` | The current effort level |
+| `CLAUDE_SKILL_DIR` | The directory containing the command's SKILL.md |
+| `CLAUDE_PROJECT_DIR` | The project root directory |
+
+**The four `CLAUDE_*` rows are written bare on purpose.** In a real command you use them as brace expansions — a dollar sign, an opening brace, the name, a closing brace. They cannot be shown in that form here: **the leading-backslash escape does NOT work on the braced form.** Verified by loading this file as a skill — `\` before a braced token leaves the backslash in place AND still expands the token, so writing them out would print this session's real ID and paths into the documentation. The backslash escape works only on the bare `\$NAME` form, which is why the `$ARGUMENTS` rows above can use it.
 
 **Indexing is 0-based: `$0` is the FIRST argument and `$1` is the SECOND.** This runs against shell convention (where `$1` is the first parameter) and is the easiest mistake to make when writing commands.
 
@@ -71,10 +73,10 @@ Substitution rules:
 - **Quoting is shell-style.** `/my-skill "hello world" second` gives `$0` = `hello world`, `$1` = `second`. `\$ARGUMENTS` always gets the full string as typed.
 - **Missing arguments differ by kind.** An indexed placeholder with no corresponding argument (`$2` when only one argument was passed) stays in the content unchanged — this is exactly why the digit-indexed examples on this page (`$0`, `$1`, `$2`) are safe to show undecorated: this skill declares no `arguments:` and loads with none, so every indexed placeholder above has "no corresponding argument" and renders literally. A named placeholder with no matching argument expands to an empty string.
 - **Named arguments map by position.** With `arguments: [issue, branch]`, `$issue` expands to the first argument and `$branch` to the second.
-- **Escaping a literal `$`:** a single backslash directly before the token, e.g. `\$1.00`. A doubled backslash (`\\$1`) does NOT escape — both backslashes stay and `$1` still expands. A backslash before any other `$` is left unchanged. This same backslash is the marker used throughout this page's `\$ARGUMENTS`/`\${CLAUDE_*}` examples to keep them literal while this doc itself loads.
+- **Escaping a literal `$`:** a single backslash directly before the token, e.g. `\$1.00`. A doubled backslash (`\\$1`) does NOT escape — both backslashes stay and `$1` still expands. A backslash before any other `$` is left unchanged. This same backslash is the marker used throughout this page's `\$ARGUMENTS` placeholders, while the `CLAUDE_*` names below are shown bare examples to keep them literal while this doc itself loads.
 - **No `\$ARGUMENTS` in the body?** When a command is invoked with arguments but contains no `\$ARGUMENTS`, Claude Code appends `ARGUMENTS: <input>` to the end of the content so Claude still sees what was typed.
 - **Stacked invocations:** typing `/write-tests /fix-issue 123` at the start of one message loads both commands and passes the trailing text `123` as `\$ARGUMENTS` to each.
-- `\${CLAUDE_SKILL_DIR}` and `\${CLAUDE_PROJECT_DIR}` also substitute inside Bash rules in `allowed-tools`, so a command can pre-approve exactly the bundled script its body tells Claude to run.
+- `CLAUDE_SKILL_DIR` and `CLAUDE_PROJECT_DIR` also substitute inside Bash rules in `allowed-tools`, so a command can pre-approve exactly the bundled script its body tells Claude to run.
 
 ## Dynamic Context Injection
 
