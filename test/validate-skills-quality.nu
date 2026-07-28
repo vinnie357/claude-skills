@@ -20,7 +20,7 @@
 #
 # Usage:
 #   nu test/validate-skills-quality.nu              # scan all plugins
-#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter, baseline schema/ratchet, and check-fix fixtures
+#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter, baseline schema/ratchet, check-fix fixtures, and Pass-2 agents/commands links
 
 # Checks whose findings are countable at runtime; their baseline entries must
 # carry an integer detail_count so a waiver covers the recorded count, not
@@ -141,6 +141,76 @@ def preceding-line [content: string, path: string]: nothing -> string {
         let before = ($content | str substring 0..<$idx)
         ($before | split row "\n" | last)
     }
+}
+
+# Path tokens naming a skill-spec directory (references/, templates/,
+# scripts/, agents/, hooks/), extracted from already fence-stripped content.
+# Shared by check 14 (per-skill SKILL.md links) and the Pass-2 agents/*.md +
+# commands/*.md links check so the extraction regex has exactly one
+# implementation. The extension class permits hyphens AND its quantifier is
+# widened to {1,20} (was {1,6}) — the original check-14 regex both excluded
+# hyphens from the class AND capped length at 6, so `templates/Dockerfile.
+# claude-code`'s 11-character extension truncated to `.claude` (the first 6
+# alnum characters, stopping right before the hyphen the class couldn't
+# match) even after the class alone was widened: {1,6} is exhausted by
+# "claude" before the hyphenated remainder is ever reached. 20 comfortably
+# covers the corpus's longest observed extension (`claude-code`, 11 chars)
+# with headroom (pointer-validation-gap plan, revision 2).
+def extract-link-path-tokens [content: string]: nothing -> list<string> {
+    ($content
+        | parse --regex '(?m)(?:^|[\s`(\[<"])(?P<path>(?:references|templates|scripts|agents|hooks)/[A-Za-z0-9._/-]+\.[A-Za-z0-9-]{1,20})'
+        | get path | uniq)
+}
+
+# Resolve a references/templates/scripts/agents/hooks path token cited from
+# an agent or command file (the Pass-2 surfaces — these have no single
+# "skill_dir" the way a per-skill SKILL.md check does). Four filesystem-
+# existence bases, tried in order; the first that resolves wins. Each is a
+# plain existence test — no heuristics, no fuzzy matching:
+#   1. own_dir/path — own_dir is the enclosing skill's dir for a
+#      skill-nested agents/*.md, or the plugin dir for a plugin-level
+#      agents/*.md or commands/*.md (commands are plugin-level only).
+#   2. cross-skill-qualified — reuses the SAME helper checks 9 and 14 use: a
+#      /plugin:skill (or plugins/.../skills/<skill>/) qualifier immediately
+#      preceding the token on its line names a real, different skill whose
+#      own tree contains the path. Load-bearing, not a nicety — e.g.
+#      beads-worker.md's references/skill-catalog.md citation resolves only
+#      here, since that file lives under core/skills/bees/references/.
+#   3. <plugin>/skills/*/<path> — exactly one sibling skill in the SAME
+#      plugin contains the path. More than one match is AMBIGUOUS, which
+#      counts as unresolved — this never silently picks the first match.
+#   4. <plugin>/<path> — the path exists directly under the plugin root
+#      (a plugin-level scripts/ or templates/ dir not owned by any one skill).
+def resolve-pass2-path [
+    path: string
+    prefix_line: string
+    own_dir: string
+    dir_name: string
+    plugin_dir: string
+    skill_dir_map: list
+    known_plugins: list
+]: nothing -> bool {
+    if (($own_dir | path join $path) | path exists) {
+        return true
+    }
+    if (cross-skill-qualified $prefix_line $dir_name $path $skill_dir_map $known_plugins) {
+        return true
+    }
+    let skills_root = ($plugin_dir | path join "skills")
+    let sibling_matches = if ($skills_root | path exists) {
+        (glob ($skills_root | path join "*")
+            | where {|d| ($d | path type) == "dir"}
+            | where {|d| ($d | path join $path) | path exists})
+    } else {
+        []
+    }
+    if ($sibling_matches | length) == 1 {
+        return true
+    }
+    if ($sibling_matches | length) > 1 {
+        return false
+    }
+    ($plugin_dir | path join $path) | path exists
 }
 
 # True when `content` contains at least one "references/" token that is NOT
@@ -1434,6 +1504,116 @@ def run-vocab-self-test [] {
     $failed
 }
 
+# Embedded self-test for the Pass-2 agents/commands links check
+# (claude-skills-164, pointer-validation-gap plan PR 1): exercises
+# extract-link-path-tokens and resolve-pass2-path directly — the same
+# implementations the Pass-2 loops call — against REAL temporary
+# directories. A real filesystem fixture is unavoidable here (unlike the
+# other self-test suites in this file, which stay hermetic in-memory):
+# resolve-pass2-path's whole job is a `path exists` decision across four
+# bases, so faking that away would test nothing. The fixture tree is built
+# fresh and removed at the end of the suite. Returns true when any case
+# failed.
+def run-pass2-links-self-test [] {
+    mut failed = false
+
+    # --- extract-link-path-tokens: hyphenated extension parses whole ---
+    let hyphen_content = "See `templates/Dockerfile.claude-code` for the base image."
+    let hyphen_tokens = (extract-link-path-tokens $hyphen_content)
+    if "templates/Dockerfile.claude-code" not-in $hyphen_tokens {
+        print $"(ansi red_bold)❌ pass2-links self-test: hyphenated extension truncated \(got: ($hyphen_tokens)\)(ansi reset)"
+        $failed = true
+    }
+
+    # --- fixture tree ---
+    # root/
+    #   pluginA/
+    #     own/                      <- an agent file's own_dir (base 1)
+    #       references/foo.md
+    #     skills/
+    #       skillOne/references/dup.md   <- base-3 single match
+    #       skillTwo/references/dup.md   <- base-3 ambiguous partner
+    #     scripts/run.nu            <- base-4 / plugin-root direct path
+    #   pluginB/
+    #     skills/qualified/references/bar.md   <- base-2 cross-skill target
+    let root = (mktemp -d)
+    let plugin_a = ($root | path join "pluginA")
+    let plugin_b = ($root | path join "pluginB")
+    let own_dir = ($plugin_a | path join "own")
+    mkdir ($own_dir | path join "references")
+    "content" | save ($own_dir | path join "references" "foo.md")
+    mkdir ($plugin_a | path join "skills" "skillOne" "references")
+    "content" | save ($plugin_a | path join "skills" "skillOne" "references" "dup.md")
+    mkdir ($plugin_a | path join "skills" "skillTwo" "references")
+    "content" | save ($plugin_a | path join "skills" "skillTwo" "references" "dup.md")
+    mkdir ($plugin_a | path join "scripts")
+    "content" | save ($plugin_a | path join "scripts" "run.nu")
+    mkdir ($plugin_b | path join "skills" "qualified" "references")
+    "content" | save ($plugin_b | path join "skills" "qualified" "references" "bar.md")
+
+    let empty_map = []
+    let no_plugins = []
+
+    # Case: resolvable pointer in an agent file, own directory (base 1)
+    if not (resolve-pass2-path "references/foo.md" "" $own_dir "" $plugin_a $empty_map $no_plugins) {
+        print $"(ansi red_bold)❌ pass2-links self-test: base 1 \(own_dir\) did not resolve an existing sibling(ansi reset)"
+        $failed = true
+    }
+
+    # Case: broken pointer in an agent file — resolves against none of the
+    # four bases.
+    if (resolve-pass2-path "references/nonexistent.md" "" $own_dir "" $plugin_a $empty_map $no_plugins) {
+        print $"(ansi red_bold)❌ pass2-links self-test: nonexistent path wrongly resolved(ansi reset)"
+        $failed = true
+    }
+
+    # Case: resolvable pointer in a command file — commands are always
+    # plugin-level, so own_dir == plugin_dir (bases 1 and 4 collapse).
+    if not (resolve-pass2-path "scripts/run.nu" "" $plugin_a "" $plugin_a $empty_map $no_plugins) {
+        print $"(ansi red_bold)❌ pass2-links self-test: plugin-level command path did not resolve(ansi reset)"
+        $failed = true
+    }
+
+    # Case: base 2 — cross-skill-qualified. own_dir/plugin_dir carry
+    # neither the file nor a skills/ tree containing it; only the
+    # /pluginb:qualified qualifier on the preceding line resolves it,
+    # against pluginB's own skill dir.
+    let cross_map = [{skill: "qualified", dir: ($plugin_b | path join "skills" "qualified"), plugin: "pluginb"}]
+    let isolated_dir = ($root | path join "isolated")
+    mkdir $isolated_dir
+    if not (resolve-pass2-path "references/bar.md" "see /pluginb:qualified for detail" $isolated_dir "" $isolated_dir $cross_map ["pluginb"]) {
+        print $"(ansi red_bold)❌ pass2-links self-test: base 2 \(cross-skill-qualified\) did not resolve(ansi reset)"
+        $failed = true
+    }
+
+    # Case: base 3 — exactly one sibling skill under the SAME plugin
+    # contains the path. own_dir here has neither the path nor a matching
+    # qualifier, so only the single-match sibling scan can resolve it.
+    # skillOne alone is scoped by giving skillTwo's copy a different name.
+    let single_root = ($root | path join "pluginSingle")
+    mkdir ($single_root | path join "skills" "only" "references")
+    "content" | save ($single_root | path join "skills" "only" "references" "solo.md")
+    if not (resolve-pass2-path "references/solo.md" "" $isolated_dir "" $single_root $empty_map $no_plugins) {
+        print $"(ansi red_bold)❌ pass2-links self-test: base 3 single sibling match did not resolve(ansi reset)"
+        $failed = true
+    }
+
+    # Case: base 3 ambiguity — skillOne AND skillTwo both contain
+    # references/dup.md under pluginA. Must NOT silently pick the first
+    # match; the token stays unresolved.
+    if (resolve-pass2-path "references/dup.md" "" $isolated_dir "" $plugin_a $empty_map $no_plugins) {
+        print $"(ansi red_bold)❌ pass2-links self-test: base 3 ambiguous \(two sibling matches\) was silently resolved(ansi reset)"
+        $failed = true
+    }
+
+    rm -rf $root
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Pass-2 links self-test passed \(7 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -1443,7 +1623,8 @@ def main [--update-baseline, --self-test] {
         let checks_failed = (run-check-fixes-self-test)
         let duplicate_failed = (run-duplicate-self-test)
         let vocab_failed = (run-vocab-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed { exit 1 }
+        let pass2_links_failed = (run-pass2-links-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed { exit 1 }
         exit 0
     }
 
@@ -1671,10 +1852,9 @@ def main [--update-baseline, --self-test] {
             # other repos' scripts/ etc. are not false positives.
             # Leading boundary so a longer cross-plugin path like
             # plugins/core/skills/bees/agents/foo.md does not match on its
-            # agents/foo.md substring.
-            let link_paths = ($stripped
-                | parse --regex '(?m)(?:^|[\s`(\[<"])(?P<path>(?:references|templates|scripts|agents|hooks)/[A-Za-z0-9._/-]+\.[A-Za-z0-9]{1,6})'
-                | get path | uniq)
+            # agents/foo.md substring. Extraction is shared with the Pass-2
+            # agents/commands links check via extract-link-path-tokens.
+            let link_paths = (extract-link-path-tokens $stripped)
             let broken_links = ($link_paths | where {|p|
                 let top = ($p | split row "/" | first)
                 let dir_gated = $top in ["scripts" "templates" "hooks"]
@@ -1761,16 +1941,27 @@ def main [--update-baseline, --self-test] {
 
     # Pass 2: agents/*.md, commands/*.md, hooks/hooks.json — the surfaces a
     # `claude plugin validate` pass does not cover (bogus hook event names,
-    # agents missing a name, unresolved /plugin:skill invocations). Reuses
-    # the Pass-1 registry and find-bad-invocations (check 16's logic) rather
-    # than a second resolver. Findings feed the same ratchet baseline as the
-    # per-skill checks above.
+    # agents missing a name, unresolved /plugin:skill invocations, and — as
+    # of the pointer-validation-gap plan (claude-skills-164) — broken
+    # references/templates/scripts/agents/hooks path citations). Reuses the
+    # Pass-1 registry, find-bad-invocations (check 16's logic), and
+    # resolve-pass2-path (check 14's four-base resolver, generalized for
+    # files with no single owning skill dir) rather than second resolvers.
+    # Findings feed the same ratchet baseline as the per-skill checks above.
+    # Failure-key scheme: `<plugin>/agents/<file>:<check>` and
+    # `<plugin>/commands/<file>:<check>` — the SAME per-file key shape the
+    # existing missing_name/missing_desc/bad_model/bad_invocations checks
+    # already use below, extended to `links`. Plugin-level files (all
+    # commands, and plugin-level agents) and skill-nested agents both name
+    # the citing FILE, not a bare plugin-level bucket, so a failure is always
+    # reportable down to one file even though most of these files have no
+    # owning skill.
     # NOTE: Pass-2 checks with countable findings (bad_invocations, the
-    # skills: frontmatter checks) are NOT wired into the detail_count ratchet.
-    # No Pass-2 waivers exist today, so the hard-failure path guards them —
-    # if a Pass-2 waiver is ever added, give its check the same DETAIL_CHECKS
-    # + failing_counts treatment the per-skill checks got, or one waiver will
-    # absorb every later finding of that check on that file.
+    # skills: frontmatter checks, links) are NOT wired into the detail_count
+    # ratchet. No Pass-2 waivers exist today, so the hard-failure path guards
+    # them — if a Pass-2 waiver is ever added, give its check the same
+    # DETAIL_CHECKS + failing_counts treatment the per-skill checks got, or
+    # one waiver will absorb every later finding of that check on that file.
     let known_models = ["haiku" "sonnet" "opus"]
     let known_hook_events = ["PreToolUse" "PostToolUse" "SessionStart" "SessionEnd" "UserPromptSubmit" "Stop" "SubagentStop" "PreCompact" "Notification"]
     mut surface_results = []
@@ -1781,14 +1972,26 @@ def main [--update-baseline, --self-test] {
 
         # Agents: plugin-level agents/ dir plus any skill-level nested agents/
         # dirs (same file format — cheap to include, so both are in scope).
+        # Each entry carries own_dir/dir_name for resolve-pass2-path: a
+        # plugin-level agent's own_dir is the plugin dir (dir_name ""); a
+        # skill-nested agent's own_dir is its enclosing skill dir (dir_name
+        # the skill's directory name). The two globs are disjoint by
+        # construction (one is rooted at <plugin>/agents/, the other at
+        # <plugin>/skills/*/agents/), so no dedup is needed on append.
         let plugin_level_agents = ($plugin_dir | path join "agents")
-        let plugin_agent_files = if ($plugin_level_agents | path exists) {
+        let plugin_agent_entries = if ($plugin_level_agents | path exists) {
             glob ($plugin_level_agents | path join "*.md")
+                | each {|f| {file: $f, own_dir: $plugin_dir, dir_name: ""}}
         } else { [] }
-        let nested_agent_files = (glob ($plugin_dir | path join "skills" "*" "agents" "*.md"))
-        let agent_files = ($plugin_agent_files | append $nested_agent_files | uniq)
+        let nested_agent_entries = (glob ($plugin_dir | path join "skills" "*" "agents" "*.md")
+            | each {|f|
+                let skill_dir = ($f | path dirname | path dirname)
+                {file: $f, own_dir: $skill_dir, dir_name: ($skill_dir | path basename)}
+            })
+        let agent_entries = ($plugin_agent_entries | append $nested_agent_entries)
 
-        for f in $agent_files {
+        for entry in $agent_entries {
+            let f = $entry.file
             let content = (open --raw $f)
             let all_lines = ($content | lines)
             let fm_lines = if ($all_lines | first | default "" | str trim) == "---" {
@@ -1821,12 +2024,26 @@ def main [--update-baseline, --self-test] {
             let bad_invocations = (find-bad-invocations $content $registry)
             if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
 
+            # links (claude-skills-164): same dir-gating rule as check 14 —
+            # scripts/templates/hooks tokens are only in scope when that dir
+            # exists at this file's own level (skill dir if nested, plugin
+            # dir if plugin-level); references/agents are always in scope.
+            let agent_stripped = (strip-fences $content)
+            let agent_link_paths = (extract-link-path-tokens $agent_stripped)
+            let agent_broken_links = ($agent_link_paths | where {|p|
+                let top = ($p | split row "/" | first)
+                let dir_gated = $top in ["scripts" "templates" "hooks"]
+                let in_scope = (not $dir_gated) or (($entry.own_dir | path join $top) | path exists)
+                $in_scope and not (resolve-pass2-path $p (preceding-line $agent_stripped $p) $entry.own_dir $entry.dir_name $plugin_dir $skill_dir_map ($registry | get name))
+            })
+            if ($agent_broken_links | is-not-empty) { $failed = ($failed | append "links") }
+
             if ($failed | is-not-empty) {
                 let key_base = $"($plugin_name)/agents/($f | path basename)"
                 $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
                 $surface_results = ($surface_results | append {
                     plugin: $plugin_name, kind: "agent", file: ($f | path basename), failed: ($failed | str join " ")
-                    details: ($bad_invocations | append $skills_check.bad_tokens | str join " ")
+                    details: ($bad_invocations | append $skills_check.bad_tokens | append $agent_broken_links | str join " ")
                 })
             }
         }
@@ -1855,12 +2072,25 @@ def main [--update-baseline, --self-test] {
             let bad_invocations = (find-bad-invocations $content $registry)
             if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
 
+            # links (claude-skills-164): commands are always plugin-level, so
+            # own_dir == plugin_dir — bases 1 and 4 of resolve-pass2-path
+            # collapse to the same check for command files.
+            let cmd_stripped = (strip-fences $content)
+            let cmd_link_paths = (extract-link-path-tokens $cmd_stripped)
+            let cmd_broken_links = ($cmd_link_paths | where {|p|
+                let top = ($p | split row "/" | first)
+                let dir_gated = $top in ["scripts" "templates" "hooks"]
+                let in_scope = (not $dir_gated) or (($plugin_dir | path join $top) | path exists)
+                $in_scope and not (resolve-pass2-path $p (preceding-line $cmd_stripped $p) $plugin_dir "" $plugin_dir $skill_dir_map ($registry | get name))
+            })
+            if ($cmd_broken_links | is-not-empty) { $failed = ($failed | append "links") }
+
             if ($failed | is-not-empty) {
                 let key_base = $"($plugin_name)/commands/($f | path basename)"
                 $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
                 $surface_results = ($surface_results | append {
                     plugin: $plugin_name, kind: "command", file: ($f | path basename), failed: ($failed | str join " ")
-                    details: ($bad_invocations | str join " ")
+                    details: ($bad_invocations | append $cmd_broken_links | str join " ")
                 })
             }
         }
