@@ -229,10 +229,18 @@ def resolve-pass2-path [
 # from evaluation entirely — e.g. a plugin-level agent citing
 # `templates/prd.md` when that plugin has no plugin-level templates/ dir,
 # only a sibling skill's — so a rename under that sibling skill would have
-# landed green (Gate 3 finding, PR 160). Widening the gate to match every
-# base resolve-pass2-path tries keeps the original anti-false-positive
-# intent (a mention of `templates/foo.md` when no templates/ dir exists
-# ANYWHERE nearby stays unflagged) while covering every base.
+# landed green (Gate 3 finding, PR 160). The gate checks the citing file's
+# own level, every sibling skill in the plugin, and the plugin root — i.e.
+# bases 1, 3, and 4. It deliberately does NOT consult base 2's cross-plugin
+# target, so a dir-gated token qualified into a DIFFERENT plugin, cited from
+# a plugin with no such dir anywhere, stays out of scope. Zero corpus cases;
+# the error direction is silence on an exotic layout, not a false positive.
+#
+# The original anti-false-positive intent survives: a mention of
+# `templates/foo.md` when no templates/ dir exists ANYWHERE in the plugin
+# stays unflagged. The accepted cost is that an ILLUSTRATIVE mention in a
+# plugin where some sibling skill does own the dir now gets flagged — the
+# same tension check 14 already accepts for a skill that owns its own dir.
 def pass2-dir-in-scope [top: string, own_dir: string, plugin_dir: string]: nothing -> bool {
     if (($own_dir | path join $top) | path exists) { return true }
     if (($plugin_dir | path join $top) | path exists) { return true }
