@@ -35,7 +35,7 @@ skill-name/
 
 Source: [Claude Code Skills documentation](https://code.claude.com/docs/en/skills#frontmatter-reference). All fields are optional; only `description` is recommended.
 
-- `name`: Display name. Defaults to the directory name if omitted. Lowercase letters, numbers, and hyphens only (max 64 characters).
+- `name`: Display name. Defaults to the directory name if omitted. Lowercase letters, numbers, and hyphens only (max 64 characters). Reflect the domain in clear hyphen-case — `git-operations`, `elixir-phoenix`.
 - `description` (recommended): What the skill does and when to use it. Two distinct limits apply: Claude Code truncates the combined `description` + `when_to_use` at 1,536 characters in the skill listing — put the key use case first — and this marketplace enforces a stricter 1024-character cap on `description` in `test/validate-skills-quality.nu`.
 - `when_to_use`: Additional trigger phrases or example requests, appended to `description` in the listing.
 - `license`: License name or filename reference.
@@ -129,9 +129,9 @@ Disable shell injection across user/project/plugin skills via `"disableSkillShel
 2. **Decide what each resource is for** — `scripts/` for deterministic work that would otherwise be rewritten each time, `references/` for material loaded on demand, `assets/` for output templates that never enter context.
 3. **Create the directory**, with its name matching the `name` property exactly.
 4. **Write the body in imperative form.** Keep procedure in `SKILL.md`, detail in references.
-5. **Record every source** in the plugin's `sources.md` — URL, what was taken from it, and why. This is what makes a claim auditable later.
+5. **Record every source** in the plugin's `sources.md` — URL, what was taken from it, why, and the date accessed where currency matters. This is what makes a claim auditable later.
 6. **Validate before publishing.** Write eval prompts that should and should not activate the skill, run them, record actual pass/fail counts, and confirm references load when needed. Full methodology in `references/evaluation-guide.md`.
-7. **Iterate on evidence.** Optimize the description against observed false positives and negatives, and test across Haiku, Sonnet, and Opus. If the base model passes the evals with the skill unloaded, the skill is unnecessary — deprecate it.
+7. **Iterate on evidence.** Optimize the description against observed false positives and negatives, and test across Haiku, Sonnet, and Opus. Capture approaches that worked and mistakes that recurred back into the skill, asking Claude which context actually changed its behavior. If the base model passes the evals with the skill unloaded, the skill is unnecessary — deprecate it.
 
 Write the evals before the content, and compare output with the skill loaded against output without it. Measure pass rates and token usage rather than judging quality subjectively; a single run proves nothing. `references/evaluation-guide.md` covers eval-driven development and blind A/B comparison, and `templates/evaluation-checklist.md` is a copyable checklist.
 
