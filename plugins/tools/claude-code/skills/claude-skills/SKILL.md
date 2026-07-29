@@ -7,120 +7,52 @@ description: Guide for creating Agent Skills with progressive disclosure and bes
 
 Guide for creating modular, self-contained Agent Skills that extend Claude's capabilities with specialized knowledge.
 
-## What Are Agent Skills?
+## How skills load
 
-Agent Skills are organized directories containing instructions, scripts, and resources that Claude can dynamically discover and load. They enable a single general-purpose agent to gain domain-specific expertise without requiring separate custom agents for each use case.
+A skill is a directory of instructions and resources that Claude discovers and loads on demand. Loading happens in tiers, and the tier a fact lands in decides whether Claude ever sees it:
 
-### Key Concepts
+- **Level 1 — discovery.** Only the `name` and `description` reach the system prompt. Claude decides relevance from these alone.
+- **Level 2 — activation.** The full `SKILL.md` body loads. Every line costs on every activation.
+- **Level 3+ — deep context.** Bundled `references/` files load only when a specific scenario calls for one.
 
-- **Modularity**: Self-contained packages that can be mixed and matched
-- **Reusability**: Share and distribute expertise across projects and teams
-- **Progressive Disclosure**: Load context only when needed, keeping interactions efficient
-- **Specialization**: Deep domain knowledge without sacrificing generality
+Write to that structure: the body carries decisions, gotchas, and enforced constraints; references carry look-it-up material. A body that holds everything upfront defeats the mechanism.
 
-### Skill Categories
+Skills also fall into two categories, and the category sets testing and maintenance expectations. **Capability uplift** builds on general model abilities (a structured code-review procedure) and stays stable across model versions. **Encoded preference** captures local conventions (a team's commit format) and needs revisiting when models change.
 
-Skills fall into two categories (source: Anthropic PDF Guide):
-
-**Capability Uplift**: Enhances Claude's core abilities (coding, analysis, reasoning). These are stable across model versions because they build on general capabilities. Example: a code review skill that adds structured review steps.
-
-**Encoded Preference**: Encodes user-specific workflows, formatting, and conventions. These need updates when models change because they depend on model behavior for fidelity. Example: a commit message skill that enforces team-specific format.
-
-When creating a skill, identify its category — this determines testing strategy and maintenance expectations.
-
-## How Skills Work
-
-Skills operate on a principle of progressive disclosure across multiple levels:
-
-### Level 1: Discovery
-Agent system prompts include only skill names and descriptions, allowing Claude to decide when each skill is relevant based on the task at hand.
-
-### Level 2: Activation
-When Claude determines a skill applies, it loads the full `SKILL.md` file into context, gaining access to the complete procedural knowledge and guidelines.
-
-### Level 3+: Deep Context
-Additional bundled files (like references, forms, or documentation) load only when needed for specific scenarios, keeping token usage efficient.
-
-This tiered approach maintains efficient context windows while supporting potentially unbounded skill complexity.
-
-## Skill Structure
-
-### Minimal Requirements
-
-Every skill must have:
+## Skill structure
 
 ```
 skill-name/
-└── SKILL.md
+├── SKILL.md           # Required: frontmatter + body
+├── scripts/           # Optional: executable code for deterministic tasks
+├── references/        # Optional: documentation loaded on-demand
+└── assets/            # Optional: templates, images, boilerplate
 ```
 
-### Complete Structure
+`SKILL.md` is the only required file: YAML frontmatter, then Markdown body.
 
-More complex skills can include additional resources:
-
-```
-skill-name/
-├── SKILL.md           # Required: Core skill definition
-├── scripts/           # Optional: Executable code for deterministic tasks
-├── references/        # Optional: Documentation loaded on-demand
-└── assets/            # Optional: Templates, images, boilerplate
-```
-
-## SKILL.md Format
-
-Each `SKILL.md` file must begin with YAML frontmatter followed by Markdown content:
-
-```markdown
----
-name: skill-name
-description: Concise explanation of when Claude should use this skill
-license: MIT
----
-
-# Skill Name
-
-Main instructional content goes here...
-```
-
-### YAML Properties
+## Frontmatter
 
 Source: [Claude Code Skills documentation](https://code.claude.com/docs/en/skills#frontmatter-reference). All fields are optional; only `description` is recommended.
 
-- `name`: Display name. If omitted, defaults to the directory name. Lowercase letters, numbers, and hyphens only (max 64 characters).
-- `description` (recommended): What the skill does and when to use it. Claude uses this to decide when to apply the skill. Two distinct limits apply: Claude Code truncates the combined `description` + `when_to_use` at 1,536 characters in the skill listing — put the key use case first — and this marketplace enforces a stricter 1024-character cap on `description` in `test/validate-skills-quality.nu`.
+- `name`: Display name. Defaults to the directory name if omitted. Lowercase letters, numbers, and hyphens only (max 64 characters).
+- `description` (recommended): What the skill does and when to use it. Two distinct limits apply: Claude Code truncates the combined `description` + `when_to_use` at 1,536 characters in the skill listing — put the key use case first — and this marketplace enforces a stricter 1024-character cap on `description` in `test/validate-skills-quality.nu`.
 - `when_to_use`: Additional trigger phrases or example requests, appended to `description` in the listing.
 - `license`: License name or filename reference.
 
-The full upstream frontmatter reference (with `disable-model-invocation`, `user-invocable`, `allowed-tools`, `model`, `effort`, `context: fork`, `agent`, `hooks`, `paths`, `shell`, `arguments`, `argument-hint`, `metadata`) lives in `references/frontmatter-fields.md`. Load that reference when authoring a skill that needs anything beyond name/description/license.
+The full upstream reference — `disable-model-invocation`, `user-invocable`, `allowed-tools`, `model`, `effort`, `context: fork`, `agent`, `hooks`, `paths`, `shell`, `arguments`, `argument-hint`, `metadata` — is in `references/frontmatter-fields.md`. Load it when authoring a skill that needs anything beyond name/description/license.
 
-**Description constraints**:
-- Use third person (not "I can help you" or "You can use this")
-- Include both **what it does** AND **when to use it**
-- Pattern: `[What it does]. Use when [trigger conditions].`
+Write the description in third person, stating both what the skill does and when to use it: `[What it does]. Use when [trigger conditions].`
 
 > **Critical**: The `description` is the ONLY text Claude sees during skill discovery (Level 1). The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it. All activation triggers belong in the description.
 
+Tune a description by failure mode: too broad produces false positives — add domain-specific terms; too narrow produces false negatives — add synonyms and trigger scenarios. Activation-rate targets and eval prompt counts live in `/claude-code:claude-skills-benchmark`.
+
 ### Frontmatter policy for THIS marketplace
 
-The upstream Claude Code spec allows `allowed-tools` on a skill — it pre-approves listed tools while the skill is active. **This marketplace's `test/validate-plugin.nu` rejects `allowed-tools` on skills as a hard validation failure.** Reasoning:
+The upstream spec allows `allowed-tools` on a skill, pre-approving listed tools while it is active. **This marketplace's `test/validate-plugin.nu` rejects `allowed-tools` on skills as a hard validation failure.** Tool filtering belongs on **agents** — the `tools:` frontmatter on an agent file — not on the skills an agent loads. Skills here stay capability-driven and inherit tools from the calling context; an agent needing constrained access defines its own allowlist.
 
-- Tool filtering belongs on **agents** (the `tools:` frontmatter on an agent file), not on skills the agent loads. See the `claude-agents` skill.
-- Skills in this marketplace stay capability-driven (knowledge, procedure) and inherit tools from the calling context.
-- An agent that needs constrained tool access defines its own allowlist; skills it consumes do not override that.
-
-When working in this marketplace: keep skill frontmatter to `name`, `description`, optional `license`, optional `metadata`. Use `allowed-tools` on agents instead.
-
-When working in another project that does not enforce this policy, the upstream `allowed-tools` field is valid and documented.
-
-### Markdown Body
-
-The content section has no structural restrictions. Include:
-
-- When to activate the skill
-- Core procedural knowledge
-- Best practices and guidelines
-- Examples and patterns
-- References to additional resources (if any)
+Keep skill frontmatter to `name`, `description`, optional `license`, optional `metadata`. In another project that does not enforce this policy, upstream `allowed-tools` is valid.
 
 ## Pre-edit checklist
 
@@ -191,83 +123,19 @@ The three `CLAUDE_*` names are written bare because they are used as brace expan
 
 Disable shell injection across user/project/plugin skills via `"disableSkillShellExecution": true` in settings — useful for managed environments.
 
-## Creating Skills: Seven-Step Workflow
+## Authoring workflow
 
-### 1. Understanding Through Examples
+1. **Collect real use cases first.** Concrete examples reveal what the skill must support; theoretical requirements do not.
+2. **Decide what each resource is for** — `scripts/` for deterministic work that would otherwise be rewritten each time, `references/` for material loaded on demand, `assets/` for output templates that never enter context.
+3. **Create the directory**, with its name matching the `name` property exactly.
+4. **Write the body in imperative form.** Keep procedure in `SKILL.md`, detail in references.
+5. **Record every source** in the plugin's `sources.md` — URL, what was taken from it, and why. This is what makes a claim auditable later.
+6. **Validate before publishing.** Write eval prompts that should and should not activate the skill, run them, record actual pass/fail counts, and confirm references load when needed. Full methodology in `references/evaluation-guide.md`.
+7. **Iterate on evidence.** Optimize the description against observed false positives and negatives, and test across Haiku, Sonnet, and Opus. If the base model passes the evals with the skill unloaded, the skill is unnecessary — deprecate it.
 
-Gather concrete use cases to clarify what the skill needs to support. Real-world examples reveal actual needs better than theoretical requirements.
+Write the evals before the content, and compare output with the skill loaded against output without it. Measure pass rates and token usage rather than judging quality subjectively; a single run proves nothing. `references/evaluation-guide.md` covers eval-driven development and blind A/B comparison, and `templates/evaluation-checklist.md` is a copyable checklist.
 
-**Example:**
-```
-Use Case: Help developers follow Git best practices
-Examples:
-- Creating conventional commit messages
-- Rebasing feature branches
-- Resolving merge conflicts
-- Creating descriptive branch names
-```
-
-### 2. Planning Resources
-
-Analyze examples to identify needed components:
-
-- **Scripts**: For tasks requiring deterministic reliability or that would need repeated rewriting
-- **References**: Documentation to load into context as needed
-- **Assets**: Output files like templates or boilerplate (not loaded into context)
-
-### 3. Initialization
-
-Create the skill directory structure with the required `SKILL.md` file. Ensure the directory name matches the `name` property exactly.
-
-```bash
-mkdir -p my-skill/{scripts,references,assets}
-touch my-skill/SKILL.md
-```
-
-### 4. Editing
-
-Develop resource files and update `SKILL.md` with:
-- Purpose and activation criteria
-- Usage guidelines and best practices
-- Implementation details and examples
-- References to supplementary files
-
-**Use imperative/infinitive form** rather than second-person instruction for clarity.
-
-Keep core procedural information in `SKILL.md` and detailed reference material in separate files.
-
-### 5. Documentation
-
-**Document all sources in the plugin's `sources.md`**. For each skill created, record:
-- URLs of documentation, guides, and references used
-- Purpose of each source
-- Key topics and concepts extracted
-- Date accessed (if relevant)
-
-This maintains traceability and helps others understand the skill's foundation.
-
-### 6. Validation
-
-Test the skill using the validation loop pattern:
-
-1. Define success criteria (what correct activation and output look like)
-2. Create eval prompts — both in-scope (should activate) and out-of-scope (should not)
-3. Run evaluations and record pass/fail rates
-4. Verify progressive disclosure works (references load when needed)
-5. Check token usage remains efficient
-6. If any validation fails, iterate on the skill before publishing
-
-For the complete evaluation methodology, see `references/evaluation-guide.md`.
-
-### 7. Iteration
-
-Refine based on real-world usage and evaluation data:
-- **Optimize descriptions**: Reduce false positives (too broad) and false negatives (too narrow)
-- **Test across models**: Verify behavior on Haiku, Sonnet, and Opus
-- **Monitor activation**: Track when the skill triggers correctly vs incorrectly
-- **Deprecation signal**: If the base model passes evals without the skill loaded, the skill is unnecessary — deprecate it
-
-For description optimization techniques, see `references/evaluation-guide.md`.
+**Specify constraints, not implementations** — "ensure commit messages follow conventional format", not "run git commit -m with prefix type(scope):". Instructions rigid enough to break on a minor model update are too rigid; loose enough to produce inconsistent results, too loose. `references/design-patterns.md` has the full degree-of-freedom framework, the platform-capability matrix, and guidance on when to execute a bundled script versus read it for patterns to adapt.
 
 ## Five-tier authoring pipeline
 
@@ -277,120 +145,17 @@ Skill updates that only edit markdown skip P2 (test author) — content-grep tes
 
 The pipeline runs inside ONE bees issue per skill update slice. The Sub-team Leader (or bees-worker acting as one) spawns the five stages as separate Task invocations; intermediate artifacts go to bees comments on that issue and git commits on the feature branch. Skill updates do not produce five chained bees rows.
 
-## Best Practices
+## Sizing a skill
 
-### Evaluation-Driven Development
+The context window is shared, and a skill's body loads in full on every activation — so justify each line's presence rather than each file's.
 
-Build skills using an evaluation-first approach (source: Anthropic Blog Post):
+**Compaction behavior sets the real budget.** A skill loads as a single message and stays for the session. Auto-compaction keeps the first 5,000 tokens of each invoked skill, with a 25,000-token combined budget filled from most-recently-invoked first, so older skills can drop after compaction. Re-invoke a skill if it stops influencing behavior.
 
-1. **Write evals first**: Define test prompts and expected behaviors before writing skill content
-2. **Test with and without**: Compare Claude's output with the skill loaded vs without it
-3. **Measure, don't guess**: Track pass rates, token usage, and timing — not subjective quality
-4. **Run A/B comparisons**: Use independent agents to compare skill versions blindly
-5. **Detect obsolescence**: When the base model passes evals without the skill, deprecate it
+## Security
 
-For the complete methodology, see `references/evaluation-guide.md`. For a copyable checklist, see `templates/evaluation-checklist.md`.
+Install skills only from trusted sources. A skill body is executable input: it can carry shell-injection lines that run before anyone reads the output. Before installing an unfamiliar skill, audit its bundled files and scripts, its code dependencies, any instruction directing Claude to an external service, and any request for credentials or destructive operations.
 
-### Degree of Freedom
-
-Balance specificity against fragility in skill instructions (source: Anthropic PDF Guide):
-
-- **Specify constraints, not implementations**: "Ensure commit messages follow conventional format" not "Run git commit -m with prefix type(scope):"
-- **Allow model adaptation**: Instructions must work across Haiku, Sonnet, and Opus without modification
-- **Test fragility**: If a minor model update breaks your skill, instructions are too rigid
-- **Test looseness**: If Claude produces inconsistent results, instructions are too loose
-
-For the full framework with examples, see `references/design-patterns.md`.
-
-### Context Window Discipline
-
-The context window is a shared resource (source: [Claude Code Skills docs](https://code.claude.com/docs/en/skills#add-supporting-files)):
-
-- Keep SKILL.md under **500 lines** (enforced by the `lines` check in `test/validate-skills-quality.nu`, matching the upstream guideline). Split detailed content into `references/` once the body exceeds the cap.
-- Move detailed reference material (API specs, deep-dive docs, examples) to separate files. Load only when needed.
-- Monitor cumulative load: skill + prompt + conversation history must all fit.
-- Every line in SKILL.md is loaded on every activation — justify each line's presence.
-
-**Skill content lifecycle:** A skill loads as a single message and stays for the session. Auto-compaction keeps the first 5,000 tokens of each invoked skill, with a 25,000-token combined budget filled from most-recently-invoked first. Older skills can be dropped after compaction. Re-invoke a skill if it stops influencing behavior post-compaction.
-
-### Structure for Scale
-
-Split unwieldy `SKILL.md` files into separate referenced documents:
-- Keep commonly-used contexts together
-- Separate mutually exclusive information to reduce token usage
-- Use progressive disclosure to load details only when needed
-- **Reference depth**: Keep references one level deep only (SKILL.md → reference, not reference → reference)
-- **TOC in long references**: Give a reference file a Table of Contents when a reader would jump to a section rather than read it straight through
-- **Scripts**: Execute scripts for deterministic tasks; read scripts for patterns to adapt contextually
-
-For design patterns and detailed guidance, see `references/design-patterns.md`.
-
-### Claude A/B Testing
-
-Compare skill effectiveness using blind evaluation (source: Anthropic Blog Post):
-
-1. Run the same prompt through Agent A (with skill) and Agent B (without skill)
-2. Each agent uses a clean context — no accumulated state between tests
-3. A comparator agent judges outputs without knowing which is which
-4. Track token usage, timing, and quality metrics independently
-5. Run enough evals to separate signal from noise — a single run proves nothing; report the actual pass/fail counts
-
-For detailed setup instructions, see `references/evaluation-guide.md`.
-
-### Claude's Perspective
-
-The skill name and description heavily influence when Claude activates it. Pay particular attention to:
-
-- **Name**: Reflects the domain in clear hyphen-case (e.g., `git-operations`, `elixir-phoenix`)
-- **Description**: States both what the skill does and when to use it, in third person
-
-> **Critical**: The `description` is the ONLY text Claude sees during skill discovery (Level 1).
-> The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it.
-> All activation triggers must be in the description using patterns like "Use when [scenarios]".
-
-**Description optimization** (source: Anthropic Blog Post):
-- **False positives**: Description too broad — add domain-specific terms
-- **False negatives**: Description too narrow — add synonyms and trigger scenarios
-- Activation-rate targets and eval prompt counts live in `/claude-code:claude-skills-benchmark` ("Description Optimization" and "Writing Evals")
-
-Monitor real usage patterns and iterate based on actual behavior.
-
-### Platform Constraints
-
-Skills run in different environments with different capabilities (source: Anthropic PDF Guide):
-
-| Platform | Script Execution | Network | Filesystem |
-|----------|-----------------|---------|------------|
-| Claude Code (CLI) | Full Bash access | Available | Full access |
-| Claude.ai (Web) | Sandbox only | Limited | Limited |
-| API | Tool-dependent | Tool-dependent | Tool-dependent |
-| Mobile | None | None | Read-only |
-
-Document which platform features each skill requires. Never assume external API availability.
-
-### Iterate Collaboratively
-
-Work with Claude to capture successful approaches and common mistakes into reusable skill components. Ask Claude to self-reflect on what contextual information actually matters.
-
-### Write for AI Consumption
-
-Use clear, imperative language that Claude can follow:
-
-- "Follow the Conventional Commits specification"
-- "Use descriptive branch names with type prefixes"
-- "Run tests before committing"
-
-Include concrete examples wherever possible to illustrate patterns and approaches.
-
-### Security Considerations
-
-Install skills only from trusted sources. When evaluating unfamiliar skills:
-- Thoroughly audit bundled files and scripts
-- Review code dependencies
-- Examine instructions directing Claude to connect with external services
-- Verify the skill doesn't request sensitive information or dangerous operations
-
-### Disclosure Discipline for Public Repositories
+### Disclosure discipline for public repositories
 
 Skill content ships to public repositories; secret *references* disclose infrastructure even when no credential leaks, and secret scanners do not catch them. In every SKILL.md, reference, and template:
 
@@ -401,24 +166,19 @@ Skill content ships to public repositories; secret *references* disclose infrast
 
 Enforce with a repo lint in CI where available (this marketplace runs `mise test:disclosure`).
 
-## Anti-Fabrication Requirements
+## Anti-fabrication requirements
 
 Every SKILL.md must include anti-fabrication rules — either inline or by referencing `core:anti-fabrication`. The authoritative rules (evidence-based claims via tool execution, no superlatives, no unsubstantiated metrics, no unmeasured time estimates, explicit uncertainty markers) live in the `core:anti-fabrication` skill; skill-creation-specific guidance is in `references/anti-fabrication.md`.
 
-## Skill Examples
-
-For annotated examples of simple and complex skills with category classifications, see `references/examples.md`.
-
-## Common Pitfalls
-
-For common mistakes and how to avoid them, see `references/examples.md`.
-
 ## References
 
+Annotated examples of simple and complex skills, category classifications, and common pitfalls are in `references/examples.md`.
+
+```
 claude-skills/
 ├── references/
-│   ├── design-patterns.md    # Degree of freedom, validation loops, conditional workflows
-│   ├── evaluation-guide.md   # Eval-driven development, A/B testing, multi-model testing
+│   ├── design-patterns.md    # Degree of freedom, platform matrix, script execution, reference structure
+│   ├── evaluation-guide.md   # Eval-driven development, A/B testing, description optimization
 │   ├── anti-fabrication.md   # Skill-creation-specific anti-fab guidance
 │   ├── context-engineering-claude-5.md  # What changed for Claude 5 generation models
 │   ├── frontmatter-fields.md # Full upstream frontmatter reference
@@ -430,6 +190,7 @@ claude-skills/
     ├── level2.md                # Example skill body
     ├── level3.md                # Example skill folder structure
     └── skill.md                 # Example basic skill
+```
 
 For more information:
 - **Agent Skills Blog**: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
