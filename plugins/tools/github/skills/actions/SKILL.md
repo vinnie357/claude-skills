@@ -39,6 +39,14 @@ my-action/
 - Bundle all dependencies (use @vercel/ncc)
 - Support Node.js LTS versions
 
+**Current toolkit majors are ESM-only** — `@actions/core` 3.x, `@actions/github` 9.x,
+`@actions/exec` 3.x, `@actions/cache` 6.x. Each publishes `"type": "module"` with an exports map
+offering only an `import` condition, so `require('@actions/core')` throws
+`ERR_PACKAGE_PATH_NOT_EXPORTED` even on `node24`: Node's `require(esm)` finds no `require` or
+`module-sync` condition to match. Set `"type": "module"` in the action's `package.json` and use
+`import` — ncc emits an ES module automatically inside such a package boundary, so the bundling
+step below is unchanged. An action that cannot migrate must use dynamic `await import(...)`.
+
 **Example action.yml:**
 ```yaml
 name: 'My JavaScript Action'
@@ -80,7 +88,7 @@ my-action/
 
 **Example Dockerfile:**
 ```dockerfile
-FROM alpine:3.18
+FROM alpine:3.24
 
 RUN apk add --no-cache bash curl jq
 
@@ -102,7 +110,7 @@ inputs:
   node-version:
     description: 'Node.js version'
     required: false
-    default: '20'
+    default: '24'
 runs:
   using: 'composite'
   steps:
@@ -149,7 +157,7 @@ outputs:                     # Define all outputs
 
 **JavaScript:**
 ```javascript
-const core = require('@actions/core');
+import * as core from '@actions/core';
 const token = core.getInput('token', { required: true });
 const config = core.getInput('config') || 'default.yml';
 ```
@@ -180,7 +188,7 @@ Essential npm packages for JavaScript actions:
 
 ### @actions/core
 ```javascript
-const core = require('@actions/core');
+import * as core from '@actions/core';
 
 // Inputs/Outputs
 const input = core.getInput('name');
@@ -209,7 +217,7 @@ core.exportVariable('VAR_NAME', 'value');
 
 ### @actions/github
 ```javascript
-const github = require('@actions/github');
+import * as github from '@actions/github';
 
 // Context
 const context = github.context;
@@ -233,7 +241,7 @@ const { data: issues } = await octokit.rest.issues.listForRepo({
 
 ### @actions/exec
 ```javascript
-const exec = require('@actions/exec');
+import * as exec from '@actions/exec';
 
 // Execute commands
 await exec.exec('npm', ['install']);
@@ -253,7 +261,7 @@ await exec.exec('git', ['log', '--oneline'], {
 
 Always validate and sanitize inputs:
 ```javascript
-const core = require('@actions/core');
+import * as core from '@actions/core';
 
 function validateInput(input) {
   // Check for command injection
@@ -299,7 +307,7 @@ const octokit = github.getOctokit(token);
 npm audit
 
 # Use specific versions
-npm install @actions/core@1.10.0
+npm install @actions/core@3.0.1
 
 # Bundle dependencies
 npm install -g @vercel/ncc
@@ -382,8 +390,10 @@ runs:
 ### Cache Management Action
 
 ```javascript
-const core = require('@actions/core');
-const cache = require('@actions/cache');
+import * as core from '@actions/core';
+import * as cache from '@actions/cache';
+import * as exec from '@actions/exec';
+import * as glob from '@actions/glob';
 
 async function run() {
   const paths = [
@@ -391,7 +401,10 @@ async function run() {
     '.npm'
   ];
 
-  const key = `deps-${process.platform}-${hashFiles('package-lock.json')}`;
+  // hashFiles is async and lives in @actions/glob — the bare hashFiles()
+  // of workflow YAML has no JavaScript equivalent.
+  const hash = await glob.hashFiles('package-lock.json');
+  const key = `deps-${process.platform}-${hash}`;
 
   // Restore cache
   const cacheKey = await cache.restoreCache(paths, key);
@@ -409,10 +422,11 @@ async function run() {
 ### Artifact Upload Action
 
 ```javascript
-const artifact = require('@actions/artifact');
+import * as core from '@actions/core';
+import { DefaultArtifactClient } from '@actions/artifact';
 
 async function uploadArtifact() {
-  const artifactClient = artifact.create();
+  const artifactClient = new DefaultArtifactClient();
   const files = [
     'dist/bundle.js',
     'dist/styles.css'
@@ -420,19 +434,25 @@ async function uploadArtifact() {
 
   const rootDirectory = 'dist';
   const options = {
-    continueOnError: false
+    retentionDays: 10
   };
 
-  const uploadResponse = await artifactClient.uploadArtifact(
+  const { id, size } = await artifactClient.uploadArtifact(
     'build-artifacts',
     files,
     rootDirectory,
     options
   );
 
-  core.setOutput('artifact-id', uploadResponse.artifactId);
+  core.setOutput('artifact-id', id);
+  core.info(`Uploaded ${size} bytes`);
 }
 ```
+
+`@actions/artifact` v2+ replaced the `artifact.create()` factory with `DefaultArtifactClient` and
+returns `{id, size, digest}` instead of `artifactId`; `uploadArtifact` still takes `rootDirectory`
+third. The v1 `continueOnError` option is gone — options are `retentionDays`, `compressionLevel`,
+`skipArchive`. Uploading twice to one artifact name is no longer possible; use distinct names.
 
 ## Troubleshooting
 

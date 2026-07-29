@@ -4,7 +4,7 @@
 # Mise-driven so the image stays consistent with the rest of the marketplace.
 # See /core:mise and the claude-code-on-sandbox skill for the usage pattern.
 
-FROM debian:12-slim AS base
+FROM debian:13-slim AS base
 
 ARG MISE_VERSION=2026.5.0
 ENV MISE_DATA_DIR=/opt/mise \

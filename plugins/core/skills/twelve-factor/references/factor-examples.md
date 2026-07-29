@@ -33,12 +33,12 @@ myapp-repo/
 
 ```dockerfile
 # Multi-stage build for dependency isolation
-FROM node:18-alpine AS dependencies
+FROM node:24-alpine AS dependencies
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-FROM node:18-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .

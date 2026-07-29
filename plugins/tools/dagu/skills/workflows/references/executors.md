@@ -36,7 +36,7 @@ steps:
     executor:
       type: docker
       config:
-        image: node:18
+        image: node:24
         volumes:
           - /host/path:/container/path
         env:
