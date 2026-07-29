@@ -38,7 +38,7 @@ jobs:                                 # Job definitions
 
     steps:
       - name: Checkout code         # Step name (optional)
-        uses: actions/checkout@v7.0.1   # Use an action
+        uses: actions/checkout@v7   # Use an action
 
       - name: Run tests
         run: npm test               # Run command
@@ -141,7 +141,7 @@ steps:
     run: npm run build
 
   - name: Upload artifacts
-    uses: actions/upload-artifact@v7.0.1
+    uses: actions/upload-artifact@v7
     with:
       name: build-files
       path: |
@@ -158,7 +158,7 @@ jobs:
   build:
     steps:
       - run: npm run build
-      - uses: actions/upload-artifact@v7.0.1
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
@@ -166,7 +166,7 @@ jobs:
   test:
     needs: build
     steps:
-      - uses: actions/download-artifact@v8.0.1
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -179,8 +179,8 @@ jobs:
 
 ```yaml
 steps:
-  - uses: actions/checkout@v7.0.1
-  - uses: actions/setup-node@v7.0.0
+  - uses: actions/checkout@v7
+  - uses: actions/setup-node@v7
     with:
       node-version: '20'
       cache: 'npm'
@@ -191,7 +191,7 @@ steps:
 
 ```yaml
 steps:
-  - uses: actions/cache@v6.1.0
+  - uses: actions/cache@v6
     with:
       path: |
         ~/.npm
@@ -219,7 +219,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
 ```
 
 ### Job-Level Permissions
@@ -231,7 +231,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
 ```
 
 ## Concurrency
@@ -294,8 +294,8 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ inputs.node-version }}
       - run: npm test
@@ -325,7 +325,7 @@ Cache dependencies to avoid re-downloading on every run — see [Caching](#cachi
 ### Optimize Checkout
 
 ```yaml
-- uses: actions/checkout@v7.0.1
+- uses: actions/checkout@v7
   with:
     fetch-depth: 1              # Shallow clone
     sparse-checkout: |          # Partial checkout
@@ -377,10 +377,10 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4.5.2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -388,7 +388,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v6.2.0
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -396,7 +396,7 @@ jobs:
             type=semver,pattern={{version}}
 
       - name: Build and push
-        uses: docker/build-push-action@v7.3.0
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -421,7 +421,7 @@ jobs:
       url: https://example.com
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - name: Deploy to production
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}

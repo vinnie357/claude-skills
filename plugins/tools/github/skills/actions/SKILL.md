@@ -106,7 +106,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - uses: actions/setup-node@v7.0.0
+    - uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node-version }}
     - run: npm ci

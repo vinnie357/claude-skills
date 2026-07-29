@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - run: npm ci
       - run: npm run build
 ```
@@ -61,8 +61,8 @@ jobs:
       max-parallel: 4             # Concurrent jobs limit
 
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
@@ -115,13 +115,13 @@ jobs:
 ```yaml
 steps:
   - name: Checkout repository
-    uses: actions/checkout@v7.0.1
+    uses: actions/checkout@v7
     with:
       fetch-depth: 0              # Full history
       submodules: recursive       # Include submodules
 
   - name: Setup Node.js
-    uses: actions/setup-node@v7.0.0
+    uses: actions/setup-node@v7
     with:
       node-version: '20'
       cache: 'npm'
