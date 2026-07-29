@@ -182,7 +182,7 @@ steps:
   - uses: actions/checkout@v7
   - uses: actions/setup-node@v7
     with:
-      node-version: '20'
+      node-version: '22'
       cache: 'npm'
   - run: npm ci
 ```
@@ -309,7 +309,7 @@ jobs:
   test:
     uses: ./.github/workflows/reusable-test.yml
     with:
-      node-version: '20'
+      node-version: '22'
       coverage: true
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}

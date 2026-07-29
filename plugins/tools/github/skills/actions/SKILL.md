@@ -55,7 +55,7 @@ outputs:
   result:
     description: 'Action result'
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
 ```
 
@@ -123,7 +123,7 @@ runs:
 name: 'Action Name'           # Marketplace display name
 description: 'What it does'   # Clear, concise purpose
 runs:                         # Execution configuration
-  using: 'node20'            # or 'docker' or 'composite'
+  using: 'node24'            # or 'docker' or 'composite'
 ```
 
 ### Optional Fields
