@@ -9,6 +9,8 @@
 - [Checklist-Based Workflows](#checklist-based-workflows)
 - [Conditional Workflows](#conditional-workflows)
 - [Script Execution vs Reading](#script-execution-vs-reading)
+  - [Platform Considerations](#platform-considerations)
+  - [Reference File Structure](#reference-file-structure)
 - [Self-Documenting Constants](#self-documenting-constants)
 - [Visual Analysis Pattern](#visual-analysis-pattern)
 
@@ -173,12 +175,25 @@ Skills can include scripts, but Claude interacts with them differently depending
 
 ### Platform Considerations
 
-- **Claude Code (CLI)**: Full Bash access, can execute scripts directly
-- **Claude.ai (Web)**: Code execution sandbox, limited filesystem
-- **API**: Depends on tool configuration; may not have shell access
-- **Mobile**: Read-only; no script execution
+Skills run in environments with different capabilities (source: Anthropic PDF Guide):
 
-Document which mode each script supports in the skill's SKILL.md.
+| Platform | Script Execution | Network | Filesystem |
+|----------|-----------------|---------|------------|
+| Claude Code (CLI) | Full Bash access | Available | Full access |
+| Claude.ai (Web) | Sandbox only | Limited | Limited |
+| API | Tool-dependent | Tool-dependent | Tool-dependent |
+| Mobile | None | None | Read-only |
+
+Document which platform features a skill requires, and which mode each bundled script supports.
+Never assume external API availability.
+
+### Reference File Structure
+
+- Keep references **one level deep** — SKILL.md cites a reference; a reference never cites another.
+- Give a reference a Table of Contents when a reader would jump to a section rather than read it
+  straight through.
+- Separate mutually exclusive material into different files so a reader loads only one of them;
+  keep commonly co-used material together in one.
 
 ## Self-Documenting Constants
 
