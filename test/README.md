@@ -184,6 +184,7 @@ new violation. A deliberate net-new debt acknowledgment requires editing
 | `anti_fab` | Anti-fabrication rules present inline or referenced (`core:anti-fabrication`) |
 | `source` | Skill is documented in the plugin's `skills/sources.md` |
 | `allowed_tools` | Frontmatter does not set `allowed-tools` (tool allowlists belong on agents) |
+| `fm_schema` | Every frontmatter key is in the schema for that file's kind. Answers "is this key real", not "do we permit it" — `allowed-tools` is upstream-valid and separately rejected by `allowed_tools` above |
 | `name_dir` | Frontmatter `name` matches the skill's directory name |
 | `links` | Every `references/`, `agents/`, `scripts/`, `templates/`, `hooks/` path mentioned in prose exists on disk |
 | `orphans` | Every file under `references/` and `agents/` is mentioned at least once in SKILL.md |
@@ -241,6 +242,7 @@ directories, and `hooks/hooks.json`:
 | `bad_model` | agent | Frontmatter `model:` is present but not one of `haiku`, `sonnet`, `opus` |
 | `bad_invocations` | agent, command | An `/plugin:skill` token in the file does not resolve |
 | `links` | agent, command | Every `references/`, `templates/`, `scripts/`, `agents/`, `hooks/` path mentioned in the file resolves — see below for how this differs from the per-skill `links` check |
+| `fm_schema` | agent, command | Every frontmatter key is in the schema for that kind. Agents use their OWN schema — `tools` and `isolation` are agent-only, `paths` and `shell` are skill-only — so a key valid on one surface fails on the other. Commands share the skill schema, since commands merged into skills upstream |
 | `bad_wrapper` | hooks | `hooks/hooks.json` is not valid JSON, or has no top-level `hooks` object |
 | `bad_event` | hooks | A hook event name is not one of `PreToolUse`, `PostToolUse`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `Stop`, `SubagentStop`, `PreCompact`, `Notification` |
 
