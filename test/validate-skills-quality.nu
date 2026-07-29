@@ -739,21 +739,31 @@ def run-orphans-self-test [] {
 # marketplace — that is a separate, stricter check (`allowed_tools`), not this
 # one. This check answers "is the key real", not "do we permit it".
 const SKILL_FM_KEYS = [
-    "name" "description" "when_to_use" "license" "metadata"
+    "name" "description" "when_to_use" "license" "metadata" "compatibility"
     "argument-hint" "arguments" "disable-model-invocation" "user-invocable"
     "allowed-tools" "disallowed-tools" "model" "effort" "context" "agent"
     "background" "hooks" "paths" "shell"
 ]
 
-# Agent frontmatter is a DIFFERENT schema. Sourced from the claude-agents
-# skill's own field table rather than the upstream skills reference.
+# Agent frontmatter is a DIFFERENT schema — verified against the upstream
+# sub-agents reference (https://code.claude.com/docs/en/sub-agents), 16 fields.
+# Five are camelCase; an earlier extraction regex assumed lowercase-and-hyphen
+# and silently dropped all five, which would have made this check fire on
+# `maxTurns` — a field our own claude-agents skill recommends. Any future edit
+# here must be re-extracted case-insensitively.
 const AGENT_FM_KEYS = [
-    "name" "description" "tools" "model" "skills" "hooks" "memory"
-    "background" "effort" "isolation" "color"
+    "name" "description" "tools" "disallowedTools" "model" "permissionMode"
+    "maxTurns" "skills" "mcpServers" "hooks" "memory" "background" "effort"
+    "isolation" "color" "initialPrompt"
 ]
 
 # Returns frontmatter keys not present in `allowed`. Keys only — values are
 # other checks' business. A block with no frontmatter yields no findings.
+#
+# Known residual: the key must abut its colon. `descriptoin : y` is valid YAML
+# but matches nothing here, so a typo written with a space before the colon is
+# not caught. Dotted keys (`foo.bar:`) are likewise skipped. Both are rare
+# enough to leave; widening the regex risks matching prose lines.
 def unknown-frontmatter-keys [fm_lines: list, allowed: list]: nothing -> list {
     $fm_lines
         | each {|line|
@@ -777,6 +787,9 @@ def run-frontmatter-schema-self-test [] {
         ["nested values are not keys" ["hooks:" "  PreToolUse:" "    - matcher: Bash"] $SKILL_FM_KEYS []]
         ["agent schema differs from skill" ["name: x" "tools: Read"] $AGENT_FM_KEYS []]
         ["skill-only key rejected on an agent" ["name: x" "paths: '*.md'"] $AGENT_FM_KEYS ["paths"]]
+        ["agent-only key rejected on a skill" ["name: x" "isolation: worktree"] $SKILL_FM_KEYS ["isolation"]]
+        ["camelCase agent keys are valid" ["name: x" "maxTurns: 5" "disallowedTools: Bash"] $AGENT_FM_KEYS []]
+        ["compatibility is valid (open standard)" ["name: x" "compatibility: needs git"] $SKILL_FM_KEYS []]
         ["empty frontmatter yields nothing" [] $SKILL_FM_KEYS []]
     ]
     for c in $cases {
@@ -2229,7 +2242,7 @@ def main [--update-baseline, --self-test] {
             # Frontmatter keys are real (claude-skills-175). Agents use their
             # OWN schema — `paths`/`shell` are skill-only, `tools`/`isolation`
             # are agent-only — so this deliberately does not reuse SKILL_FM_KEYS.
-            let agent_fm_unknown = (unknown-frontmatter-keys (frontmatter-lines $content) $AGENT_FM_KEYS)
+            let agent_fm_unknown = (unknown-frontmatter-keys $fm_lines $AGENT_FM_KEYS)
             if ($agent_fm_unknown | is-not-empty) { $failed = ($failed | append "fm_schema") }
 
             if ($failed | is-not-empty) {
@@ -2283,7 +2296,7 @@ def main [--update-baseline, --self-test] {
             })
             if ($cmd_broken_links | is-not-empty) { $failed = ($failed | append "links") }
 
-            let cmd_fm_unknown = (unknown-frontmatter-keys (frontmatter-lines $content) $SKILL_FM_KEYS)
+            let cmd_fm_unknown = (unknown-frontmatter-keys $fm_lines $SKILL_FM_KEYS)
             if ($cmd_fm_unknown | is-not-empty) { $failed = ($failed | append "fm_schema") }
 
             if ($failed | is-not-empty) {
@@ -2497,7 +2510,7 @@ def main [--update-baseline, --self-test] {
             }
             | sort-by key)
         {
-            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths; syntax-vs-usage vocabulary findings use syntax/<format>:vocab_disjoint for the formats commands/agents/hooks — the validator prints both vocabularies), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block/vocab_disjoint; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
+            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths; syntax-vs-usage vocabulary findings use syntax/<format>:vocab_disjoint for the formats commands/agents/hooks — the validator prints both vocabularies), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block/vocab_disjoint/fm_schema; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
             allowed_failures: $shrunk
         } | to json --indent 2 | save -f $baseline_path
         print ""
