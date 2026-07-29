@@ -53,7 +53,9 @@ Customize component locations:
   "commands": ["${CLAUDE_PLUGIN_ROOT}/custom-commands"],
   "agents": ["${CLAUDE_PLUGIN_ROOT}/custom-agents"],
   "hooks": {
-    "onInstall": "${CLAUDE_PLUGIN_ROOT}/hooks/install.sh"
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh" }] }
+    ]
   },
   "mcpServers": "${CLAUDE_PLUGIN_ROOT}/mcp-config.json"
 }

@@ -6,131 +6,68 @@ license: MIT
 
 # Claude Code Plugin Marketplace
 
-Guide for creating, validating, and managing plugin marketplaces for Claude Code. Includes schema validation, best practices, and automated tools.
+Guide for creating, validating, and managing plugin marketplaces for Claude Code.
 
-Per `core:anti-fabrication`: verify schema fields and source paths with the validation scripts before claiming an entry is valid — never assert validation results without running them.
+Per `core:anti-fabrication`: verify schema fields and source paths with the validation scripts before claiming an entry is valid — never assert validation results without running them. The validator names the offending field and value; that output is the authority, not this page.
 
-## When to Use This Skill
+## Marketplace schema
 
-Activate this skill when:
-- Creating or editing `.claude-plugin/marketplace.json` files
-- Validating marketplace schema compliance
-- Setting up plugin repositories with marketplaces
-- Troubleshooting marketplace configuration issues
-- Converting plugin structures to marketplace format
-- Creating plugin entries with advanced features
+A marketplace lives at `.claude-plugin/marketplace.json` in the repository root.
 
-## Marketplace Schema Overview
+**Required:** `name` (kebab-case), `owner` (object; `name` required, `email` optional), `plugins` (array, may be empty).
 
-### Required Structure
+**Optional `metadata`:** `description`, `version`, and `pluginRoot` — a base directory that relative plugin `source` paths resolve against.
 
-All marketplaces must be located at `.claude-plugin/marketplace.json` in the repository root.
+### Plugin entry schema
 
-**Required Fields:**
-- `name`: Marketplace identifier (kebab-case, lowercase alphanumeric and hyphens only)
-- `owner`: Object with maintainer details (`name` required, `email` optional)
-- `plugins`: Array of plugin definitions (can be empty)
+Plugin entries use the **plugin manifest schema with every field optional**, plus the marketplace-only fields `source`, `strict`, `category`, and `tags`. Any field valid in a `plugin.json` is therefore valid in an entry — see `/claude-code:claude-plugins` for the manifest schema and for which fields must never appear in a `plugin.json`.
 
-**Optional Metadata:**
-- `metadata.description`: Summary of marketplace purpose
-- `metadata.version`: Marketplace version tracking (semantic versioning recommended)
-- `metadata.pluginRoot`: Base directory for relative plugin source paths
+Each entry requires `name` (kebab-case) and `source`. Beyond those:
 
-### Plugin Entry Schema
+- **Metadata:** `description`, `version`, `author`, `homepage`, `repository`, `license` (SPDX), `keywords`, `category`, `tags`
+- **Component paths:** `commands`, `agents`, `hooks`, `mcpServers`, `skills`
+- **Dependencies:** `dependencies`, an array of `"namespace:plugin-name"` strings
 
-**IMPORTANT: Schema Relationship**
+### Strict mode
 
-Plugin entries use the plugin manifest schema with all fields made optional, plus marketplace-specific fields (`source`, `strict`, `category`, `tags`). This means any field valid in a plugin.json file can also be used in a marketplace entry. See `/claude-code:claude-plugins` for the full manifest schema.
+`strict` defaults to `true`.
 
-- When `strict: false`, the marketplace entry serves as the complete plugin manifest if no plugin.json exists
-- When `strict: true` (default), marketplace fields supplement the plugin's own manifest file
+- `true` — the plugin must ship its own `plugin.json`; marketplace fields supplement it.
+- `false` — the marketplace entry *is* the complete manifest; no `plugin.json` needed.
 
-Each plugin entry in the `plugins` array requires:
+**Choose `strict: false`** for simple self-contained plugins whose configuration all lives in marketplace.json, when centralized management is the goal and the plugin is unlikely to be distributed independently.
 
-**Mandatory:**
-- `name`: Plugin identifier (kebab-case)
-- `source`: Location specification (string path or object)
+**Choose `strict: true`** when the plugin has complex configuration, may be distributed separately, has its own versioning lifecycle, or when the marketplace is only adding metadata to a manifest that already exists.
 
-**Standard Metadata:**
-- `description`: Brief explanation of plugin functionality
-- `version`: Semantic version number
-- `author`: Creator information (object with `name`, optional `email`)
-- `homepage`: Documentation or project URL
-- `repository`: Source control URL
-- `license`: SPDX license identifier (e.g., MIT, Apache-2.0)
-- `keywords`: Array of discovery and categorization tags
-- `category`: Organizational grouping
-- `tags`: Additional searchability terms
+This is the one genuine judgment call in a marketplace entry; everything else is schema.
 
-**Component Configuration:**
-- `commands`: Custom paths to command files or directories
-- `agents`: Custom paths to agent files
-- `hooks`: Custom hooks configuration or path to hooks file
-- `mcpServers`: MCP server configurations or path to MCP config
-- `skills`: Array of skill directory paths
+## Source formats
 
-**Strict Mode Control:**
-- `strict`: Boolean (default: `true`)
-  - `true`: Plugin must include plugin.json; marketplace fields supplement it
-  - `false`: Marketplace entry serves as complete manifest (no plugin.json needed)
-
-**Dependencies:**
-- `dependencies`: Array of plugin names this plugin depends on (format: `"namespace:plugin-name"`)
-
-## Plugin Source Formats
-
-### Relative Path
 ```json
 "source": "./plugins/my-plugin"
 ```
 
-### Relative Path with pluginRoot
-```json
-// In marketplace metadata
-"metadata": {
-  "pluginRoot": "./plugins"
-}
+With `"metadata": { "pluginRoot": "./plugins" }`, a bare `"source": "my-plugin"` resolves to `./plugins/my-plugin`.
 
-// In plugin entry
-"source": "my-plugin"  // Resolves to ./plugins/my-plugin
+```json
+"source": { "source": "github", "repo": "owner/plugin-repo", "path": "optional/subdir", "branch": "main" }
+"source": { "source": "url", "url": "https://gitlab.com/team/plugin.git", "branch": "main" }
 ```
 
-### GitHub Repository
-```json
-"source": {
-  "source": "github",
-  "repo": "owner/plugin-repo",
-  "path": "optional/subdirectory",
-  "branch": "main"
-}
-```
+## Path variables — a load-time trap
 
-### Git URL
-```json
-"source": {
-  "source": "url",
-  "url": "https://gitlab.com/team/plugin.git",
-  "branch": "main"
-}
-```
+Two different variables, and mixing them up breaks the file:
 
-## Environment Variables
+- **`CLAUDE_PLUGIN_ROOT`** resolves to the plugin's installation directory. Use it as a brace expansion inside `skills`/`commands`/`agents`/`hooks`/`mcpServers` **values in marketplace.json and plugin.json**, so paths survive relocation.
+- **`CLAUDE_SKILL_DIR`** resolves to an individual skill's directory — *not* the plugin root. Bundled scripts live under it.
 
-`CLAUDE_PLUGIN_ROOT` resolves to the plugin's installation directory; used as a brace expansion (`${...}`) in `skills`/`commands`/`agents`/`hooks`/`mcpServers` paths so they work regardless of install location. Shown bare here because the braced form expands when this skill loads — see `references/marketplace-examples.md` ("Environment Variables — path usage") for a copyable example.
+Both names are written bare on this page on purpose. **The braced form expands when a skill loads**, so a braced variable inside a skill body is replaced with one machine's absolute path before any reader sees it. That is correct behavior for a JSON config value the harness expands at runtime, and wrong for a command written in a skill body. Copyable braced examples live in `references/marketplace-examples.md`, where `Read` returns raw bytes.
 
-## Advanced Plugin Entry Features
+## Advanced entries
 
-### Inline Plugin Definitions
-
-Use `strict: false` to define complete plugin manifests inline without requiring plugin.json. See `references/marketplace-examples.md` ("Inline Plugin Definitions") for a full entry, including how `skills` paths use `CLAUDE_PLUGIN_ROOT`.
-
-### Component Path Override
-
-Customize component locations — see `references/marketplace-examples.md` ("Component Path Override") for a full example overriding `commands`, `agents`, `hooks`, and `mcpServers` paths with `CLAUDE_PLUGIN_ROOT`.
-
-### Metadata Supplementation
-
-With `strict: true`, marketplace entries can add metadata not in plugin.json:
+- **Inline definitions** — `strict: false` with a full manifest in the entry. See `references/marketplace-examples.md` ("Inline Plugin Definitions").
+- **Component path override** — point `commands`/`agents`/`hooks`/`mcpServers` at custom locations. Same reference ("Component Path Override").
+- **Metadata supplementation** — with `strict: true`, add `category`, `keywords`, or `homepage` that the plugin's own manifest omits:
 
 ```json
 {
@@ -138,256 +75,53 @@ With `strict: true`, marketplace entries can add metadata not in plugin.json:
   "source": "./plugins/existing",
   "strict": true,
   "category": "development",
-  "keywords": ["added", "from", "marketplace"],
-  "homepage": "https://docs.example.com"
+  "keywords": ["added", "from", "marketplace"]
 }
 ```
 
-## Validation Workflow
+## Validation
 
-### 1. Schema Validation
-
-Use the provided Nushell script to validate marketplace.json:
+Scripts are bundled with this skill, under its own directory:
 
 ```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-marketplace.nu .claude-plugin/marketplace.json
+nu <CLAUDE_SKILL_DIR>/scripts/validate-marketplace.nu .claude-plugin/marketplace.json
+nu <CLAUDE_SKILL_DIR>/scripts/validate-dependencies.nu .claude-plugin/marketplace.json
 ```
 
-This validates:
-- JSON syntax
-- Required fields presence
-- Kebab-case naming
-- Field type correctness
-- Source path accessibility (for relative paths)
+`validate-marketplace.nu` checks JSON syntax, required fields, kebab-case naming, field types, and relative-source accessibility. `validate-dependencies.nu` checks the dependency graph for cycles and missing entries. Add `--verbose` for per-field output.
 
-### 2. Dependency Graph Validation
+Read the script's message rather than guessing: it names the field and the value. What each message means, plus the install-time and load-time failures no script detects, is in `references/validation-and-troubleshooting.md`.
 
-Check for circular dependencies and missing dependencies:
+## Creating a marketplace
 
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-dependencies.nu .claude-plugin/marketplace.json
-```
+1. `mkdir -p .claude-plugin`, then generate a skeleton with `nu <CLAUDE_SKILL_DIR>/scripts/init-marketplace.nu`.
+2. Add an entry per plugin, deciding strict mode for each. A complete entry with a `CLAUDE_PLUGIN_ROOT` skills path is in `references/marketplace-examples.md` ("Creating a marketplace — Step 3").
+3. Validate, then install from it: `/plugin marketplace add <owner>/<repo>` followed by `/plugin install <plugin-name>@<marketplace-name>`.
 
-## Best Practices
+Converting an existing set of plugins into a marketplace is a different procedure — see `references/validation-and-troubleshooting.md` ("Migrating existing plugins").
 
-### Naming Conventions
+## Conventions
 
-- **Marketplace name**: Use your GitHub username or organization (e.g., `vinnie357`)
-- **Plugin names**: Use descriptive kebab-case (e.g., `elixir-phoenix`, `rust-tools`, `core-skills`)
-- **Categories**: Standardize on common categories: `development`, `language`, `tools`, `frontend`, `backend`, `meta`
+- **Marketplace name** — a GitHub username or organization.
+- **Plugin names** — descriptive kebab-case (`elixir-phoenix`, `rust-tools`).
+- **Categories** — standardize across the marketplace rather than inventing per entry: `development`, `language`, `tools`, `frontend`, `backend`, `meta`.
+- **Versions** — semver for both marketplace and plugins. Bump the marketplace when adding or removing a plugin, a plugin when its skills or configuration change, and note breaking changes in the plugin's description. **Keep a plugin's version in step between its `plugin.json` and its marketplace entry.** The bundled validator does not check this — it validates semver format only. Enforce agreement in the marketplace repository's CI.
+- **Dependencies** — declare them, keep chains shallow, prefix with the namespace, and consider a meta-plugin that bundles a related set.
 
-### Versioning Strategy
+## Scripts
 
-- Use semantic versioning for both marketplace and plugins
-- Bump marketplace version when adding/removing plugins
-- Bump plugin versions when updating skills or configuration
-- Document breaking changes in plugin descriptions
+Bundled in this skill's `scripts/` directory, run as `nu <CLAUDE_SKILL_DIR>/scripts/<name>.nu [args]`:
 
-### Dependency Management
-
-- Always declare `dependencies` for plugins that require other plugins
-- Keep dependency chains shallow (avoid deep nesting)
-- Consider creating a meta-plugin (like `all-skills`) that bundles related plugins
-- Use namespace prefixes for dependencies (e.g., `all-skills:core`)
-
-### Strict Mode Decision
-
-**Use `strict: false` when:**
-- Creating simple, self-contained plugins
-- All configuration is in marketplace.json
-- You want centralized management
-- Plugin is unlikely to be distributed independently
-
-**Use `strict: true` when:**
-- Plugin has complex configuration
-- Plugin may be distributed separately
-- Plugin has its own versioning lifecycle
-- You want to supplement existing plugin.json with marketplace metadata
-
-### Source Path Organization
-
-```json
-{
-  "metadata": {
-    "pluginRoot": "./plugins"
-  },
-  "plugins": [
-    {
-      "name": "core",
-      "source": "core"  // Resolves to ./plugins/core
-    },
-    {
-      "name": "external",
-      "source": {
-        "source": "github",
-        "repo": "org/repo"
-      }
-    }
-  ]
-}
-```
-
-## Common Validation Errors
-
-### Error: Invalid kebab-case name
-
-```json
-// ❌ Invalid
-"name": "myPlugin"
-"name": "my_plugin"
-"name": "My-Plugin"
-
-// ✅ Valid
-"name": "my-plugin"
-"name": "core-skills"
-```
-
-### Error: Missing required owner field
-
-```json
-// ❌ Invalid
-{
-  "name": "marketplace"
-}
-
-// ✅ Valid
-{
-  "name": "marketplace",
-  "owner": {
-    "name": "Developer Name"
-  }
-}
-```
-
-### Error: Invalid source path
-
-```json
-// ❌ Invalid (path doesn't exist)
-"source": "./plugins/nonexistent"
-
-// ✅ Valid (path exists)
-"source": "./plugins/core"
-```
-
-### Error: Circular dependencies
-
-```json
-// ❌ Invalid
-{
-  "plugins": [
-    {
-      "name": "plugin-a",
-      "dependencies": ["namespace:plugin-b"]
-    },
-    {
-      "name": "plugin-b",
-      "dependencies": ["namespace:plugin-a"]
-    }
-  ]
-}
-```
-
-## Creating a New Marketplace
-
-### Step 1: Initialize Structure
-
-```bash
-mkdir -p .claude-plugin
-```
-
-### Step 2: Create Marketplace File
-
-Use the validation script to generate a template:
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/init-marketplace.nu
-```
-
-This creates `.claude-plugin/marketplace.json` with required fields.
-
-### Step 3: Add Plugin Entries
-
-For each plugin, decide on strict mode and add entry — see `references/marketplace-examples.md` ("Creating a marketplace — Step 3: Add Plugin Entries") for a complete marketplace.json entry with a `skills` path using `CLAUDE_PLUGIN_ROOT`.
-
-### Step 4: Validate
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-marketplace.nu .claude-plugin/marketplace.json
-```
-
-### Step 5: Test Installation
-
-In Claude Code, add the marketplace and install a plugin from it:
-
-```
-/plugin marketplace add <owner>/<repo>
-/plugin install <plugin-name>@<marketplace-name>
-```
-
-## Migrating Existing Plugins
-
-### From Individual Plugins to Marketplace
-
-1. **Identify plugins**: List all plugin.json files
-2. **Decide on strict mode**: Choose per plugin based on complexity
-3. **Create marketplace.json**: Add all plugins with appropriate configuration
-4. **Test each plugin**: Verify installation works correctly
-5. **Document dependencies**: Add dependency arrays where needed
-
-### Migration Script
-
-Use the provided script to analyze existing structure:
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/analyze-plugins.nu .
-```
-
-This scans for plugin.json files and suggests marketplace.json structure.
-
-## Troubleshooting
-
-### Plugin Not Found After Installation
-
-- Verify `source` path is correct
-- Check `pluginRoot` in metadata if using relative paths
-- Ensure plugin directory exists at specified location
-
-### Skills Not Loading
-
-- Verify skill paths use `CLAUDE_PLUGIN_ROOT` if needed
-- Check that skill directories contain SKILL.md files
-- Validate skill paths in plugin entry or plugin.json
-
-### Dependency Resolution Fails
-
-- Ensure dependency names match exactly (including namespace)
-- Check that all dependencies are listed in marketplace
-- Verify no circular dependencies exist
-
-### Validation Errors
-
-Run validation script with verbose mode:
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-marketplace.nu .claude-plugin/marketplace.json --verbose
-```
+| Script | Purpose |
+|---|---|
+| `validate-marketplace.nu` | Full marketplace validation |
+| `validate-dependencies.nu` | Dependency graph validation |
+| `init-marketplace.nu` | Generate a marketplace template |
+| `analyze-plugins.nu` | Analyze an existing plugin structure |
+| `format-marketplace.nu` | Format and sort marketplace.json |
 
 ## References
 
-For the detailed schema specification, see:
-- `references/schema-specification.md`: Complete JSON schema
-- `references/marketplace-examples.md`: Copyable CLAUDE_PLUGIN_ROOT path examples for skills/commands/agents/hooks/mcpServers entries
-
-## Script Usage
-
-All validation and utility scripts are located in `scripts/`:
-- `validate-marketplace.nu`: Full marketplace validation
-- `validate-dependencies.nu`: Dependency graph validation
-- `init-marketplace.nu`: Generate marketplace template
-- `analyze-plugins.nu`: Analyze existing plugin structure
-- `format-marketplace.nu`: Format and sort marketplace.json
-
-Execute scripts with:
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/[script-name].nu [args]
-```
+- `references/schema-specification.md` — the complete JSON schema
+- `references/marketplace-examples.md` — copyable `CLAUDE_PLUGIN_ROOT` path examples for skills, commands, agents, hooks, and mcpServers entries
+- `references/validation-and-troubleshooting.md` — what each validator message means, migration procedure, and runtime failures

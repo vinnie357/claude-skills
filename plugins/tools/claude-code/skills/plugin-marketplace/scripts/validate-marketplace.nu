@@ -59,7 +59,7 @@ def main [
 
   if ($marketplace | get -o plugins) == null {
     $errors = ($errors | append "Missing required field: 'plugins' (can be empty array)")
-  } else if not (($marketplace.plugins | describe) starts-with "list") {
+  } else if not ((is-list $marketplace.plugins)) {
     $errors = ($errors | append "'plugins' must be an array")
   } else if $verbose {
     print $"  ✓ plugins: (($marketplace.plugins | length)) entries"
@@ -90,7 +90,7 @@ def main [
   }
 
   # Validate plugin entries
-  if ($marketplace | get -o plugins) != null and (($marketplace.plugins | length) > 0) {
+  if ($marketplace | get -o plugins) != null and (is-list $marketplace.plugins) and (($marketplace.plugins | length) > 0) {
     print ""
     print $"(ansi cyan)Validating plugin entries...(ansi reset)"
 
@@ -172,7 +172,7 @@ def main [
       }
 
       if ($plugin | get -o tags) != null {
-        if not (($plugin.tags | describe) starts-with "list") {
+        if not ((is-list $plugin.tags)) {
           $errors = ($errors | append $"Plugin '($plugin_name)' 'tags' must be an array")
         } else if $verbose {
           print $"    ✓ tags: (($plugin.tags | length)) entries"
@@ -223,7 +223,7 @@ def main [
       }
 
       if ($plugin | get -o keywords) != null {
-        if not (($plugin.keywords | describe) starts-with "list") {
+        if not ((is-list $plugin.keywords)) {
           $errors = ($errors | append $"Plugin '($plugin_name)' 'keywords' must be an array")
         } else if $verbose {
           print $"    ✓ keywords: (($plugin.keywords | length)) entries"
@@ -276,7 +276,7 @@ def main [
       }
 
       if ($plugin | get -o dependencies) != null {
-        if not (($plugin.dependencies | describe) starts-with "list") {
+        if not ((is-list $plugin.dependencies)) {
           $errors = ($errors | append $"Plugin '($plugin_name)' 'dependencies' must be an array")
         } else if $verbose {
           print $"    ✓ dependencies: (($plugin.dependencies | length)) entries"
@@ -285,7 +285,7 @@ def main [
 
       # Validate skills array if present
       if ($plugin | get -o skills) != null {
-        if not (($plugin.skills | describe) starts-with "list") {
+        if not ((is-list $plugin.skills)) {
           $errors = ($errors | append $"Plugin '($plugin_name)' 'skills' must be an array")
         } else if $verbose {
           print $"    ✓ skills: (($plugin.skills | length)) entries"
@@ -330,6 +330,15 @@ def main [
     print $"(ansi yellow_bold)⚠ Validation passed with (($warnings | length)) ($warning_text)(ansi reset)"
     exit 0
   }
+}
+
+# Check if a value is a list.
+#
+# `describe` renders a list of records as `table<...>`, not `list<...>`, so a
+# `(describe) starts-with "list"` test rejects every non-empty `plugins` array —
+# the normal case. `describe --detailed` reports the underlying type instead.
+def is-list [value: any] {
+  ($value | describe --detailed | get type) == "list"
 }
 
 # Check if string is kebab-case (lowercase alphanumeric and hyphens only)

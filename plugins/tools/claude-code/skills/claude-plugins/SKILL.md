@@ -6,37 +6,20 @@ license: MIT
 
 # Claude Code Plugin
 
-Guide for creating, validating, and managing plugin.json files for Claude Code plugins. Includes schema validation, best practices, and automated tools.
+Guide for creating, validating, and managing `plugin.json` manifests for Claude Code plugins.
 
-Per `core:anti-fabrication`: run the validation scripts and read the manifest before claiming a plugin.json is valid or that a component path exists.
+Per `core:anti-fabrication`: run the validation scripts and read the manifest before claiming a plugin.json is valid or that a component path exists. The validator names the offending field and value; that output is the authority, not this page.
 
-## When to Use This Skill
+## Manifest schema
 
-Activate this skill when:
-- Creating or editing `.claude-plugin/plugin.json` files
-- Validating plugin.json schema compliance
-- Setting up new plugin directories
-- Troubleshooting plugin configuration issues
-- Understanding plugin manifest structure
-
-## Plugin Manifest Schema
-
-### File Location
-
-All plugin manifests must be located at `.claude-plugin/plugin.json` within the plugin directory.
-
-### Complete Schema
+A manifest lives at `.claude-plugin/plugin.json` inside the plugin directory.
 
 ```json
 {
   "name": "plugin-name",
   "version": "1.2.0",
   "description": "Brief plugin description",
-  "author": {
-    "name": "Author Name",
-    "email": "author@example.com",
-    "url": "https://github.com/author"
-  },
+  "author": { "name": "Author Name", "email": "author@example.com", "url": "https://github.com/author" },
   "homepage": "https://docs.example.com/plugin",
   "repository": "https://github.com/author/plugin",
   "license": "MIT",
@@ -49,129 +32,78 @@ All plugin manifests must be located at `.claude-plugin/plugin.json` within the 
 }
 ```
 
-### Required Fields
+**`name` is the only required field.** Everything else is optional, though `version`, `description`, `license`, `keywords`, `repository`, and `author` are worth setting: they are what a user sees before installing, and `author` is how they reach you with a bug report or a contribution.
 
-- `name`: Plugin identifier (kebab-case, lowercase alphanumeric and hyphens only)
+### Field rules
 
-### Optional Fields
+| Field | Rule |
+|---|---|
+| `name` | kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`. Match the directory name, and be specific rather than generic. Valid: `my-plugin`, `core-skills`. Invalid: `myPlugin`, `my_plugin`, `My-Plugin`, `plugin-` |
+| `version` | semver, `^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$`. Valid: `1.0.0`, `1.0.0-beta.1`, `1.0.0+build.123`. Invalid: `1.0`, `v1.0.0`, `1.0.0.0` |
+| `license` | SPDX identifier — `MIT`, `Apache-2.0`, `GPL-3.0`, `BSD-3-Clause`, `ISC`. See https://spdx.org/licenses/ |
+| `keywords` | array of lowercase, specific, domain-bearing strings |
 
-**Metadata:**
-- `version`: Semantic version number (recommended)
-- `description`: Brief explanation of plugin functionality
-- `license`: SPDX license identifier (e.g., MIT, Apache-2.0)
-- `keywords`: Array of searchability and categorization tags
-- `homepage`: Documentation or project URL
-- `repository`: Source control URL
+### Component paths
 
-**Author Information:**
-- `author.name`: Creator name
-- `author.email`: Contact email
-- `author.url`: Personal or organization website
+Relative to the plugin root, `./`-prefixed. Each has a dedicated skill for its own file format:
 
-**Component Paths:**
-- `skills`: Array of skill directory paths (relative to plugin root) (see `claude-skills` skill)
-- `commands`: String path or array of command file/directory paths (see `claude-commands` skill)
-- `agents`: String path or array of agent file paths (see `claude-agents` skill)
-- `hooks`: String path to hooks.json or hooks configuration object (see `claude-hooks` skill)
-- `mcpServers`: String path to MCP config or configuration object
+- `skills` — array of directories, each containing a `SKILL.md` (see `claude-skills`)
+- `commands` — string or array of `.md` files or directories (see `claude-commands`)
+- `agents` — string directory or array of files (see `claude-agents`)
+- `hooks` — string path to a hooks.json, or an inline hooks object (see `claude-hooks`)
+- `mcpServers` — string path to an MCP config, or an inline object
 
-**Convention-Based Directories** (no `plugin.json` field required):
-- `output-styles/`: Markdown output style files discovered when plugin is installed (see `claude-output-styles` skill)
+`output-styles/` is discovered by convention and needs no manifest field (see `claude-output-styles`).
 
-## Field Validation Rules
+Both `hooks` and `mcpServers` accept either a path or an inline object. Inline, they use each component's own schema — hooks are **event-keyed**, not lifecycle-keyed:
 
-### name
-- **Format**: kebab-case (lowercase alphanumeric and hyphens only)
-- **Pattern**: `^[a-z0-9]+(-[a-z0-9]+)*$`
-- **Examples**:
-  - Valid: `my-plugin`, `core-skills`, `elixir-tools`
-  - Invalid: `myPlugin`, `my_plugin`, `My-Plugin`, `plugin-`
-
-### version
-- **Format**: Semantic versioning
-- **Pattern**: `^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$`
-- **Examples**:
-  - Valid: `1.0.0`, `2.1.3`, `1.0.0-beta.1`, `1.0.0+build.123`
-  - Invalid: `1.0`, `v1.0.0`, `1.0.0.0`
-
-### license
-- **Format**: SPDX license identifier
-- **Common values**: `MIT`, `Apache-2.0`, `GPL-3.0`, `BSD-3-Clause`, `ISC`
-- **Reference**: https://spdx.org/licenses/
-
-### keywords
-- **Format**: Array of strings
-- **Purpose**: Discoverability, searchability, categorization
-- **Recommendations**: Use lowercase, be specific, include domain terms
-
-### Paths (skills, commands, agents, hooks, mcpServers)
-- **Format**: Relative paths from plugin root
-- **Recommendations**: Use `./` prefix for clarity
-- **Skills**: Array of directory paths containing SKILL.md files
-- **Commands**: Can be string (single path) or array of paths
-- **Agents**: Can be string (directory) or array of file paths
-
-## Invalid Fields in plugin.json
-
-The following fields are **only valid in marketplace.json** entries and must NOT appear in plugin.json:
-
-- `dependencies`: Dependencies belong in marketplace entries, not plugin manifests
-- `category`: Categorization is marketplace-level metadata
-- `strict`: Controls marketplace behavior, not plugin definition
-- `source`: Plugin location is defined in marketplace, not in plugin itself
-- `tags`: Use `keywords` instead
-
-## Validation Workflow
-
-### 1. Schema Validation
-
-Use the provided Nushell script to validate plugin.json:
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-plugin.nu .claude-plugin/plugin.json
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "CLAUDE_PLUGIN_ROOT/scripts/format.sh" }] }
+    ]
+  },
+  "mcpServers": { "filesystem": { "command": "mcp-server-filesystem", "args": ["./workspace"] } }
+}
 ```
 
-This validates:
-- JSON syntax
-- Required field presence (name)
-- Kebab-case naming
-- Field type correctness
-- Path accessibility (for relative paths)
-- Invalid field detection
-- `description` and `keywords` agreement with the plugin's `marketplace.json` entry, when
-  invoked with `--marketplace` and the entry's `source` is a local path. `plugin.json` is
-  authoritative. Entries whose `source` is a GitHub object are skipped — there is no local
-  manifest to compare. A field absent from either side is not a mismatch.
+`CLAUDE_PLUGIN_ROOT` is written bare above, but a real hooks value wraps it as a **quoted brace expansion** — the harness expands it at hook runtime, which is correct in a JSON config. It is shown bare here because the braced form expands when *this skill* loads, replacing it with one machine's absolute path before any reader sees it. That is the same reason script commands on this page use `CLAUDE_SKILL_DIR` bare. For the copyable braced form, see `/claude-code:claude-hooks`, whose reference files are read as raw bytes and can carry it safely.
 
-### 2. Initialization Helper
+## Fields that must NOT appear in plugin.json
 
-Generate a template plugin.json:
+The validator rejects these with `Invalid field '<field>' - this belongs in marketplace.json, not plugin.json`:
+
+- `dependencies` — dependencies belong to marketplace entries, not manifests
+- `category` — marketplace-level metadata
+- `strict` — controls marketplace behavior, not the plugin definition
+- `source` — a plugin's location is declared by the marketplace, not by itself
+- `tags` — use `keywords`
+
+## Validation
+
+Scripts are bundled with this skill, under its own directory:
 
 ```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/init-plugin.nu
+nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu .claude-plugin/plugin.json
+nu <CLAUDE_SKILL_DIR>/scripts/init-plugin.nu
 ```
 
-Creates `.claude-plugin/plugin.json` with proper structure.
+`validate-plugin.nu` checks JSON syntax, `name` presence and casing, field types, path accessibility, and invalid-field detection. Add `--verbose` for per-field output.
 
-## Best Practices
+With `--marketplace`, it also checks that `description` and `keywords` agree with the plugin's marketplace entry, when that entry's `source` is a local path. **`plugin.json` is authoritative.** Entries whose `source` is a GitHub object are skipped — there is no local manifest to compare — and a field absent from either side is not a mismatch.
 
-### Naming Conventions
+What each message means, and the install-time failures no script detects, is in `references/validation-and-troubleshooting.md`.
 
-- **Plugin name**: Use descriptive kebab-case (e.g., `elixir-phoenix`, `rust-tools`, `core-skills`)
-- **Avoid generic names**: Be specific about the plugin's purpose
-- **Match directory name**: Plugin name should match its directory name
+## Creating a plugin
 
-### Versioning Strategy
+1. `mkdir -p my-plugin/.claude-plugin my-plugin/skills`
+2. From the plugin directory, run `nu <CLAUDE_SKILL_DIR>/scripts/init-plugin.nu` — or write the manifest by hand with `name`, `version`, `description`, `author`, `license`, `keywords`, and an empty `skills` array.
+3. Add each skill as a directory containing `SKILL.md`, and list its path in `skills`.
+4. Validate, then install through a marketplace that lists the plugin (see `plugin-marketplace`): `/plugin install <plugin-name>@<marketplace-name>`.
 
-- Use semantic versioning (MAJOR.MINOR.PATCH)
-- Increment MAJOR for breaking changes
-- Increment MINOR for new features (backward compatible)
-- Increment PATCH for bug fixes
-- Use pre-release tags for beta versions (`1.0.0-beta.1`)
+**Recommended layout:**
 
-### Path Organization
-
-**Recommended structure:**
 ```
 plugin-name/
 ├── .claude-plugin/
@@ -184,234 +116,21 @@ plugin-name/
 └── output-styles/
 ```
 
-**In plugin.json:**
-```json
-{
-  "skills": [
-    "./skills/skill-one",
-    "./skills/skill-two"
-  ],
-  "commands": ["./commands"],
-  "agents": ["./agents"]
-}
-```
+## Versioning
 
-### Metadata Completeness
+Semver, with the usual major/minor/patch split and pre-release tags such as `1.0.0-beta.1` for betas. **Keep a plugin's version in step between its `plugin.json` and its marketplace entry** — a mismatch is what breaks update detection for installed users. The bundled validator does NOT check this; it only checks semver format. Cross-manifest version agreement is enforced by a marketplace's own CI, if at all.
 
-Always include:
-- `version`: Track plugin evolution
-- `description`: Help users understand purpose
-- `license`: Clarify usage terms
-- `keywords`: Improve discoverability
-- `repository`: Enable contributions
+## Scripts
 
-### Author Information
+Bundled in this skill's `scripts/` directory, run as `nu <CLAUDE_SKILL_DIR>/scripts/<name>.nu [args]`:
 
-Include contact information for:
-- Bug reports
-- Feature requests
-- Contributions
-- Questions
-
-## Common Validation Errors
-
-### Error: Invalid kebab-case name
-
-```json
-// ❌ Invalid
-"name": "myPlugin"
-"name": "my_plugin"
-"name": "My-Plugin"
-
-// ✅ Valid
-"name": "my-plugin"
-"name": "core-skills"
-```
-
-### Error: Invalid field for plugin.json
-
-```json
-// ❌ Invalid (dependencies only in marketplace.json)
-{
-  "name": "my-plugin",
-  "dependencies": ["other-plugin"]
-}
-
-// ✅ Valid
-{
-  "name": "my-plugin",
-  "keywords": ["tool", "utility"]
-}
-```
-
-### Error: Skill path doesn't exist
-
-```json
-// ❌ Invalid (path not found)
-"skills": ["./skills/nonexistent"]
-
-// ✅ Valid (path exists with SKILL.md)
-"skills": ["./skills/my-skill"]
-```
-
-### Error: Invalid version format
-
-```json
-// ❌ Invalid
-"version": "1.0"
-"version": "v1.0.0"
-
-// ✅ Valid
-"version": "1.0.0"
-"version": "2.1.3-beta.1"
-```
-
-## Creating a New Plugin
-
-### Step 1: Initialize Directory Structure
-
-```bash
-mkdir -p my-plugin/.claude-plugin
-mkdir -p my-plugin/skills
-```
-
-### Step 2: Create plugin.json
-
-Use the initialization script:
-
-```bash
-cd my-plugin
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/init-plugin.nu
-```
-
-Or create manually:
-
-```json
-{
-  "name": "my-plugin",
-  "version": "0.1.0",
-  "description": "My plugin description",
-  "author": {
-    "name": "Your Name"
-  },
-  "license": "MIT",
-  "keywords": ["keyword1", "keyword2"],
-  "skills": []
-}
-```
-
-### Step 3: Add Skills
-
-1. Create skill directory: `mkdir -p skills/my-skill`
-2. Create SKILL.md in skill directory
-3. Add to plugin.json:
-
-```json
-{
-  "skills": ["./skills/my-skill"]
-}
-```
-
-### Step 4: Validate
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-plugin.nu .claude-plugin/plugin.json
-```
-
-### Step 5: Test
-
-Install via a marketplace that lists the plugin (see the `plugin-marketplace` skill), then in Claude Code:
-
-```
-/plugin install <plugin-name>@<marketplace-name>
-```
-
-## Hooks Configuration
-
-Hooks can be inline or referenced:
-
-**Inline:**
-```json
-{
-  "hooks": {
-    "onInstall": "./scripts/install.sh",
-    "onUninstall": "./scripts/uninstall.sh"
-  }
-}
-```
-
-**Referenced:**
-```json
-{
-  "hooks": "./config/hooks.json"
-}
-```
-
-## MCP Servers Configuration
-
-MCP servers can be inline or referenced:
-
-**Inline:**
-```json
-{
-  "mcpServers": {
-    "filesystem": {
-      "command": "mcp-server-filesystem",
-      "args": ["./workspace"]
-    }
-  }
-}
-```
-
-**Referenced:**
-```json
-{
-  "mcpServers": "./mcp-config.json"
-}
-```
-
-## Troubleshooting
-
-### Plugin Not Loading
-
-- Verify plugin.json exists at `.claude-plugin/plugin.json`
-- Check JSON syntax is valid
-- Ensure name field is present and kebab-case
-- Validate all path references exist
-
-### Skills Not Found
-
-- Check skill paths in plugin.json match actual directories
-- Ensure each skill directory contains SKILL.md file
-- Verify paths use relative format (`./skills/name`)
-
-### Commands Not Appearing
-
-- Verify command paths exist
-- Check commands are .md files or directories containing .md files
-- Ensure paths are relative to plugin root
-
-### Validation Fails
-
-Run validation with verbose output:
-
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-plugin.nu .claude-plugin/plugin.json --verbose
-```
+| Script | Purpose |
+|---|---|
+| `validate-plugin.nu` | Complete plugin.json validation |
+| `init-plugin.nu` | Generate a plugin.json template |
+| `format-plugin.nu` | Format and sort plugin.json |
 
 ## References
 
-For the detailed schema specification, see:
-- `references/plugin-schema.md`: Complete JSON schema specification
-
-## Script Usage
-
-All validation and utility scripts are located in `scripts/`:
-- `validate-plugin.nu`: Complete plugin.json validation
-- `init-plugin.nu`: Generate plugin.json template
-- `format-plugin.nu`: Format and sort plugin.json
-
-Execute scripts with:
-```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/[script-name].nu [args]
-```
+- `references/plugin-schema.md` — the complete JSON schema specification
+- `references/validation-and-troubleshooting.md` — what each validator message means, and runtime failures no script reports
