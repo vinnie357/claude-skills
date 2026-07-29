@@ -108,7 +108,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: Build Docker image
         run: docker build -t myapp:${{ github.sha }} .
       - name: Push to registry

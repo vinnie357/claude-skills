@@ -69,7 +69,7 @@ steps:
 ```yaml
 strategy:
   matrix:
-    version: [18, 20]
+    version: [22, 24]
 
 steps:
   - run: echo "Node ${{ matrix.version }}"
