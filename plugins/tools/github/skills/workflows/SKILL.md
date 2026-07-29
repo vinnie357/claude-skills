@@ -92,11 +92,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, 21]
+        node-version: [22, 24]
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
@@ -123,8 +123,8 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7.0.1
+      - uses: dorny/paths-filter@v4.0.2
         id: filter
         with:
           filters: |

@@ -55,12 +55,12 @@ Dependabot maintains two pin styles. Read the file before cherry-picking to iden
 
 **Major tag style**:
 ```yaml
-uses: actions/checkout@v4
+uses: actions/checkout@v7
 ```
 
 **Full SHA + comment style**:
 ```yaml
-uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 ```
 
 After cherry-picking, verify the style was preserved with `git diff HEAD~1 <file>`. If the style changed (e.g., SHA replaced with tag), revert to the original style before committing.
