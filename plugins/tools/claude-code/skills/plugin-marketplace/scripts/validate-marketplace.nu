@@ -94,8 +94,11 @@ def main [
     print ""
     print $"(ansi cyan)Validating plugin entries...(ansi reset)"
 
-    # Base dir is .claude-plugin directory, repo root is one level up
-    let base_dir = $marketplace_path | path dirname
+    # Base dir is .claude-plugin directory, repo root is one level up.
+    # Expand FIRST: `path dirname` twice on a relative path such as
+    # ".claude-plugin/marketplace.json" yields "", which anchored every resolved
+    # source at the filesystem root and warned on all of them (claude-skills-177).
+    let base_dir = $marketplace_path | path expand | path dirname
     let repo_root = $base_dir | path dirname
     let plugin_root = if ($marketplace | get -o metadata.pluginRoot) != null {
       $marketplace.metadata.pluginRoot
@@ -123,10 +126,17 @@ def main [
         # Validate source - can be string (local path) or object (external source)
         if ($plugin.source | describe) == "string" {
           # Local source must start with "./"
-          if not ($plugin.source | str starts-with "./") {
-            $errors = ($errors | append $"Plugin '($plugin_name)' local source must start with './': ($plugin.source)")
+          # A bare source is valid when metadata.pluginRoot is set: upstream
+          # documents `"pluginRoot": "./plugins"` as letting you write
+          # `"source": "formatter"` instead of `"source": "./plugins/formatter"`.
+          # Without pluginRoot there is no base to resolve against, so "./" is
+          # still required (claude-skills-177).
+          if not ($plugin.source | str starts-with "./") and ($plugin_root | is-empty) {
+            $errors = ($errors | append $"Plugin '($plugin_name)' local source must start with './' when metadata.pluginRoot is not set: ($plugin.source)")
           } else {
-            let source_path = if ($plugin_root | is-empty) {
+            # pluginRoot applies to bare sources only — prefixing it onto a
+            # source that is already "./"-relative produced "./plugins/./plugins/x".
+            let source_path = if ($plugin_root | is-empty) or ($plugin.source | str starts-with "./") {
               $plugin.source
             } else {
               $"($plugin_root)/($plugin.source)"

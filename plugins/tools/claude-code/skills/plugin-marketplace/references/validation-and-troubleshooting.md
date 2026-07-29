@@ -59,16 +59,19 @@ plugin entry's `name` fails as `Invalid plugin name: '<name>' (must be kebab-cas
 
 ### Warning — source path not found
 
-A relative `source` that does not resolve is reported as a **warning**, not an error, because the
-path may exist only on the machine that installs the plugin.
+A local `source` that does not resolve, relative to the repository root, is reported as a
+**warning** rather than an error: a marketplace may legitimately list a plugin whose directory is
+populated elsewhere, and object sources (`github`, `url`) have nothing local to check.
 
 ```json
 "source": "./plugins/nonexistent"   // warned
 "source": "./plugins/core"          // resolves
 ```
 
-Resolution depends on `metadata.pluginRoot` when set: with `"pluginRoot": "./plugins"`, a `source`
-of `"core"` resolves to `./plugins/core`.
+`metadata.pluginRoot` sets a base for **bare** sources: with `"pluginRoot": "./plugins"`, a `source`
+of `"core"` resolves to `./plugins/core`. A source already written `"./..."` is used as-is, and is
+not prefixed with `pluginRoot`. Without `pluginRoot` there is no base to resolve against, so a bare
+source is an error — `local source must start with './' when metadata.pluginRoot is not set`.
 
 ## Migrating existing plugins to a marketplace
 
