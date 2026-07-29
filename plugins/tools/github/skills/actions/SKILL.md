@@ -392,6 +392,8 @@ runs:
 ```javascript
 import * as core from '@actions/core';
 import * as cache from '@actions/cache';
+import * as exec from '@actions/exec';
+import * as glob from '@actions/glob';
 
 async function run() {
   const paths = [
@@ -399,7 +401,10 @@ async function run() {
     '.npm'
   ];
 
-  const key = `deps-${process.platform}-${hashFiles('package-lock.json')}`;
+  // hashFiles is async and lives in @actions/glob — the bare hashFiles()
+  // of workflow YAML has no JavaScript equivalent.
+  const hash = await glob.hashFiles('package-lock.json');
+  const key = `deps-${process.platform}-${hash}`;
 
   // Restore cache
   const cacheKey = await cache.restoreCache(paths, key);
@@ -417,6 +422,7 @@ async function run() {
 ### Artifact Upload Action
 
 ```javascript
+import * as core from '@actions/core';
 import { DefaultArtifactClient } from '@actions/artifact';
 
 async function uploadArtifact() {
