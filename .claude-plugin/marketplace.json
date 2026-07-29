@@ -142,7 +142,7 @@
       "name": "core",
       "source": "./plugins/core",
       "strict": true,
-      "description": "Essential development skills: Git, TDD, code review, security scanning, documentation, restraint, anti-fabrication, twelve-factor config, the agent loop, bees issue tracking, mise, nushell, and Apple Container",
+      "description": "Essential development skills: Git, TDD, code review, gitleaks secret scanning, documentation, restraint, anti-fabrication, twelve-factor apps, the agent loop, bees issue tracking, mise, nushell, and Apple Container",
       "version": "0.2.40",
       "category": "development",
       "keywords": [
