@@ -15,9 +15,11 @@
 `nu <CLAUDE_SKILL_DIR>/scripts/validate-marketplace.nu .claude-plugin/marketplace.json` emits these.
 Errors fail validation; warnings do not.
 
-### Error — `Invalid name format: '<name>' (must be kebab-case)`
+### Error — invalid kebab-case name
 
-Lowercase alphanumeric and hyphens only. Applies to the marketplace `name` and every plugin `name`.
+Lowercase alphanumeric and hyphens only. The two levels emit **different messages**: the
+marketplace-level `name` fails as `Invalid name format: '<name>' (must be kebab-case)`, while a
+plugin entry's `name` fails as `Invalid plugin name: '<name>' (must be kebab-case)`.
 
 ```json
 // Invalid

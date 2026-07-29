@@ -105,7 +105,7 @@ Converting an existing set of plugins into a marketplace is a different procedur
 - **Marketplace name** — a GitHub username or organization.
 - **Plugin names** — descriptive kebab-case (`elixir-phoenix`, `rust-tools`).
 - **Categories** — standardize across the marketplace rather than inventing per entry: `development`, `language`, `tools`, `frontend`, `backend`, `meta`.
-- **Versions** — semver for both marketplace and plugins. Bump the marketplace when adding or removing a plugin, a plugin when its skills or configuration change. **A plugin's version must match between its `plugin.json` and its marketplace entry**; the validator compares them.
+- **Versions** — semver for both marketplace and plugins. Bump the marketplace when adding or removing a plugin, a plugin when its skills or configuration change, and note breaking changes in the plugin's description. **Keep a plugin's version in step between its `plugin.json` and its marketplace entry.** The bundled validator does not check this — it validates semver format only. Enforce agreement in the marketplace repository's CI.
 - **Dependencies** — declare them, keep chains shallow, prefix with the namespace, and consider a meta-plugin that bundles a related set.
 
 ## Scripts

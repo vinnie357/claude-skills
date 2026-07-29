@@ -106,8 +106,12 @@ Complete JSON schema for Claude Code plugin.json files.
 ```json
 {
   "hooks": {
-    "onInstall": "./scripts/install.sh",
-    "onUninstall": "./scripts/uninstall.sh"
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{ "type": "command", "command": "./scripts/format.sh" }]
+      }
+    ]
   }
 }
 ```
@@ -176,7 +180,9 @@ These fields are **NOT valid** in plugin.json (they belong in marketplace.json):
   ],
   "commands": ["./commands"],
   "hooks": {
-    "onInstall": "./scripts/setup.sh"
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "./scripts/setup.sh" }] }
+    ]
   }
 }
 ```

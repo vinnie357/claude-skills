@@ -32,13 +32,13 @@ A manifest lives at `.claude-plugin/plugin.json` inside the plugin directory.
 }
 ```
 
-**`name` is the only required field.** Everything else is optional, though `version`, `description`, `license`, `keywords`, and `repository` are worth setting: they are what a user sees before installing.
+**`name` is the only required field.** Everything else is optional, though `version`, `description`, `license`, `keywords`, `repository`, and `author` are worth setting: they are what a user sees before installing, and `author` is how they reach you with a bug report or a contribution.
 
 ### Field rules
 
 | Field | Rule |
 |---|---|
-| `name` | kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`. Match the directory name. Valid: `my-plugin`, `core-skills`. Invalid: `myPlugin`, `my_plugin`, `My-Plugin`, `plugin-` |
+| `name` | kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`. Match the directory name, and be specific rather than generic. Valid: `my-plugin`, `core-skills`. Invalid: `myPlugin`, `my_plugin`, `My-Plugin`, `plugin-` |
 | `version` | semver, `^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$`. Valid: `1.0.0`, `1.0.0-beta.1`, `1.0.0+build.123`. Invalid: `1.0`, `v1.0.0`, `1.0.0.0` |
 | `license` | SPDX identifier — `MIT`, `Apache-2.0`, `GPL-3.0`, `BSD-3-Clause`, `ISC`. See https://spdx.org/licenses/ |
 | `keywords` | array of lowercase, specific, domain-bearing strings |
@@ -118,7 +118,7 @@ plugin-name/
 
 ## Versioning
 
-Semver, with the usual major/minor/patch split and pre-release tags such as `1.0.0-beta.1` for betas. **A plugin's version must match between its `plugin.json` and its marketplace entry** — the validator compares them, and a mismatch is what breaks update detection for installed users.
+Semver, with the usual major/minor/patch split and pre-release tags such as `1.0.0-beta.1` for betas. **Keep a plugin's version in step between its `plugin.json` and its marketplace entry** — a mismatch is what breaks update detection for installed users. The bundled validator does NOT check this; it only checks semver format. Cross-manifest version agreement is enforced by a marketplace's own CI, if at all.
 
 ## Scripts
 
