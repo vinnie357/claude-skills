@@ -152,7 +152,15 @@ Three patterns from the upstream docs guide what to put in the body:
 
 Skills support runtime substitution before content reaches the model. Source: [Claude Code Skills docs](https://code.claude.com/docs/en/skills#inject-dynamic-context).
 
-**This section documents syntax that executes or expands at load time — including the load of this very skill.** Every example below carries one of two inert markers so this doc survives its own loading: a `KEY=` prefix immediately before a `!` shell-injection trigger, or a leading backslash before a `\$ARGUMENTS`/`${CLAUDE_*}` placeholder (the documented escape for a literal `$`). Drop the marker to get the real syntax. Digit-indexed forms (`$0`, `$1`, `$N`) and an undeclared `$name` need no marker — with no arguments declared or passed, they render unchanged rather than expanding.
+**This section documents syntax that executes or expands at load time — including the load of this very skill.** Three different markers keep it intact, because no single escape covers every form:
+
+- **A `KEY=` prefix** immediately before a `!` shell-injection trigger. Drop `KEY=` for the real syntax.
+- **A leading backslash** before a bare `\$ARGUMENTS` placeholder — the documented escape for a literal `$`. Drop the backslash.
+- **Bare names** for the `CLAUDE_*` variables, because the backslash does **not** escape the braced form (see below).
+
+Digit-indexed forms (`$0`, `$1`, `$N`) and an undeclared `$name` need no marker — with no arguments declared or passed, they render unchanged rather than expanding.
+
+**Changing anything in this section means verifying by loading the skill, not by reading the diff** — see `references/verifying-skill-content.md` for the loop, the session-snapshot trap that silently defeats it, and the table of what does and does not protect content.
 
 **Shell injection** — Claude Code can run shell commands embedded in a skill before the body reaches the model; the command's stdout replaces the placeholder. Two forms:
 
@@ -413,6 +421,8 @@ claude-skills/
 │   ├── evaluation-guide.md   # Eval-driven development, A/B testing, multi-model testing
 │   ├── anti-fabrication.md   # Skill-creation-specific anti-fab guidance
 │   ├── context-engineering-claude-5.md  # What changed for Claude 5 generation models
+│   ├── frontmatter-fields.md # Full upstream frontmatter reference
+│   ├── verifying-skill-content.md  # Verify by loading; the session-snapshot trap
 │   └── examples.md           # Annotated skill examples and common pitfalls
 └── templates/
     ├── evaluation-checklist.md  # Copyable eval checklist
