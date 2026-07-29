@@ -263,7 +263,7 @@ act push -j deploy --secret-file .secrets
 act -j test
 
 # Test specific matrix combination (modify workflow temporarily)
-act -j test --matrix node-version:20
+act -j test --matrix node-version:24
 ```
 
 ### Workflow Development Cycle

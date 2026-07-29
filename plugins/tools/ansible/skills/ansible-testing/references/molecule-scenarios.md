@@ -143,8 +143,8 @@ platforms:
     groups:
       - debian_family
 
-  - name: ubuntu20
-    image: geerlingguy/docker-ubuntu2004-ansible
+  - name: ubuntu24
+    image: geerlingguy/docker-ubuntu2404-ansible
     pre_build_image: true
     command: /lib/systemd/systemd
     privileged: true
@@ -159,8 +159,8 @@ platforms:
     groups:
       - redhat_family
 
-  - name: debian12
-    image: geerlingguy/docker-debian12-ansible
+  - name: debian13
+    image: geerlingguy/docker-debian13-ansible
     pre_build_image: true
     command: /lib/systemd/systemd
     privileged: true

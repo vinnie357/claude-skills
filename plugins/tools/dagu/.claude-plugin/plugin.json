@@ -1,6 +1,6 @@
 {
   "name": "dagu",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Dagu workflow orchestration: workflow authoring, web UI, and REST API",
   "author": {
     "name": "vinnie357"

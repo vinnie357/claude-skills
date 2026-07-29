@@ -23,7 +23,7 @@ The plugin ships `templates/Dockerfile.claude-code` and `templates/mise.toml.cla
 
 ```dockerfile
 # syntax=docker/dockerfile:1.7
-FROM debian:12-slim AS base
+FROM debian:13-slim AS base
 
 ARG MISE_VERSION=2026.5.0
 ENV MISE_DATA_DIR=/opt/mise \

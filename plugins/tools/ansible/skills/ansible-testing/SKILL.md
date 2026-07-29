@@ -264,8 +264,8 @@ platforms:
   - name: ubuntu22
     image: geerlingguy/docker-ubuntu2204-ansible
     pre_build_image: true
-  - name: ubuntu20
-    image: geerlingguy/docker-ubuntu2004-ansible
+  - name: ubuntu24
+    image: geerlingguy/docker-ubuntu2404-ansible
     pre_build_image: true
   - name: rocky9
     image: geerlingguy/docker-rockylinux9-ansible
