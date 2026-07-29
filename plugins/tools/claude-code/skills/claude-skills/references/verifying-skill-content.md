@@ -17,7 +17,9 @@ while being unloadable, because no check ever loads a skill.
 2. Copy it over its counterpart in the plugin cache:
    `~/.claude/plugins/cache/<owner>/<plugin>/<version>/skills/<skill>/`.
    Check `installed_plugins.json` for the **active** version — stale version directories linger and
-   editing one of those changes nothing.
+   editing one of those changes nothing. **Re-derive it every time.** Merging a version bump for the
+   plugin changes which directory is active, so a path that worked earlier in the same session can
+   silently go stale; this was hit while writing this very file.
 3. **Ask the operator to run `/reload-plugins`.** See the trap below; without this the loop silently
    measures nothing.
 4. Invoke the skill and read what arrives — not the source.

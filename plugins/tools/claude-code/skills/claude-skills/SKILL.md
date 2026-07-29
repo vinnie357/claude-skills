@@ -421,6 +421,8 @@ claude-skills/
 │   ├── evaluation-guide.md   # Eval-driven development, A/B testing, multi-model testing
 │   ├── anti-fabrication.md   # Skill-creation-specific anti-fab guidance
 │   ├── context-engineering-claude-5.md  # What changed for Claude 5 generation models
+│   ├── frontmatter-fields.md # Full upstream frontmatter reference
+│   ├── verifying-skill-content.md  # Verify by loading; the session-snapshot trap
 │   └── examples.md           # Annotated skill examples and common pitfalls
 └── templates/
     ├── evaluation-checklist.md  # Copyable eval checklist
