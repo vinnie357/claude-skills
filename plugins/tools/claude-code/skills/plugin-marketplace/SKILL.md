@@ -116,61 +116,17 @@ Each plugin entry in the `plugins` array requires:
 
 ## Environment Variables
 
-Use `${CLAUDE_PLUGIN_ROOT}` in paths to reference the plugin's installation directory:
-
-```json
-{
-  "skills": [
-    "${CLAUDE_PLUGIN_ROOT}/skills/my-skill"
-  ],
-  "commands": [
-    "${CLAUDE_PLUGIN_ROOT}/commands"
-  ]
-}
-```
-
-This ensures paths work correctly regardless of installation location.
+`CLAUDE_PLUGIN_ROOT` resolves to the plugin's installation directory; used as a brace expansion (`${...}`) in `skills`/`commands`/`agents`/`hooks`/`mcpServers` paths so they work regardless of install location. Shown bare here because the braced form expands when this skill loads — see `references/marketplace-examples.md` ("Environment Variables — path usage") for a copyable example.
 
 ## Advanced Plugin Entry Features
 
 ### Inline Plugin Definitions
 
-Use `strict: false` to define complete plugin manifests inline without requiring plugin.json:
-
-```json
-{
-  "name": "my-plugin",
-  "source": "./plugins/my-plugin",
-  "strict": false,
-  "description": "Complete plugin definition inline",
-  "version": "1.0.0",
-  "author": {
-    "name": "Developer Name"
-  },
-  "skills": [
-    "${CLAUDE_PLUGIN_ROOT}/skills/skill-one",
-    "${CLAUDE_PLUGIN_ROOT}/skills/skill-two"
-  ]
-}
-```
+Use `strict: false` to define complete plugin manifests inline without requiring plugin.json. See `references/marketplace-examples.md` ("Inline Plugin Definitions") for a full entry, including how `skills` paths use `CLAUDE_PLUGIN_ROOT`.
 
 ### Component Path Override
 
-Customize component locations:
-
-```json
-{
-  "name": "custom-paths",
-  "source": "./plugins/custom",
-  "strict": false,
-  "commands": ["${CLAUDE_PLUGIN_ROOT}/custom-commands"],
-  "agents": ["${CLAUDE_PLUGIN_ROOT}/custom-agents"],
-  "hooks": {
-    "onInstall": "${CLAUDE_PLUGIN_ROOT}/hooks/install.sh"
-  },
-  "mcpServers": "${CLAUDE_PLUGIN_ROOT}/mcp-config.json"
-}
-```
+Customize component locations — see `references/marketplace-examples.md` ("Component Path Override") for a full example overriding `commands`, `agents`, `hooks`, and `mcpServers` paths with `CLAUDE_PLUGIN_ROOT`.
 
 ### Metadata Supplementation
 
@@ -351,39 +307,7 @@ This creates `.claude-plugin/marketplace.json` with required fields.
 
 ### Step 3: Add Plugin Entries
 
-For each plugin, decide on strict mode and add entry:
-
-```json
-{
-  "name": "marketplace-name",
-  "owner": {
-    "name": "Your Name",
-    "email": "you@example.com"
-  },
-  "metadata": {
-    "description": "Your marketplace description",
-    "version": "1.0.0",
-    "pluginRoot": "./plugins"
-  },
-  "plugins": [
-    {
-      "name": "plugin-name",
-      "source": "plugin-name",
-      "strict": false,
-      "description": "Plugin description",
-      "version": "1.0.0",
-      "author": {
-        "name": "Your Name"
-      },
-      "license": "MIT",
-      "category": "development",
-      "skills": [
-        "${CLAUDE_PLUGIN_ROOT}/skills/skill-one"
-      ]
-    }
-  ]
-}
-```
+For each plugin, decide on strict mode and add entry — see `references/marketplace-examples.md` ("Creating a marketplace — Step 3: Add Plugin Entries") for a complete marketplace.json entry with a `skills` path using `CLAUDE_PLUGIN_ROOT`.
 
 ### Step 4: Validate
 
@@ -430,7 +354,7 @@ This scans for plugin.json files and suggests marketplace.json structure.
 
 ### Skills Not Loading
 
-- Verify skill paths use `${CLAUDE_PLUGIN_ROOT}` if needed
+- Verify skill paths use `CLAUDE_PLUGIN_ROOT` if needed
 - Check that skill directories contain SKILL.md files
 - Validate skill paths in plugin entry or plugin.json
 
@@ -452,6 +376,7 @@ nu ${CLAUDE_PLUGIN_ROOT}/scripts/validate-marketplace.nu .claude-plugin/marketpl
 
 For the detailed schema specification, see:
 - `references/schema-specification.md`: Complete JSON schema
+- `references/marketplace-examples.md`: Copyable CLAUDE_PLUGIN_ROOT path examples for skills/commands/agents/hooks/mcpServers entries
 
 ## Script Usage
 
