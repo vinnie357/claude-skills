@@ -59,9 +59,10 @@ plugin entry's `name` fails as `Invalid plugin name: '<name>' (must be kebab-cas
 
 ### Warning — source path not found
 
-A local `source` that does not resolve, relative to the repository root, is reported as a
-**warning** rather than an error: a marketplace may legitimately list a plugin whose directory is
-populated elsewhere, and object sources (`github`, `url`) have nothing local to check.
+A local `source` that does not resolve is appended to the warning list rather than the error list,
+so it does not fail validation. The script records no reason for that choice; treat it as
+non-fatal-by-design and check the path yourself. Resolution is against the **marketplace root** —
+the directory containing `.claude-plugin/`, not `.claude-plugin/` itself.
 
 ```json
 "source": "./plugins/nonexistent"   // warned
@@ -69,9 +70,19 @@ populated elsewhere, and object sources (`github`, `url`) have nothing local to 
 ```
 
 `metadata.pluginRoot` sets a base for **bare** sources: with `"pluginRoot": "./plugins"`, a `source`
-of `"core"` resolves to `./plugins/core`. A source already written `"./..."` is used as-is, and is
-not prefixed with `pluginRoot`. Without `pluginRoot` there is no base to resolve against, so a bare
-source is an error — `local source must start with './' when metadata.pluginRoot is not set`.
+of `"core"` resolves to `./plugins/core`. A source already written `"./..."` is used as-is and is not
+prefixed with `pluginRoot`. Without `pluginRoot` there is no base to resolve against, so a bare
+source is an error — `local source must start with './' when metadata.pluginRoot is not set`. An
+empty source is always an error.
+
+**Upstream is self-contradictory here, and this validator picks a side.** The marketplace reference
+documents `pluginRoot` as letting you write `"source": "formatter"` instead of
+`"source": "./plugins/formatter"`, while its source-type table states a relative path "Must start
+with `./`". This script follows the `pluginRoot` example, because that example is the specific case.
+Two things therefore remain unverified against the actual Claude Code loader: whether it accepts a
+bare source at all, and whether it prefixes `pluginRoot` onto `./`-relative sources too — upstream
+says "prepended to relative plugin source paths", which read literally would include them. If a
+marketplace using bare sources fails at install time, that is the ambiguity, not this check.
 
 ## Migrating existing plugins to a marketplace
 

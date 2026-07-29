@@ -131,7 +131,9 @@ def main [
           # `"source": "formatter"` instead of `"source": "./plugins/formatter"`.
           # Without pluginRoot there is no base to resolve against, so "./" is
           # still required (claude-skills-177).
-          if not ($plugin.source | str starts-with "./") and ($plugin_root | is-empty) {
+          if ($plugin.source | is-empty) {
+            $errors = ($errors | append $"Plugin '($plugin_name)' local source is empty")
+          } else if not ($plugin.source | str starts-with "./") and ($plugin_root | is-empty) {
             $errors = ($errors | append $"Plugin '($plugin_name)' local source must start with './' when metadata.pluginRoot is not set: ($plugin.source)")
           } else {
             # pluginRoot applies to bare sources only — prefixing it onto a
@@ -143,7 +145,7 @@ def main [
             }
 
             # Plugin source paths are relative to the repository root, not .claude-plugin dir
-            let full_path = $"($repo_root)/($source_path)" | path expand
+            let full_path = ($repo_root | path join $source_path | path expand)
             if not ($full_path | path exists) {
               $warnings = ($warnings | append $"Plugin '($plugin_name)' source path not found: ($full_path)")
             } else if $verbose {
