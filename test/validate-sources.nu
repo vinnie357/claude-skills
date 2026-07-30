@@ -66,6 +66,16 @@ def check-sources [
             severity: "fail"
             message: $"($plugin): sources.toml missing required table '[meta]'"
         })
+    } else if not (($meta | describe) | str starts-with "record") {
+        # claude-skills-185: a WRONG-TYPE root, e.g. `meta = "awman"`. Without
+        # this arm `$meta | columns` aborts the whole scan with a raw nushell
+        # error naming this file's line, not the offending plugin — so one bad
+        # file hid findings in the other 27.
+        $findings = ($findings | append {
+            rule: "b1_meta_not_table"
+            severity: "fail"
+            message: $"($plugin): sources.toml 'meta' is a ($meta | describe), expected a [meta] table"
+        })
     } else {
         let meta_cols = ($meta | columns)
 
@@ -139,6 +149,17 @@ def check-sources [
             severity: "fail"
             message: $"($plugin): sources.toml has no [[sources]] entries"
         })
+    } else if (($sources | any {|e| not (($e | describe) | str starts-with "record") })) {
+        # claude-skills-185: WRONG-TYPE entries, e.g. `sources = ["not-a-table"]`.
+        # Without this arm the `$s.skills?` cell path aborts on a string.
+        # Checked per-entry, not via `describe` on the collection: a
+        # heterogeneous table reports only its column intersection.
+        let bad = ($sources | enumerate | where {|r| not (($r.item | describe) | str starts-with "record") } | get index)
+        $findings = ($findings | append {
+            rule: "b1_entry_not_table"
+            severity: "fail"
+            message: $"($plugin): sources.toml [[sources]] entries at index ($bad | str join ', ') are not tables"
+        })
     } else {
         # A-F2: the coverage union MUST be per-record — `$sources | get skills`
         # hard-errors when any entry lacks the column (table-intersection trap).
@@ -165,6 +186,26 @@ def check-sources [
                 rule: "a3_phantom"
                 severity: "fail"
                 message: $"($plugin): sources.toml names unknown skills: [($phantom | str join ', ')] \(not in plugin.json skills\)"
+            })
+        }
+
+        # claude-skills-185: duplicate entry NAMES within one plugin.
+        # Two entries covering the same SKILL stays legal on purpose — a skill
+        # can genuinely have several upstreams (claude-code documents 35 across
+        # 12 skills). Two entries sharing a NAME is the copy-paste error, and
+        # it also makes `mise sources:check` output ambiguous.
+        # Deliberately not `group-by --to-table`: with a closure it emits a
+        # GENERATED column name (`closure_0`), so depending on it is a silent
+        # breakage waiting for a nushell version bump.
+        let entry_names = ($sources | each {|s| $s.name? | default null} | compact)
+        let dup_names = ($entry_names | uniq | where {|n|
+            ($entry_names | where {|x| $x == $n} | length) > 1
+        })
+        if ($dup_names | is-not-empty) {
+            $findings = ($findings | append {
+                rule: "b6_duplicate_name"
+                severity: "fail"
+                message: $"($plugin): duplicate [[sources]] name\(s\): [($dup_names | str join ', ')] — entries may share a skill, but not a name"
             })
         }
 
@@ -320,7 +361,12 @@ def check-sources [
     } else {
         let md_lower = ($md | str downcase)
         if $sources != null {
-            for entry in $sources {
+            # claude-skills-185: filter to record entries here too. This loop
+            # lives in a different scope from the b1_entry_not_table guard, so
+            # guarding only the root left this site still crashing on a
+            # wrong-type entry — the exact fix-one-site-leave-the-sibling
+            # pattern this repo keeps hitting.
+            for entry in ($sources | where {|e| ($e | describe) | str starts-with "record" }) {
                 let name = ($entry.name? | default "")
                 if ($name | is-not-empty) and not ($md_lower | str contains ($name | str downcase)) {
                     $findings = ($findings | append {
@@ -591,6 +637,105 @@ update_priority = "medium"
             version: "1.0.0"
             md: "demo-source is documented here"
             want: ["b1_meta_missing"]
+        }
+        {
+            label: "meta is a scalar, not a table (claude-skills-185)"
+            toml: '
+meta = "demo"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b1_meta_not_table"]
+        }
+        {
+            label: "[[sources]] entries are strings, not tables (claude-skills-185)"
+            toml: '
+sources = ["not-a-table"]
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "nothing documented"
+            want: ["b1_entry_not_table"]
+        }
+        {
+            label: "two entries sharing a name (claude-skills-185)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.org"
+check_method = "manual"
+current_version = "2.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b6_duplicate_name"]
+        }
+        {
+            label: "two entries sharing a SKILL but not a name stays legal (claude-skills-185)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "upstream-one"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+[[sources]]
+skills = ["a"]
+name = "upstream-two"
+url = "https://example.org"
+check_method = "manual"
+current_version = "2.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "upstream-one and upstream-two are documented here"
+            want: []
         }
         {
             label: "[meta] with generated_at"
