@@ -1,6 +1,6 @@
 {
   "name": "sbx",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Docker Sandboxes (sbx CLI): run AI coding agents in isolated microVMs with hypervisor-level isolation",
   "author": {
     "name": "vinnie357"

@@ -1,0 +1,25 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "ui"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# daisyUI — Tailwind CSS component library. Docs-based skill; sources.md does
+# not pin a version the skill content was verified against.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["daisyui"]
+name = "daisyui"
+url = "https://daisyui.com"
+releases_url = "https://github.com/saadeghi/daisyui/releases"
+check_method = "github-releases"
+github_repo = "saadeghi/daisyui"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Docs-based component/theming reference (daisyui.com/docs/intro, /components, /docs/themes, /docs/config, /docs/layout-and-typography); sources.md does not pin a skill-content verification version. github_repo confirmed via GitHub API 2026-07-30 (latest tag v5.7.8)."

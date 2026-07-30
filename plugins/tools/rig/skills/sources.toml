@@ -1,0 +1,44 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "rig"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# rig-core (0xPlaygrounds/rig) — the Rust multi-provider/hybrid LLM framework.
+# current_version is the version the skill content was verified against per
+# sources.md, not today's live crates.io value (see notes).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rig"]
+name = "rig-core"
+url = "https://rig.rs"
+releases_url = "https://github.com/0xPlaygrounds/rig/releases"
+check_method = "crates-io"
+crate_name = "rig-core"
+current_version = "0.40.0"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "Verified against rig-core 0.40.0, workspace layout crates/rig-core/, edition 2024 (2026-07-16/17): lib.rs provider list, providers/{anthropic,openai,gemini}/*.rs, providers/ollama.rs, agent/builder.rs (dynamic_context, rmcp_tool(s) surface), tool/mod.rs (Tool trait), client/{mod,completion}.rs, extractor.rs, completion/{mod,request}.rs. MCP support landed in 0.16.0 per github.com/0xPlaygrounds/rig/discussions/635. Live crates.io check 2026-07-30 shows 0.41.0 now published upstream — skill content not yet re-verified against it. Also cites docs.rig.rs and docs.rs/crate/rig-core/latest as documentation/API-reference mirrors of the same crate, not tracked as separate sources."
+
+# ----------------------------------------------------------------------------
+# Lemonade Server — AMD's local LLM server, referenced for local-model /
+# OpenAI-compatible gateway guidance.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rig"]
+name = "lemonade-server"
+url = "https://lemonade-server.ai/"
+releases_url = "https://github.com/lemonade-sdk/lemonade"
+check_method = "github-releases"
+github_repo = "lemonade-sdk/lemonade"
+current_version = "unknown"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-17"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Referenced for the local-model / OpenAI-compatible gateway section (platform support, backends, OpenAI-compatible REST surface at lemonade-server.ai/docs/api/openai/). Apache 2.0, AMD-sponsored. A third-party field report (malachid.com blog, 2025-04-06) on local models returning untyped tool-call args is cited as an observation, not a first-party rig or Lemonade claim — not tracked as a separate source."

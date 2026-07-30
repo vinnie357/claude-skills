@@ -1,5 +1,7 @@
 # Sources
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `proxmox-pve`, `proxmox-pdm`, `proxmox-pbs`, `terraform-provider-proxmox`, `internal-infra-repo`.
+
 ## proxmox skill
 
 ### Private infra repo Nushell scripts

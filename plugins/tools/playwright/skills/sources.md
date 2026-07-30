@@ -1,5 +1,7 @@
 # Playwright Plugin Sources
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 ## playwright skill
 
 ### Playwright MCP GitHub Repository
@@ -20,7 +22,6 @@
 
 ## Plugin Information
 - **Name**: playwright
-- **Version**: 0.1.0
 - **Description**: Playwright MCP browser automation for Claude Code
 - **Skills**: 1 skill
 - **Created**: 2026-04-04

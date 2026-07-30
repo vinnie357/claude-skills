@@ -1,0 +1,25 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "sbx"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Docker Sandboxes (sbx CLI) — current_version is the release the skill's
+# install/archive-layout claims were verified against, not today's live tag.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["sbx"]
+name = "docker-sandboxes"
+url = "https://docs.docker.com/ai/sandboxes/"
+releases_url = "https://github.com/docker/sbx-releases/releases"
+check_method = "github-releases"
+github_repo = "docker/sbx-releases"
+current_version = "0.30.0"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "Verified against the v0.30.0 release archive layout (bin/sbx + libexec/ + completions/); confirmed the mise github backend installs and extracts it correctly with SLSA provenance verification (2026-05-22). Covers docs.docker.com/reference/cli/sbx (subcommands, flags), /ai/sandboxes (microVM/KVM/per-VM-daemon overview), /ai/sandboxes/get-started (install commands), /ai/sandboxes/usage (agent list, --branch auto), /ai/sandboxes/security (four-layer isolation, deny-by-default network). Live GitHub API check 2026-07-30 shows v0.37.1 now published upstream — skill content not yet re-verified against it. Third-party blog (msbiro.net, Matteo Bisi, 2026-04-07) confirmed policy/exec/dashboard syntax against upstream usage docs; its 'sbx secret' subcommand claim was NOT confirmed and is omitted from the skill per anti-fabrication policy — not tracked as a separate source."

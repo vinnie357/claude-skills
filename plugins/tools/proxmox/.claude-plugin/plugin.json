@@ -1,6 +1,6 @@
 {
   "name": "proxmox",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Operate a Proxmox estate: PVE hypervisor, PBS backups, PDM multi-node management, golden-image builds, and terraform/packer automation",
   "author": {
     "name": "vinnie357"

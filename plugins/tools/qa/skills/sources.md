@@ -1,5 +1,7 @@
 # Sources
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `internal-composition` (the sibling-skill list below), `gherkin-cucumber` (the External section below).
+
 ## qa skill
 
 Internal sources — this skill is composed of conventions from other skills in this marketplace.
@@ -19,7 +21,6 @@ Internal sources — this skill is composed of conventions from other skills in 
 ## Plugin metadata
 
 - **Plugin**: qa
-- **Version**: 0.1.0
 - **Description**: QA team that validates a running application against Gherkin user stories using Playwright and Tidewave
 - **Skills count**: 1 (qa)
 - **Agents count**: 7 (qa-lead, qa-author, qa-playwright, qa-tidewave, qa-backend, qa-test-writer, qa-implementer)

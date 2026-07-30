@@ -1,0 +1,26 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "playwright"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Playwright MCP (microsoft/playwright-mcp) — distributed via npm as
+# @playwright/mcp. No npm check_method in the schema (github-releases |
+# hex-pm | crates-io | manual | none); tracked manually against the npm
+# registry directly.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["playwright"]
+name = "playwright-mcp"
+url = "https://github.com/microsoft/playwright-mcp"
+releases_url = "https://www.npmjs.com/package/@playwright/mcp"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "Tracked via the npm registry (@playwright/mcp); schema has no npm check_method, so check by querying the registry directly (https://registry.npmjs.org/@playwright/mcp/latest). Live check 2026-07-30 found v0.0.78 (0.x, pre-1.0); sources.md does not pin a version the skill content was verified against. Covers MCP tool catalog/configuration flags and Claude Code's MCP config patterns (claude mcp add, ~/.claude.json)."

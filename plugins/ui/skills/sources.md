@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the ui plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 ## daisyUI Skill
 
 ### daisyUI Official Documentation
@@ -57,7 +59,6 @@ This file documents the sources used to create the ui plugin skills.
 ## Plugin Information
 
 - **Name**: ui
-- **Version**: 0.1.0
 - **Description**: UI framework skills: daisyUI components, theming, and responsive design
 - **Skills**: 1 comprehensive daisyUI skill
 - **Created**: 2025-11-15

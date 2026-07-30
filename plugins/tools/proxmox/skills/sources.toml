@@ -1,0 +1,86 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "proxmox"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Proxmox VE — hypervisor wiki docs, company press releases, and the 8->9
+# upgrade path. current_version taken from sources.md's own session-proven
+# text ("both upgraded PVE 8.x -> 9.2.4 / Debian 13.5 the same day").
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["proxmox"]
+name = "proxmox-pve"
+url = "https://pve.proxmox.com/wiki/"
+releases_url = "https://www.proxmox.com/en/about/company-details/press-releases/proxmox-virtual-environment-9-0"
+check_method = "manual"
+current_version = "9.2.4"
+version_constraint = "stable"
+last_checked = "2026-07-13"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "Covers PVE wiki (Package_Repositories, Upgrade_from_8_to_9, Cluster_Manager — HTTP 200 confirmed 2026-07-13) and company press releases (8.4, 9.0). Session-proven 8->9 upgrade blockers (systemd-boot removal, Ceph version gate, grub-efi-amd64/force_efi_extra_removable) were recorded live 2026-07-09 in bees issue claude-skills-112 and are NOT documented in any file in this repo or the private infra repo. Private infra runbook proxmox-upgrade.md is stale as of 2026-07-09 per sources.md — it recommends deferring the 8->9 jump that was actually completed that day."
+
+# ----------------------------------------------------------------------------
+# Proxmox Datacenter Manager (PDM) — multi-node/remote management layer.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["proxmox"]
+name = "proxmox-pdm"
+url = "https://pdm.proxmox.com/docs/"
+releases_url = "https://www.proxmox.com/en/about/company-details/press-releases/proxmox-datacenter-manager-1-1"
+check_method = "manual"
+current_version = "1.1"
+version_constraint = "semver"
+last_checked = "2026-07-13"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "PDM docs (remotes.html, access-control.html: pdm realm, PAM/OIDC/LDAP/AD/2FA) plus press releases (1.0, 1.1) and the private infra runbook proxmox-datacenter-manager.md (auth model, cluster-vs-PDM decision, PBS/PDM version pairing, deployment steps)."
+
+# ----------------------------------------------------------------------------
+# Proxmox Backup Server (PBS) — no specific version documented in sources.md.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["proxmox"]
+name = "proxmox-pbs"
+url = "https://pbs.proxmox.com/docs/"
+releases_url = "https://www.proxmox.com/en/proxmox-backup-server"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "stable"
+last_checked = "2026-07-13"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "PBS docs: introduction/architecture, installation, storage/datastore, PVE integration, maintenance (prune vs. garbage collection), backup client encryption. All pages HTTP-200-verified and content spot-checked with curl 2026-07-13."
+
+# ----------------------------------------------------------------------------
+# bpg/terraform-provider-proxmox — the Terraform provider pinned by the
+# private infra repo's Terraform configs.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["proxmox"]
+name = "terraform-provider-proxmox"
+url = "https://github.com/bpg/terraform-provider-proxmox"
+releases_url = "https://registry.terraform.io/providers/bpg/proxmox/latest/docs"
+check_method = "github-releases"
+github_repo = "bpg/terraform-provider-proxmox"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-13"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Confirmed reachable (HTTP 200) 2026-07-13. Pinned by the private infra repo's ~/github/infra/terraform/proxmox/main.tf (two provider blocks, per-node proxmox_virtual_environment_vm.k3s_node resources)."
+
+# ----------------------------------------------------------------------------
+# Private infra repo + session-proven knowledge — no external upstream to
+# version-track; first-party scripts/runbooks and live-operation findings.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["proxmox"]
+name = "internal-infra-repo"
+check_method = "none"
+last_checked = "2026-07-13"
+notes = "First-party, no external upstream: private infra repo Nushell scripts (proxmox.nu API-token wrapper, golden-image.nu pure-API pipeline, proxmox-template.nu legacy netboot builder), provisioning scripts (install-base.sh, generalize.sh — existence verified via find, not fully read), and session-proven operational knowledge from live operation against two production nodes (2026-07-09, recorded in bees issue claude-skills-112). Also covers the node-served-docs pattern cited in SKILL.md (https://<node>:8006/pve-docs/... — a pattern, not a fetchable URL, since no live node was reachable during authoring) and the canonical Ubuntu cloud image (cloud-images.ubuntu.com, HTTP 200 confirmed 2026-07-13) that golden-image.nu downloads. A prior source list's four guessed press-release URLs and one guessed PDM product-page URL all returned HTTP 404 (checked 2026-07-13) and are documented in sources.md as corrected, not cited here."

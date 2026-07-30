@@ -2,6 +2,8 @@
 
 Source attribution for skills in the beads plugin.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 ## Beads Skill
 
 ### Beads Documentation
