@@ -1,0 +1,163 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "agent-sandboxing"
+reviewed_at_plugin_version = "0.2.3"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# kubernetes-sigs/agent-sandbox — the upstream CRD project (Sandbox,
+# SandboxTemplate, SandboxClaim, SandboxWarmPool) that k8s-agent-sandbox,
+# kata-on-kind, kata-on-gke, kina-microvm, and claude-code-on-sandbox all
+# build on.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["k8s-agent-sandbox", "kata-on-kind", "kata-on-gke", "kina-microvm", "claude-code-on-sandbox"]
+name = "kubernetes-sigs/agent-sandbox"
+url = "https://github.com/kubernetes-sigs/agent-sandbox"
+releases_url = "https://github.com/kubernetes-sigs/agent-sandbox/releases"
+check_method = "github-releases"
+github_repo = "kubernetes-sigs/agent-sandbox"
+current_version = "v0.4.6"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "sources.md pins v0.4.6 (Date accessed 2026-05-23): CRD shapes, install manifest URLs, SandboxTemplateSpec.networkPolicy semantics, the examples/kata-gke-sandbox/ recipe. Live GitHub API check 2026-07-30 shows tag_name v0.5.4 published 2026-07-30 — real drift, skill content not yet re-verified against it; current_version stays pinned to the sources.md-verified value per the no-silent-advance rule."
+
+# ----------------------------------------------------------------------------
+# Google Cloud — GKE Agent Sandbox docs. Five pages under docs.cloud.google.com
+# with no independent release/version feed; content updates alongside the GKE
+# product.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["k8s-agent-sandbox", "kata-on-gke"]
+name = "gke-agent-sandbox-docs"
+url = "https://docs.cloud.google.com/kubernetes-engine/docs/concepts/machine-learning/agent-sandbox"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-05-23"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date accessed 2026-05-23; not re-verified live in this pass. Five pages cited: concepts/machine-learning/agent-sandbox, how-to/how-install-agent-sandbox, how-to/agent-sandbox, reference/crds/agentsandbox, how-to/sandbox-pods. Extracted: managed GKE Agent Sandbox supports gVisor only (Kata is community-supported via the upstream kata-gke-sandbox example), GKE version 1.35.2-gke.1269000 minimum, --enable-agent-sandbox flag, roles/serviceusage.serviceUsageAdmin, Artifact Registry + GKE API enablement."
+
+# ----------------------------------------------------------------------------
+# Kata Containers — kata-deploy, RuntimeClass names, node-label gating. No
+# specific release was pinned in sources.md; content is docs/behavior, not
+# tied to one tag.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["kata-on-kind", "kata-on-gke"]
+name = "kata-containers"
+url = "https://github.com/kata-containers/kata-containers"
+releases_url = "https://github.com/kata-containers/kata-containers/releases"
+check_method = "github-releases"
+github_repo = "kata-containers/kata-containers"
+current_version = "unknown"
+version_constraint = "stable"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md (Date accessed 2026-05-23) never pinned a specific Kata release — extracted content is kata-deploy DaemonSet behavior, RuntimeClass names (kata-qemu, kata-clh, kata-fc), node-label gating (katacontainers.io/kata-runtime=true), nested-virtualization requirement, none of which is tag-specific. Also cites docs/install/README.md, docs/how-to/how-to-use-k8s-with-containerd-and-kata.md, and tools/packaging/kata-deploy/ from the same repo — not tracked as separate sources. Live GitHub API check 2026-07-30 shows tag_name 4.0.0 published 2026-07-20; current_version stays 'unknown' since no prior pin exists to compare against."
+
+# ----------------------------------------------------------------------------
+# agent-substrate/substrate — alpha-stage CRDs (WorkerPool, ActorTemplate)
+# behind the agent-substrate-overview skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["agent-substrate-overview"]
+name = "agent-substrate"
+url = "https://github.com/agent-substrate/substrate"
+releases_url = "https://github.com/agent-substrate/substrate/releases"
+check_method = "github-releases"
+github_repo = "agent-substrate/substrate"
+current_version = "v0.0.0"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "sources.md pins v0.0.0 (2026-05-19) — alpha, maturity caveat 'VERY early development'. Extracted: component list (ateapi, atelet, atecontroller, atenet, kubectl-ate), WorkerPool + ActorTemplate CRDs, kind + GKE install recipes, demos/claude-code-multiplex/. Live GitHub API check 2026-07-30 confirms tag_name v0.0.0 published 2026-05-19 is still the latest release — no drift."
+
+# ----------------------------------------------------------------------------
+# Claude Code devcontainer docs — env vars, headless mode, permission flags,
+# firewall pattern used by claude-code-on-sandbox.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-code-on-sandbox"]
+name = "claude-code-devcontainer-docs"
+url = "https://code.claude.com/docs/en/devcontainer"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-05-23"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date accessed 2026-05-23; not re-verified live in this pass. Extracted: ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN env vars, ~/.claude named volume + CLAUDE_CONFIG_DIR, --print --output-format json headless mode, --dangerously-skip-permissions non-root requirement, init-firewall.sh egress allowlist pattern."
+
+# ----------------------------------------------------------------------------
+# kina — vinnie357/kina, the Rust CLI wrapping Apple Container into a
+# kind-style microVM cluster. Sources.md documents an Apple-Container version
+# it tracks ("0.5.0+"), not a kina release itself.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["kina-microvm"]
+name = "kina"
+url = "https://github.com/vinnie357/kina"
+releases_url = "https://github.com/vinnie357/kina/releases"
+check_method = "github-releases"
+github_repo = "vinnie357/kina"
+current_version = "unknown"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "sources.md (Date accessed 2026-06-10) describes kina as 'in active development; tracks Apple Container 0.5.0+' — no kina-specific version was pinned, so current_version stays 'unknown' rather than guessed. Extracted: Rust CLI commands (kina create|delete|list|status), cluster-as-microVM model (no per-pod runtimeClassName), mise tasks shape, dependency on Apple Container runtime. sources.md separately flags that the LATEST Apple Container release is 1.0.0 (major, breaking CLI changes) against kina's documented 0.5.0+ floor — that drift caveat is already carried in the kina-microvm skill body. Live GitHub API check 2026-07-30 confirms vinnie357/kina is public with tag_name v0.2.0 published 2026-07-10 as its latest kina release; skill content not verified against that tag specifically."
+
+# ----------------------------------------------------------------------------
+# Anthropic devcontainer reference image — the .devcontainer example directory
+# in anthropics/claude-code, used as the Dockerfile/firewall-pattern source
+# for claude-code-on-sandbox and templates/Dockerfile.claude-code.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-code-on-sandbox"]
+name = "claude-code-devcontainer-reference"
+url = "https://github.com/anthropics/claude-code/tree/main/.devcontainer"
+check_method = "manual"
+github_repo = "anthropics/claude-code"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date accessed 2026-05-23 for the extracted content (Dockerfile structure, non-root user pattern UID 1000, ~/.claude named volume, init-firewall.sh NET_ADMIN/NET_RAW egress allowlist); this plugin's own templates/Dockerfile.claude-code is mise-driven rather than copying Anthropic's npm-driven setup, per feedback-mise-first + feedback-mise-registry-short-names. check_method is 'manual' rather than github-releases because the cited content is a specific example directory, not something versioned by CLI release tags. Live GitHub API check 2026-07-30 confirms anthropics/claude-code still resolves (full_name unchanged) — repo-reachability verified only, directory contents not re-diffed."
+
+# ----------------------------------------------------------------------------
+# Google Cloud blog — GKE Agent Sandbox GA announcement and Sandbox-vs-
+# Substrate positioning. Static blog post, no version to track.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["k8s-agent-sandbox", "agent-substrate-overview"]
+name = "gcp-agent-sandbox-substrate-blog"
+url = "https://cloud.google.com/blog/products/containers-kubernetes/bringing-you-agent-sandbox-on-gke-and-agent-substrate"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-05-23"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md dates this post 2026-05-20, Date accessed 2026-05-23; not re-verified live in this pass. Extracted: GKE Agent Sandbox GA announcement, positioning of Substrate vs Sandbox ('ultra-scale control plane' vs 'k8s-native GA tier'), the fact that they share runtime/snapshot primitives."
+
+# ----------------------------------------------------------------------------
+# sandbox — the plugin's index/router skill. Per plugin.json: "Index skill
+# (sandbox) routes to substrate-specific paths." It has no external upstream
+# of its own; it dispatches to the other six skills, each already tracked
+# above.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["sandbox"]
+name = "sandbox-index-skill"
+check_method = "none"
+last_checked = "2026-07-30"
+notes = "First-party routing/index skill — it has no external upstream to check. It dispatches to substrate-specific skills (k8s-agent-sandbox, kata-on-kind, kata-on-gke, kina-microvm, claude-code-on-sandbox, agent-substrate-overview), each of which carries its own sources.toml entry above."

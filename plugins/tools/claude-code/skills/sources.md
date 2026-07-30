@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the claude-code plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `agent-skills-concept`, `example-skills-repository`, `skill-creator-guide`, `skills-cookbook`, `agent-skills-specification`, `agent-skills-overview`, `agent-skills-best-practices` (the Agent Skills Documentation section below), `claude-code-plugins-docs`, `claude-code-commands-docs`, `claude-code-agents-docs`, `claude-code-hooks-docs`, `claude-code-output-styles-docs` (the Claude Code Plugin Development section below), `claude-code-plugin-marketplaces-docs` (the Plugin Marketplace Skill section below), `agent-teams-docs`, `subagents-docs`, `agent-sdk-docs`, `agent-sdk-subagents-docs`, `building-c-compiler-blog`, `addyosmani-agent-teams-blog`, `tasks-to-swarms-blog`, `agent-teams-switch-flipped-blog` (the Claude Teams Skill section below), `claude-code-statusline-docs`, `ccstatusline` (the Claude Statusline Skill section below), `claude-code-workflows-docs`, `dynamic-workflows-blog`, `claude-code-workflow-tool-contract` (the Claude Workflows Skill section below), `skills-building-guide-pdf`, `improving-skill-creator-blog` (the Skill Building Guide (PDF) section below), `github-rest-api-releases`, `hexpm-api`, `cratesio-api`, `toml-spec` (the Skill Update Skill section below), `context-engineering-claude-5-blog`, `claude-code-changelog` (the Context Engineering for Claude 5 Models section below).
+
 ## Agent Skills Documentation
 
 ### Agent Skills Concept
@@ -389,26 +391,6 @@ Create a modular Claude Code plugin marketplace that:
 - **claude-agents/templates/write-capable-agent.md**: added a `skills:` frontmatter field demonstrating skill preloading.
 - **claude-teams/references/subagents.md**: corrected background-execution framing — subagents default to background as of v2.1.198 (Claude runs foreground only when it needs the result before continuing), not foreground-by-default. Renamed `Task` references to `Agent` (Task tool renamed to Agent in v2.1.63; `Task` remains a deprecated alias).
 - **Task→Agent deprecation fixes (v2.1.63)**: Updated commands/benchmark-skills.md and commands/research-skill.md to reference Agent tool instead of Task tool. Updated claude-teams references/agent-sdk.md line 109 to document the Agent tool with parenthetical note that Task is a deprecated alias, and updated line 128 to reference Agent tool in the constraint about subagents. Audited via bee claude-skills-114. Source: https://code.claude.com/docs/en/sub-agents
-
-## Plugin Information
-
-- **Name**: claude-code
-- **Version**: 0.1.8
-- **Description**: Claude Code-specific skills for plugin marketplace management, validation, and component creation
-- **Skills**: 9 skills covering all aspects of Claude Code plugin development
-  - plugin-marketplace: Marketplace.json validation and management
-  - claude-plugins: Plugin.json validation and management
-  - claude-commands: Creating custom slash commands
-  - claude-agents: Creating specialized agents
-  - claude-skills: Creating Agent Skills (general guide)
-  - claude-hooks: Creating event-driven hooks
-- **Created**: 2025-11-15
-- **Key Capabilities**:
-  - Complete Claude Code plugin development guide
-  - Marketplace and plugin validation
-  - Schema compliance checking
-  - Automated template generation
-  - Nushell-based validation scripts
 
 ## Context Engineering for Claude 5 Models
 

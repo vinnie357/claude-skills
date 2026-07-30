@@ -1,0 +1,45 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "allium"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# juxt/allium — the behavioral-spec DSL itself (entity/rule/config/use
+# syntax). No GitHub Releases object exists (releases/latest 404s, confirmed
+# live 2026-07-30) but real version TAGS do (v3.8.0 latest as of that check).
+# SKILL.md documents "Spec Syntax (v3)" as an informal major-version label,
+# not a pinned patch version, so current_version stays "unknown" rather than
+# overclaiming precision.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["allium"]
+name = "juxt-allium"
+url = "https://github.com/juxt/allium"
+check_method = "manual"
+github_repo = "juxt/allium"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-04-17"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "DSL spec language (entity, rule, config, use, transitions, invariant, when/requires/ensures) — README + skill docs accessed 2026-04-17 per sources.md. SKILL.md documents 'Spec Syntax (v3)' as a major-version label, not a specific tag. Live check 2026-07-30: GET /repos/juxt/allium/releases/latest returns 404 (no formal GitHub Release published) but /repos/juxt/allium/tags lists real tags through v3.8.0 — a github-releases check_method would falsely report 'no releases' forever, so manual with github_repo retained for identity. Distinct from the allium-tools CLI entry below: this is the spec language/grammar, that is the binary distribution."
+
+# ----------------------------------------------------------------------------
+# juxt/allium-tools — the CLI binary (`allium-tools`) installed via mise.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["allium"]
+name = "allium-tools"
+url = "https://github.com/juxt/allium-tools"
+releases_url = "https://github.com/juxt/allium-tools/releases"
+check_method = "github-releases"
+github_repo = "juxt/allium-tools"
+current_version = "3.0.4"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Content pinned to 3.0.4 in references/installation.md (mise github backend), documented 2026-04-17 as 'available versions 3.0.0-3.0.4, pinned to 3.0.4 for supply-chain hygiene.' Live check 2026-07-30 (GET /repos/juxt/allium-tools/releases/latest) returns 200 with tag v3.5.0 — this repo DOES publish formal GitHub Releases (contra an earlier assumption that it had none; that 404 belongs to the juxt/allium entry above, not this one). Releases run through v3.5.0 and tags through v3.8.0 as of this check. current_version intentionally left at the content-verified 3.0.4 per migration discipline, not advanced to today's live value — drift recorded here for the next update pass."

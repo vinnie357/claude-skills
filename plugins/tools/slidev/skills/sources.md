@@ -2,6 +2,10 @@
 
 This file documents the sources used to create the slidev plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `slidev-syntax-guide`, `slidev-builtin-layouts`, `slidev-slot-sugar`, `slidev-block-frontmatter`, `slidev-draggable-elements` (Slidev Syntax section below); `slidev-code-blocks`, `slidev-code-line-numbers`, `slidev-code-max-height`, `slidev-code-groups`, `slidev-monaco-editor`, `slidev-import-snippets`, `slidev-latex`, `slidev-mermaid`, `slidev-plantuml` (Slidev Code Blocks section below); `slidev-exporting-guide`, `slidev-cli-reference` (Slidev Export section below); `pyramid-principle`, `kawasaki-10-20-30`, `assertion-evidence-design`, `duarte-resonate`, `presentation-zen`, `rule-of-three` (Presentation Strategy section below); `playwright-mcp-browser-tools`, `wcag-contrast-requirements`, `slidev-unocss-theming` (Brand Discovery and Styles section below); `vue3-composition-api`, `slidev-custom-components`, `slidev-iframe-layouts` (Interactive Demos section below).
+
+Two skills have no section of their own because they draw on sources cited elsewhere in this file. The `slidev` overview skill uses `slidev-syntax-guide` (frontmatter quick start) and `slidev-cli-reference` (the `npm init slidev@latest` / `npx slidev` commands). The `troubleshooting` skill uses `slidev-syntax-guide`, `slidev-code-groups`, `slidev-monaco-editor`, `slidev-exporting-guide`, and `slidev-cli-reference` — the export flags (`--timeout`, `--wait`, `--omit-background`), the `mdc: true` code-group requirement, and the Monaco-not-appearing case each trace back to those pages. `sources.toml` records both attributions in its `skills` arrays.
+
 ## Slidev Syntax
 
 ### Slidev Syntax Guide
@@ -181,13 +185,3 @@ This file documents the sources used to create the slidev plugin skills.
 - **Purpose**: Embedding external content in slides
 - **Date Accessed**: 2026-04-04
 - **Key Topics**: iframe, iframe-left, iframe-right layouts, URL property
-
-## Plugin Information
-
-- **Name**: slidev
-- **Version**: 0.2.0
-- **Description**: Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting
-- **Skills**: 8 (slidev, syntax, code, export, troubleshooting, presentations, styles, interactive)
-- **Agents**: 3 (content-strategist, brand-discoverer, slide-builder)
-- **Created**: 2026-02-21
-- **Updated**: 2026-04-04

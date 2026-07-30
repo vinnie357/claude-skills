@@ -1,0 +1,24 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "altana"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# altana — first-party CLI this workspace builds and dogfoods (operator's
+# global CLAUDE.md: "it's our own product surface, like runex/vantageex").
+# The skill documents live protocol behavior (JSON contract, status codes,
+# config schema) read directly from the private repo's own source/docs, not
+# an external dependency with a release cadence to track. No version pin or
+# mise install section exists anywhere in this skill's content —
+# check_method = "none" is the honest representation, following the
+# internal-composition precedent set for the qa plugin (claude-skills-182).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["altana"]
+name = "altana"
+check_method = "none"
+last_checked = "2026-06-13"
+notes = "Private first-party repo (vinnie357/altana, per sources.md) documented by reading its own source and docs directly: subcommand shapes (delegate/council/harness/models/list/doctor), JSON result contract, status codes, response protocol (## Answer/## Evidence/## Confidence + ALTANA DONE sentinel), config discovery order, harness TOML schema, op:// secret resolution, model picker behavior — all accessed 2026-06-13 per sources.md. Also read docs/usage.md and harnesses.example.toml from the local altana checkout, same date. No version number, release tag, or mise install instruction appears anywhere in SKILL.md or references/ — unlike runex (which documents 'Current documented version: 0.0.7' and a mise pin), altana's skill content tracks CLI protocol behavior of a tool this same team ships, not a pinned dependency version. The operator's CLAUDE.md explicitly frames altana as workspace-owned product surface, exempting it from external-dependency version tracking."

@@ -1,0 +1,450 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "claude-code"
+reviewed_at_plugin_version = "0.2.23"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# "Agent Skills Documentation" section of sources.md — seven distinct
+# upstreams, all attributed to skills/claude-skills/SKILL.md. Each is a
+# separate URL (not the same source repeated), so each gets its own entry
+# per the "don't duplicate one upstream" rule read the other way: these are
+# genuinely different sources that happen to share one skills=["claude-skills"]
+# list, not one source split across many entries.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-skills"]
+name = "agent-skills-concept"
+url = "https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-11-15. Purpose: understanding what Claude skills are, how they work, and best practices for creating them."
+
+[[sources]]
+skills = ["claude-skills"]
+name = "example-skills-repository"
+url = "https://github.com/anthropics/skills/tree/main"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed in sources.md for this entry. Live GitHub API check 2026-07-30 confirms anthropics/skills still resolves (full_name unchanged, id 1061953414, no redirect/rename); the repo has no releases (404 on /releases/latest) so check_method stays manual — this is a reachability check, not a re-diff of the example catalog."
+
+[[sources]]
+skills = ["claude-skills"]
+name = "skill-creator-guide"
+url = "https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed in sources.md. Same repo as example-skills-repository (confirmed reachable 2026-07-30), but this entry cites one specific file path not independently re-fetched, so last_checked is honestly 'unknown' rather than borrowed from the sibling entry."
+
+[[sources]]
+skills = ["claude-skills"]
+name = "skills-cookbook"
+url = "https://github.com/anthropics/claude-cookbooks/tree/main/skills"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed in sources.md. Live GitHub API check 2026-07-30 confirms anthropics/claude-cookbooks still resolves (full_name unchanged, id 678973052); no releases feed (404) so check_method stays manual."
+
+[[sources]]
+skills = ["claude-skills"]
+name = "agent-skills-specification"
+url = "https://github.com/anthropics/skills/blob/main/agent_skills_spec.md"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-11-15. Official specification for the Agent Skills format and structure; same repo as example-skills-repository (confirmed reachable 2026-07-30)."
+
+[[sources]]
+skills = ["claude-skills"]
+name = "agent-skills-overview"
+url = "https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-01-23"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-01-23. Key finding recorded: description field must contain a 'Use when [trigger conditions]' pattern since it is the only metadata Claude sees during skill discovery."
+
+[[sources]]
+skills = ["claude-skills"]
+name = "agent-skills-best-practices"
+url = "https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-01-23"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-01-23. Also cited in sources.md as a source for scripts/validate-plugin.nu (description max 1024 chars, name max 64 chars, third-person constraints) — that script is marketplace-wide, not a skill directory, so it is not modeled as a separate skills entry here."
+
+# ----------------------------------------------------------------------------
+# "Claude Code Plugin Development" section of sources.md.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-plugins"]
+name = "claude-code-plugins-docs"
+url = "https://code.claude.com/docs/en/plugins"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-11-15. Plugin architecture, commands/agents/skills/hooks structure, plugin.json format, installation and distribution."
+
+[[sources]]
+skills = ["claude-commands"]
+name = "claude-code-commands-docs"
+url = "https://code.claude.com/docs/en/commands"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-11-15. Command file structure, argument handling, command workflows."
+
+[[sources]]
+skills = ["claude-agents"]
+name = "claude-code-agents-docs"
+url = "https://code.claude.com/docs/en/agents"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-11-15. Agent configuration, tool restrictions, model selection, task delegation. Priority raised to medium: the Update History entries (2026-07-15) record two real frontmatter/tool-naming refreshes to claude-agents already, driven by subagents-docs below rather than this page directly, so this doc plausibly has unreviewed drift too."
+
+[[sources]]
+skills = ["claude-hooks"]
+name = "claude-code-hooks-docs"
+url = "https://code.claude.com/docs/en/hooks"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-11-15. Hook types and configuration, tool call hooks, lifecycle hooks, variable substitution."
+
+[[sources]]
+skills = ["claude-output-styles", "claude-plugins"]
+name = "claude-code-output-styles-docs"
+url = "https://code.claude.com/docs/en/output-styles"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-17"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-17. Used In both skills/claude-output-styles/SKILL.md and skills/claude-plugins/SKILL.md per sources.md. Newer Claude Code feature area (session-start scoping, subagent inheritance caveats) judged more likely to drift than the older plugin/commands docs above."
+
+# ----------------------------------------------------------------------------
+# "Plugin Marketplace Skill" section of sources.md. The two sources.md
+# headings here ("Plugin Marketplace Schema" and "Advanced Plugin Entry
+# Features") are the same doc page — the second is the #advanced-plugin-
+# entries anchor on the first's URL — so they are merged into one entry
+# rather than duplicated per the "don't split one upstream" rule.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["plugin-marketplace"]
+name = "claude-code-plugin-marketplaces-docs"
+url = "https://code.claude.com/docs/en/plugin-marketplaces"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2025-11-15 for both the base 'Claude Code Plugin Marketplace Schema' entry and the 'Advanced Plugin Entry Features' entry, which cites the #advanced-plugin-entries anchor on this exact same URL — merged into one sources.toml row rather than duplicated."
+
+# ----------------------------------------------------------------------------
+# "Claude Teams Skill" section of sources.md — eight distinct upstreams.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-teams"]
+name = "agent-teams-docs"
+url = "https://code.claude.com/docs/en/agent-teams"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Documents the experimental Agent Teams feature (team lead/teammate architecture, shared task list, display modes) — sources.md itself calls this 'experimental', hence medium priority."
+
+[[sources]]
+skills = ["claude-teams", "claude-agents"]
+name = "subagents-docs"
+url = "https://code.claude.com/docs/en/sub-agents"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-15"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21 for the original claude-teams/references/subagents.md citation; the Update History entry for 2026-07-15 records this same URL re-fetched to drive the claude-agents frontmatter refresh (background-default correction, Task-to-Agent tool rename) — last_checked uses the more recent 2026-07-15 verification. Covers both claude-teams and claude-agents per that update-history cross-use."
+
+[[sources]]
+skills = ["claude-teams"]
+name = "agent-sdk-docs"
+url = "https://platform.claude.com/docs/en/agent-sdk/overview"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Programmatic multi-agent orchestration (AgentDefinition, session management, dynamic agent configuration)."
+
+[[sources]]
+skills = ["claude-teams"]
+name = "agent-sdk-subagents-docs"
+url = "https://platform.claude.com/docs/en/agent-sdk/subagents"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. SDK-specific subagent configuration and invocation."
+
+[[sources]]
+skills = ["claude-teams"]
+name = "building-c-compiler-blog"
+url = "https://www.anthropic.com/engineering/building-c-compiler"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Static blog post (case study of 16 parallel Claude Code agents); low priority — published content does not change."
+
+[[sources]]
+skills = ["claude-teams"]
+name = "addyosmani-agent-teams-blog"
+url = "https://addyosmani.com/blog/claude-code-agent-teams/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Third-party community analysis, static blog post."
+
+[[sources]]
+skills = ["claude-teams"]
+name = "tasks-to-swarms-blog"
+url = "https://alexop.dev/posts/from-tasks-to-swarms-agent-teams-in-claude-code/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Third-party community analysis, static blog post."
+
+[[sources]]
+skills = ["claude-teams"]
+name = "agent-teams-switch-flipped-blog"
+url = "https://paddo.dev/blog/agent-teams-the-switch-got-flipped/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Third-party discovery/analysis of TeammateTool internals, static blog post."
+
+# ----------------------------------------------------------------------------
+# "Claude Statusline Skill" section of sources.md.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-statusline"]
+name = "claude-code-statusline-docs"
+url = "https://code.claude.com/docs/en/statusline"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-18"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-18. statusLine settings block, stdin JSON schema, update cadence, caching guidance."
+
+[[sources]]
+skills = ["claude-statusline"]
+name = "ccstatusline"
+url = "https://github.com/sirmalloc/ccstatusline"
+check_method = "github-releases"
+github_repo = "sirmalloc/ccstatusline"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-06-26; the skill documents 'npx -y ccstatusline@latest' (always-latest), so no specific version is pinned as verified-against — current_version stays 'unknown' rather than guessed. Live GitHub API check 2026-07-30: full_name unchanged (sirmalloc/ccstatusline, id 1034425196), latest release tag_name v2.2.27 published 2026-07-25T22:51:51Z — genuine semver releases exist, unlike the anthropics/skills and anthropics/claude-cookbooks example repos above, so github-releases is used here instead of manual."
+
+# ----------------------------------------------------------------------------
+# "Claude Workflows Skill" section of sources.md.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-workflows"]
+name = "claude-code-workflows-docs"
+url = "https://code.claude.com/docs/en/workflows"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-05-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-05-30. Trigger paths, TUI keybindings, concurrency caps, availability and disabling."
+
+[[sources]]
+skills = ["claude-workflows"]
+name = "dynamic-workflows-blog"
+url = "https://claude.com/blog/introducing-dynamic-workflows-in-claude-code"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-05-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-05-30. Static blog post motivating the dynamic-workflows feature."
+
+[[sources]]
+skills = ["claude-workflows"]
+name = "claude-code-workflow-tool-contract"
+check_method = "none"
+last_checked = "2026-05-30"
+notes = "sources.md records this source's URL literally as '(internal tool definition surfaced in the Claude Code session)' — the authoritative script API (meta block; agent()/pipeline()/parallel()/phase()/log()/workflow() hooks; args/budget globals; schema, isolation, model overrides, resume) has no stable fetchable URL. sources.md states the public docs page (claude-code-workflows-docs, tracked above) is 'deliberately light on these internals'. Date noted in sources.md: 2026-05-30. No url/version fields per check_method=none."
+
+# ----------------------------------------------------------------------------
+# "Skill Building Guide (PDF)" section of sources.md.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-skills", "claude-skills-benchmark"]
+name = "skills-building-guide-pdf"
+url = "https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-07"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-03-07. Skill categories (Capability Uplift vs Encoded Preference), Degree of Freedom framework, context window discipline, validation loop pattern."
+
+[[sources]]
+skills = ["claude-skills", "claude-skills-benchmark"]
+name = "improving-skill-creator-blog"
+url = "https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-07"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-03-07. Evaluation-driven development methodology: Test → Measure → Analyze → Refine → Verify."
+
+# ----------------------------------------------------------------------------
+# "Skill Update Skill" section of sources.md. No explicit per-entry 'Used In'
+# line in sources.md — the whole section is titled 'Skill Update Skill', so
+# skill-update is inferred directly from the section heading rather than a
+# 'Used In' bullet.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["skill-update"]
+name = "github-rest-api-releases"
+url = "https://docs.github.com/en/rest/releases/releases"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-25"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-03-25. API reference for querying GitHub repository releases programmatically — describes the github-releases check_method, does not itself get version-pinned."
+
+[[sources]]
+skills = ["skill-update"]
+name = "hexpm-api"
+url = "https://github.com/hexpm/hexpm/blob/main/guides/API.md"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-25"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-03-25. API reference for querying Hex package versions — describes the hex-pm check_method."
+
+[[sources]]
+skills = ["skill-update"]
+name = "cratesio-api"
+url = "https://crates.io/policies"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-25"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-03-25. API reference for querying Rust crate versions — describes the crates-io check_method."
+
+[[sources]]
+skills = ["skill-update"]
+name = "toml-spec"
+url = "https://toml.io/en/v1.0.0"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-25"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-03-25. TOML format specification underlying the sources.toml schema itself (array of tables, inline tables, key-value pairs)."
+
+# ----------------------------------------------------------------------------
+# "Context Engineering for Claude 5 Models" section of sources.md.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-skills"]
+name = "context-engineering-claude-5-blog"
+url = "https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-25"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-07-25. Basis for skills/claude-skills/references/context-engineering-claude-5.md — judgment-over-rules, tool-design-over-examples, progressive disclosure, single statements, code/schema over prose. Static blog post; low priority."
+
+[[sources]]
+skills = ["claude-skills"]
+name = "claude-code-changelog"
+url = "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-07-25. Live GitHub API check 2026-07-30 confirms anthropics/claude-code still resolves (full_name unchanged, id 937253475) — reachability only, the CHANGELOG content itself was not re-diffed. Medium priority: a CHANGELOG is a continuously-appended rolling file, more likely to have unreviewed new entries than a frozen blog post. sources.md notes that third-party claims about /checkup finding unused skills or duplicate CLAUDE.md content were NOT found in the primary changelog and were excluded."

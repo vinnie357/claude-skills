@@ -268,13 +268,6 @@
       "detail_count": null
     },
     {
-      "key": "github/community-health:source",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "qa/qa:ref_depth",
       "class": "DEBT",
       "issue": "claude-skills-145",

@@ -2,6 +2,8 @@
 
 This document tracks the sources used to develop skills in the whamm plugin.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `whamm` (the whamm Tool Skill section below), `whamm-docs-book` (the mdBook site cited across both the whamm Tool Skill and whamm-dsl Skill sections below).
+
 ## whamm Tool Skill
 
 - **URL:** https://github.com/ejrgilbert/whamm
@@ -45,10 +47,3 @@ This document tracks the sources used to develop skills in the whamm plugin.
   - **Purpose:** Detailed syntax documentation pages
   - **Date Accessed:** 2026-06-18
   - **Key Topics:** Syntax reference, grammar, code examples
-
-## Plugin Information
-
-- **Name:** whamm
-- **Version:** 0.1.0
-- **Skills:** 2 (whamm, whamm-dsl)
-- **Created:** 2026-06-18

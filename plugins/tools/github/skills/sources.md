@@ -2,6 +2,8 @@
 
 This file documents all sources used to create the skills in this plugin.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `actions-primary-docs`, `actions-toolkit`, `action-metadata`, `marketplace-publishing` (GitHub Actions section below); `workflows-primary-docs`, `workflow-syntax`, `contexts`, `expressions`, `events` (GitHub Workflows section below); `nektos-act` (the five act subsections below, collapsed to one upstream); `github-cli`, `docker`, `mise-tool`, `nushell-tool` (Additional References section below); `dependabot-docs` (Dependabot Consolidation section below); `gh-pr-review-recipe` (PR Review section below); `community-health-setup`, `repo-settings-features`, `contributor-covenant`, `security-policy` (Community Health Files section below).
+
 ## GitHub Actions
 
 ### Primary Documentation

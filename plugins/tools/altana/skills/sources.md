@@ -1,5 +1,7 @@
 # Sources
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `altana` (the altana section below).
+
 ## altana
 
 - **Repo:** https://github.com/vinnie357/altana (private)

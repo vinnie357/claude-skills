@@ -1,6 +1,6 @@
 {
   "name": "allium",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Opinionated Allium integration for /core:agent-loop: attach behavioral specs to epics, propagate TDD tests, weed-check semantic divergence post-CI.",
   "author": {
     "name": "vinnie357"
