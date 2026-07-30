@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the core plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model` (Agent Loop Skill).
+
 ## Git Skill
 
 ### Git Documentation
@@ -288,11 +290,3 @@ This file documents the sources used to create the core plugin skills.
 
 ### mise Sandboxing
 - https://mise.jdx.dev/sandboxing.html — mise sandboxing (experimental). Extracted: allow/deny flags, task-level config, Landlock/Seatbelt platform support, limitations. Accessed 2026-05-22.
-
-## Plugin Information
-
-- **Name**: core
-- **Version**: 0.1.19
-- **Description**: Essential development skills: Git, documentation, code review, security
-- **Skills**: 12 skills covering fundamental development tools and best practices
-- **Created**: 2025-11-15

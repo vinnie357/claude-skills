@@ -1,0 +1,304 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "core"
+reviewed_at_plugin_version = "0.2.34"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Git Documentation — official docs, no version pinned by the skill content.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["git"]
+name = "git-scm-docs"
+url = "https://git-scm.com/doc"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Official Git documentation and best practices (git operations, branching, rebasing, conflict resolution). Docs-based reference; no version the skill content is verified against."
+
+# ----------------------------------------------------------------------------
+# Conventional Commits — commit message specification.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["git"]
+name = "conventional-commits"
+url = "https://www.conventionalcommits.org/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "stable"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Commit message convention (types, scopes, breaking changes). sources.md records no Date Accessed for this bullet, so last_checked is unknown rather than guessed."
+
+# ----------------------------------------------------------------------------
+# mise — tool version manager and task runner. CalVer releases via GitHub.
+# current_version is the version the skill content was verified against per
+# sources.md ("Version v2026.3.15 (current)", accessed 2026-03-25), not
+# today's live value (see notes).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["mise"]
+name = "mise"
+url = "https://mise.jdx.dev/"
+releases_url = "https://github.com/jdx/mise/releases"
+check_method = "github-releases"
+github_repo = "jdx/mise"
+current_version = "v2026.3.15"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "mise uses CalVer, not semver — 'rolling' fits better than the other enum values. github_repo confirmed via GitHub API 2026-07-30; live latest release is v2026.7.17, well past the pinned v2026.3.15 — skill content not yet re-verified against it. sources.md also cites https://mise.jdx.dev/sandboxing.html (mise sandboxing: allow/deny flags, task-level config, Landlock/Seatbelt support, accessed 2026-05-22) as the same upstream project's documentation, not tracked as a separate source; that bullet sits in sources.md nested under the 'Agent Loop — Forge Operating Model' heading, which looks like a heading-placement slip since its content is entirely about mise, not agent-loop."
+
+# ----------------------------------------------------------------------------
+# Nushell — structured-data shell. Pre-1.0, breaking changes possible between
+# minor releases (the skill's own body states this explicitly).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["nushell"]
+name = "nushell"
+url = "https://www.nushell.sh/book/"
+releases_url = "https://github.com/nushell/nushell/releases"
+check_method = "github-releases"
+github_repo = "nushell/nushell"
+current_version = "0.113.1"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "Verified against 0.113.1 per sources.md (accessed 2026-03-25) and the skill body's own 'Current stable: 0.113.1' line. github_repo confirmed via GitHub API 2026-07-30; live latest release is 0.114.1 — skill content not yet re-verified against it."
+
+# ----------------------------------------------------------------------------
+# Google Technical Writing — documentation-skill reference.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["documentation"]
+name = "google-tech-writing"
+url = "https://developers.google.com/tech-writing"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Guide for clear technical documentation (README, API docs, guides, inline docs). sources.md records no Date Accessed for this entry."
+
+# ----------------------------------------------------------------------------
+# Google Engineering Practices — code-review-skill reference.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["code-review"]
+name = "google-eng-practices-review"
+url = "https://google.github.io/eng-practices/review/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Best practices for conducting code reviews (correctness, security, performance, maintainability). sources.md records no Date Accessed for this entry."
+
+# ----------------------------------------------------------------------------
+# Anti-fabrication — first-party doctrine, no external upstream.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["anti-fabrication"]
+name = "anti-fabrication-internal"
+check_method = "none"
+last_checked = "2025-11-15"
+notes = "First-party doctrine authored in this repo (sources.md: 'Internal Development', Created 2025-11-15) to ensure factual accuracy via tool-verified claims — evidence-based outputs, explicit uncertainty markers, no superlatives or unsubstantiated metrics. No external upstream to track; last_checked reuses the recorded creation date since no later review date is on file."
+
+# ----------------------------------------------------------------------------
+# 12-Factor App — twelve-factor-skill methodology reference.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["twelve-factor"]
+name = "twelve-factor-net"
+url = "https://12factor.net/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Foundation for cloud-native application design (12 core factors plus modern extensions: API First, Telemetry, Security). Rolling doc source, not a discretely versioned release."
+
+# ----------------------------------------------------------------------------
+# Gitleaks — secret-scanning CLI used by the security skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["security"]
+name = "gitleaks"
+url = "https://github.com/gitleaks/gitleaks"
+releases_url = "https://github.com/gitleaks/gitleaks/releases"
+check_method = "github-releases"
+github_repo = "gitleaks/gitleaks"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md pins no verified version for gitleaks (Date Accessed 2026-01-24); github_repo confirmed via GitHub API 2026-07-30, live latest release v8.30.1. Also cites the official Docker image (hub.docker.com/r/zricethezav/gitleaks) as the same project's container distribution, not tracked separately. FINDING: sources.md's Security Skill section also carries an 'Apple Container CLI (macOS 26+)' bullet ('Native container support for macOS') that duplicates content already covered in full by the dedicated Container Skill section later in the file — looks like stray/copy-paste drift rather than a real security-skill dependency; not represented as a security source here, and coverage for the container skill is carried entirely by the apple-container entry below."
+
+# ----------------------------------------------------------------------------
+# Bees — SQLite-backed issue tracker CLI.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["bees"]
+name = "bees"
+url = "https://github.com/ctxshift/bees"
+releases_url = "https://github.com/ctxshift/bees/releases"
+check_method = "github-releases"
+github_repo = "ctxshift/bees"
+current_version = "0.4.0"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "current_version taken directly from the skill body's own 'bees 0.4.0 has 19 top-level commands' line (references/commands.md context), and confirmed via GitHub API 2026-07-30 — latest release tag is v0.4.0, an exact match, no drift. PR #151 ('correct twelve documented behaviours against bees 0.4.0') shows this pre-1.0 tool has recently required doc corrections against its own pinned version, hence breaking_changes_likely = true."
+
+# ----------------------------------------------------------------------------
+# Apple Container — macOS-native Linux-container runtime.
+# current_version is the version the skill content was verified against
+# (1.0.0, per sources.md's dated release-by-release history), not today's
+# live value (see notes).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["container"]
+name = "apple-container"
+url = "https://github.com/apple/container"
+releases_url = "https://github.com/apple/container/releases"
+check_method = "github-releases"
+github_repo = "apple/container"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "sources.md documents a dated release history from 0.10.0 through 1.0.0 (last dated entry 2026-06-10), including two BREAKING releases (0.12.0: reduced default capability set; 1.0.0: TOML config replaces system properties, structured-output shape changes, v0 XPC API removal). Also cites the command-reference, container-machine, and system-config-tutorial docs pages as the same upstream project's documentation, not tracked separately. github_repo confirmed via GitHub API 2026-07-30; live latest release is 1.2.0 — skill content not yet re-verified against it."
+
+# ----------------------------------------------------------------------------
+# ponytail — source for the restraint skill's least-power ladder and
+# ceiling-comment convention. NOTE: contradicts the assumption in this task's
+# brief that restraint is a check_method=none case — references/attribution.md
+# names ponytail as a real, MIT-licensed external source, so it is NOT
+# internal doctrine and gets a real entry here, not a none entry.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["restraint"]
+name = "ponytail"
+url = "https://github.com/DietrichGebert/ponytail"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "MIT License, per skills/restraint/references/attribution.md: source for the least-power ladder, 'never lazy about' guardrails, and the ceiling-comment convention (restraint: derives from ponytail's ponytail:). The agent-loop phase-threading is this skill's own work, and benchmark numbers from ponytail are not reproduced or claimed — accessed 2026-06-27 per sources.md. github_repo identity confirmed via GitHub API 2026-07-30 (latest tag v4.8.4); the restraint skill distills timeless principles rather than tracking a specific ponytail release, hence current_version = unknown rather than a live-latest value."
+
+# ----------------------------------------------------------------------------
+# TDD Skill sources — six distinct works, not near-duplicates of one
+# upstream, so each gets its own entry.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["tdd"]
+name = "tdd-by-example"
+check_method = "none"
+last_checked = "unknown"
+notes = "Kent Beck, 'Test-Driven Development by Example', ISBN 978-0321146533 — canonical TDD methodology (test list, Fake It, Triangulation, Obvious Implementation). A print book has no checkable online upstream or version to track; check_method=none records that explicitly rather than inventing a URL. No access date is recorded in sources.md."
+
+[[sources]]
+skills = ["tdd"]
+name = "growing-object-oriented-software"
+check_method = "none"
+last_checked = "unknown"
+notes = "Steve Freeman & Nat Pryce, 'Growing Object-Oriented Software, Guided by Tests', ISBN 978-0321503626 — outside-in TDD, double-loop TDD, walking skeletons, ports and adapters. A print book has no checkable online upstream or version to track. No access date is recorded in sources.md."
+
+[[sources]]
+skills = ["tdd"]
+name = "three-laws-of-tdd"
+url = "https://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Robert C. Martin's concise formalization of Beck's TDD constraints into three strict laws. No access date recorded in sources.md."
+
+[[sources]]
+skills = ["tdd"]
+name = "software-craftsmanship-manifesto"
+url = "https://manifesto.softwarecraftsmanship.org/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "stable"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Professional framing for TDD as a craftsmanship discipline. No access date recorded in sources.md."
+
+[[sources]]
+skills = ["tdd"]
+name = "canon-tdd"
+url = "https://tidyfirst.substack.com/p/canon-tdd"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Kent Beck's 2023 restatement of canonical TDD, clarifying the five steps and their rationale. No access date recorded in sources.md."
+
+[[sources]]
+skills = ["tdd"]
+name = "tdd-fowler-bliki"
+url = "https://martinfowler.com/bliki/TestDrivenDevelopment.html"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Martin Fowler's accessible overview of TDD practice and its relationship to software design. No access date recorded in sources.md."
+
+# ----------------------------------------------------------------------------
+# Agent Loop Skill sources — three distinct provenance threads.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["agent-loop"]
+name = "allium"
+url = "https://github.com/juxt/allium"
+check_method = "manual"
+github_repo = "juxt/allium"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Source for optional spec-driven flows integrated into /core:agent-loop (team-leader, agent-worker, validator, epic-authoring edits), accessed 2026-04-17 per sources.md. Confirmed via GitHub API 2026-07-30 that the repo has NO published GitHub Releases (releases/latest returns an empty tag), so check_method=github-releases would silently never find a version — manual is the honest choice here, not an automation gap."
+
+[[sources]]
+skills = ["agent-loop"]
+name = "workflow-execution-substrate"
+url = "https://code.claude.com/docs/en/workflows"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-05-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Source for the optional Claude Code dynamic-workflows substrate documented in references/workflows-execution.md — five-tier pipeline as a script, stage-gate assertions, escalation ladder, loop-until-green, nested workflow() for teams-of-teams, worktree isolation. Also cites the companion announcement at https://claude.com/blog/introducing-dynamic-workflows-in-claude-code, not tracked as a separate source."
+
+[[sources]]
+skills = ["agent-loop"]
+name = "forge-operating-model"
+check_method = "none"
+last_checked = "2026-06-14"
+notes = "sources.md states this explicitly: 'internal doctrine (no external source) — operator-confirmed production learnings, 2026-06-14'. Source for the Forge operating model added to /core:agent-loop — the hands pattern, paired teams + implementor fan-out, the AGENT_LOOP_HANDS_MODEL / AGENT_LOOP_HANDS_VISION_MODEL capability-based selection, the /work command, and the forge-issue.workflow.js template. agent-loop's coverage does not depend on this entry (allium and workflow-execution-substrate above already cover the skill); it exists to record 'no upstream' as a stated claim for this specific provenance thread rather than a silent gap."

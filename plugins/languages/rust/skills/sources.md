@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the rust plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `official-rust-documentation`, `rust-book`, `rust-by-example`, `rust-std-library`, `async-book`, `api-guidelines`, `cargo-book`, `rust-lang/rust`, `tokio`, `serde` (the Rust Skill section below), `rust-unofficial-patterns`, `rust-unofficial-idioms`, `rust-clippy` (the Anti-Patterns Skill section below), `rust-cli`, `clap`, `anyhow`, `thiserror`, `indicatif`, `assert_cmd`, `predicates`, `ctrlc`, `exitcode`, `log`, `env_logger`, `clap-verbosity-flag`, `rust-cookbook` (the CLI Skill section below).
+
 ## Rust Skill
 
 ### Official Rust Documentation
@@ -130,12 +132,3 @@ This file documents the sources used to create the rust plugin skills.
 - **Purpose**: Ecosystem crate discovery for the `rust:rust` "Common Crates by Task" table — used to confirm which crate is canonical for a given task (error handling, CLI, HTTP, etc.), not copied as recipe content
 - **Date Accessed**: 2026-07-17
 - **Key Topics**: 24 chapters, ~380 recipes; only the error-handling (thiserror/anyhow) and CLI-adjacent entries were pulled into skill content — the remaining chapters (algorithms, compression, cryptography, database, science, WebAssembly, multimedia, raw networking, parser combinators) are out of scope for this update
-
-## Plugin Information
-
-- **Name**: rust
-- **Version**: 0.1.7
-- **Description**: Rust programming skills: ownership, borrowing, lifetimes, async, best practices, anti-patterns, and CLI apps
-- **Skills**: 8 skills
-- **Created**: 2025-11-15
-- **Updated**: 2026-07-17

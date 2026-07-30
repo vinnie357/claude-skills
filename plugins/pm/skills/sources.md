@@ -1,5 +1,7 @@
 # Sources
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `internal-composition-spec-harvest` and `internal-composition-prd` (the two Internal-sources sections below), `cucumber.io`, `agilealliance.org`, `spdx.org`, `owasp.org`, `getdx.com`, `productschool.com`, `addyosmani.com` (the External section below).
+
 ## spec-harvest skill
 
 Internal sources — this skill is composed of conventions from other skills in this marketplace.
@@ -28,13 +30,3 @@ Internal sources — this skill is composed of conventions from other skills and
 - **Production readiness checklist** — Supportability checklist items for Supportability & Monitoring section. Source: getdx.com production-readiness-checklist (accessed 2026-07-15).
 - **The Only PRD Template You Need** — PRD section set including Features Out and Go-No-Go criteria. Product School blog. URL: https://productschool.com/blog/product-strategy/product-template-requirements-document-prd (accessed 2026-07-15).
 - **How to write a good spec for AI agents** — PRD-vs-implementation-spec boundary and agent-specific acceptance criteria. Addy Osmani. URL: https://addyosmani.com/blog/good-spec/ (accessed 2026-07-15).
-
-## Plugin metadata
-
-- **Plugin**: pm
-- **Version**: 0.1.0
-- **Description**: Product management toolkit: harvest implementation-agnostic feature specs from prototypes with SDLC guardrails and author PRDs as implementation contracts
-- **Skills count**: 2 (spec-harvest, prd)
-- **Agents count**: 6 (pm-lead, pm-discovery, pm-separator, pm-sdlc-assessor, pm-spec-writer, pm-prd-author)
-- **Commands count**: 3 (harvest, assess, prd)
-- **Created**: 2026-07-15

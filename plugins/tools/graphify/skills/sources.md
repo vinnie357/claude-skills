@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the graphify plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `graphify` (the graphify PyPI/GitHub/CLI sections below), `core:mise` (the mise pipx backend section below).
+
 ## graphify Skill
 
 ### graphify on PyPI (primary)
@@ -44,11 +46,3 @@ This file documents the sources used to create the graphify plugin skills.
 - **Purpose**: Query-the-graph-instead-of-reading-files model, MCP server, benchmark figures
 - **Date Accessed**: 2026-06-08
 - **Key Topics**: query/path/explain/affected; token budget; MCP stdio server; `graphify claude install`
-
-## Plugin Information
-
-- **Name**: graphify
-- **Version**: 0.1.0
-- **Description**: Graphify knowledge-graph tool: build a queryable graph of a codebase and query it instead of reading raw files
-- **Skills**: 2 skills covering the graphify CLI (install, build, export, query) and using the graph to reduce agent token usage
-- **Created**: 2026-06-08

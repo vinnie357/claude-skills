@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the elixir plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 ## Anti-Patterns Skill
 
 ### Elixir Anti-Patterns Documentation
@@ -299,7 +301,6 @@ This file documents the sources used to create the elixir plugin skills.
 ## Plugin Information
 
 - **Name**: elixir
-- **Version**: 0.1.8
 - **Description**: Elixir development skills: Phoenix, OTP, Ports, Ecto, Style, testing, configuration, anti-patterns, and Tidewave MCP dev tools
 - **Skills**: 9 skills covering Elixir language, framework, and best practices
 - **Created**: 2025-11-15

@@ -1,0 +1,115 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "ansible"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Ansible core documentation (docs.ansible.com/ansible/latest/) — the shared
+# upstream for four of the five skills. sources.md pins no version the skill
+# content was verified against, so current_version stays "unknown"; the docs
+# site tracks "latest" and is not itself a pinned release.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["ansible", "ansible-inventory", "ansible-roles", "ansible-vault"]
+name = "ansible-core-docs"
+url = "https://docs.ansible.com/ansible/latest/"
+releases_url = "https://github.com/ansible/ansible/releases"
+check_method = "github-releases"
+github_repo = "ansible/ansible"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Covers docs.ansible.com/ansible/latest/{getting_started/index.html, playbook_guide/playbooks_intro.html, reference_appendices/general_precedence.html} for the ansible skill; {inventory_guide/index.html, inventory_guide/intro_dynamic_inventory.html} for ansible-inventory; {playbook_guide/playbooks_reuse_roles.html, playbook_guide/playbooks_templating.html} for ansible-roles; {vault_guide/index.html} for ansible-vault. All accessed 2026-05-06 per sources.md, no version pinned there. Live GitHub check 2026-07-30: latest ansible/ansible release tag v2.21.2 — not compared against a pinned baseline since none exists."
+
+# ----------------------------------------------------------------------------
+# Ansible Galaxy hub docs — separate hosted site from ansible-core docs,
+# covers ansible-galaxy CLI usage and requirements.yml for the roles skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["ansible-roles"]
+name = "ansible-galaxy-docs"
+url = "https://galaxy.ansible.com/docs/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-05-06"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Hosted hub documentation for installing roles/collections via ansible-galaxy CLI and requirements.yml; no versioned release artifact to track via API, hence check_method=manual. Date carried over from sources.md 'Accessed: 2026-05-06' — not re-checked live this pass."
+
+# ----------------------------------------------------------------------------
+# community.hashi_vault collection — separate Ansible collection (not ansible
+# core) providing the hashi_vault lookup plugin used by the vault skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["ansible-vault"]
+name = "community-hashi-vault"
+url = "https://docs.ansible.com/ansible/latest/collections/community/hashi_vault/hashi_vault_lookup.html"
+releases_url = "https://github.com/ansible-collections/community.hashi_vault/releases"
+check_method = "github-releases"
+github_repo = "ansible-collections/community.hashi_vault"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Lookup plugin configuration, token auth, AppRole auth for the ansible-vault skill's HashiCorp Vault integration section. Repo confirmed via GitHub API 2026-07-30 (ansible-collections/community.hashi_vault, latest tag v7.1.0); sources.md pins no verified-against version."
+
+# ----------------------------------------------------------------------------
+# Molecule — standalone testing framework for Ansible roles/collections,
+# backs the ansible-testing skill's scenario/driver/verify content.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["ansible-testing"]
+name = "molecule"
+url = "https://molecule.readthedocs.io/en/latest/"
+releases_url = "https://github.com/ansible/molecule/releases"
+check_method = "github-releases"
+github_repo = "ansible/molecule"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Scenarios, drivers, phases, verify, lint, CI integration for ansible-testing. Repo confirmed via GitHub API 2026-07-30 (ansible/molecule, latest tag v26.6.0, calendar-versioned); sources.md pins no verified-against version."
+
+# ----------------------------------------------------------------------------
+# ansible-lint — standalone linter, backs the ansible-testing skill's rule
+# profile / CI integration content.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["ansible-testing"]
+name = "ansible-lint"
+url = "https://ansible-lint.readthedocs.io/"
+releases_url = "https://github.com/ansible/ansible-lint/releases"
+check_method = "github-releases"
+github_repo = "ansible/ansible-lint"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Rule profiles, configuration, CI integration for ansible-testing. Repo confirmed via GitHub API 2026-07-30 (ansible/ansible-lint, latest tag v26.6.0, calendar-versioned, shares release cadence with molecule); sources.md pins no verified-against version."
+
+# ----------------------------------------------------------------------------
+# Testinfra (pytest-testinfra) — standalone assertion library used in
+# Molecule verify phases, backs the ansible-testing skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["ansible-testing"]
+name = "testinfra"
+url = "https://testinfra.readthedocs.io/en/latest/"
+releases_url = "https://github.com/pytest-dev/pytest-testinfra/releases"
+check_method = "github-releases"
+github_repo = "pytest-dev/pytest-testinfra"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Built-in modules (file, service, package, command) and assertion patterns for ansible-testing. Repo confirmed via GitHub API 2026-07-30 (pytest-dev/pytest-testinfra, latest tag 10.2.2); sources.md pins no verified-against version."

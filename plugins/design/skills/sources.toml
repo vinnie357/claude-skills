@@ -1,0 +1,60 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "design"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# W3C Web Accessibility Initiative (WAI) — foundation for the accessibility
+# skill (POUR principles, ARIA). sources.md cites the WAI fundamentals
+# overview page (undated spec); the skill body's own Resources section
+# separately cites the WCAG 2.1 quickref, which is what current_version
+# pins to (see notes for a live-check drift finding).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["accessibility"]
+name = "wai"
+url = "https://www.w3.org/WAI/fundamentals/accessibility-principles/"
+check_method = "manual"
+current_version = "2.1"
+version_constraint = "stable"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md's foundational URL is the W3C WAI accessibility-principles overview (POUR principles, ARIA), Date Accessed 2025-11-15. The accessibility SKILL.md's own Resources section (line ~166) separately cites the WCAG 2.1 quickref (https://www.w3.org/WAI/WCAG21/quickref/) — that citation is what current_version='2.1' verifies against, not the undated WAI overview page. Live check 2026-07-30: the WCAG21 quickref URL now 301-redirects to https://www.w3.org/WAI/WCAG22/quickref/?versions=2.1 — W3C's current recommendation has moved to WCAG 2.2 (WCAG 3.0 still in draft). NOT bumping current_version to 2.2: no verification was done that the skill's POUR/ARIA content reflects 2.2-specific additions (e.g. new SC for accessible authentication, dragging movements). Recorded as drift only."
+
+# ----------------------------------------------------------------------------
+# Material Design 3 (Material You) — Google's living design-system docs.
+# Typography/color/layout/foundations pages under m3.material.io are treated
+# as one source per sources.md's "Key Resources" list, since Google publishes
+# continuous updates under one M3 generation rather than versioned releases.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["material-design"]
+name = "m3.material.io"
+url = "https://m3.material.io/"
+check_method = "manual"
+current_version = "3"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version='3' reflects the design-system generation (Material Design 2 vs 3 per sources.md's 'Key Differences' section) — m3.material.io has no independent semver release, it is continuously updated. Covers the typography, color (HCT), layout, and foundations sub-pages sources.md lists individually under 'Key Resources'; not tracked as separate entries since they share one upstream and one update cadence."
+
+# ----------------------------------------------------------------------------
+# Third-party supplementary blog — MD2-vs-MD3 breakdown, not a first-party
+# Google source. Lowest priority: a static article, unlikely to change.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["material-design"]
+name = "oritop.co"
+url = "https://oritop.co/google-material-design-a-complete-breakdown-of-material-design-3/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "stable"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Third-party supplementary blog post (MD2-vs-MD3 comparison, dynamic color, enhanced components). sources.md gives no 'Date Accessed' line for this specific bullet (only the m3.material.io entry above has one), so last_checked is 'unknown' rather than borrowed from the sibling entry. Not re-fetched live in this review — a static commentary article has no 'current_version' to establish, hence 'unknown'."

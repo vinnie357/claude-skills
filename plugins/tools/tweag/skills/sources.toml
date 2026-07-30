@@ -1,0 +1,83 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "tweag"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Topiary — universal Tree-sitter-based code formatter. github_repo has
+# MOVED since sources.md was written: tweag/topiary now 301-redirects to
+# topiary/topiary (its own dedicated org), confirmed live 2026-07-30.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["topiary"]
+name = "topiary"
+url = "https://topiary.tweag.io/book"
+releases_url = "https://github.com/topiary/topiary/releases"
+check_method = "github-releases"
+github_repo = "topiary/topiary"
+current_version = "unknown"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "sources.md does not pin a skill-content verification version. Covers topiary.tweag.io/book (installation, CLI usage, .scm query syntax, languages.ncl config), /book/reference/language-support.html, and two Tweag blog posts (2023-03-09 announcement, 2025-01-30 tutorial part 1). github_repo RENAMED: tweag/topiary 301-redirects to topiary/topiary (repo id 499408736, not archived) — confirmed via GitHub API 2026-07-30, project moved out of the tweag org into its own dedicated org. Live check shows latest release v0.7.3 (published 2025-12-31)."
+
+# ----------------------------------------------------------------------------
+# Tree-sitter — the parser library Topiary is built on. Referenced as a
+# foundation, not a version-pinned direct dependency of the skill content.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["topiary"]
+name = "tree-sitter"
+url = "https://tree-sitter.github.io/tree-sitter/"
+releases_url = "https://github.com/tree-sitter/tree-sitter/releases"
+check_method = "github-releases"
+github_repo = "tree-sitter/tree-sitter"
+current_version = "unknown"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md does not pin a skill-content verification version — cited only for query syntax, node types, and S-expression patterns underlying Topiary's .scm files. github_repo confirmed via GitHub API 2026-07-30 (latest release v0.26.11, published 2026-07-12)."
+
+# ----------------------------------------------------------------------------
+# Nickel — configuration language with gradual typing and contracts.
+# github_repo has MOVED since sources.md was written: tweag/nickel now
+# 301-redirects to nickel-lang/nickel (its own dedicated org), confirmed
+# live 2026-07-30 — consistent with the nickel-lang.org docs domain and the
+# nickel-lang/json-schema-to-nickel ecosystem repo already being under that
+# org in sources.md.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["nickel"]
+name = "nickel"
+url = "https://nickel-lang.org/"
+releases_url = "https://github.com/nickel-lang/nickel/releases"
+check_method = "github-releases"
+github_repo = "nickel-lang/nickel"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md does not pin a skill-content verification version. Covers nickel-lang.org/user-manual/ pages (typing, contracts, merging) and two Tweag blog posts (2023-05-17 announcing 1.0, 2023-11-02 merge system deep dive). github_repo RENAMED: tweag/nickel 301-redirects to nickel-lang/nickel (repo id 164738063, not archived) — confirmed via GitHub API 2026-07-30. Live check shows latest release 1.17.0 (published 2026-06-09), well past the 1.0 stability line the cited announcement blog describes."
+
+# ----------------------------------------------------------------------------
+# json-schema-to-nickel — ecosystem converter tool referenced from the
+# nickel skill, not core language content.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["nickel"]
+name = "json-schema-to-nickel"
+url = "https://github.com/nickel-lang/json-schema-to-nickel"
+check_method = "manual"
+github_repo = "nickel-lang/json-schema-to-nickel"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "JSON Schema → Nickel contract converter, referenced as a supporting ecosystem tool, not version-pinned by the skill content. github_repo confirmed to exist via GitHub API 2026-07-30 (repo id 658667715), but it carries no GitHub Releases (releases/latest returns 404 Not Found) — check_method is manual rather than github-releases because there is nothing for that endpoint to check; version_constraint is rolling for the same reason."

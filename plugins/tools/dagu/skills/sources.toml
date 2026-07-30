@@ -1,0 +1,26 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "dagu"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Dagu — single workflow-orchestration product whose docs.dagu.cloud site
+# backs all three facet skills (workflows, webui, rest-api). One entry, not
+# three near-identical ones, since it is one upstream repo and release cadence.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["workflows", "webui", "rest-api"]
+name = "dagu"
+url = "https://docs.dagu.cloud/"
+releases_url = "https://github.com/dagucloud/dagu/releases"
+check_method = "github-releases"
+github_repo = "dagucloud/dagu"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Covers docs.dagu.cloud/{workflows/, config/} for the workflows skill (YAML syntax, executors, scheduling, dependencies, error handling); docs.dagu.cloud/web-ui/ for the webui skill (dashboard, execution monitoring, log viewing); docs.dagu.cloud/{api/, integration/} for the rest-api skill (endpoints, auth, CRUD, webhooks). All accessed 2025-11-15 per sources.md, no version pinned there and no GitHub repo named in the doc. github_repo was not in sources.md; the natural candidate name dagu-org/dagu 301-redirects (confirmed via GitHub API 2026-07-30) to the current dagucloud/dagu (id 484434975), which is the value recorded here. Live check shows latest release v2.11.1 (2026-07-27) — not compared against a pinned baseline since sources.md set none."

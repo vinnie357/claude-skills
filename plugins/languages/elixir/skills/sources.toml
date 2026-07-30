@@ -1,0 +1,166 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "elixir"
+reviewed_at_plugin_version = "0.1.9"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# elixir-lang/elixir — the language's own hexdocs.pm/elixir/* pages, shared
+# across six skills because they all ship from the same monorepo and version
+# together: what-anti-patterns.html, code-anti-patterns.html,
+# design-anti-patterns.html (anti-patterns skill; code-anti-patterns.html is
+# also cited a second time from the style skill re: non-assertive pattern
+# matching / complex else clauses — the two skills share this source rather
+# than duplicating it), GenServer.html (otp skill), Config.html and
+# Application.html (config skill), Port.html and System.html#cmd/3 (ports
+# skill), naming-conventions.html and Kernel.SpecialForms.html#with/1 (style
+# skill), and the ex_unit hexdocs (testing skill — ExUnit ships in
+# lib/ex_unit of this same repo).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["anti-patterns", "otp", "config", "ports", "style", "testing"]
+name = "elixir-lang"
+url = "https://hexdocs.pm/elixir/"
+releases_url = "https://github.com/elixir-lang/elixir/releases"
+check_method = "github-releases"
+github_repo = "elixir-lang/elixir"
+current_version = "1.19.5"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version 1.19.5 is what sources.md pins as verified (Date Accessed 2026-03-25, 'Elixir Language' entry under the OTP skill section). Live GitHub API check 2026-07-30 shows v1.20.2 now published upstream — skill content not yet re-verified against it. hexdocs.pm/ex_unit is not a separately versioned hex package; it publishes alongside this same elixir release."
+
+# ----------------------------------------------------------------------------
+# erlang/otp — Erlang/OTP documentation cited from both the otp skill (design
+# principles) and the ports skill (Ports reference manual, open_port/2, C
+# Nodes, NIFs — all alternatives/foundations for the Port abstraction).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["otp", "ports"]
+name = "erlang/otp"
+url = "https://www.erlang.org/doc/"
+releases_url = "https://github.com/erlang/otp/releases"
+check_method = "github-releases"
+github_repo = "erlang/otp"
+current_version = "28.4.1"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version 28.4.1 is what sources.md pins as verified (Date Accessed 2026-03-25, 'Erlang/OTP' entry under the OTP skill section). Live GitHub API check 2026-07-30 shows OTP-29.0.4 now published upstream — skill content not yet re-verified against it."
+
+# ----------------------------------------------------------------------------
+# Phoenix framework (hex package). Docs + overview guide cited from the
+# phoenix skill only.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["phoenix"]
+name = "phoenix"
+url = "https://hexdocs.pm/phoenix/"
+releases_url = "https://hex.pm/packages/phoenix"
+check_method = "hex-pm"
+hex_package = "phoenix"
+current_version = "1.8.5"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = false
+notes = "current_version 1.8.5 is what sources.md pins as verified (Date Accessed 2026-03-25). Live hex.pm API check 2026-07-30 shows 1.8.9 now published — skill content not yet re-verified against it."
+
+# ----------------------------------------------------------------------------
+# Phoenix LiveView (hex package) — separate package from phoenix itself,
+# cited from the phoenix skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["phoenix"]
+name = "phoenix_live_view"
+url = "https://hexdocs.pm/phoenix_live_view/"
+releases_url = "https://hex.pm/packages/phoenix_live_view"
+check_method = "hex-pm"
+hex_package = "phoenix_live_view"
+current_version = "1.1.27"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = false
+notes = "current_version 1.1.27 is what sources.md pins as verified (Date Accessed 2026-03-25). Live hex.pm API check 2026-07-30 shows 1.2.8 now published (a minor bump past the pinned version) — skill content not yet re-verified against it."
+
+# ----------------------------------------------------------------------------
+# Tidewave (hex package) — MCP dev-tools integration, its own standalone
+# skill nested under the Phoenix section of sources.md (no separate heading
+# of its own). Pre-1.0 and actively changing per the CHANGELOG entries
+# sources.md already quotes.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["tidewave"]
+name = "tidewave"
+url = "https://hexdocs.pm/tidewave"
+releases_url = "https://github.com/tidewave-ai/tidewave_phoenix"
+check_method = "hex-pm"
+hex_package = "tidewave"
+current_version = "0.5.6"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "current_version 0.5.6 is what sources.md pins as verified (Date Accessed 2026-05-16, released 2026-03-13 per CHANGELOG.md). Covers the GitHub repo, CHANGELOG.md, the three editor MCP setup pages (mcp_claude_code.html, mcp_codex.html, mcp_opencode.html) extracted into tidewave/references/mcp-setup.md, and the Gemini CLI mcp-server.md doc (upstream Tidewave docs have no Gemini CLI page, so that one page is a non-Tidewave reference for the httpUrl field shape — not tracked as a separate source, same treatment rig gives its docs.rig.rs mirror). Live hex.pm API check 2026-07-30 shows 0.8.1 now published — skill content not yet re-verified against it."
+
+# ----------------------------------------------------------------------------
+# StreamData (hex package) — property-based testing, cited from the testing
+# skill only. sources.md does not pin a version for this one.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["testing"]
+name = "stream_data"
+url = "https://hexdocs.pm/stream_data/"
+releases_url = "https://hex.pm/packages/stream_data"
+check_method = "hex-pm"
+hex_package = "stream_data"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md does not pin a skill-content verification version for this package. Live hex.pm API check 2026-07-30 shows 1.4.0 currently published."
+
+# ----------------------------------------------------------------------------
+# Ecto (hex package) — schemas, changesets, queries. Cited from the ecto
+# skill (Date Accessed 2026-05-06) AND a second time from the style skill's
+# Ecto.Changeset/Ecto.Schema citations (Date Accessed 2026-03-29, re:
+# changeset-as-single-validation-layer convention) — same hex package, not a
+# duplicate source.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["ecto", "style"]
+name = "ecto"
+url = "https://hexdocs.pm/ecto/"
+releases_url = "https://hex.pm/packages/ecto"
+check_method = "hex-pm"
+hex_package = "ecto"
+current_version = "3.13.5"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version 3.13.5 comes from sources.md's 'Verified runtime sources' note (~/github/vantageex/deps/ecto/lib/ecto/, installed dep source read directly, Date Accessed 2026-05-06) rather than a hexdocs 'Date Accessed' transcription — the ecto skill section itself cites doc URLs without a version number. Live hex.pm API check 2026-07-30 shows 3.14.1 now published — skill content not yet re-verified against it."
+
+# ----------------------------------------------------------------------------
+# Ecto SQL (hex package) — migrations and the raw-SQL adapter, a separate hex
+# package from ecto itself. Cited from the ecto skill only.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["ecto"]
+name = "ecto_sql"
+url = "https://hexdocs.pm/ecto_sql/"
+releases_url = "https://hex.pm/packages/ecto_sql"
+check_method = "hex-pm"
+hex_package = "ecto_sql"
+current_version = "3.13.5"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version 3.13.5 comes from sources.md's 'Verified runtime sources' note (~/github/vantageex/deps/ecto_sql/lib/, installed dep source read directly, Date Accessed 2026-05-06). Live hex.pm API check 2026-07-30 shows 3.14.0 now published — skill content not yet re-verified against it."

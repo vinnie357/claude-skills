@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the dagu plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 ## Dagu Workflows Skill
 
 ### Dagu Official Documentation
@@ -73,11 +75,3 @@ This file documents the sources used to create the dagu plugin skills.
   - CI/CD pipeline integration
   - Event-driven workflows
   - External service triggers
-
-## Plugin Information
-
-- **Name**: dagu
-- **Version**: 0.1.0
-- **Description**: Dagu workflow orchestration: workflow authoring, web UI, and REST API
-- **Skills**: 3 skills covering workflow creation, UI management, and API integration
-- **Created**: 2025-11-15
