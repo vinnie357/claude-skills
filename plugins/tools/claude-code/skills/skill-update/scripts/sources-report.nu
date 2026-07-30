@@ -94,6 +94,7 @@ def fetch-latest [source: record] {
             if ($crate_name | is-empty) { "error" } else { check-crates-io $crate_name }
         }
         "manual" => { "manual" }
+        "none" => { "internal" }
         _ => { "unknown-method" }
     }
 }
@@ -101,12 +102,13 @@ def fetch-latest [source: record] {
 # Render a stale indicator emoji for markdown
 def stale-badge [stale: string] {
     match $stale {
-        "yes"    => "🔴 stale"
-        "no"     => "🟢 current"
-        "manual" => "🔵 manual"
-        "error"  => "⚠️ error"
-        "unset"  => "❓ unset"
-        _        => $stale
+        "yes"      => "🔴 stale"
+        "no"       => "🟢 current"
+        "manual"   => "🔵 manual"
+        "internal" => "⚪ no upstream"
+        "error"    => "⚠️ error"
+        "unset"    => "❓ unset"
+        _          => $stale
     }
 }
 
@@ -121,7 +123,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     let sources = $data.sources? | default []
 
     $sources | each { |src|
-        let skill    = $src.skill?           | default ""
+        let skill    = $src.skills? | default [] | str join ","
         let name     = $src.name?            | default ""
         let current  = $src.current_version? | default "unset"
         let priority = $src.update_priority?  | default "medium"
@@ -131,7 +133,9 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
 
         let latest = fetch-latest $src
 
-        let stale = if $latest == "manual" {
+        let stale = if $latest == "internal" {
+            "no"
+        } else if $latest == "manual" {
             "manual"
         } else if $latest == "error" {
             "error"
@@ -186,6 +190,7 @@ def main [--plugin: string = ""] {
 
     mut all_rows = []
     mut plugin_groups: record = {}
+    mut plugin_meta = []
 
     for pl in $filtered {
         let pl_name = $pl.name
@@ -199,6 +204,16 @@ def main [--plugin: string = ""] {
         print -e $"  Processing ($pl_name)..."
         let rows = process-sources-toml $toml_path $pl_name
         $all_rows = ($all_rows | append $rows)
+
+        let meta = (try { open $toml_path | get -o meta } catch { null })
+        if $meta != null {
+            $plugin_meta = ($plugin_meta | append {
+                plugin: $pl_name
+                reviewed_at: ($meta.reviewed_at_plugin_version? | default "unknown")
+                plugin_version: ($pl.version? | default "unknown")
+                last_full_check: ($meta.last_full_check? | default "unknown")
+            })
+        }
     }
 
     # ─── Render markdown ───────────────────────────────────────────────────────
@@ -267,6 +282,13 @@ def main [--plugin: string = ""] {
 
         print $"### ($pl_name)"
         print ""
+        let meta_row = ($plugin_meta | where plugin == $pl_name)
+        if ($meta_row | is-not-empty) {
+            let m = ($meta_row | first)
+            let pending = if $m.reviewed_at != $m.plugin_version { " **Review pending.**" } else { "" }
+            print $"> Sources reviewed at plugin version ($m.reviewed_at); plugin.json is now ($m.plugin_version). Last full check: ($m.last_full_check).($pending)"
+            print ""
+        }
         if $pl_stale > 0 {
             print $"> ($pl_stale) stale source\(s\)"
             print ""

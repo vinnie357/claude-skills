@@ -106,6 +106,7 @@ def fetch-latest [source: record] {
             if ($crate_name | is-empty) { "error" } else { check-crates-io $crate_name }
         }
         "manual" => { "manual" }
+        "none" => { "internal" }
         _ => { "unknown-method" }
     }
 }
@@ -125,7 +126,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     }
 
     $sources | each { |src|
-        let skill     = $src.skill?    | default ""
+        let skill     = $src.skills? | default [] | str join ","
         let name      = $src.name?     | default ""
         let current   = $src.current_version? | default "unset"
         let priority  = $src.update_priority? | default "medium"
@@ -136,7 +137,9 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
 
         let latest = fetch-latest $src
 
-        let stale = if $latest == "manual" {
+        let stale = if $latest == "internal" {
+            "no"
+        } else if $latest == "manual" {
             "manual"
         } else if $latest == "error" {
             "error"

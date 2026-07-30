@@ -14,30 +14,35 @@ Structured workflow for keeping skills current with upstream sources. Execute al
 |---|---|
 | `mise sources:check` | Compare current vs latest for all plugins |
 | `mise sources:stale` | List only stale sources |
-| `mise sources:validate` | Validate sources.toml schema in all plugins |
+| `mise sources:validate` | Validate that all source URLs resolve (HTTP HEAD) |
+| `mise test:sources` | Validate sources.toml schema + plugin.json/sources.md agreement |
 | `mise sources:report` | Full freshness report with priorities |
-| `mise sources:init <plugin>` | Bootstrap sources.toml for a plugin |
+| `mise sources:init <plugin>` | Print a DRAFT sources.toml for a plugin (never trusted; `--write` to save) |
 
 ## sources.toml Schema
 
 Each plugin's `skills/sources.toml` tracks upstream dependencies. See `templates/sources.toml` for the complete annotated template.
 
+`[meta]` — three required keys: `plugin` (must equal `plugin.json` `name`), `reviewed_at_plugin_version` (the `plugin.json` version at the last ACTUAL sources review, or `"unknown"` — never advanced by a version-bump commit, only by a review), `last_full_check` (`YYYY-MM-DD` or `"unknown"`).
+
 | Field | Values | Required | Description |
 |---|---|---|---|
-| `skill` | string | yes | Skill directory name |
+| `skills` | `list<string>` | yes | Skill DIRECTORY names covered by this source — a non-empty list, not a scalar |
 | `name` | string | yes | Human-readable source identifier |
-| `url` | string | yes | Primary source URL |
+| `url` | string | yes unless `check_method = "none"` | Primary source URL |
 | `releases_url` | string | no | Release tracking URL |
 | `check_method` | see table below | yes | How to query latest version |
 | `github_repo` | `owner/repo` | conditional | Required for `github-releases` |
 | `hex_package` | string | conditional | Required for `hex-pm` |
 | `crate_name` | string | conditional | Required for `crates-io` |
-| `current_version` | string | yes | Currently documented version |
-| `version_constraint` | `pre-1.0` \| `semver` \| `rolling` \| `stable` | yes | Version stability model |
+| `current_version` | string | yes unless `none` | The upstream version this skill content was last verified/documented against |
+| `version_constraint` | `pre-1.0` \| `semver` \| `rolling` \| `stable` | yes unless `none` | Version stability model |
 | `last_checked` | `YYYY-MM-DD` | yes | Date of last check |
-| `update_priority` | `high` \| `medium` \| `low` | yes | Update urgency |
+| `update_priority` | `high` \| `medium` \| `low` | yes unless `none` | Update urgency |
 | `breaking_changes_likely` | bool | no | Minor bumps may break (default: false) |
-| `notes` | string | no | Free-form context |
+| `notes` | string | no in general, yes when `check_method = "none"` | Free-form context |
+
+`check_method = "none"` is for skills with no external upstream (first-party doctrine authored in this repo): `notes` is required (state why there is no upstream), and `url` / `current_version` / `version_constraint` / `update_priority` are forbidden.
 
 ## Check Method API Endpoints
 
@@ -47,6 +52,7 @@ Each plugin's `skills/sources.toml` tracks upstream dependencies. See `templates
 | `hex-pm` | `https://hex.pm/api/packages/{package}` | None | 100/min |
 | `crates-io` | `https://crates.io/api/v1/crates/{crate}` | `User-Agent` header required | 1/sec |
 | `manual` | N/A | N/A | N/A — check `releases_url` manually |
+| `none` | N/A | N/A | N/A — no external upstream exists |
 
 See `references/version-check-methods.md` for Nushell parsing examples.
 
@@ -64,7 +70,7 @@ elixir        | tidewave    | tidewave        | 0.5.6   | 0.5.6   | no    | medi
 
 If `sources.toml` does not exist for a plugin, run `mise sources:init <plugin>` first.
 
-**Anti-fabrication**: Do not report version numbers without executing `mise sources:check` or querying the upstream API directly. Mark unknown versions as `"requires-check"`.
+**Anti-fabrication**: Do not report version numbers without executing `mise sources:check` or querying the upstream API directly. Mark unknown versions as `"unknown"`.
 
 ---
 
@@ -132,8 +138,8 @@ Reference the old version template in the migration section of SKILL.md.
 
 Complete in this order after every update:
 
-1. Update `sources.toml`: set `current_version` and `last_checked`
-2. Update `sources.md`: add release entry with date and summary
+1. Update `sources.toml`: set `current_version` and `last_checked`. If this update constitutes an actual sources review, also set `meta.reviewed_at_plugin_version` and `meta.last_full_check`.
+2. Extend the narrative entry in `sources.md` — never re-add version or date fields there; `test:sources` invariant C3 rejects a `- **Version**:` bullet.
 3. Bump plugin version in `<plugin>/.claude-plugin/plugin.json`
 4. Bump matching version in `.claude-plugin/marketplace.json`
 5. Run `mise update-all-skills`
@@ -149,7 +155,8 @@ Use patch bumps (e.g., `0.5.6` → `0.5.7`) unless the skill itself has breaking
 |---|---|---|
 | Schema | `mise test` | All plugins pass |
 | SKILL.md length | `wc -l SKILL.md` | Under 500 lines (the `lines` check in `test/validate-skills-quality.nu`) |
-| Sources valid | `mise sources:validate` | No schema errors |
+| Sources schema | `mise test:sources` | No invariant failures |
+| Source URLs | `mise sources:validate` | No dead links |
 | Commit format | — | Conventional commit, no attribution |
 
 Commit format: `chore(<plugin>): update <skill> to <version>`
@@ -183,9 +190,9 @@ Promote model if an agent fails the same task twice: haiku → sonnet → opus.
 
 When a plugin has no `sources.toml`:
 
-1. Run `mise sources:init <plugin>` to generate a skeleton
-2. Fill in all `[[sources]]` entries for each skill
+1. Run `mise sources:init <plugin>` to print a DRAFT (it only prints — pass `--write` to save). The draft is NOT trusted: it emits `NEEDS-JUDGMENT` markers on every `skills = [...]` entry that must be resolved by hand against the plugin's real skill directories.
+2. Resolve every `NEEDS-JUDGMENT` marker and fill in all `[[sources]]` entries for each skill
 3. Set `current_version` by reading the skill's current SKILL.md
 4. Set `last_checked` to today's date
-5. Run `mise sources:validate` to confirm schema
+5. Run `mise test:sources` to confirm schema
 6. Commit: `chore(<plugin>): add sources.toml for version tracking`

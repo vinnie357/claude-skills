@@ -3,6 +3,7 @@
 
 [meta]
 plugin = "awman"
+reviewed_at_plugin_version = "0.2.4"
 last_full_check = "2026-07-13"
 
 # ----------------------------------------------------------------------------
@@ -10,7 +11,7 @@ last_full_check = "2026-07-13"
 # Renamed from amux (prettysmartdev/amux) → awman (prettysmartdev/awman).
 # ----------------------------------------------------------------------------
 [[sources]]
-skill = "awman"
+skills = ["awman"]
 name = "awman"
 url = "https://github.com/prettysmartdev/awman"
 releases_url = "https://github.com/prettysmartdev/awman/releases"

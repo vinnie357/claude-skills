@@ -94,7 +94,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     mut rows = []
 
     for src in $sources {
-        let skill       = $src.skill?         | default ""
+        let skill       = $src.skills? | default [] | str join ","
         let name        = $src.name?          | default ""
         let url         = $src.url?           | default ""
         let releases_url = $src.releases_url? | default ""

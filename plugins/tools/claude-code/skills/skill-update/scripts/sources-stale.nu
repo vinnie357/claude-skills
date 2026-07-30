@@ -94,6 +94,7 @@ def fetch-latest [source: record] {
             if ($crate_name | is-empty) { "error" } else { check-crates-io $crate_name }
         }
         "manual" => { "manual" }
+        "none" => { "internal" }
         _ => { "unknown-method" }
     }
 }
@@ -138,7 +139,7 @@ def process-sources-toml [toml_path: string, plugin_name: string, days: int] {
     let sources = $data.sources? | default []
 
     $sources | each { |src|
-        let skill        = $src.skill?            | default ""
+        let skill        = $src.skills? | default [] | str join ","
         let name         = $src.name?             | default ""
         let current      = $src.current_version?  | default "unset"
         let priority     = $src.update_priority?   | default "medium"
@@ -147,7 +148,7 @@ def process-sources-toml [toml_path: string, plugin_name: string, days: int] {
 
         let latest = fetch-latest $src
 
-        let version_stale = if $latest in ["manual", "error", "unknown", "unknown-method"] {
+        let version_stale = if $latest in ["manual", "error", "unknown", "unknown-method", "internal"] {
             false
         } else if $current == "unset" {
             true
@@ -155,7 +156,7 @@ def process-sources-toml [toml_path: string, plugin_name: string, days: int] {
             $current != $latest
         }
 
-        let date_stale = is-date-stale $last_checked $days
+        let date_stale = if $latest == "internal" { false } else { is-date-stale $last_checked $days }
 
         if $version_stale or $date_stale {
             let reason = if $version_stale and $date_stale {

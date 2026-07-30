@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the zig plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 ## Update History
 
 ### 2026-06-14 — 0.15→0.16 migration reference
@@ -53,7 +55,6 @@ This file documents the sources used to create the zig plugin skills.
 ## Plugin Information
 
 - **Name**: zig
-- **Version**: 0.1.0
 - **Description**: Zig programming skills: build system, comptime, allocators, error handling, C interop, and best practices
 - **Skills**: 1 comprehensive Zig skill
 - **Created**: 2026-02-21
