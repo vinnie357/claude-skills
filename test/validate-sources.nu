@@ -416,9 +416,12 @@ def check-sources [
         # — NOT a bare-domain strip — is deliberate: bare-domain entry names
         # (design's m3.material.io, pm's cucumber.io) are legitimate
         # identifiers and must still match when prose names them without a
-        # scheme. Measured: scheme-only and a more aggressive domain-stripping
-        # regex produce the identical failing-entry set on this corpus, so the
-        # minimal regex is sufficient and preserves the bare-domain case.
+        # scheme. Measured on this corpus (109 entries, 20 plugins): scheme-only
+        # strips leave 0 failures, while a full bare-domain strip fails 9 — the
+        # 7 pm entries (cucumber.io, spdx.org, owasp.org, ...) and 2 design
+        # entries (m3.material.io, oritop.co), every one of them a legitimate
+        # bare-domain name a reader would recognise. Do not "simplify" this to
+        # a domain strip; it is the difference between 0 and 9.
         let md_prose = ($md_lower | str replace -a -r 'https?://[^\s)>"\]]+' '')
         # claude-skills-185 rd2: type-check here too. `$sources != null` is not
         # enough — a string root reaches `where` and throws. Third site of one
