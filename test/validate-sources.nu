@@ -125,7 +125,7 @@ def check-sources [
                 $findings = ($findings | append {
                     rule: "b3_date"
                     severity: "fail"
-                    message: $"($plugin)/meta: last_checked '($lfc)' is neither YYYY-MM-DD nor 'unknown'"
+                    message: $"($plugin)/meta: last_full_check '($lfc)' is neither YYYY-MM-DD nor 'unknown'"
                 })
             }
         }
