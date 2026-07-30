@@ -2,6 +2,8 @@
 
 Citations for the `agent-sandboxing` plugin skills. Each entry lists the upstream source, what was extracted from it, and the date of last verification.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `kubernetes-sigs/agent-sandbox` (this section), `gke-agent-sandbox-docs` (the Google Cloud — GKE Agent Sandbox docs section), `kata-containers` (the Kata Containers section), `agent-substrate` (the agent-substrate/substrate section), `claude-code-devcontainer-docs` (the Claude Code section), `kina` (the kina section), `claude-code-devcontainer-reference` (the Anthropic devcontainer reference image section), `gcp-agent-sandbox-substrate-blog` (the Google Cloud blog section), `sandbox-index-skill` (the `sandbox` routing/index skill, which has no external upstream).
+
 ## kubernetes-sigs/agent-sandbox
 
 - **URL**: https://github.com/kubernetes-sigs/agent-sandbox

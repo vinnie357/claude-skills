@@ -1,0 +1,388 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "slidev"
+reviewed_at_plugin_version = "0.2.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Slidev Syntax Guide — slide separators, frontmatter, headmatter, block
+# frontmatter. Also underpins the main `slidev` overview skill's Quick Start
+# (frontmatter example) and troubleshooting's "Frontmatter Not Recognized" /
+# "MDC Syntax Not Working" entries (verified: troubleshooting/references/
+# troubleshooting.md lines 144-162 cite frontmatter separators and `mdc: true`
+# headmatter directly).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["syntax", "slidev", "troubleshooting"]
+name = "slidev-syntax-guide"
+url = "https://sli.dev/guide/syntax"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Key Topics: slide structure, YAML frontmatter, headmatter configuration, block frontmatter. Not re-verified live in this pass (doc site, no version feed)."
+
+[[sources]]
+skills = ["syntax"]
+name = "slidev-builtin-layouts"
+url = "https://sli.dev/builtin/layouts"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Catalog of 19 built-in layouts with props/slots. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["syntax"]
+name = "slidev-slot-sugar"
+url = "https://sli.dev/features/slot-sugar"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. ::name:: named-slot syntax for layouts. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["syntax"]
+name = "slidev-block-frontmatter"
+url = "https://sli.dev/features/block-frontmatter"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Alternative YAML code-fence frontmatter syntax. Not re-verified live in this pass."
+
+# ----------------------------------------------------------------------------
+# Slidev Draggable Elements — v-drag directive/component. sources.md files this
+# under the '## Slidev Export' heading, but the actual content lives in the
+# syntax skill: `syntax/references/syntax.md` lines 376-391 document
+# `v-drag="'square'"` and `<v-drag>` directly, with no mention in export's own
+# references. Heading-slugging would mis-attribute this to export; grep
+# confirmed the real skill home is syntax.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["syntax"]
+name = "slidev-draggable-elements"
+url = "https://sli.dev/features/draggable"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21, filed under the Export heading in sources.md's own structure, but its content (v-drag directive/component) is verified present only in syntax/references/syntax.md:376-391, not in the export skill — attributed to syntax per actual content location, not per sources.md heading placement."
+
+# ----------------------------------------------------------------------------
+# Slidev Code Blocks family — Shiki highlighting, line highlighting/numbers,
+# max-height, code groups, Monaco editor, import snippets, LaTeX, Mermaid,
+# PlantUML. Code Groups and Monaco Editor are also cited by troubleshooting
+# (verified: troubleshooting/references/troubleshooting.md lines 164-179 cover
+# "Code Groups Not Rendering" and "Monaco Editor Not Appearing").
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["code"]
+name = "slidev-code-blocks"
+url = "https://sli.dev/features/code-blocks"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Line ranges, click animations, at/finally, placeholder syntax. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["code"]
+name = "slidev-code-line-numbers"
+url = "https://sli.dev/features/code-block-line-numbers"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["code"]
+name = "slidev-code-max-height"
+url = "https://sli.dev/features/code-block-max-height"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. maxHeight property, scroll behavior. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["code", "troubleshooting"]
+name = "slidev-code-groups"
+url = "https://sli.dev/features/code-groups"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. MDC syntax, tab labels. troubleshooting/references/troubleshooting.md:164-173 ('Code Groups Not Rendering') requires mdc: true — verified direct dependency."
+
+[[sources]]
+skills = ["code", "troubleshooting"]
+name = "slidev-monaco-editor"
+url = "https://sli.dev/features/monaco-editor"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Monaco syntax, diff mode, height configuration. troubleshooting/references/troubleshooting.md:175-179 ('Monaco Editor Not Appearing') — verified direct dependency."
+
+[[sources]]
+skills = ["code"]
+name = "slidev-import-snippets"
+url = "https://sli.dev/features/import-snippet"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. <<< syntax, VS Code regions, language override. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["code"]
+name = "slidev-latex"
+url = "https://sli.dev/features/latex"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. KaTeX, inline/block math, chemical equations. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["code"]
+name = "slidev-mermaid"
+url = "https://sli.dev/features/mermaid"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Mermaid syntax, theme configuration. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["code"]
+name = "slidev-plantuml"
+url = "https://sli.dev/features/plantuml"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. PlantUML syntax, server configuration. Not re-verified live in this pass."
+
+# ----------------------------------------------------------------------------
+# Slidev Export family — export CLI (PDF/PPTX/PNG/SPA) and the full CLI
+# reference. Both are cited heavily by troubleshooting's Export Issues section
+# (verified: troubleshooting/references/troubleshooting.md lines 1-73 use
+# --timeout, --wait, --wait-until, --omit-background — all Exporting Guide/CLI
+# Reference flags). CLI Reference also underpins the main `slidev` overview
+# skill's Quick Start (`npm init slidev@latest`, `npx slidev slides.md`).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["export", "troubleshooting"]
+name = "slidev-exporting-guide"
+url = "https://sli.dev/guide/exporting"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. Export formats, CLI flags, Playwright dependency, dark mode, click animations. troubleshooting/references/troubleshooting.md:1-73 (Export Issues section) verified as direct dependent."
+
+[[sources]]
+skills = ["export", "slidev", "troubleshooting"]
+name = "slidev-cli-reference"
+url = "https://sli.dev/builtin/cli"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-02-21"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-02-21. dev, build, export, format commands with all flags and defaults. slidev/SKILL.md Quick Start section (npm init slidev@latest, npx slidev) and troubleshooting's --port / --force flags both verified as direct dependents."
+
+# ----------------------------------------------------------------------------
+# Presentation Strategy frameworks — six distinct authors/methodologies, each
+# its own citation in sources.md; not collapsed, since each is a genuinely
+# separate upstream (not facets of one product, unlike act's five anchors in
+# the github plugin).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["presentations"]
+name = "pyramid-principle"
+url = "https://www.barbaraminto.com/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. SCQA (Situation-Complication-Question-Answer), top-down communication. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["presentations"]
+name = "kawasaki-10-20-30"
+url = "https://guykawasaki.com/the_102030_rule/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. 10 slides maximum, 20 minutes, 30pt minimum font. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["presentations"]
+name = "assertion-evidence-design"
+url = "https://www.assertion-evidence.com/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. Assertion headers, visual evidence bodies, ~20 words per slide. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["presentations"]
+name = "duarte-resonate"
+url = "https://www.duarte.com/resources/books/resonate/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. Sparkline narrative arc, 'what is' vs 'what could be', audience as hero. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["presentations"]
+name = "presentation-zen"
+url = "https://presentationzen.com/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. Simplicity, clarity, restraint, harmony, connection. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["presentations"]
+name = "rule-of-three"
+url = "https://ethos3.com/the-rule-of-three-for-presentations/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. Three key messages, three-act narrative, audience retention. Not re-verified live in this pass."
+
+# ----------------------------------------------------------------------------
+# Brand Discovery and Styles — Playwright MCP for brand-token extraction, WCAG
+# contrast requirements, Slidev UnoCSS theming.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["styles"]
+name = "playwright-mcp-browser-tools"
+url = "https://github.com/anthropics/claude-code/tree/main/packages/mcp-server-playwright"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. browser_navigate, browser_evaluate, browser_take_screenshot, CSS extraction. This is a directory path within the claude-code monorepo, not an independently releasable package — check_method=manual rather than github-releases (a repo-level release check would not track this subpackage specifically). Not re-verified live in this pass."
+
+[[sources]]
+skills = ["styles"]
+name = "wcag-contrast-requirements"
+url = "https://www.w3.org/WAI/WCAG21/quickref/#contrast-minimum"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. 4.5:1 normal text, 3:1 large text, 3:1 UI components. WCAG 2.1 is a finalized W3C recommendation — not re-verified live in this pass, but stable by nature (superseded by 2.2/3.0 rather than revised in place)."
+
+[[sources]]
+skills = ["styles"]
+name = "slidev-unocss-theming"
+url = "https://sli.dev/custom/config-unocss"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. Theme shortcuts, CSS variables, custom rules. Not re-verified live in this pass."
+
+# ----------------------------------------------------------------------------
+# Interactive Demos — Vue 3 reactivity, Slidev custom component integration,
+# iframe layouts.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["interactive"]
+name = "vue3-composition-api"
+url = "https://vuejs.org/api/composition-api-setup.html"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. ref(), reactive(), computed(), watch(), lifecycle hooks. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["interactive"]
+name = "slidev-custom-components"
+url = "https://sli.dev/custom/vue-context"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. $slidev context, useSlideContext(), v-click integration, auto-import from components/. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["interactive"]
+name = "slidev-iframe-layouts"
+url = "https://sli.dev/builtin/layouts#iframe"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-04-04. iframe, iframe-left, iframe-right layouts, URL property. Not re-verified live in this pass."

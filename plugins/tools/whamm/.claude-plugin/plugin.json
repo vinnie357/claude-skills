@@ -1,6 +1,6 @@
 {
   "name": "whamm",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "whamm! WebAssembly bytecode instrumentation: install via mise, the instr/info CLI, injection strategies, and the DTrace-inspired .mm monitor DSL",
   "author": {
     "name": "vinnie357"

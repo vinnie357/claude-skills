@@ -1,0 +1,280 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "github"
+reviewed_at_plugin_version = "0.3.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# GitHub Actions — core concepts documentation.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["actions"]
+name = "actions-primary-docs"
+url = "https://docs.github.com/en/actions"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Accessed 2025-11-15. Action types, workflow triggers, runners, security (secrets/GITHUB_TOKEN/OIDC), workflow organization, monitoring. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["actions"]
+name = "actions-toolkit"
+url = "https://github.com/actions/toolkit"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "actions/toolkit is a real, live repo (GitHub API confirms full_name unchanged, no rename), but is a monorepo of independently-versioned npm packages (@actions/core, @actions/github, @actions/exec, @actions/cache, @actions/artifact) with no single repo-level release: GET /repos/actions/toolkit/releases/latest returns HTTP 404 with a Not Found error object (its tag_name is null because it is an error body, not an empty release), so github-releases would silently never fire — same failure class as two other renamed/unreleased upstreams already caught this migration. check_method=manual is deliberate, not an oversight."
+
+[[sources]]
+skills = ["actions"]
+name = "action-metadata"
+url = "https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. action.yml schema, required/optional fields, input/output definitions, branding, runs configuration."
+
+[[sources]]
+skills = ["actions"]
+name = "marketplace-publishing"
+url = "https://docs.github.com/en/actions/creating-actions/publishing-actions-in-github-marketplace"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. Marketplace requirements, release process, semantic versioning, major version tags."
+
+# ----------------------------------------------------------------------------
+# GitHub Workflows — syntax, contexts, expressions, events.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["workflows"]
+name = "workflows-primary-docs"
+url = "https://docs.github.com/en/actions/how-tos/write-workflows"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Accessed 2025-11-15. Workflow syntax/structure, triggers, jobs/steps, contexts/expressions, secrets/env vars, artifacts/caching, reusable workflows, concurrency. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["workflows"]
+name = "workflow-syntax"
+url = "https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. on/jobs/runs-on/steps/env/if/strategy.matrix YAML reference."
+
+[[sources]]
+skills = ["workflows"]
+name = "contexts"
+url = "https://docs.github.com/en/actions/learn-github-actions/contexts"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. github/env/job/steps/runner/secrets/matrix context objects."
+
+[[sources]]
+skills = ["workflows"]
+name = "expressions"
+url = "https://docs.github.com/en/actions/learn-github-actions/expressions"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. Operators, status functions, string/object functions, hashFiles."
+
+[[sources]]
+skills = ["workflows"]
+name = "events"
+url = "https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. push/pull_request/workflow_dispatch/schedule/release/issues/repository_dispatch."
+
+# ----------------------------------------------------------------------------
+# act (local testing) — sources.md gives nektos/act five separate subsection
+# citations (Primary Repository, Installation, Runner Images, Configuration,
+# Limitations), all pointing at the same github.com/nektos/act repo (four of
+# the five URLs are just anchors on the repo README). Collapsed to ONE entry
+# per the 'do not duplicate one upstream into N near-identical entries' rule —
+# these are facets of a single upstream, unlike slidev's 28 genuinely distinct
+# citations.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["act"]
+name = "nektos-act"
+url = "https://github.com/nektos/act"
+releases_url = "https://github.com/nektos/act/releases"
+check_method = "github-releases"
+github_repo = "nektos/act"
+current_version = "unknown"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "sources.md Accessed 2025-11-15 (Primary Repository subsection); the four sibling subsections (Installation, Runner Images, Configuration, Limitations) are README anchors on the same repo with no separate date, collapsed into this one entry. Live GitHub API check 2026-07-30: full_name still nektos/act (no rename), releases/latest resolves to tag_name v0.2.89 (published 2026-06-01) — repo reachable and the releases feed works, but sources.md never pinned a specific version the skill content was verified against, so current_version stays 'unknown' rather than silently advancing to the live tag. pre-1.0 versioning (0.2.x) justifies breaking_changes_likely=true."
+
+# ----------------------------------------------------------------------------
+# Additional References — general tooling cited across multiple skills.
+# Coverage is grounded in a grep of each skill directory for gh/docker/mise/nu
+# usage, not assumed from the 'Additional References' heading alone.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["workflows", "act", "community-health", "dependabot-consolidator", "pr-review"]
+name = "github-cli"
+url = "https://cli.github.com/"
+releases_url = "https://github.com/cli/cli/releases"
+check_method = "github-releases"
+github_repo = "cli/cli"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md gives no Date Accessed for this entry. Grep of skill directories for gh subcommands confirms usage in workflows, act, community-health, dependabot-consolidator, and pr-review (not actions). The subcommand varies by skill — workflows uses 'gh workflow'/'gh run' (SKILL.md:196-199), not the 'gh pr'/'gh api' forms the other four use. Live GitHub API check 2026-07-30: cli/cli full_name unchanged, releases/latest resolves to v2.96.0 — sources.md never pinned a version, current_version stays 'unknown'."
+
+[[sources]]
+skills = ["actions", "act", "workflows"]
+name = "docker"
+url = "https://www.docker.com/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. Container runtime required by act; sources.md cites installation/Docker Desktop/daemon management. Grep confirms Docker mentions in actions, act, and workflows skill content — not attached to community-health/dependabot-consolidator/pr-review, which do not mention it."
+
+[[sources]]
+skills = ["act", "dependabot-consolidator", "pr-review"]
+name = "mise-tool"
+url = "https://mise.jdx.dev/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. Tool version management, used for installing/managing act versions per sources.md. Grep confirms mise mentions in act, dependabot-consolidator, and pr-review skill content only."
+
+[[sources]]
+skills = ["act", "dependabot-consolidator", "pr-review"]
+name = "nushell-tool"
+url = "https://www.nushell.sh/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. Cross-platform shell used for installation scripts per sources.md. Grep confirms nushell/.nu mentions in act, dependabot-consolidator, and pr-review skill content only. Distinct entry from the core plugin's own nushell version tracking — this citation's scope is this plugin's sources.md only."
+
+# ----------------------------------------------------------------------------
+# Dependabot Consolidation.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["dependabot-consolidator"]
+name = "dependabot-docs"
+url = "https://docs.github.com/en/code-security/dependabot"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. Dependabot version-update config (dependabot.yml), app/dependabot PR author, pin styles, auto-close behavior. sources.md also cites a 'Recipe Origin' (kina PR #36, github.com/vinnie357/kina/pull/36) proving the baseline-diff gate discipline — folded into this entry's notes rather than a separate source, since it is an internal design precedent with no independent version to track, not a second external upstream."
+
+# ----------------------------------------------------------------------------
+# PR Review.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["pr-review"]
+name = "gh-pr-review-recipe"
+url = "https://cli.github.com/manual/gh_pr"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. `gh pr list/view/checks/merge` — the API surface pr-review drives for listing, inspecting, gating, and squash-merging PRs. A distinct doc page from the general github-cli entry above (this one is pr-review-specific gh-pr-subcommand usage). sources.md also cites a 'Recipe Origin' (kina github.com/vinnie357/kina external-collaborator PRs #37/#38/#39) proving the per-PR stack-aware review pattern with local baseline-diff gates — folded into this entry's notes as an internal design precedent, not a separate external upstream."
+
+# ----------------------------------------------------------------------------
+# Community Health Files.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["community-health"]
+name = "community-health-setup"
+url = "https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-01"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Accessed 2026-03-01. CODE_OF_CONDUCT.md, CONTRIBUTING.md, issue/PR templates, SECURITY.md, CODEOWNERS, FUNDING.yml — GitHub's Community Standards profile checks. Not re-verified live in this pass."
+
+[[sources]]
+skills = ["community-health"]
+name = "repo-settings-features"
+url = "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. Merge strategies, branch protection rules, topics/description, feature toggles."
+
+[[sources]]
+skills = ["community-health"]
+name = "contributor-covenant"
+url = "https://www.contributor-covenant.org/"
+check_method = "manual"
+current_version = "3.0"
+version_constraint = "semver"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md, but sources.md explicitly names 'Latest version (v3.0)' in its Key Topics — current_version=3.0 is traceable to that literal text, not a live query. Live GitHub API check 2026-07-30 (not used as this entry's check_method) found the upstream repo has moved to EthicalSource/contributor_covenant (contributor-covenant/contributor_covenant no longer resolves) — noted for awareness; this entry tracks the contributor-covenant.org site cited in sources.md, not a GitHub repo, so the rename does not change check_method or url here."
+
+[[sources]]
+skills = ["community-health"]
+name = "security-policy"
+url = "https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed given in sources.md for this entry. SECURITY.md placement, GitHub Security Advisories, coordinated disclosure."

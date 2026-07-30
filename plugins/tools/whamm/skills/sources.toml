@@ -1,0 +1,44 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "whamm"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# ejrgilbert/whamm — the whamm! WebAssembly bytecode instrumentation tool
+# itself: README, CLI, release binaries. Backs the whamm skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["whamm"]
+name = "whamm"
+url = "https://github.com/ejrgilbert/whamm"
+releases_url = "https://github.com/ejrgilbert/whamm/releases"
+check_method = "github-releases"
+github_repo = "ejrgilbert/whamm"
+current_version = "v0.1.0"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "sources.md pins release v0.1.0 (2026-03-04, Date Accessed 2026-06-18): whamm tool overview, install, CLI usage. The /releases page (linux-x86_64 and macos-x86_64 binary assets) is the same repo's release feed, not tracked as a separate source. Live GitHub API check 2026-07-30 shows tag_name v1.0.0 published 2026-06-26 — a major version jump from the documented 0.1.0; skill content has not been re-verified against 1.0.0, so current_version stays pinned to the sources.md-verified value per the no-silent-advance rule. Given the 0.x -> 1.0 jump, this is flagged high priority / breaking_changes_likely."
+
+# ----------------------------------------------------------------------------
+# whamm docs book (ejrgilbert.github.io/whamm) — the mdBook site. Root page is
+# cited by the whamm skill ("Getting started"); the whamm-dsl skill cites five
+# subpages of the same book (language, events, libraries, injection
+# strategies, syntax reference). One upstream, no independent release/version
+# feed of its own — it tracks the whamm tool above.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["whamm", "whamm-dsl"]
+name = "whamm-docs-book"
+url = "https://ejrgilbert.github.io/whamm/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-06-18"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-06-18 for all six pages; not re-verified live in this pass. Root page (Getting started, language reference, events, libraries, injection strategies) backs the whamm skill. Five subpages back whamm-dsl: intro/language.html (syntax, operators, expressions, program structure), intro/events.html (event types, matching, callback patterns), intro/libraries.html (available functions, data types, stdlib reference), intro/injection_strategies.html (injection approaches, optimization, performance), intro/syntax/ (syntax reference, grammar, code examples). Given the whamm repo itself jumped 0.1.0 -> v1.0.0 (see the whamm entry above), this doc content should be re-verified against the new major version — flagged medium priority pending that check, though the docs site was not independently re-checked live in this pass."

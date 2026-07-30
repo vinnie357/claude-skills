@@ -1,5 +1,7 @@
 # Sources
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `juxt-allium` (the juxt/allium section below), `allium-tools` (the juxt/allium-tools section below).
+
 ## juxt/allium
 
 - **Repo:** https://github.com/juxt/allium
