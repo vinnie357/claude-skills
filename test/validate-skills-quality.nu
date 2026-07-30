@@ -541,6 +541,11 @@ def burn-down-counts [baseline: list] {
 # Embedded self-test for the baseline schema + count ratchet
 # (claude-skills-132). Exercises validate-baseline-entries, ratchet-baseline,
 # and burn-down-counts directly — the same implementations main calls.
+# Cases 1-15 are hermetic in-memory fixtures. Cases 16-17 (claude-skills-184)
+# depart from that: they read real repo artifacts (test/quality-baseline.json,
+# plugins/*/skills/sources.md), because they assert on the flip-enforcement
+# epic's atomic data changes rather than on a callable pure function — see
+# each case's comment for why no pure function exists to test instead.
 # Returns true when any case failed.
 def run-baseline-self-test [] {
     mut failed = false
@@ -670,8 +675,52 @@ def run-baseline-self-test [] {
         $failed = true
     }
 
+    # Case 16 (claude-skills-184, C3 — data half): the baseline must carry
+    # zero waivers for the retired "source" check (whole-file substring check
+    # 11). This reads the REAL test/quality-baseline.json rather than a
+    # fixture, because the epic's scope note makes this an atomic pair:
+    # removing check 11 without shrinking the baseline leaves stale passing
+    # keys (a hard failure), and shrinking without removing leaves the check
+    # still firing. check 11 itself lives inline in `main`'s corpus loop, not
+    # in a callable pure function, so its removal cannot be unit-tested here —
+    # this case proves only the baseline side of the atomic pair.
+    let repo_root_184 = (git rev-parse --show-toplevel | str trim)
+    let source_keys = (
+        open ($repo_root_184 | path join "test" "quality-baseline.json")
+        | get allowed_failures
+        | where {|e| ($e.key | str ends-with ":source") }
+        | get key
+    )
+    if ($source_keys | is-not-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: baseline still carries ':source' waivers, must shrink atomically with check 11's removal: ($source_keys | str join ', ')(ansi reset)"
+        $failed = true
+    }
+
+    # Case 17 (claude-skills-184, C2 — data half): the stale '(current)'
+    # sources.md annotation lines PR1 left behind must be deleted so the
+    # toml-only version_pin flip has no residual sources.md acceptance
+    # signal. Reads the real sources.md files for the three plugins that
+    # carry a version-pin phrase in their SKILL.md prose. This proves the
+    # annotations are gone; it does NOT exercise the sources.md-acceptance-
+    # path removal itself — like check 11, that logic is inline in main's
+    # per-skill loop (the `stale_pins` computation), not a callable function.
+    let annotated_files = (
+        ["core" "languages/elixir" "languages/rust"]
+        | each {|p| ($repo_root_184 | path join "plugins" $p "skills" "sources.md") }
+        | where {|f| $f | path exists }
+    )
+    let current_lines = (
+        $annotated_files
+        | each {|f| open --raw $f | lines | where {|l| $l =~ '\(current\)' } }
+        | flatten
+    )
+    if ($current_lines | is-not-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: ($current_lines | length) stale '\(current\)' annotation line\(s\) remain in sources.md — delete them so the toml-only version_pin flip has no residual acceptance signal(ansi reset)"
+        $failed = true
+    }
+
     if not $failed {
-        print $"(ansi green_bold)✅ Baseline schema/ratchet self-test passed \(15 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Baseline schema/ratchet self-test passed \(17 cases\)(ansi reset)"
     }
     $failed
 }
