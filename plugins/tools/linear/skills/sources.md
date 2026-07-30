@@ -1,5 +1,7 @@
 # Linear Plugin Sources
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `linear-api` (the MCP/GraphQL docs below), `internal-vantageex-references` (the Symphony/VantageEx/ADR references below).
+
 ## Linear Skill
 
 ### Linear MCP Documentation

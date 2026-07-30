@@ -1,6 +1,6 @@
 {
   "name": "beads",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Beads (bd) distributed git-backed graph issue tracker: task management, dependency tracking, AI agent workflows",
   "author": {
     "name": "vinnie357"

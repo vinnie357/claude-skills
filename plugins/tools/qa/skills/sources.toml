@@ -1,0 +1,35 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "qa"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Internal composition — this skill is built from conventions in OTHER
+# first-party skills in this marketplace (tdd, bees, playwright, tidewave,
+# phoenix, anti-fabrication), not from an external upstream. check_method
+# = "none" is the explicit representation for that, per claude-skills-182.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["qa"]
+name = "internal-composition"
+check_method = "none"
+last_checked = "2026-05-16"
+notes = "Composed from conventions in sibling first-party skills, not an external upstream: /core:tdd (Red-Green-Refactor cycle quoted in references/validation-loop.md), /core:bees (bees new/close/dep add syntax in references/delta-format.md, plus the bees-manager agent's BEES REQUESTS input contract), /playwright:playwright (MCP tool names used by qa-playwright), /elixir:tidewave (MCP tool names used by qa-tidewave), /elixir:phoenix (module layout, Ecto schemas, LiveView assertions for qa-tidewave context), /core:anti-fabrication (the every-claim-requires-tool-output rule). Provenance narrative stays in sources.md."
+
+# ----------------------------------------------------------------------------
+# Gherkin/Cucumber reference syntax — the one genuine external upstream.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["qa"]
+name = "gherkin-cucumber"
+url = "https://cucumber.io/docs/gherkin/reference/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-05-16"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Cucumber's Gherkin specification. references/gherkin-format.md documents a strict subset: Feature / Background / Scenario / Scenario Outline / Examples / Given / When / Then / And / But, single-line steps, no doc strings, no data tables in v0.1.0. Accessed during plan authoring, 2026-05-16."

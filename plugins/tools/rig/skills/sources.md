@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the rig plugin skill.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 ## Rig Skill
 
 ### Rig Project Site
@@ -76,7 +78,6 @@ This file documents the sources used to create the rig plugin skill.
 ## Plugin Information
 
 - **Name**: rig
-- **Version**: 0.1.0
 - **Description**: Building multi-provider and hybrid LLM clients in Rust with rig-core
 - **Skills**: 1 skill covering setup, the AgentBuilder quickstart, multi-provider/hybrid
   harness guidance, local models and OpenAI-compatible gateways, agents/tools/extractors/MCP,

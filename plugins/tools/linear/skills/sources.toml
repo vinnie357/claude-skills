@@ -1,0 +1,35 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "linear"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Linear's hosted MCP server + GraphQL API — the one true external upstream.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["linear"]
+name = "linear-api"
+url = "https://linear.app/docs/mcp"
+releases_url = "https://developers.linear.app/docs/graphql/working-with-the-graphql-api"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-04-04"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Linear MCP server (streamable HTTP transport, OAuth 2.1, Claude Code integration) plus the GraphQL API used as fallback for operations the MCP surface doesn't cover (queries, mutations, pagination, introspection). Hosted SaaS API with no versioned release feed to poll — check by hand."
+
+# ----------------------------------------------------------------------------
+# Internal cross-repo references — VantageEx's own Linear client, ADRs, and
+# epic templates that this skill's epic-authoring/audit conventions mirror.
+# No external upstream; these are first-party docs in sibling repositories.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["linear"]
+name = "internal-vantageex-references"
+check_method = "none"
+last_checked = "2026-04-04"
+notes = "First-party cross-repo references, not an external upstream: Symphony's existing Linear GraphQL skill (query patterns), VantageEx's production Linear GraphQL client (vantageex/lib/vantageex/linear/client.ex), ADR-027 (epic messaging: description sections, comment channels), ADR-025 (epic lifecycle/status workflow), ADR-016 (layered epic/issue/task hierarchy), the VantageEx epic authoring guide and epic TEMPLATE.md, and this marketplace's own claude-code CLAUDE.md template (4-phase workflow). These inform the epic-authoring and audit conventions in this skill; provenance narrative stays in sources.md."
