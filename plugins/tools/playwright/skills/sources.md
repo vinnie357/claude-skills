@@ -1,6 +1,6 @@
 # Playwright Plugin Sources
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `playwright-mcp`.
 
 ## playwright skill
 

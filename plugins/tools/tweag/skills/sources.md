@@ -2,7 +2,7 @@
 
 This file documents sources used to create the tweag plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `topiary`, `tree-sitter`, `nickel`, `json-schema-to-nickel`.
 
 ## Topiary Skill
 

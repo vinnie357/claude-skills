@@ -409,6 +409,20 @@ def check-sources [
         })
     } else {
         let md_lower = ($md | str downcase)
+        # claude-skills-186: strip scheme-prefixed URLs before matching, so an
+        # entry can no longer pass c2 solely because its name happens to sit
+        # inside its own `- **URL**:` field (rig/lemonade-server was the
+        # motivating case — no prose named it, only its url did). Scheme-only
+        # — NOT a bare-domain strip — is deliberate: bare-domain entry names
+        # (design's m3.material.io, pm's cucumber.io) are legitimate
+        # identifiers and must still match when prose names them without a
+        # scheme. Measured on this corpus (109 entries, 20 plugins): scheme-only
+        # strips leave 0 failures, while a full bare-domain strip fails 9 — the
+        # 7 pm entries (cucumber.io, spdx.org, owasp.org, ...) and 2 design
+        # entries (m3.material.io, oritop.co), every one of them a legitimate
+        # bare-domain name a reader would recognise. Do not "simplify" this to
+        # a domain strip; it is the difference between 0 and 9.
+        let md_prose = ($md_lower | str replace -a -r 'https?://[^\s)>"\]]+' '')
         # claude-skills-185 rd2: type-check here too. `$sources != null` is not
         # enough — a string root reaches `where` and throws. Third site of one
         # root cause; the guard belongs at every consumer, not just the first.
@@ -420,11 +434,11 @@ def check-sources [
             # pattern this repo keeps hitting.
             for entry in ($sources | where {|e| ($e | describe --detailed | get type) == "record" }) {
                 let name = ((scalar-str ($entry.name? | default "")) | default "")
-                if ($name | is-not-empty) and not ($md_lower | str contains ($name | str downcase)) {
+                if ($name | is-not-empty) and not ($md_prose | str contains ($name | str downcase)) {
                     $findings = ($findings | append {
                         rule: "c2_md_no_mention"
                         severity: "fail"
-                        message: $"($plugin): sources.md does not mention entry '($name)' — the index must cover every sources.toml entry"
+                        message: $"($plugin): sources.md does not mention entry '($name)' in prose — URLs do not count; add it to the Entries: sentence"
                     })
                 }
             }
@@ -1437,6 +1451,122 @@ update_priority = "medium"
             version: "1.0.0"
             md: "demo-source is documented here\n- **Version**: 0.1.0\n"
             want: ["c3_md_version_bullet"]
+        }
+        # ---- c2: prose-only match, scheme-prefixed URLs excluded (claude-skills-186) ----
+        {
+            label: "c2: name appears only inside a scheme-prefixed URL — must still fail"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "lemonade-server"
+url = "https://lemonade-server.ai/"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "- **URL**: https://lemonade-server.ai/\n"
+            want: ["c2_md_no_mention"]
+        }
+        {
+            label: "c2: name appears in prose (regression guard)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is covered in the section below.\n"
+            want: []
+        }
+        {
+            label: "c2: bare-domain name in prose without a scheme must NOT be stripped (scheme-only strip, not domain-strip)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "m3.material.io"
+url = "https://m3.material.io/"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "See m3.material.io for the component specs.\n"
+            want: []
+        }
+        {
+            label: "c2: name appears in both prose and a URL"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "lemonade-server"
+url = "https://lemonade-server.ai/"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "lemonade-server is documented at https://lemonade-server.ai/\n"
+            want: []
+        }
+        {
+            label: "c2: name appears only inside a URL embedded mid-sentence (markdown link target, not line-start) — must still fail"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "foo-bar"
+url = "https://foo-bar.io/x"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "Check the [docs](https://foo-bar.io/x) for details.\n"
+            want: ["c2_md_no_mention"]
         }
         # ---- A-F4 crash-vector guards ---------------------------------------
         {
