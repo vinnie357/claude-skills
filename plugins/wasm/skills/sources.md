@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the wasm plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `wasmtime`, `bytecodealliance`, `component-model`, `wasi`, `cargo-component`, `wit-bindgen`, `wasm-tools`, `wasmex`, `zig-wasm-docs`, `rustwasm` (the Wasmtime Skill section below), `wit-language-reference`, `wit-worlds-spec` (the WIT Skill section below, alongside `component-model` above).
+
 ## Wasmtime Skill
 
 ### Wasmtime Documentation
@@ -88,11 +90,3 @@ This file documents the sources used to create the wasm plugin skills.
 - **Purpose**: High-level overview of the WebAssembly Component Model
 - **Date Accessed**: 2026-03-25
 - **Key Topics**: Component architecture, interface-based composition, canonical ABI
-
-## Plugin Information
-
-- **Name**: wasm
-- **Version**: 0.1.3
-- **Description**: WebAssembly skills: wasmtime runtime, component model, guest compilation, and host embedding
-- **Skills**: 2 skills (wasmtime, wit)
-- **Created**: 2026-02-21

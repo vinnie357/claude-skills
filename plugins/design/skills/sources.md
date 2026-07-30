@@ -2,6 +2,8 @@
 
 This file documents the sources used to create the design plugin skills.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `wai` (Accessibility Skill section below), `m3.material.io` and `oritop.co` (Material Design Skill section below).
+
 ## Accessibility Skill
 
 ### W3C Web Accessibility Initiative (WAI)

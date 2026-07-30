@@ -1,0 +1,127 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "pm"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Internal composition — spec-harvest. sources.md's own words: "Internal
+# sources — this skill is composed of conventions from other skills in this
+# marketplace." check_method = "none" is the explicit representation for
+# that, not a gap to fill with a fabricated URL.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["spec-harvest"]
+name = "internal-composition-spec-harvest"
+check_method = "none"
+last_checked = "2026-07-15"
+notes = "Composed from conventions in sibling first-party skills, per sources.md: /qa:qa (Gherkin dialect reference, plugins/tools/qa/skills/qa/references/gherkin-format.md), /core:bees (read-only query surface: list/show/ready/prime/dep list/comment list), /core:anti-fabrication (confidence-tagging discipline for harvested specs), /core:agent-loop (pm-lead -> pm-discovery -> pm-separator -> pm-sdlc-assessor -> pm-spec-writer -> pm-prd-author team model), /core:security (OWASP categories and secret-scanning vocabulary feeding the SDLC checklist). Genuine external upstreams the skill cites directly are tracked as separate entries below (cucumber.io, agilealliance.org, spdx.org, owasp.org, getdx.com)."
+
+# ----------------------------------------------------------------------------
+# Internal composition — prd. Same doctrine-composition pattern, different
+# skill and different set of first-party sources.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["prd"]
+name = "internal-composition-prd"
+check_method = "none"
+last_checked = "2026-07-15"
+notes = "Composed from conventions in sibling first-party skills and domain references, per sources.md: 'Internal sources — this skill is composed of conventions from other skills and domain references.' Cites /core:anti-fabrication (evidence-backed feasibility claims), /core:agent-loop (Implementation Team subsection), /core:twelve-factor (Infrastructure Requirements section), /core:security (Security Requirements section). Genuine external upstreams tracked separately below (productschool.com, addyosmani.com)."
+
+# ----------------------------------------------------------------------------
+# Gherkin/Cucumber reference syntax — spec-harvest's user-story step format.
+# Same upstream the qa plugin's own sources.toml tracks (qa/skills/sources.toml
+# gherkin-cucumber entry); pm's sources.md lists it as an independently
+# consulted external source, not merely inherited via /qa:qa.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["spec-harvest"]
+name = "cucumber.io"
+url = "https://cucumber.io/docs/gherkin/reference/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Cucumber's Gherkin specification, used for user-story step format alignment (Feature/Scenario/Given/When/Then). Live-checked 2026-07-30: URL resolves (200). sources.md records original access as 2026-07-15."
+
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["spec-harvest"]
+name = "agilealliance.org"
+url = "https://www.agilealliance.org/glossary/user-stories/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "stable"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Agile Alliance glossary — story header format, acceptance-criteria practice, role-based narrative structure. Live-checked 2026-07-30: URL resolves (200). sources.md records original access as 2026-07-15."
+
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["spec-harvest"]
+name = "spdx.org"
+url = "https://spdx.org/licenses/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "SPDX License List — canonical identifiers for the licensing row of references/sdlc-checklist.md. The list itself is periodically extended with new license identifiers (rolling), not versioned as a single release. Live-checked 2026-07-30: URL resolves (200). sources.md records original access as 2026-07-15."
+
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["spec-harvest"]
+name = "owasp.org"
+url = "https://owasp.org/Top10/2025/"
+check_method = "manual"
+current_version = "2025"
+version_constraint = "stable"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "OWASP Top 10:2025 — the ten categories anchoring references/sdlc-checklist.md's security row. current_version='2025' names the edition (OWASP publishes named editions, not semver); medium priority since a future OWASP edition would change the checklist's category names. Live-checked 2026-07-30: URL resolves (200). sources.md records original access as 2026-07-15."
+
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["spec-harvest"]
+name = "getdx.com"
+url = "https://getdx.com/blog/production-readiness-checklist/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Production readiness checklist — supportability checklist items for references/sdlc-checklist.md. sources.md cites only 'getdx.com production-readiness-checklist' without a full path; this URL was located and confirmed live (200) on 2026-07-30 rather than transcribed from sources.md, which does not give the exact article path."
+
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["prd"]
+name = "productschool.com"
+url = "https://productschool.com/blog/product-strategy/product-template-requirements-document-prd"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "stable"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Product School's PRD template article — source for the Features Out and Go/No-Go criteria sections. Live-checked 2026-07-30: URL resolves (200). sources.md records original access as 2026-07-15."
+
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["prd"]
+name = "addyosmani.com"
+url = "https://addyosmani.com/blog/good-spec/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "stable"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Addy Osmani's 'How to write a good spec for AI agents' — source for the PRD-vs-implementation-spec boundary (SKILL.md line ~25: 'a PRD is not a software requirements specification') and agent-specific acceptance-criteria guidance. Live-checked 2026-07-30: URL resolves (200). sources.md records original access as 2026-07-15."

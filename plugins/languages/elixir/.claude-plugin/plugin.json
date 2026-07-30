@@ -1,6 +1,6 @@
 {
   "name": "elixir",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style, and anti-patterns",
   "author": {
     "name": "vinnie357"

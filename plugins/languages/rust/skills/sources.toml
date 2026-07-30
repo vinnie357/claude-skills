@@ -1,0 +1,439 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "rust"
+reviewed_at_plugin_version = "0.1.7"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Official Rust Documentation homepage — general reference and best-practices
+# pointer. Doc site with no independent release feed; content updates
+# continuously alongside the toolchain (see rust-stable-releases below for
+# the actual compiler version this plugin was verified against).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust", "troubleshooting"]
+name = "official-rust-documentation"
+url = "https://doc.rust-lang.org/stable/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2025-11-15"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md records this as 'Date Accessed: 2025-11-15'; not re-verified live in this pass. Purpose: Rust language features, standard library, best practices, patterns — the 'best practices, patterns' angle is why troubleshooting is also covered here."
+
+# ----------------------------------------------------------------------------
+# The Rust Programming Language Book — the primary ownership/borrowing/
+# lifetimes/error-handling/async teaching text.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust", "ownership", "error-handling", "async"]
+name = "rust-book"
+url = "https://doc.rust-lang.org/book/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md gives no explicit Date Accessed for this entry (unlike the official-docs entry above); last_checked is honestly 'unknown' rather than guessed. Key Topics per sources.md: ownership/borrowing, lifetimes, error handling with Result/Option, traits/generics, smart pointers, concurrency, async programming — hence coverage of ownership, error-handling, and async alongside rust."
+
+# ----------------------------------------------------------------------------
+# Rust by Example — pattern matching, modules, crates, error handling,
+# testing, via runnable snippets.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust", "error-handling", "testing"]
+name = "rust-by-example"
+url = "https://doc.rust-lang.org/rust-by-example/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed in sources.md for this entry. Key Topics: pattern matching, modules, crates, error handling, testing — testing and error-handling are both explicit Key Topics."
+
+# ----------------------------------------------------------------------------
+# Rust Standard Library Documentation — API reference for collections,
+# iterators, I/O, filesystem, threading/sync.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust"]
+name = "rust-std-library"
+url = "https://doc.rust-lang.org/std/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed in sources.md. Kept scoped to the general rust skill only — no other skill section in sources.md cites it directly."
+
+# ----------------------------------------------------------------------------
+# Async Rust Book — async/await, futures/executors, tokio runtime, streams,
+# pinning. Dedicated upstream for the async skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["async"]
+name = "async-book"
+url = "https://rust-lang.github.io/async-book/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed in sources.md. Scoped to async only — this is the dedicated async-programming upstream (tokio itself is tracked separately below as a crate)."
+
+# ----------------------------------------------------------------------------
+# Rust API Guidelines — naming, type safety, error-handling patterns,
+# documentation standards.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust", "error-handling", "troubleshooting"]
+name = "api-guidelines"
+url = "https://rust-lang.github.io/api-guidelines/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed in sources.md. Key Topics: naming conventions, type safety, error handling patterns, documentation standards — error-handling and troubleshooting (idiomatic/best-practice guidance) both draw on this directly per those topics."
+
+# ----------------------------------------------------------------------------
+# The Cargo Book — project structure, dependency management, build config,
+# testing/benchmarking, publishing.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust", "testing"]
+name = "cargo-book"
+url = "https://doc.rust-lang.org/cargo/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "No Date Accessed in sources.md. Key Topics explicitly include 'Testing and benchmarking' — hence testing coverage alongside rust. Not attached to cli: the cli skill has its own dedicated Rust CLI Book entry below, and sources.md does not place Cargo Book under the CLI Skill section."
+
+# ----------------------------------------------------------------------------
+# Rust compiler stable-release tracking (rust-lang/rust). This is the one
+# entry that legitimately spans every skill in the plugin — every skill's
+# content is written against the same toolchain edition, mirroring the zig
+# plugin's precedent of one compiler-version entry covering all its skills.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust", "ownership", "error-handling", "anti-patterns", "async", "testing", "troubleshooting", "cli"]
+name = "rust-lang/rust"
+url = "https://github.com/rust-lang/rust/releases"
+releases_url = "https://github.com/rust-lang/rust/releases"
+check_method = "github-releases"
+github_repo = "rust-lang/rust"
+current_version = "1.97.1"
+version_constraint = "stable"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md pins 1.97.1 (edition 2024), Date Accessed 2026-07-17. Live GitHub API check 2026-07-30 confirms tag_name 1.97.1 published 2026-07-16 is still the latest release — no drift. version_constraint is 'stable' rather than 'semver': Rust's edition-based backward-compatibility guarantee means breaking_changes_likely is false even across major/minor bumps."
+
+# ----------------------------------------------------------------------------
+# Tokio — async runtime. Crate version tracked for the rust skill's crate
+# table and directly for the async skill's runtime guidance.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust", "async"]
+name = "tokio"
+url = "https://crates.io/crates/tokio"
+check_method = "crates-io"
+crate_name = "tokio"
+current_version = "1.53.0"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md pins 1.53.0, Date Accessed 2026-07-17. Live crates.io check 2026-07-30 (User-Agent header per crates.io policy) shows max_version 1.53.1 now published upstream — skill content not yet re-verified against it; current_version stays pinned to the sources.md-verified value per the no-silent-advance rule."
+
+# ----------------------------------------------------------------------------
+# Serde — serialization framework. General crate-table reference for rust.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust"]
+name = "serde"
+url = "https://crates.io/crates/serde"
+check_method = "crates-io"
+crate_name = "serde"
+current_version = "1.0.228"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 1.0.228, Date Accessed 2026-07-17. Live crates.io check 2026-07-30 shows max_version 1.0.229 now published upstream — patch-level drift only, current_version stays pinned per sources.md."
+
+# ----------------------------------------------------------------------------
+# Rust Design Patterns Book — Anti-Patterns catalog (the 3 documented
+# anti-patterns: clone-to-satisfy-borrow-checker, deny(warnings), Deref
+# polymorphism). Dedicated upstream for the anti-patterns skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["anti-patterns"]
+name = "rust-unofficial-patterns"
+url = "https://rust-unofficial.github.io/patterns/anti_patterns/"
+releases_url = "https://github.com/rust-unofficial/patterns"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-07-17. GitHub API check 2026-07-30 confirms rust-unofficial/patterns still resolves (full_name unchanged, no redirect/rename) — repo-reachability verified, catalog content itself not re-diffed line-by-line."
+
+# ----------------------------------------------------------------------------
+# Rust Design Patterns Book — Idioms (borrowed-type parameters, mem::take/
+# replace, return-consumed-argument-on-error, closure variable capture).
+# Same site as the anti-patterns catalog above but a distinct page; shared
+# between anti-patterns (idiom-violation entries) and troubleshooting
+# (idiomatic-code/design-pattern guidance is troubleshooting's stated remit).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["anti-patterns", "troubleshooting"]
+name = "rust-unofficial-idioms"
+url = "https://rust-unofficial.github.io/patterns/idioms/"
+releases_url = "https://github.com/rust-unofficial/patterns"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-07-17. Same repo-reachability check as rust-patterns-anti-patterns (2026-07-30, no rename). Judgment call: sources.md only lists this under the 'Anti-Patterns Skill' heading, but the troubleshooting skill's own remit (idiomatic code, design patterns) matches this page's actual subject matter more directly than any other cited source, so troubleshooting is added here rather than left uncovered."
+
+# ----------------------------------------------------------------------------
+# Clippy Lint Index — verifies exact lint names/groups cited in the
+# anti-patterns skill (ptr_arg, unwrap_used, expect_used).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["anti-patterns"]
+name = "rust-clippy"
+url = "https://rust-lang.github.io/rust-clippy/master/index.html"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-17"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-07-17; not re-verified live in this pass (lint names/groups can be renamed or reclassified between clippy releases, hence medium priority despite no observed drift)."
+
+# ----------------------------------------------------------------------------
+# Rust CLI Book — argument parsing, output, signals, exit codes, testing,
+# packaging for command-line applications. Dedicated upstream for cli.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "rust-cli"
+url = "https://rust-cli.github.io/book/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-17"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-07-17; not re-verified live in this pass."
+
+# ----------------------------------------------------------------------------
+# clap — CLI argument parser (derive API).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "clap"
+url = "https://crates.io/crates/clap"
+check_method = "crates-io"
+crate_name = "clap"
+current_version = "4.6.2"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md pins 4.6.2 (verified via crates.io API, 2026-07-17). Live check 2026-07-30 shows max_version 4.6.4 now published — current_version stays pinned per sources.md."
+
+# ----------------------------------------------------------------------------
+# anyhow — dynamic error type with context(). Shared between cli (error
+# reporting to end users) and error-handling (composing errors with anyhow).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli", "error-handling"]
+name = "anyhow"
+url = "https://crates.io/crates/anyhow"
+check_method = "crates-io"
+crate_name = "anyhow"
+current_version = "1.0.103"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 1.0.103 (2026-07-17). Live check 2026-07-30 shows max_version 1.0.104 now published — patch drift only, current_version stays pinned. error-handling coverage: the error-handling skill's own description names composing errors with thiserror and anyhow explicitly."
+
+# ----------------------------------------------------------------------------
+# thiserror — derive macro for custom error types. Same cli/error-handling
+# split as anyhow, for the same documented reason.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli", "error-handling"]
+name = "thiserror"
+url = "https://crates.io/crates/thiserror"
+check_method = "crates-io"
+crate_name = "thiserror"
+current_version = "2.0.18"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md pins 2.0.18 (2026-07-17). Live check 2026-07-30 shows max_version 2.0.19 now published — current_version stays pinned."
+
+# ----------------------------------------------------------------------------
+# indicatif — progress bars for CLI output.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "indicatif"
+url = "https://crates.io/crates/indicatif"
+check_method = "crates-io"
+crate_name = "indicatif"
+current_version = "0.18.6"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "sources.md pins 0.18.6 (2026-07-17). Live check 2026-07-30 confirms max_version still 0.18.6 — no drift. pre-1.0, so a minor bump could break the API."
+
+# ----------------------------------------------------------------------------
+# assert_cmd — testing CLI binaries as subprocesses.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "assert_cmd"
+url = "https://crates.io/crates/assert_cmd"
+check_method = "crates-io"
+crate_name = "assert_cmd"
+current_version = "2.2.2"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 2.2.2 (2026-07-17). Live check 2026-07-30 confirms max_version still 2.2.2 — no drift."
+
+# ----------------------------------------------------------------------------
+# predicates — assertion predicates paired with assert_cmd.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "predicates"
+url = "https://crates.io/crates/predicates"
+check_method = "crates-io"
+crate_name = "predicates"
+current_version = "3.1.4"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 3.1.4 (2026-07-17). Live check 2026-07-30 confirms max_version still 3.1.4 — no drift."
+
+# ----------------------------------------------------------------------------
+# ctrlc — Ctrl-C/SIGINT signal handling.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "ctrlc"
+url = "https://crates.io/crates/ctrlc"
+check_method = "crates-io"
+crate_name = "ctrlc"
+current_version = "3.5.2"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 3.5.2 (2026-07-17). Live check 2026-07-30 confirms max_version still 3.5.2 — no drift."
+
+# ----------------------------------------------------------------------------
+# exitcode — standard process exit code constants.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "exitcode"
+url = "https://crates.io/crates/exitcode"
+check_method = "crates-io"
+crate_name = "exitcode"
+current_version = "1.1.2"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 1.1.2 (2026-07-17). Live check 2026-07-30 confirms max_version still 1.1.2 — no drift."
+
+# ----------------------------------------------------------------------------
+# log — the facade crate used for CLI verbosity levels.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "log"
+url = "https://crates.io/crates/log"
+check_method = "crates-io"
+crate_name = "log"
+current_version = "0.4.33"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 0.4.33 (2026-07-17). Live check 2026-07-30 confirms max_version still 0.4.33 — no drift. Numerically pre-1.0, but the 0.4 line has been the de facto stable API for years across the ecosystem — breaking_changes_likely is judged false despite the pre-1.0 constraint tag."
+
+# ----------------------------------------------------------------------------
+# env_logger — log implementation reading RUST_LOG env var.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "env_logger"
+url = "https://crates.io/crates/env_logger"
+check_method = "crates-io"
+crate_name = "env_logger"
+current_version = "0.11.11"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 0.11.11 (2026-07-17). Live check 2026-07-30 confirms max_version still 0.11.11 — no drift."
+
+# ----------------------------------------------------------------------------
+# clap-verbosity-flag — clap integration for -v/-q verbosity flags.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["cli"]
+name = "clap-verbosity-flag"
+url = "https://crates.io/crates/clap-verbosity-flag"
+check_method = "crates-io"
+crate_name = "clap-verbosity-flag"
+current_version = "3.0.4"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md pins 3.0.4 (2026-07-17). Live check 2026-07-30 confirms max_version still 3.0.4 — no drift."
+
+# ----------------------------------------------------------------------------
+# Rust Cookbook — pointer only, not mirrored. Used to confirm which crate is
+# canonical for a given task in the rust skill's 'Common Crates by Task'
+# table; not copied as recipe content.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["rust"]
+name = "rust-cookbook"
+url = "https://rust-lang-nursery.github.io/rust-cookbook/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-07-17"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-07-17; not re-verified live in this pass. Per sources.md, only the error-handling and CLI-adjacent chapters were pulled into skill content — algorithms/compression/cryptography/database/science/WebAssembly/multimedia/networking/parser-combinators chapters are out of scope."

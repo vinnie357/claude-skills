@@ -1,6 +1,10 @@
 # Ansible Plugin Sources
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 ## ansible Skill
+
+_Tracked in sources.toml as `ansible-core-docs`._
 
 - **URL**: https://docs.ansible.com/ansible/latest/getting_started/index.html
   - **Purpose**: Official getting started guide and quickstart
@@ -45,6 +49,7 @@
   - **Purpose**: Ansible Galaxy documentation
   - **Key topics**: Installing roles and collections, `requirements.yml`, `ansible-galaxy` CLI
   - **Accessed**: 2026-05-06
+  - _Tracked in sources.toml as `ansible-galaxy-docs`._
 
 ## ansible-vault Skill
 
@@ -57,6 +62,7 @@
   - **Purpose**: HashiCorp Vault lookup plugin
   - **Key topics**: Lookup plugin configuration, token auth, AppRole auth
   - **Accessed**: 2026-05-06
+  - _Tracked in sources.toml as `community-hashi-vault`._
 
 ## ansible-testing Skill
 

@@ -1,0 +1,215 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "wasm"
+reviewed_at_plugin_version = "0.1.3"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# Wasmtime — the runtime itself. Merges sources.md's two separate mentions
+# ("Wasmtime Documentation" at docs.wasmtime.dev and "Wasmtime API Reference
+# (Rust)" at docs.rs/wasmtime) into one entry: both describe the same crate
+# at the same version, so tracking them as two near-identical sources would
+# just duplicate the same drift check.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime"]
+name = "wasmtime"
+url = "https://docs.wasmtime.dev/"
+releases_url = "https://github.com/bytecodealliance/wasmtime/releases"
+check_method = "crates-io"
+crate_name = "wasmtime"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "sources.md pins no version for this skill's content. Live crates.io check 2026-07-30 shows max_version 47.0.2 (GitHub releases confirm tag v47.0.2, published 2026-07-21). Wasmtime ships major-version bumps roughly monthly, hence high priority / breaking_changes_likely=true even though the numbering is nominally semver. Also cites docs.rs/wasmtime/latest/wasmtime/ as the Rust API-reference mirror of the same crate — not tracked as a separate source."
+
+# ----------------------------------------------------------------------------
+# Bytecode Alliance — the organization behind Wasmtime, WASI, and the
+# Component Model. Shared between wasmtime and wit since it is the umbrella
+# org for both.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime", "wit"]
+name = "bytecodealliance"
+url = "https://bytecodealliance.org/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Organization overview page, not a versioned artifact; sources.md gives no Date Accessed for this entry."
+
+# ----------------------------------------------------------------------------
+# Component Model overview (root of component-model.bytecodealliance.org).
+# Merges sources.md's two mentions of this exact URL: 'Component Model
+# Documentation' under the Wasmtime Skill section and 'Component Model
+# Overview' under the WIT Skill section.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime", "wit"]
+name = "component-model"
+url = "https://component-model.bytecodealliance.org/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-25"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Date Accessed 2026-03-25 per the WIT Skill section's 'Component Model Overview' mention; the Wasmtime Skill section's 'Component Model Documentation' entry cites the identical root URL with no separate date, so the two are tracked as one entry rather than duplicated."
+
+# ----------------------------------------------------------------------------
+# WASI Specification — WASIp1/WASIp2, capability-based security model.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime"]
+name = "wasi"
+url = "https://wasi.dev/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md gives no Date Accessed. Covers both WASIp1 and WASIp2 qualitatively per sources.md Key Topics; no single pinned spec version to track."
+
+# ----------------------------------------------------------------------------
+# cargo-component — Cargo subcommand for building Wasm components from Rust.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime"]
+name = "cargo-component"
+url = "https://github.com/bytecodealliance/cargo-component"
+check_method = "github-releases"
+github_repo = "bytecodealliance/cargo-component"
+current_version = "unknown"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "sources.md pins no version. Live GitHub API check 2026-07-30: latest release v0.21.1, published 2025-04-07 — repo confirmed reachable, no rename."
+
+# ----------------------------------------------------------------------------
+# wit-bindgen — language binding generator for WIT interfaces. Purpose text
+# in sources.md is explicitly about WIT, so this is shared with the wit
+# skill rather than scoped to wasmtime alone.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime", "wit"]
+name = "wit-bindgen"
+url = "https://github.com/bytecodealliance/wit-bindgen"
+check_method = "github-releases"
+github_repo = "bytecodealliance/wit-bindgen"
+current_version = "unknown"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "sources.md pins no version. Live GitHub API check 2026-07-30: latest release v0.60.0, published 2026-07-22 — repo confirmed reachable, no rename."
+
+# ----------------------------------------------------------------------------
+# wasm-tools — CLI and Rust libraries for wasm validation, composition,
+# printing, component creation.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime"]
+name = "wasm-tools"
+url = "https://github.com/bytecodealliance/wasm-tools"
+check_method = "github-releases"
+github_repo = "bytecodealliance/wasm-tools"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "sources.md pins no version. Live GitHub API check 2026-07-30: latest release v1.255.0, published the same day (2026-07-30) — repo confirmed reachable, no rename. Release cadence is extremely fast (three-digit minor versions within a single major), hence high priority despite the nominal 1.x semver."
+
+# ----------------------------------------------------------------------------
+# Wasmex — Elixir wrapper around Wasmtime via Rust NIFs. Merges sources.md's
+# two mentions (hexdocs.pm/wasmex docs and the tessi/wasmex GitHub repo) into
+# one entry — same package, docs site vs source repo for the identical
+# release.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime"]
+name = "wasmex"
+url = "https://hexdocs.pm/wasmex/"
+releases_url = "https://github.com/tessi/wasmex"
+check_method = "hex-pm"
+hex_package = "wasmex"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-07-30"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "sources.md pins no version. Live hex.pm API check 2026-07-30 shows latest release 0.14.0. GitHub API check confirms tessi/wasmex still resolves, no rename."
+
+# ----------------------------------------------------------------------------
+# Zig Wasm/WASI documentation. Merges sources.md's two mentions of the same
+# ziglang.org/documentation/master/ page (the general Wasm-target docs and
+# the '#toc-WebAssembly-System-Interface-WASI' anchor on that identical page)
+# into one entry.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime"]
+name = "zig-wasm-docs"
+url = "https://ziglang.org/documentation/master/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md gives no Date Accessed for either mention of this page. The zig plugin tracks ziglang.org release versioning independently in its own sources.toml; this entry only represents the wasm plugin's citation of it for guest-compilation guidance, not a full re-verification of Zig's own version state."
+
+# ----------------------------------------------------------------------------
+# Rust and WebAssembly Working Group book — wasm-pack, binary size
+# optimization, debugging.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wasmtime"]
+name = "rustwasm"
+url = "https://rustwasm.github.io/docs/book/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "unknown"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md gives no Date Accessed for this entry."
+
+# ----------------------------------------------------------------------------
+# WIT Language Reference — package naming, interfaces, worlds, type system,
+# functions, resources. Dedicated upstream for the wit skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wit"]
+name = "wit-language-reference"
+url = "https://component-model.bytecodealliance.org/design/wit.html"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-25"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-03-25; not re-verified live in this pass (doc page, no version to check)."
+
+# ----------------------------------------------------------------------------
+# Component Model Worlds — import/export declarations, world includes,
+# component targets.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["wit"]
+name = "wit-worlds-spec"
+url = "https://component-model.bytecodealliance.org/design/worlds.html"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-03-25"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "sources.md Date Accessed 2026-03-25; not re-verified live in this pass."

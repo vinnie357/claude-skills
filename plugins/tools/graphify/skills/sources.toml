@@ -1,0 +1,40 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "graphify"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-07-30"
+
+# ----------------------------------------------------------------------------
+# graphify (PyPI: graphifyy) — the third-party knowledge-graph CLI both
+# skills document. Not a first-party/workspace tool: a solo/small-team
+# open-source project the marketplace consumes, unlike the strategic-surface
+# carve-out (vantageex/runex/etc.) in /core:restraint. Shared upstream for
+# both skills, per claude-skills-182 guidance on combining entries.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["graphify", "graphify-agents"]
+name = "graphify"
+url = "https://github.com/Graphify-Labs/graphify"
+releases_url = "https://github.com/Graphify-Labs/graphify/releases"
+check_method = "github-releases"
+github_repo = "Graphify-Labs/graphify"
+current_version = "0.8.36"
+version_constraint = "pre-1.0"
+last_checked = "2026-07-30"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "current_version='0.8.36' is what both skills' content was verified against per sources.md: PyPI package graphifyy 0.8.36 (2026-06-08, pypi.org/pypi/graphifyy/json), the GitHub repo overview, and a local `graphify --help` capture (frozen into references/cli.md). Live check 2026-07-30 found the GitHub repo has RENAMED: api.github.com/repos/safishamsi/graphify now 301-redirects (via repository id 1200597263) to Graphify-Labs/graphify — recorded here as the current github_repo/url, same pattern as the steveyegge/beads -> gastownhall/beads rename caught in batch 1. Live check also shows the published version has moved well past the pinned one: GitHub 'latest' release is v0.9.31 (2026-07-30) and a v1.0.0 tag already exists (not marked 'latest'), while PyPI's live current version is 0.9.31. NOT bumping current_version: skill content (CLI flags in references/cli.md, --version output, extras list) has not been re-verified against 0.9.x/1.0.0 — a version this far ahead is exactly the pre-1.0 + high-priority case, and update_priority=high plus breaking_changes_likely=true reflect that gap, not a completed migration."
+
+# ----------------------------------------------------------------------------
+# mise pipx backend / uvx install path — this is /core:mise doctrine cited
+# by the graphify skill for its recommended install method, not an
+# independent external upstream to version-track. check_method = "none".
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["graphify"]
+name = "core:mise"
+check_method = "none"
+last_checked = "2026-06-08"
+notes = "sources.md: 'mise pipx backend (install path) — URL: https://mise.jdx.dev (pipx backend) — verified via /core:mise'. The installation section (SKILL.md 'Using mise') documents [settings.pipx] uvx = true plus a uv tool dependency so mise resolves uv then pipx:graphifyy in one `mise install` — this is /core:mise's own domain (the pipx backend and uvx-mode requirement), not a graphify-project fact. Tracked as internal doctrine, not a graphify upstream to check for drift."
