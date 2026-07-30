@@ -49,6 +49,20 @@ const SEMVER_RE = '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 #   skill_dirs  - skill directory basenames from plugin.json
 #   parsed      - the `open`ed / `from toml`ed sources.toml as a record
 #   md          - sources.md content, or null when the file is missing
+# claude-skills-185 round 2: `into string` maps a LIST elementwise (yielding
+# list<string>, which `=~` then rejects) and throws outright on a record. Every
+# scalar-expecting field goes through this so a wrong-type value REPORTS.
+def scalar-str [v: any]: nothing -> any {
+    let t = ($v | describe)
+    if ($t == "string") {
+        $v
+    } else if ($t in ["int" "bool" "float" "datetime" "filesize" "duration"]) {
+        $v | into string
+    } else {
+        null
+    }
+}
+
 def check-sources [
     plugin: string
     version: string
@@ -65,6 +79,16 @@ def check-sources [
             rule: "b1_meta_missing"
             severity: "fail"
             message: $"($plugin): sources.toml missing required table '[meta]'"
+        })
+    } else if (($meta | describe --detailed | get type) != "record") {
+        # claude-skills-185: a WRONG-TYPE root, e.g. `meta = "awman"`. Without
+        # this arm `$meta | columns` aborts the whole scan with a raw nushell
+        # error naming this file's line, not the offending plugin — so one bad
+        # file hid findings in the other 27.
+        $findings = ($findings | append {
+            rule: "b1_meta_not_table"
+            severity: "fail"
+            message: $"($plugin): sources.toml 'meta' is a ($meta | describe), expected a [meta] table"
         })
     } else {
         let meta_cols = ($meta | columns)
@@ -102,7 +126,7 @@ def check-sources [
 
         # A4: review-pending drift is informational, never a failure.
         if "reviewed_at_plugin_version" in $meta_cols {
-            let reviewed_at = ($meta.reviewed_at_plugin_version | into string)
+            let reviewed_at = (scalar-str $meta.reviewed_at_plugin_version)
             if $reviewed_at != $version {
                 $findings = ($findings | append {
                     rule: "a4_review_pending"
@@ -110,7 +134,13 @@ def check-sources [
                     message: $"($plugin): sources reviewed at plugin version ($reviewed_at), plugin.json is now ($version) — review pending"
                 })
             }
-            if not ($reviewed_at == "unknown" or ($reviewed_at =~ $SEMVER_RE)) {
+            if $reviewed_at == null {
+                $findings = ($findings | append {
+                    rule: "b3_semver"
+                    severity: "fail"
+                    message: $"($plugin): meta.reviewed_at_plugin_version is a ($meta.reviewed_at_plugin_version | describe), expected a version string or 'unknown'"
+                })
+            } else if not ($reviewed_at == "unknown" or ($reviewed_at =~ $SEMVER_RE)) {
                 $findings = ($findings | append {
                     rule: "b3_semver"
                     severity: "fail"
@@ -120,8 +150,14 @@ def check-sources [
         }
 
         if "last_full_check" in $meta_cols {
-            let lfc = ($meta.last_full_check | into string)
-            if not ($lfc == "unknown" or ($lfc =~ $DATE_RE)) {
+            let lfc = (scalar-str $meta.last_full_check)
+            if $lfc == null {
+                $findings = ($findings | append {
+                    rule: "b3_date"
+                    severity: "fail"
+                    message: $"($plugin): meta.last_full_check is a ($meta.last_full_check | describe), expected YYYY-MM-DD or 'unknown'"
+                })
+            } else if not ($lfc == "unknown" or ($lfc =~ $DATE_RE)) {
                 $findings = ($findings | append {
                     rule: "b3_date"
                     severity: "fail"
@@ -133,11 +169,38 @@ def check-sources [
 
     # A-F4 guard 2: [[sources]] absent entirely (same shape of failure).
     let sources = ($parsed | get -o sources)
-    if $sources == null or ($sources | is-empty) {
+    if $sources == null {
         $findings = ($findings | append {
             rule: "b1_entry_missing"
             severity: "fail"
             message: $"($plugin): sources.toml has no [[sources]] entries"
+        })
+    } else if (($sources | describe --detailed | get type) != "list") {
+        # claude-skills-185 round 2: `any` itself throws on non-list input, so
+        # the previous guard aborted on exactly the inputs it meant to report.
+        # `[sources]` (single brackets) parses as a RECORD and is the likeliest
+        # hand-authoring mistake of this family, with 26 files still to write.
+        $findings = ($findings | append {
+            rule: "b1_sources_not_list"
+            severity: "fail"
+            message: $"($plugin): sources.toml 'sources' is a ($sources | describe), expected [[sources]] entries \(double brackets\)"
+        })
+    } else if ($sources | is-empty) {
+        $findings = ($findings | append {
+            rule: "b1_entry_missing"
+            severity: "fail"
+            message: $"($plugin): sources.toml has no [[sources]] entries"
+        })
+    } else if (($sources | any {|e| ($e | describe --detailed | get type) != "record" })) {
+        # claude-skills-185: WRONG-TYPE entries, e.g. `sources = ["not-a-table"]`.
+        # Without this arm the `$s.skills?` cell path aborts on a string.
+        # Checked per-entry, not via `describe` on the collection: a
+        # heterogeneous table reports only its column intersection.
+        let bad = ($sources | enumerate | where {|r| ($r.item | describe --detailed | get type) != "record" } | get index)
+        $findings = ($findings | append {
+            rule: "b1_entry_not_table"
+            severity: "fail"
+            message: $"($plugin): sources.toml [[sources]] entries at index ($bad | str join ', ') are not tables"
         })
     } else {
         # A-F2: the coverage union MUST be per-record — `$sources | get skills`
@@ -148,7 +211,7 @@ def check-sources [
         # data.
         let covered = ($sources | each {|s|
             let v = ($s.skills? | default [])
-            if ($v | describe | str starts-with "list") { $v } else { [] }
+            if (($v | describe --detailed | get type) == "list") { $v } else { [] }
         } | flatten | uniq)
 
         let uncovered = ($skill_dirs | where {|d| $d not-in $covered})
@@ -168,12 +231,33 @@ def check-sources [
             })
         }
 
+        # claude-skills-185: duplicate entry NAMES within one plugin.
+        # Two entries covering the same SKILL stays legal on purpose — a skill
+        # can genuinely have several upstreams (claude-code documents 35 across
+        # 12 skills). Two entries sharing a NAME is the copy-paste error, and
+        # it also makes `mise sources:check` output ambiguous.
+        # Deliberately not `group-by --to-table`: with a closure it emits a
+        # GENERATED column name (`closure_0`), so depending on it is a silent
+        # breakage waiting for a nushell version bump.
+        let entry_names = ($sources | each {|s| $s.name? | default null} | compact)
+        let dup_names = ($entry_names | uniq | where {|n|
+            ($entry_names | where {|x| $x == $n} | length) > 1
+        })
+        if ($dup_names | is-not-empty) {
+            $findings = ($findings | append {
+                rule: "b6_duplicate_name"
+                severity: "fail"
+                message: $"($plugin): duplicate [[sources]] name\(s\): [($dup_names | str join ', ')] — entries may share a skill, but not a name"
+            })
+        }
+
         # B-group + entry-scoped C2: iterate per-record, never via table
         # column projection (`describe`/`get` on the whole table only see the
         # column INTERSECTION across heterogeneous entries).
         for entry in $sources {
             let cols = ($entry | columns)
-            let name = ($entry.name? | default "unnamed")
+            let name_raw = ($entry.name? | default "unnamed")
+            let name = ((scalar-str $name_raw) | default "unnamed")
 
             for k in $cols {
                 if $k not-in $ENTRY_KEYS {
@@ -248,7 +332,7 @@ def check-sources [
                 })
             }
             if "version_constraint" in $cols {
-                let vc = ($entry.version_constraint | into string)
+                let vc = (scalar-str $entry.version_constraint)
                 if $vc not-in $VERSION_CONSTRAINTS {
                     $findings = ($findings | append {
                         rule: "b2_enum"
@@ -258,7 +342,7 @@ def check-sources [
                 }
             }
             if "update_priority" in $cols {
-                let up = ($entry.update_priority | into string)
+                let up = (scalar-str $entry.update_priority)
                 if $up not-in $UPDATE_PRIORITIES {
                     $findings = ($findings | append {
                         rule: "b2_enum"
@@ -269,8 +353,14 @@ def check-sources [
             }
 
             if "last_checked" in $cols {
-                let lc = ($entry.last_checked | into string)
-                if not ($lc == "unknown" or ($lc =~ $DATE_RE)) {
+                let lc = (scalar-str $entry.last_checked)
+                if $lc == null {
+                    $findings = ($findings | append {
+                        rule: "b3_date"
+                        severity: "fail"
+                        message: $"($plugin)/($name): last_checked is a ($entry.last_checked | describe), expected YYYY-MM-DD or 'unknown'"
+                    })
+                } else if not ($lc == "unknown" or ($lc =~ $DATE_RE)) {
                     $findings = ($findings | append {
                         rule: "b3_date"
                         severity: "fail"
@@ -319,9 +409,17 @@ def check-sources [
         })
     } else {
         let md_lower = ($md | str downcase)
-        if $sources != null {
-            for entry in $sources {
-                let name = ($entry.name? | default "")
+        # claude-skills-185 rd2: type-check here too. `$sources != null` is not
+        # enough — a string root reaches `where` and throws. Third site of one
+        # root cause; the guard belongs at every consumer, not just the first.
+        if $sources != null and (($sources | describe --detailed | get type) == "list") {
+            # claude-skills-185: filter to record entries here too. This loop
+            # lives in a different scope from the b1_entry_not_table guard, so
+            # guarding only the root left this site still crashing on a
+            # wrong-type entry — the exact fix-one-site-leave-the-sibling
+            # pattern this repo keeps hitting.
+            for entry in ($sources | where {|e| ($e | describe --detailed | get type) == "record" }) {
+                let name = ((scalar-str ($entry.name? | default "")) | default "")
                 if ($name | is-not-empty) and not ($md_lower | str contains ($name | str downcase)) {
                     $findings = ($findings | append {
                         rule: "c2_md_no_mention"
@@ -357,7 +455,9 @@ def main [--self-test] {
 
     mut plugins = []
     for p in $marketplace.plugins {
-        if (($p.source | describe) | str starts-with "record") { continue }
+        # Object sources (github/url) are skipped. Detailed form for the same
+        # reason as everywhere else in this file — see scalar-str.
+        if (($p.source | describe --detailed | get type) == "record") { continue }
         if ($p.name == "all-skills") { continue }
         let plugin_dir = ($repo_root | path join ($p.source | str replace --regex '^\./' ''))
         if not (($plugin_dir | path join ".claude-plugin" "plugin.json") | path exists) { continue }
@@ -591,6 +691,206 @@ update_priority = "medium"
             version: "1.0.0"
             md: "demo-source is documented here"
             want: ["b1_meta_missing"]
+        }
+        {
+            label: "sources is a scalar string, not a list (claude-skills-185 rd2)"
+            toml: '
+sources = "nope"
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "nothing"
+            want: ["b1_sources_not_list"]
+        }
+        {
+            label: "[sources] single-bracket typo parses as a record (claude-skills-185 rd2)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[sources]
+skills = ["a"]
+name = "demo-source"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b1_sources_not_list"]
+        }
+        {
+            label: "entry name is an int, must not crash str downcase (claude-skills-185 rd2)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = 123
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "123 is documented here"
+            want: []
+        }
+        {
+            label: "meta.last_full_check as a list must report, not crash =~ (claude-skills-185 rd2)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = ["2026-01-01"]
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_date"]
+        }
+        {
+            label: "entry last_checked as a list must report, not crash =~ (claude-skills-185 rd2)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = ["2026-01-01"]
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_date"]
+        }
+        {
+            label: "meta is a scalar, not a table (claude-skills-185)"
+            toml: '
+meta = "demo"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b1_meta_not_table"]
+        }
+        {
+            label: "[[sources]] entries are strings, not tables (claude-skills-185)"
+            toml: '
+sources = ["not-a-table"]
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "nothing documented"
+            want: ["b1_entry_not_table"]
+        }
+        {
+            label: "two entries sharing a name (claude-skills-185)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.org"
+check_method = "manual"
+current_version = "2.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b6_duplicate_name"]
+        }
+        {
+            label: "two entries sharing a SKILL but not a name stays legal (claude-skills-185)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "upstream-one"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+[[sources]]
+skills = ["a"]
+name = "upstream-two"
+url = "https://example.org"
+check_method = "manual"
+current_version = "2.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "upstream-one and upstream-two are documented here"
+            want: []
         }
         {
             label: "[meta] with generated_at"
@@ -1236,7 +1536,7 @@ update_priority = "medium"
     let severity_fail = ($severity_findings | where severity == "fail")
     let severity_info = ($severity_findings | where severity == "info")
     if ($severity_fail | is-not-empty) or ($severity_info | length) != 1 or ($severity_info | first | get rule) != "a4_review_pending" {
-        print $"(ansi red_bold)❌ a4_review_pending severity case: expected exactly one info finding (a4_review_pending) and zero fail findings, got ($severity_findings | to nuon)(ansi reset)"
+        print $"(ansi red_bold)❌ a4_review_pending severity case: expected exactly one info finding \(a4_review_pending\) and zero fail findings, got ($severity_findings | to nuon)(ansi reset)"
         $failed = true
     }
 
