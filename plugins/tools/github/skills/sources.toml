@@ -31,7 +31,7 @@ version_constraint = "rolling"
 last_checked = "2026-07-30"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "actions/toolkit is a real, live repo (GitHub API confirms full_name unchanged, no rename), but is a monorepo of independently-versioned npm packages (@actions/core, @actions/github, @actions/exec, @actions/cache, @actions/artifact) with no single repo-level release: GET /repos/actions/toolkit/releases/latest returns a null tag_name/published_at (empty result), so github-releases would silently never fire — same failure class as two other renamed/unreleased upstreams already caught this migration. check_method=manual is deliberate, not an oversight."
+notes = "actions/toolkit is a real, live repo (GitHub API confirms full_name unchanged, no rename), but is a monorepo of independently-versioned npm packages (@actions/core, @actions/github, @actions/exec, @actions/cache, @actions/artifact) with no single repo-level release: GET /repos/actions/toolkit/releases/latest returns HTTP 404 with a Not Found error object (its tag_name is null because it is an error body, not an empty release), so github-releases would silently never fire — same failure class as two other renamed/unreleased upstreams already caught this migration. check_method=manual is deliberate, not an oversight."
 
 [[sources]]
 skills = ["actions"]
@@ -160,7 +160,7 @@ version_constraint = "semver"
 last_checked = "2026-07-30"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md gives no Date Accessed for this entry. Grep of skill directories for 'gh pr'/'gh api'/'gh CLI'/cli.github.com confirms usage in workflows, act, community-health, dependabot-consolidator, and pr-review (not actions). Live GitHub API check 2026-07-30: cli/cli full_name unchanged, releases/latest resolves to v2.96.0 — sources.md never pinned a version, current_version stays 'unknown'."
+notes = "sources.md gives no Date Accessed for this entry. Grep of skill directories for gh subcommands confirms usage in workflows, act, community-health, dependabot-consolidator, and pr-review (not actions). The subcommand varies by skill — workflows uses 'gh workflow'/'gh run' (SKILL.md:196-199), not the 'gh pr'/'gh api' forms the other four use. Live GitHub API check 2026-07-30: cli/cli full_name unchanged, releases/latest resolves to v2.96.0 — sources.md never pinned a version, current_version stays 'unknown'."
 
 [[sources]]
 skills = ["actions", "act", "workflows"]
