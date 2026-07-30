@@ -35,12 +35,14 @@ Each plugin's `skills/sources.toml` tracks upstream dependencies. See `templates
 | `github_repo` | `owner/repo` | conditional | Required for `github-releases` |
 | `hex_package` | string | conditional | Required for `hex-pm` |
 | `crate_name` | string | conditional | Required for `crates-io` |
-| `current_version` | string | yes unless `none` | The upstream version this skill content was last verified/documented against |
+| `current_version` | string \| `unknown` | yes unless `none` | The upstream version this skill content was last verified/documented against |
 | `version_constraint` | `pre-1.0` \| `semver` \| `rolling` \| `stable` | yes unless `none` | Version stability model |
-| `last_checked` | `YYYY-MM-DD` | yes | Date of last check |
+| `last_checked` | `YYYY-MM-DD` \| `unknown` | yes | Date of last check |
 | `update_priority` | `high` \| `medium` \| `low` | yes unless `none` | Update urgency |
 | `breaking_changes_likely` | bool | no | Minor bumps may break (default: false) |
 | `notes` | string | no in general, yes when `check_method = "none"` | Free-form context |
+
+Record `unknown` for `current_version` or `last_checked` when the real value can't be established from `sources.md`, git history, or a live upstream check — a guessed date or version is fabrication; `unknown` is the sanctioned way to say so. Enforcement differs between the two: `last_checked` is format-checked (`test/validate-sources.nu` rule `b3_date` requires `YYYY-MM-DD` or the literal `unknown`, rejecting anything else). `current_version` has no format check — any string passes validation — so `unknown` there is a convention this skill asks authors to follow, not something the validator enforces.
 
 `check_method = "none"` is for skills with no external upstream (first-party doctrine authored in this repo): `notes` is required (state why there is no upstream), and `url` / `current_version` / `version_constraint` / `update_priority` are forbidden.
 
