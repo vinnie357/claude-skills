@@ -44,6 +44,14 @@ Each plugin's `skills/sources.toml` tracks upstream dependencies. See `templates
 
 `check_method = "none"` is for skills with no external upstream (first-party doctrine authored in this repo): `notes` is required (state why there is no upstream), and `url` / `current_version` / `version_constraint` / `update_priority` are forbidden.
 
+## sources.md index convention
+
+Every `sources.toml` entry `name` must appear in `sources.md` **prose** — `test:sources` rule `c2_md_no_mention` strips scheme-prefixed URLs before matching, so a name sitting only inside its own `- **URL**:` field does not count. Naming an entry after what the prose already calls it needs no extra text — that is the default and what `mise sources:init` produces. When prose doesn't already name it, append one `Entries:` sentence to the `Structured tracking:` pointer line (same line, not a new one), backticked names, comma-separated:
+
+```
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `name-one`, `name-two` (the Foo Skill section below).
+```
+
 ## Check Method API Endpoints
 
 | `check_method` | Endpoint | Auth | Rate Limit |

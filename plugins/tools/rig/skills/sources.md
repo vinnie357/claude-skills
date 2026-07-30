@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the rig plugin skill.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `rig-core`, `lemonade-server`.
 
 ## Rig Skill
 

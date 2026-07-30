@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the elixir plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `elixir-lang`, `erlang/otp`, `phoenix`, `phoenix_live_view`, `tidewave`, `stream_data`, `ecto`, `ecto_sql`.
 
 ## Anti-Patterns Skill
 

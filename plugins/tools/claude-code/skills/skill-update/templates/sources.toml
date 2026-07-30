@@ -26,7 +26,10 @@ last_full_check = "unknown"            # REQUIRED. YYYY-MM-DD or "unknown".
 skills = ["skill-name"]          # REQUIRED. Non-empty list of skill DIRECTORY names
                                  # from this plugin's plugin.json. Not a scalar.
 name = "source-name"             # REQUIRED. Human-readable identifier (e.g. "apple-container").
-                                 # Must be mentioned in sources.md.
+                                 # Must appear in sources.md PROSE (URLs do not count) - append
+                                 # it to the Entries: sentence on the index-pointer line if no
+                                 # prose already names it. Never name an entry after a URL
+                                 # fragment just to pass the check.
 url = ""                         # REQUIRED unless check_method = "none".
 releases_url = ""                # Optional but recommended.
 

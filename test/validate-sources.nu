@@ -409,6 +409,17 @@ def check-sources [
         })
     } else {
         let md_lower = ($md | str downcase)
+        # claude-skills-186: strip scheme-prefixed URLs before matching, so an
+        # entry can no longer pass c2 solely because its name happens to sit
+        # inside its own `- **URL**:` field (rig/lemonade-server was the
+        # motivating case — no prose named it, only its url did). Scheme-only
+        # — NOT a bare-domain strip — is deliberate: bare-domain entry names
+        # (design's m3.material.io, pm's cucumber.io) are legitimate
+        # identifiers and must still match when prose names them without a
+        # scheme. Measured: scheme-only and a more aggressive domain-stripping
+        # regex produce the identical failing-entry set on this corpus, so the
+        # minimal regex is sufficient and preserves the bare-domain case.
+        let md_prose = ($md_lower | str replace -a -r 'https?://[^\s)>"\]]+' '')
         # claude-skills-185 rd2: type-check here too. `$sources != null` is not
         # enough — a string root reaches `where` and throws. Third site of one
         # root cause; the guard belongs at every consumer, not just the first.
@@ -420,11 +431,11 @@ def check-sources [
             # pattern this repo keeps hitting.
             for entry in ($sources | where {|e| ($e | describe --detailed | get type) == "record" }) {
                 let name = ((scalar-str ($entry.name? | default "")) | default "")
-                if ($name | is-not-empty) and not ($md_lower | str contains ($name | str downcase)) {
+                if ($name | is-not-empty) and not ($md_prose | str contains ($name | str downcase)) {
                     $findings = ($findings | append {
                         rule: "c2_md_no_mention"
                         severity: "fail"
-                        message: $"($plugin): sources.md does not mention entry '($name)' — the index must cover every sources.toml entry"
+                        message: $"($plugin): sources.md does not mention entry '($name)' in prose — URLs do not count; add it to the Entries: sentence"
                     })
                 }
             }
