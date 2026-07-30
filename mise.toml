@@ -32,7 +32,7 @@ depends = ["test"]
 # "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
 # Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -267,6 +267,16 @@ run = """
 let repo_root = (git rev-parse --show-toplevel | str trim)
 nu ($repo_root | path join "test" "validate-disclosure.nu") --self-test
 nu ($repo_root | path join "test" "validate-disclosure.nu")
+"""
+
+[tasks."test:sources"]
+description = "Validate sources.toml schema and plugin.json/sources.md agreement"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "validate-sources.nu") --self-test
+nu ($repo_root | path join "test" "validate-sources.nu")
 """
 
 [tasks."test:plugin"]
@@ -935,12 +945,12 @@ fi
 '''
 
 [tasks."sources:init"]
-description = "Bootstrap sources.toml from existing sources.md"
+description = "Print a DRAFT sources.toml from an existing sources.md (never trusted; use --write to save)"
 run = '''
 #!/usr/bin/env bash
 if [ -z "$1" ]; then
-    echo "Usage: mise sources:init <plugin-name>"
+    echo "Usage: mise sources:init <plugin-name> [--write]"
     exit 1
 fi
-nu "plugins/tools/claude-code/skills/skill-update/scripts/sources-init.nu" "$1"
+nu "plugins/tools/claude-code/skills/skill-update/scripts/sources-init.nu" "$@"
 '''

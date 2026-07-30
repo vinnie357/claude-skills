@@ -1894,6 +1894,22 @@ def main [--update-baseline, --self-test] {
             ""
         }
 
+        # Second acceptance path for check 17: a prose version pin may be
+        # recorded in the structured sources.toml instead of annotated
+        # "X (current)" in sources.md. Adding an acceptance path can only turn
+        # failures into passes, so this is ratchet-safe at any coverage level.
+        let sources_toml_path = ($plugin_dir | path join "skills" "sources.toml")
+        let toml_versions = if ($sources_toml_path | path exists) {
+            try {
+                open $sources_toml_path
+                | get -o sources | default []
+                | each {|s| $s.current_version? | default null }
+                | compact
+            } catch { [] }
+        } else {
+            []
+        }
+
         for skill_path in $skills {
             let skill_dir = ($plugin_dir | path join ($skill_path | str replace --regex '^\./' ''))
             let skill_md_path = ($skill_dir | path join "SKILL.md")
@@ -2094,7 +2110,7 @@ def main [--update-baseline, --self-test] {
                 | append ($content | parse --regex 'Currently at version (?P<ver>v?[0-9][0-9A-Za-z.]*)')
                 | get ver | each {|v| $v | str trim -c '.'} | uniq)
             let stale_pins = ($pins | where {|v|
-                not ($sources_content | str contains ($v + " (current)"))
+                (not ($sources_content | str contains ($v + " (current)"))) and ($v not-in $toml_versions)
             })
             if ($stale_pins | is-not-empty) { $failed = ($failed | append "version_pin") }
 

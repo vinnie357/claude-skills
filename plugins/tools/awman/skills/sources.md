@@ -2,6 +2,8 @@
 
 This file documents the sources used to create and maintain the awman plugin skill.
 
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there.
+
 awman was previously named **amux** (repo `prettysmartdev/amux`). The skill was renamed and refreshed to awman v0.9.1 on 2026-06-02; all sources below point at the current `prettysmartdev/awman` repository.
 
 ## Release History
@@ -80,7 +82,6 @@ awman was previously named **amux** (repo `prettysmartdev/amux`). The skill was 
 ## Plugin Information
 
 - **Name**: awman
-- **Version**: 0.2.4
 - **Description**: awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API
 - **Skills**: 1 skill (awman)
 - **Renamed from amux**: 2026-06-02 (upstream renamed amux → awman; refreshed to v0.9.1)

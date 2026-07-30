@@ -3,6 +3,7 @@
 
 [meta]
 plugin = "zig"
+reviewed_at_plugin_version = "0.1.2"
 last_full_check = "2026-06-12"
 
 # ----------------------------------------------------------------------------
@@ -10,7 +11,7 @@ last_full_check = "2026-06-12"
 # (zig, language, build, allocators, testing, c-interop, troubleshooting).
 # ----------------------------------------------------------------------------
 [[sources]]
-skill = "zig"
+skills = ["zig", "language", "build", "allocators", "testing", "c-interop", "troubleshooting"]
 name = "zig"
 url = "https://ziglang.org"
 releases_url = "https://ziglang.org/download/"

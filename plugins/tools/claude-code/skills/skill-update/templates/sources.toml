@@ -1,82 +1,96 @@
-# sources.toml - Machine-readable version tracking for skill dependencies
-# Place alongside sources.md in each plugin's skills/ directory
-# Run `mise sources:validate` to verify this file against the schema
+# sources.toml - structured source-of-truth for one plugin's upstream dependencies.
+# Place alongside sources.md in the plugin's skills/ directory.
+#
+# Three artifacts must agree:
+#   .claude-plugin/plugin.json  - the manifest; its skills list and version are authoritative
+#   skills/sources.toml         - THIS FILE: the structured data
+#   skills/sources.md           - the hand-written narrative INDEX for this file
+#
+# Run `mise test:sources` to validate schema and three-way agreement.
+# Run `mise sources:check` to compare current_version against upstream.
 
 [meta]
-plugin = "plugin-name"           # Plugin name (must match plugin.json `name` field)
-last_full_check = "2026-03-25"   # Date of last comprehensive check across all sources
+plugin = "plugin-name"                 # REQUIRED. Must equal plugin.json `name`.
+reviewed_at_plugin_version = "unknown" # REQUIRED. The plugin.json `version` at the last
+                                       # ACTUAL sources review, or "unknown". A version-bump
+                                       # commit never advances this - only a review does.
+last_full_check = "unknown"            # REQUIRED. YYYY-MM-DD or "unknown".
 
 # ----------------------------------------------------------------------------
-# Each [[sources]] block tracks one upstream dependency for one skill.
-# Add one block per source. A single skill may have multiple source blocks.
+# Each [[sources]] block tracks ONE upstream, covering ONE OR MORE skills.
+# `skills` is a list because sources and skills are many-to-many: one upstream
+# often documents several skills, and one skill may have several upstreams.
 # ----------------------------------------------------------------------------
 
 [[sources]]
-skill = "skill-name"             # Skill directory name (must match skills/<skill-name>/)
-name = "source-name"             # Human-readable source identifier (e.g., "apple-container")
-url = ""                         # Primary source URL (docs, homepage, or repo)
-releases_url = ""                # URL to browse release history (optional but recommended)
+skills = ["skill-name"]          # REQUIRED. Non-empty list of skill DIRECTORY names
+                                 # from this plugin's plugin.json. Not a scalar.
+name = "source-name"             # REQUIRED. Human-readable identifier (e.g. "apple-container").
+                                 # Must be mentioned in sources.md.
+url = ""                         # REQUIRED unless check_method = "none".
+releases_url = ""                # Optional but recommended.
 
 # check_method controls how `mise sources:check` queries the latest version.
-# Values: github-releases | hex-pm | crates-io | manual
+# Values: github-releases | hex-pm | crates-io | manual | none
+#   github-releases / hex-pm / crates-io - automated query, needs its ID field below
+#   manual - an external upstream exists, but a human must check it
+#   none   - there IS no external upstream (first-party doctrine authored here)
 check_method = "manual"
 
-# Uncomment and fill in the field matching your check_method:
-# github_repo = "owner/repo"    # Required for check_method = "github-releases"
-# hex_package = "package"       # Required for check_method = "hex-pm"
-# crate_name = "crate"          # Required for check_method = "crates-io"
+# Fill in the field matching your check_method:
+# github_repo = "owner/repo"    # REQUIRED iff check_method = "github-releases"
+# hex_package = "package"       # REQUIRED iff check_method = "hex-pm"
+# crate_name = "crate"          # REQUIRED iff check_method = "crates-io"
 
-# The version currently documented in this skill's SKILL.md.
-# Must be an exact version string (e.g., "0.10.0") or "stable"/"rolling".
-# Set to "requires-check" when version is unknown.
+# The upstream version this skill's content was last verified or documented
+# against. Exact version string (e.g. "0.10.0"), or "stable"/"rolling" for
+# those constraints, or "unknown" when nobody has measured it yet.
+# A guessed version is fabrication - use "unknown".
 current_version = ""
 
 # version_constraint describes how this source is versioned:
-#   pre-1.0  - Actively developed, may have breaking changes in any release
+#   pre-1.0  - Actively developed, may break in any release
 #   semver   - Follows Semantic Versioning (major.minor.patch)
-#   rolling  - No discrete versions; tracks a continuously updated source
-#   stable   - Stable release channel (e.g., Linux stable kernel)
+#   rolling  - No discrete versions; a continuously updated source
+#   stable   - Stable release channel
 version_constraint = "semver"
 
-# Date this source was last manually or automatically verified.
-# Update after every check, even if no version change was found.
-last_checked = "2026-03-25"
+# Date this source was last verified. YYYY-MM-DD or "unknown".
+# Update after every check, even when no version change was found.
+last_checked = "unknown"
 
 # update_priority signals how urgently stale updates should be addressed:
-#   high   - Critical tools or frequently-used features; update immediately
-#   medium - Important but not blocking; update in current cycle
-#   low    - Rarely-changed; update opportunistically
+#   high | medium | low
 update_priority = "medium"
 
-# Set to true when minor or patch bumps in this source commonly introduce
-# breaking changes (typical for pre-1.0 packages or aggressive deprecation).
+# Set true when minor/patch bumps in this source commonly break things.
 breaking_changes_likely = false
 
-# Optional free-form notes about this source, quirks, or migration context.
+# Optional short context. Long narrative belongs in sources.md.
 notes = ""
 
 # ----------------------------------------------------------------------------
 # Example: CLI tool tracked via GitHub releases
 # ----------------------------------------------------------------------------
 # [[sources]]
-# skill = "container"
+# skills = ["container"]
 # name = "apple-container"
 # url = "https://github.com/apple/container"
 # releases_url = "https://github.com/apple/container/releases"
 # check_method = "github-releases"
 # github_repo = "apple/container"
-# current_version = "0.10.0"
-# version_constraint = "pre-1.0"
-# last_checked = "2026-03-25"
+# current_version = "1.0.0"
+# version_constraint = "semver"
+# last_checked = "2026-06-09"
 # update_priority = "high"
 # breaking_changes_likely = true
-# notes = "CLI commands change frequently; always create versioned template on update"
+# notes = "CLI commands change frequently; create a versioned template on update"
 
 # ----------------------------------------------------------------------------
 # Example: Hex.pm package
 # ----------------------------------------------------------------------------
 # [[sources]]
-# skill = "tidewave"
+# skills = ["tidewave"]
 # name = "tidewave"
 # url = "https://hex.pm/packages/tidewave"
 # releases_url = "https://github.com/phx-tools/tidewave/releases"
@@ -86,14 +100,12 @@ notes = ""
 # version_constraint = "semver"
 # last_checked = "2026-03-25"
 # update_priority = "medium"
-# breaking_changes_likely = false
-# notes = ""
 
 # ----------------------------------------------------------------------------
 # Example: crates.io package
 # ----------------------------------------------------------------------------
 # [[sources]]
-# skill = "wasm"
+# skills = ["wasm"]
 # name = "wasmtime"
 # url = "https://wasmtime.dev"
 # releases_url = "https://github.com/bytecodealliance/wasmtime/releases"
@@ -103,21 +115,36 @@ notes = ""
 # version_constraint = "semver"
 # last_checked = "2026-03-25"
 # update_priority = "medium"
-# breaking_changes_likely = false
-# notes = ""
 
 # ----------------------------------------------------------------------------
-# Example: Documentation-based (manual check)
+# Example: documentation-based upstream, checked by hand.
+# ONE entry covering SEVEN skills - the many-to-many case.
 # ----------------------------------------------------------------------------
 # [[sources]]
-# skill = "twelve-factor"
-# name = "12factor.net"
-# url = "https://12factor.net"
-# releases_url = "https://12factor.net"
+# skills = ["zig", "language", "build", "allocators", "testing", "c-interop", "troubleshooting"]
+# name = "zig"
+# url = "https://ziglang.org"
+# releases_url = "https://ziglang.org/download/"
 # check_method = "manual"
-# current_version = "stable"
-# version_constraint = "stable"
-# last_checked = "2026-03-25"
-# update_priority = "low"
-# breaking_changes_likely = false
-# notes = "No formal versioning; check for editorial updates annually"
+# github_repo = "ziglang/zig"
+# current_version = "0.16.0"
+# version_constraint = "pre-1.0"
+# last_checked = "2026-06-12"
+# update_priority = "medium"
+# breaking_changes_likely = true
+# notes = "Upstream stopped tagging GitHub releases; check download/index.json instead"
+
+# ----------------------------------------------------------------------------
+# Example: NO external upstream (first-party doctrine authored in this repo).
+# check_method = "none" forbids url/releases_url/current_version/
+# version_constraint/update_priority and the three ID fields, and REQUIRES
+# notes - the entry must say WHY there is no upstream. That is the
+# anti-fabrication point of making sources mandatory: an explicit recorded
+# "no upstream" beats an exemption list nobody reads.
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skills = ["restraint", "agent-loop"]
+# name = "internal-doctrine"
+# check_method = "none"
+# last_checked = "2026-07-30"
+# notes = "First-party doctrine authored in this repo; no upstream to track. Provenance narrative in sources.md."
