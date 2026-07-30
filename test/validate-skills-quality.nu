@@ -1935,18 +1935,11 @@ def main [--update-baseline, --self-test] {
         let plugin_json = (open ($plugin_dir | path join ".claude-plugin" "plugin.json"))
         let skills = ($plugin_json | get -o skills | default [])
 
-        # Find sources.md for the plugin
-        let sources_path = ($plugin_dir | path join "skills" "sources.md")
-        let sources_content = if ($sources_path | path exists) {
-            open --raw $sources_path
-        } else {
-            ""
-        }
-
-        # Second acceptance path for check 17: a prose version pin may be
-        # recorded in the structured sources.toml instead of annotated
-        # "X (current)" in sources.md. Adding an acceptance path can only turn
-        # failures into passes, so this is ratchet-safe at any coverage level.
+        # Check 17's sole acceptance path (claude-skills-184, C2): a prose
+        # version pin must be recorded in the structured sources.toml. The
+        # sources.md "X (current)" annotation path was retired once every
+        # plugin had a conforming sources.toml (claude-skills-180) — toml is
+        # now the single source of truth for pinned versions.
         let sources_toml_path = ($plugin_dir | path join "skills" "sources.toml")
         let toml_versions = if ($sources_toml_path | path exists) {
             try {
@@ -2075,16 +2068,6 @@ def main [--update-baseline, --self-test] {
                 $failed = ($failed | append "anti_fab")
             }
 
-            # 11. Source documented (keyed on directory name OR frontmatter name,
-            # so a frontmatter/directory mismatch doesn't produce a false FAIL)
-            let sources_lower = ($sources_content | str downcase)
-            let source_ok = if ($sources_content | str length) > 0 {
-                ($sources_lower | str contains ($dir_name | str downcase)) or ($sources_lower | str contains ($name | str downcase))
-            } else {
-                false
-            }
-            if not $source_ok { $failed = ($failed | append "source") }
-
             # 12. No 'allowed-tools' in frontmatter
             let has_allowed_tools = ($fm_lines | any {|line| ($line | str trim) | str starts-with "allowed-tools:"})
             if $has_allowed_tools { $failed = ($failed | append "allowed_tools") }
@@ -2151,16 +2134,15 @@ def main [--update-baseline, --self-test] {
             let bad_invocations = (find-bad-invocations $invocation_content $registry)
             if ($bad_invocations | is-not-empty) { $failed = ($failed | append "invocations") }
 
-            # 17. Version pins agree with sources.md: a "Current stable: X" /
-            # "Currently at version X" claim must appear as "X (current)" in the
-            # plugin's sources.md. Skills without a pin pass (soft check).
+            # 17. Version pins agree with sources.toml: a "Current stable: X" /
+            # "Currently at version X" claim must match a current_version
+            # recorded in the plugin's sources.toml. Skills without a pin pass
+            # (soft check).
             let pins = ($content
                 | parse --regex 'Current stable: (?P<ver>v?[0-9][0-9A-Za-z.]*)'
                 | append ($content | parse --regex 'Currently at version (?P<ver>v?[0-9][0-9A-Za-z.]*)')
                 | get ver | each {|v| $v | str trim -c '.'} | uniq)
-            let stale_pins = ($pins | where {|v|
-                (not ($sources_content | str contains ($v + " (current)"))) and ($v not-in $toml_versions)
-            })
+            let stale_pins = ($pins | where {|v| $v not-in $toml_versions })
             if ($stale_pins | is-not-empty) { $failed = ($failed | append "version_pin") }
 
             # Classify failures against the baseline
@@ -2184,7 +2166,7 @@ def main [--update-baseline, --self-test] {
                 }
             }
 
-            let check_count = 17
+            let check_count = 16
             let score = $check_count - ($failed | length)
 
             $results = ($results | append {

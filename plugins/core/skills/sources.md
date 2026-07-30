@@ -29,7 +29,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **URL**: https://github.com/jdx/mise/releases
 - **Purpose**: mise release tracking and changelog
 - **Date Accessed**: 2026-03-25
-- **Key Topics**: Version v2026.3.15 (current), calver versioning, release notes
+- **Key Topics**: Version v2026.3.15, calver versioning, release notes
 
 ## Nushell Skill
 
@@ -43,7 +43,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **URL**: https://github.com/nushell/nushell/releases
 - **Purpose**: Nushell release tracking and changelog
 - **Date Accessed**: 2026-03-25
-- **Key Topics**: Version 0.113.1 (current), release notes, breaking changes
+- **Key Topics**: Version 0.113.1, release notes, breaking changes
 
 ## Documentation Skill
 
@@ -196,7 +196,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **URL**: https://github.com/apple/container/releases/tag/1.0.0
 - **Purpose**: Version 1.0.0 release notes (BREAKING: TOML config replaces system properties, structured output shape changes, v0 XPC API compat removal)
 - **Date Accessed**: 2026-06-10
-- **Key Topics**: Version 1.0.0 (current), container machine command, container cp, --stop-signal, --shm-size, image variant support, system df accounting fixes, XPC-connection-as-lease IP-leak fix
+- **Key Topics**: Version 1.0.0, container machine command, container cp, --stop-signal, --shm-size, image variant support, system df accounting fixes, XPC-connection-as-lease IP-leak fix
 
 ### Apple Container Machine Documentation
 - **URL**: https://github.com/apple/container/blob/main/docs/container-machine.md

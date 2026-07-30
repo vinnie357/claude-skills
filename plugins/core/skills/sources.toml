@@ -39,7 +39,7 @@ notes = "Commit message convention (types, scopes, breaking changes). sources.md
 # ----------------------------------------------------------------------------
 # mise — tool version manager and task runner. CalVer releases via GitHub.
 # current_version is the version the skill content was verified against per
-# sources.md ("Version v2026.3.15 (current)", accessed 2026-03-25), not
+# sources.md ("Version v2026.3.15", accessed 2026-03-25), not
 # today's live value (see notes).
 # ----------------------------------------------------------------------------
 [[sources]]
