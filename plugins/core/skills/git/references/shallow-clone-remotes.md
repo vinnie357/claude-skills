@@ -45,5 +45,5 @@ When this gap is caught after the fact, the file-based remote's branch tip is th
 
 ## Related
 
-- Build-time source-cache staleness is the sibling case in this same family of file-based-remote silent absorption — this file covers the push side, that one covers the read side. See this skill's References section (in SKILL.md) for the file name.
+- Build-time source-cache staleness (`build-source-staleness.md`, linked from SKILL.md) is the sibling case in this same family of file-based-remote silent absorption — this file covers the push side, that one covers the read side.
 - Worker isolation via shallow clones — the shallow-clone pattern itself is the right isolation choice; the verification step is the gap to close.

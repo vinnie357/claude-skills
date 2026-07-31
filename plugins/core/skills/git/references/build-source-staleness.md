@@ -25,4 +25,4 @@ git rev-parse HEAD           # must equal the expected build sha
 
 ## Related
 
-Shallow-clone push verification is the sibling case in this family — both come from a file-based git remote silently absorbing an operation that should have reached (or read from) GitHub, this one on the read side and that one on the push side. See this skill's References section (in SKILL.md) for the file name.
+Shallow-clone push verification (`shallow-clone-remotes.md`, linked from SKILL.md) is the sibling case in this family — both come from a file-based git remote silently absorbing an operation that should have reached (or read from) GitHub, this one on the read side and that one on the push side.
