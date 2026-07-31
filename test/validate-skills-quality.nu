@@ -1055,7 +1055,7 @@ def run-check-fixes-self-test [] {
     }
 
     # --- ref_depth cross-skill exemption is word-order sensitive (claude-skills-195) ---
-    # These three cases pin the documented residual on
+    # These four cases pin the documented residual on
     # has-unqualified-references-token's header comment (accepted-residual
     # bullet three): the exemption fires only when the /ns:skill qualifier
     # PRECEDES the references/ path on the same line. Unlike the cases
@@ -1064,10 +1064,13 @@ def run-check-fixes-self-test [] {
     # "unknown -> exempt" and would make an order check vacuous. This
     # fixture (a synthetic mktemp tree, never a real corpus skill, so a
     # future reference-file rename in this repo can't break it) makes the
-    # `path exists` branch of cross-skill-qualified genuinely fire.
+    # `path exists` branch of cross-skill-qualified genuinely fire. otherskill
+    # owns BOTH foo.md and bar.md — the bar.md duplicate basename is what
+    # makes case 3 below load-bearing (the 19-colliding-basenames shape).
     let rd_root = (mktemp -d)
     mkdir ($rd_root | path join "otherns" "skills" "otherskill" "references")
     "content" | save ($rd_root | path join "otherns" "skills" "otherskill" "references" "foo.md")
+    "content" | save ($rd_root | path join "otherns" "skills" "otherskill" "references" "bar.md")
     let rd_map = [{skill: "otherskill", dir: ($rd_root | path join "otherns" "skills" "otherskill"), plugin: "otherns"}]
     let rd_plugins = ["otherns"]
 
@@ -1087,16 +1090,39 @@ def run-check-fixes-self-test [] {
         $failed = true
     }
 
-    # Case: a genuine SAME-skill link (no cross-skill qualifier applies to
-    # it at all) with an unrelated but real, resolvable plugin:skill mention
-    # AFTER the path on the line. Regression guard against widening to
-    # whole-line matching: the plan's adversarial measurement shows
-    # whole-line matching would wrongly treat the trailing mention as an
-    # exemption qualifier for the earlier, unrelated path. Must stay flagged.
+    # Case: a genuine same-skill reference (references/bar.md, owned by
+    # THIS skill, "myskill") followed by an unrelated mention of a
+    # DIFFERENT, real sibling skill (otherskill) that happens to own a
+    # DIFFERENT file sharing the same basename bar.md — the 19-colliding-
+    # basenames shape the header comment cites. Under prefix-only matching
+    # (shipped) the trailing mention is irrelevant since it comes after the
+    # path — correctly flagged. This is the load-bearing regression guard
+    # against whole-line widening: gate-verified that widening resolves
+    # `otherskill` and finds ITS bar.md exists, flipping this to wrongly
+    # exempt even though the path never named otherskill at all.
     if not (has-unqualified-references-token "See references/bar.md for detail, mirroring the layout in /otherns:otherskill." "myskill" $rd_map $rd_plugins) {
-        print $"(ansi red_bold)❌ check-fix self-test: same-skill link with trailing unrelated plugin mention wrongly exempted(ansi reset)"
+        print $"(ansi red_bold)❌ check-fix self-test: same-skill link with trailing same-basename sibling mention wrongly exempted(ansi reset)"
         $failed = true
     }
+
+    # Case: a genuine same-skill reference (references/qux.md — no fixture
+    # file needed; the same-skill link never reaches the `path exists`
+    # branch since no qualifier precedes it) followed by a mention of a
+    # namespace/skill this marketplace does NOT know about at all
+    # (unknown skill "codex" under unknown plugin "openai" — neither is in
+    # rd_map/rd_plugins). Correctly flagged today: no qualifier precedes
+    # the path, so cross-skill-qualified never reaches the "unknown ->
+    # exempt" leniency branch. The second documented false-negative shape:
+    # gate-verified that whole-line widening resolves `codex` via
+    # lookup-skill-dir, gets "" back (truly unknown), and that empty-target
+    # branch (line ~128-130) returns true unconditionally — flipping this
+    # to wrongly exempt via a namespace that owns nothing at all.
+    if not (has-unqualified-references-token "See references/qux.md for detail; the equivalent for Codex lives in /openai:codex." "myskill" $rd_map $rd_plugins) {
+        print $"(ansi red_bold)❌ check-fix self-test: same-skill link with trailing unknown-namespace mention wrongly exempted(ansi reset)"
+        $failed = true
+    }
+
+    rm -rf $rd_root
 
     # --- invocations (enumerated upstream commands, no namespace exemption) ---
     let allium_cmds = ($UPSTREAM_COMMANDS | where ns == "allium" | first | get commands)
@@ -1122,7 +1148,7 @@ def run-check-fixes-self-test [] {
     }
 
     if not $failed {
-        print $"(ansi green_bold)✅ Check-fix self-test passed \(22 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Check-fix self-test passed \(23 cases\)(ansi reset)"
     }
     $failed
 }
