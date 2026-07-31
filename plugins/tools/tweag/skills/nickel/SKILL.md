@@ -399,9 +399,14 @@ nickel export config.ncl --format toml --output config.toml
 """
 ```
 
+## References
+
+- `references/contract-patterns.md` — contract annotation syntax and the validation patterns used for configuration schemas. Read when writing or debugging a contract.
+- `references/import-export.md` — converting between config formats and validating imported data. Read when moving data in or out of Nickel.
+
 ## Additional Resources
 
 - [Nickel Official Documentation](https://nickel-lang.org)
 - [Contracts Guide](https://nickel-lang.org/user-manual/contracts/)
 - [Typing Guide](https://nickel-lang.org/user-manual/typing/)
-- [GitHub Repository](https://github.com/tweag/nickel)
+- [GitHub Repository](https://github.com/nickel-lang/nickel)

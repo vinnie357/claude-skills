@@ -1,6 +1,6 @@
 {
   "name": "tweag",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Tweag tools: Topiary universal code formatter and Nickel configuration language",
   "author": {
     "name": "vinnie357"
