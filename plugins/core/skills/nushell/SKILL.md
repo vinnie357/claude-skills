@@ -174,6 +174,37 @@ let output = (^git status)
 
 `$"hello (world)"` tries to evaluate `world` as an expression. Escape the parens or lift the value into a variable first.
 
+### Read-and-rewrite-same-path truncates the file
+
+`open --raw` returns a stream. If a `save` back to that same path is still in the same pipeline, `save` opens the path for writing while the stream is still being read, and the file gets truncated. This zeroed `.claude-plugin/plugin.json` from 142 lines to 0 bytes during a real batch edit.
+
+```nu
+# WRONG — save races the still-reading open on the same path
+open --raw $f | lines | each {|l| ... } | str join "\n" | save --force --raw $f
+
+# CORRECT — force the read to finish before any save touches the path
+let content = (open --raw $f | lines | each {|l| ... })
+($content | str join "\n") + "\n" | save --force --raw $f
+```
+
+**Diagnostic tell:** a partial blast radius. In the incident, ten sibling files rewritten with `let lines = (open --raw $path | lines)` all survived; only the one file piped straight into `save` on its own path died. Same logic, one casualty — that split is the signature of this bug, not a logic error.
+
+Two more failures ride along with it:
+
+- `lines` drops the trailing newline and `str join` does not restore it, so a rewrite silently strips the final byte — check the target's existing convention with `xxd <file> | tail -1` first (not every file has one) and append `+ "\n"` only when it matches.
+- Do not verify a rewrite with `tail -c1`. Verified: on a zero-byte file it returns empty, same as a healthy file ending in a newline — `tail -c1` reported the destroyed file as fine. Verify against `git show HEAD:<path>` or a line count instead.
+
+**Detection**, with two caveats that matter more than the pattern:
+
+```
+grep -nE 'open .*\$([A-Za-z_][A-Za-z0-9_]*).*save .*\$\1' script.nu   # BSD grep
+grep -nP 'open .*\$([A-Za-z_][A-Za-z0-9_]*).*save .*\$\1' script.nu   # GNU grep, ugrep
+```
+
+The backreference is what makes this precise — it matches only when the same variable is read and written — and it is also why **no single invocation is portable**. Verified on this machine: `-E` with `\1` works under BSD `/usr/bin/grep` but ugrep's `-E` rejects it as an invalid escape, while `-P` works under ugrep and GNU grep but BSD grep has no `-P` option. Check which `grep` you actually have before trusting a clean run.
+
+Both forms are line-based, so both **miss a pipeline split across lines** — confirmed against a fixture. There is no reliable one-line detection for that case; read any pipeline containing both `open --raw` and `save` by eye when they are more than a line or two apart.
+
 ## Key principles
 
 - **Structured data first**: think in tables and records, not text; leverage `where`/`select`/`get` over regex
