@@ -1637,6 +1637,319 @@ update_priority = "medium"
             md: "demo-source is documented here"
             want: ["b3_date"]
         }
+        # ---- b3_version_shape: current_version format validation (claude-skills-189) ----
+        # Contract (shape-based, not strict semver — see claude-skills-189):
+        # accept the literal "unknown", or a string matching
+        # ^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.]+)?$
+        # i.e. an optional short alpha prefix (v, OTP, ...) with an optional
+        # '-' or '.' separator, one to five dot-separated numeric groups, and
+        # an optional -prerelease or +build suffix. No whitespace, no URL
+        # scheme, no letters after the numeric body outside that suffix.
+        # Rejects: no digits at all, embedded whitespace, a pasted URL, and
+        # an empty string. TOML-native int/float values are coerced via
+        # scalar-str (same helper already used for last_checked/
+        # update_priority/version_constraint) before the shape check runs, so
+        # an unquoted `current_version = 2025` or `= 1.0` is judged on its
+        # stringified form, not rejected for wrong type.
+        {
+            label: "current_version = unknown"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0.0 (valid semver)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = v2026.3.15 (v-prefixed CalVer, real corpus value)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "v2026.3.15"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = OTP-29.0.4 (letter-prefixed scheme, absent from corpus today but must be accepted)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "OTP-29.0.4"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0.0-rc1 (pre-release suffix, absent from corpus today but must be accepted)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0-rc1"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0.0+build.5 (build metadata suffix, absent from corpus today but must be accepted)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0+build.5"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 3 (bare single-digit string, real corpus value)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "3"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 2025 (unquoted TOML int, real corpus value — exercises scalar-str's int path)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = 2025
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0 (unquoted TOML float — exercises scalar-str's float path, e.g. mix.exs-style bare version)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = 1.0
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = banana (no digit at all — clearly invalid)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "banana"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = '1.0.0 beta' (embedded whitespace — clearly invalid)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0 beta"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = a pasted URL (accidental paste — clearly invalid)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "https://example.com/releases/v1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = '' (empty string — clearly invalid)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = ""
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
     ]
 
     mut failed = false
