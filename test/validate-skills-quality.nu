@@ -1033,6 +1033,50 @@ def run-check-fixes-self-test [] {
         $failed = true
     }
 
+    # --- ref_depth cross-skill exemption is word-order sensitive (claude-skills-195) ---
+    # These three cases pin the documented residual on
+    # has-unqualified-references-token's header comment (accepted-residual
+    # bullet three): the exemption fires only when the /ns:skill qualifier
+    # PRECEDES the references/ path on the same line. Unlike the cases
+    # above, they build a REAL skill_dir_map fixture — the existing ref_depth
+    # cases all pass `[] []`, which makes every qualifier resolve as
+    # "unknown -> exempt" and would make an order check vacuous. This
+    # fixture (a synthetic mktemp tree, never a real corpus skill, so a
+    # future reference-file rename in this repo can't break it) makes the
+    # `path exists` branch of cross-skill-qualified genuinely fire.
+    let rd_root = (mktemp -d)
+    mkdir ($rd_root | path join "otherns" "skills" "otherskill" "references")
+    "content" | save ($rd_root | path join "otherns" "skills" "otherskill" "references" "foo.md")
+    let rd_map = [{skill: "otherskill", dir: ($rd_root | path join "otherns" "skills" "otherskill"), plugin: "otherns"}]
+    let rd_plugins = ["otherns"]
+
+    # Case: qualifier BEFORE the path — a real cross-skill pointer whose
+    # target file exists in the other skill's own tree. NOT flagged.
+    if (has-unqualified-references-token "Per `/otherns:otherskill`'s `references/foo.md`: see there for detail." "myskill" $rd_map $rd_plugins) {
+        print $"(ansi red_bold)❌ check-fix self-test: qualifier-before cross-skill pointer wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case: the SAME pointer, reordered so the qualifier comes AFTER the
+    # path. This is the documented residual, not a bug — the test's purpose
+    # is to make a silent future widening (to whole-line matching)
+    # impossible without a failing test alerting the author.
+    if not (has-unqualified-references-token "Per `references/foo.md` in `/otherns:otherskill`: see there for detail." "myskill" $rd_map $rd_plugins) {
+        print $"(ansi red_bold)❌ check-fix self-test: qualifier-after cross-skill pointer no longer flagged \(documented residual regressed\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case: a genuine SAME-skill link (no cross-skill qualifier applies to
+    # it at all) with an unrelated but real, resolvable plugin:skill mention
+    # AFTER the path on the line. Regression guard against widening to
+    # whole-line matching: the plan's adversarial measurement shows
+    # whole-line matching would wrongly treat the trailing mention as an
+    # exemption qualifier for the earlier, unrelated path. Must stay flagged.
+    if not (has-unqualified-references-token "See references/bar.md for detail, mirroring the layout in /otherns:otherskill." "myskill" $rd_map $rd_plugins) {
+        print $"(ansi red_bold)❌ check-fix self-test: same-skill link with trailing unrelated plugin mention wrongly exempted(ansi reset)"
+        $failed = true
+    }
+
     # --- invocations (enumerated upstream commands, no namespace exemption) ---
     let allium_cmds = ($UPSTREAM_COMMANDS | where ns == "allium" | first | get commands)
     let reg = [
@@ -1057,7 +1101,7 @@ def run-check-fixes-self-test [] {
     }
 
     if not $failed {
-        print $"(ansi green_bold)✅ Check-fix self-test passed \(19 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Check-fix self-test passed \(22 cases\)(ansi reset)"
     }
     $failed
 }
