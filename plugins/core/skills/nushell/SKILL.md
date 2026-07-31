@@ -176,7 +176,9 @@ let output = (^git status)
 
 ### Read-and-rewrite-same-path truncates the file
 
-`open --raw` returns a stream. If a `save` back to that same path is still in the same pipeline, `save` opens the path for writing while the stream is still being read, and the file gets truncated. This zeroed `.claude-plugin/plugin.json` from 142 lines to 0 bytes during a real batch edit.
+`open --raw` returns a stream. If a `save` back to that same path is still in the same pipeline, `save` can open the path for writing while the stream is still being read, and the file is truncated. This zeroed `.claude-plugin/plugin.json` from 142 lines to 0 bytes during a real batch edit.
+
+Whether it truncates depends on whether the pipeline streams or collects — `lines | each | str join` streams and destroys the file every time; a collecting stage such as `str replace` happens to survive. Do not rely on that distinction: treat any read-and-save of one path in a single pipeline as unsafe.
 
 ```nu
 # WRONG — save races the still-reading open on the same path
@@ -184,6 +186,7 @@ open --raw $f | lines | each {|l| ... } | str join "\n" | save --force --raw $f
 
 # CORRECT — force the read to finish before any save touches the path
 let content = (open --raw $f | lines | each {|l| ... })
+# append "\n" only if the target had one — see the trailing-newline bullet below
 ($content | str join "\n") + "\n" | save --force --raw $f
 ```
 
@@ -201,7 +204,7 @@ grep -nE 'open .*\$([A-Za-z_][A-Za-z0-9_]*).*save .*\$\1' script.nu   # BSD grep
 grep -nP 'open .*\$([A-Za-z_][A-Za-z0-9_]*).*save .*\$\1' script.nu   # GNU grep, ugrep
 ```
 
-The backreference is what makes this precise — it matches only when the same variable is read and written — and it is also why **no single invocation is portable**. Verified on this machine: `-E` with `\1` works under BSD `/usr/bin/grep` but ugrep's `-E` rejects it as an invalid escape, while `-P` works under ugrep and GNU grep but BSD grep has no `-P` option. Check which `grep` you actually have before trusting a clean run.
+The backreference is what narrows this to the same variable being read and written, and it is also why **no single invocation is portable**. Directly tested: `-E` with `\1` works under BSD `/usr/bin/grep`, which has no `-P` option at all; ugrep's `-E` rejects `\1` as an invalid escape but its `-P` works. GNU grep accepts `-P` where built with PCRE — documented, not tested here. Check which `grep` you actually have before trusting a clean run.
 
 Both forms are line-based, so both **miss a pipeline split across lines** — confirmed against a fixture. There is no reliable one-line detection for that case; read any pipeline containing both `open --raw` and `save` by eye when they are more than a line or two apart.
 
