@@ -49,7 +49,7 @@ If the app is DOWN, report `REJECT: app not reachable at <URL>` and stop.
 
 ## Phase 3: Assign and spawn
 
-For each parsed scenario, classify each `Then` clause by hint keywords (per gherkin-format.md "Worker Assignment Hints"). Build a per-scenario worker list:
+For each parsed scenario, classify each `Then` clause by hint keywords (per stack-detection.md "Worker Assignment Matrix"). Build a per-scenario worker list:
 
 - UI-only `Then`s → spawn `qa-playwright` for the scenario.
 - Phoenix-runtime / DB / log `Then`s, when `phoenix == true` → spawn `qa-tidewave`.

@@ -218,3 +218,5 @@ For detailed command references and advanced topics, see:
 - **[troubleshooting.md](references/troubleshooting.md)** — Common issues (wrong branch, sensitive data, recover deleted branch, bad merge) and best practices
 - **[shallow-clone-remotes.md](references/shallow-clone-remotes.md)** — When `origin` is a file-based local clone: add `github` remote, push there, verify with `gh api`
 - **[build-source-staleness.md](references/build-source-staleness.md)** — Before submitting a build chain that clones from a local source cache: `git pull` not `git fetch`. Verify via `git rev-parse HEAD`, not `git rev-parse origin/<branch>`
+
+`shallow-clone-remotes.md` and `build-source-staleness.md` are one family of bugs — a file-based git remote silently absorbing an operation that should have reached (or read from) GitHub — covering the push side and the read side respectively. Read both when a git chain touches a local source cache or a shallow clone.

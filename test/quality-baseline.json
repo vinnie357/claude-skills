@@ -44,25 +44,11 @@
       "detail_count": null
     },
     {
-      "key": "awman/awman:ref_depth",
-      "class": "DEBT",
-      "issue": "claude-skills-145",
-      "first_seen": "migrated",
-      "detail_count": 2
-    },
-    {
       "key": "beads/beads:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "claude-code/claude-teams:ref_depth",
-      "class": "DEBT",
-      "issue": "claude-skills-145",
-      "first_seen": "migrated",
-      "detail_count": 1
     },
     {
       "key": "core/bees:anti_fab",
@@ -91,13 +77,6 @@
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "core/git:ref_depth",
-      "class": "DEBT",
-      "issue": "claude-skills-145",
-      "first_seen": "migrated",
-      "detail_count": 2
     },
     {
       "key": "core/mise:anti_fab",
@@ -226,25 +205,11 @@
       "detail_count": null
     },
     {
-      "key": "elixir/testing:ref_depth",
-      "class": "DEBT",
-      "issue": "claude-skills-145",
-      "first_seen": "migrated",
-      "detail_count": 1
-    },
-    {
       "key": "elixir/tidewave:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "qa/qa:ref_depth",
-      "class": "DEBT",
-      "issue": "claude-skills-145",
-      "first_seen": "migrated",
-      "detail_count": 2
     },
     {
       "key": "runex/runex:anti_fab",
@@ -294,13 +259,6 @@
       "issue": "claude-skills-144",
       "first_seen": "migrated",
       "detail_count": null
-    },
-    {
-      "key": "slidev/styles:ref_depth",
-      "class": "DEBT",
-      "issue": "claude-skills-145",
-      "first_seen": "migrated",
-      "detail_count": 1
     },
     {
       "key": "slidev/syntax:anti_fab",

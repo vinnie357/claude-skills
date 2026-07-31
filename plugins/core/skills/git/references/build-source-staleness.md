@@ -23,6 +23,6 @@ git rev-parse HEAD           # must equal the expected build sha
 - Pre-flight sha confirmation compares `git rev-parse HEAD` (local), not `git rev-parse origin/<branch>` (remote-tracking).
 - After any new commit lands on the target branch, the first deploy-dispatch step is "pull <branch> on the local source cache".
 
-## Pairs with
+## Related
 
-- `references/shallow-clone-remotes.md` — sibling stale-cache class. Both come from file-based git interactions silently absorbing operations that should reach (or read from) GitHub.
+Shallow-clone push verification is the sibling case in this family — both come from a file-based git remote silently absorbing an operation that should have reached (or read from) GitHub, this one on the read side and that one on the push side. See this skill's References section (in SKILL.md) for the file name.

@@ -122,7 +122,7 @@ Leader resolution (highest wins): `--leader <agent::model>` flag → `dynamicWor
 
 ## Parallel Execution (0.11.0)
 
-Workflow steps with identical `depends_on` sets form a parallel group and run **concurrently**. Cap simultaneous containers with `maxConcurrentAgents`; precedence: `--max-concurrent` flag → `AWMAN_MAX_CONCURRENT_AGENTS` env → repo config → global config → **unlimited**. `1` disables parallelism; `0` is rejected. A failed step without `abort_on_failure` lets siblings continue; `abort_on_failure = true` kills all active peers. Stuck detection (30 s) and yolo countdowns (60 s) track per container.
+Workflow steps with identical `depends_on` sets form a parallel group and run **concurrently**. Cap simultaneous containers with `maxConcurrentAgents`; precedence: `--max-concurrent` flag → `AWMAN_MAX_CONCURRENT_AGENTS` env → repo config → global config → **unlimited**. `1` disables parallelism; `0` is rejected. A failed step without `abort_on_failure` lets siblings continue; `abort_on_failure = true` kills all active peers. Stuck detection (30 s) and yolo countdowns (60 s) track per container. See `references/config.md` for the `maxConcurrentAgents` key schema and `references/workflows.md` for full parallel-group grammar and worked examples.
 
 TUI: `Ctrl-S` rotates focus between parallel containers; `Ctrl-G` toggles a git sidebar (per-file `+/-` counts, ~2 s refresh, compact `+X -Y` in the status bar when closed); `Ctrl-,` opens the config dialog (`Ctrl+N` adds nested `dynamicWorkflows` entries).
 

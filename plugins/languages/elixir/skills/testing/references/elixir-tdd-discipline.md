@@ -24,7 +24,7 @@ config :<app>, :cmd_module, <App>.MockCmd
 
 `<App>.MockCmd` (at `test/support/mock_cmd.ex`) implements the same interface as `System` (`cmd/3`, `find_executable/1`, etc.) with per-test stubbed responses.
 
-Same pattern for HTTP boundaries (`@http_mod`), file boundaries (`@file_mod`), and other externals. No naked `System.cmd` in `lib/` — no exceptions. See `references/os-subprocess-adapter.md` for the full behavior + Mox shape (recommended for new code).
+Same pattern for HTTP boundaries (`@http_mod`), file boundaries (`@file_mod`), and other externals. No naked `System.cmd` in `lib/` — no exceptions. The full behavior + Mox shape (recommended for new code) is the `os-subprocess-adapter` entry in SKILL.md's References section.
 
 ## All tests `async: true`
 
@@ -36,7 +36,7 @@ Every `ExUnit.Case` declares `async: true`. The exception requires a documented 
 
 External boundaries to mock:
 - HTTP clients (Bypass or Mox + behavior)
-- OS subprocesses (Mox + behavior — see `references/os-subprocess-adapter.md`)
+- OS subprocesses (Mox + behavior — see the `os-subprocess-adapter` entry in SKILL.md's References section)
 - Third-party APIs (Mox + behavior)
 - Time (`DateTime` injection or a clock adapter)
 - Filesystem when test deals with absolute or shared paths (consider `tmp_dir` for owned paths)
@@ -70,4 +70,4 @@ Application code does not swallow errors with `else _ -> :ok` (or `try / rescue 
 
 ## No pre-existing failures
 
-Per `references/ci-discipline.md` in `/core:tdd`: every failing test in the current CI run is the current worker's responsibility, regardless of which prior commit introduced it.
+Per `/core:tdd`'s `references/ci-discipline.md`: every failing test in the current CI run is the current worker's responsibility, regardless of which prior commit introduced it.

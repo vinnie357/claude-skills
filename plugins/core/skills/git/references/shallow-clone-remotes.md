@@ -43,7 +43,7 @@ For every shallow-clone worker that creates commits:
 
 When this gap is caught after the fact, the file-based remote's branch tip is the source of truth for the work done. Push it to GitHub from inside the shallow clone via the `github` remote, or from the canonical clone using `git push origin <branch>` if the canonical's `origin` is GitHub.
 
-## Pairs with
+## Related
 
-- Build-time source-cache staleness — same family of file-based-remote silent absorption (`references/build-source-staleness.md`).
+- Build-time source-cache staleness is the sibling case in this same family of file-based-remote silent absorption — this file covers the push side, that one covers the read side. See this skill's References section (in SKILL.md) for the file name.
 - Worker isolation via shallow clones — the shallow-clone pattern itself is the right isolation choice; the verification step is the gap to close.

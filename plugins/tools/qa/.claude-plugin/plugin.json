@@ -1,6 +1,6 @@
 {
   "name": "qa",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "QA team that validates a running application against Gherkin user stories using Playwright and Tidewave",
   "author": {
     "name": "vinnie357"

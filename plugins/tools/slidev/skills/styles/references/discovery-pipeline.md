@@ -368,4 +368,4 @@ browser_navigate(url: "https://acme.example.com/brand")
 }
 ```
 
-Save as `brand-config.json`, then proceed to `references/theme-generation.md`.
+Save as `brand-config.json`, then proceed to theme generation — see SKILL.md's Theme Generation Overview.

@@ -48,7 +48,14 @@ The lead runs these via the Bash tool. Do not infer presence from memory — alw
 | `{ui: false, phoenix: true}` | qa-tidewave (read-only headless asserts only) or reject | qa-tidewave | qa-tidewave |
 | `{ui: false, phoenix: false}` | qa-backend (curl + WebFetch only) or reject | qa-backend | qa-backend |
 
-A "UI scenario step" mentions clicks, page elements, navigation, or visible text. A "backend scenario step" mentions DB rows, log lines, internal state, HTTP status codes, or response payloads. The hints come from `references/gherkin-format.md`.
+A scenario step is classified by keyword, read straight from its (already-expanded) step text:
+
+- Mentions a URL, page, button, link, form, click, type, see, scroll, navigate → UI step → `qa-playwright`.
+- Mentions a record, row, query, schema, GenServer, log, Phoenix module, Ecto, supervisor → Phoenix backend step → `qa-tidewave`.
+- Mentions an endpoint, status code, response body, JSON, HTTP, CLI command, exit code → generic backend step → `qa-backend`.
+- Mixed → multiple workers correlate by scenario name (see Mixed-Scenario Correlation below).
+
+These classification keywords are heuristic. When uncertain, the lead asks via AskUserQuestion before spawning.
 
 ## Mixed-Scenario Correlation
 
