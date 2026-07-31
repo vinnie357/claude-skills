@@ -4,7 +4,7 @@ How this skill is registered in the marketplace and the validators to run.
 
 ## Files involved in registration
 
-Three files must be updated when adding or updating this skill:
+Four files must be updated when adding or updating this skill:
 
 1. **marketplace.json** (repo root `.claude-plugin/marketplace.json`): the `github` plugin
    entry. Bump `version`; extend `description` to mention PR review; add `"pr-review"`,
@@ -14,9 +14,15 @@ Three files must be updated when adding or updating this skill:
    manifest. Bump `version`; add `"./skills/pr-review"` to `skills[]`; add the two agent
    files to the top-level `agents[]` array.
 
-3. **sources.md** (`plugins/tools/github/skills/sources.md`): add a `## PR Review` section.
-   The validator (check `source`) requires the skill directory name or frontmatter name to
-   appear here.
+3. **sources.toml** (`plugins/tools/github/skills/sources.toml`): add `pr-review` to the
+   `skills` array of the entry covering its upstream, or add a new `[[sources]]` entry.
+   `test/validate-sources.nu` set-differences the union of every entry's `skills` array
+   against the plugin's declared skills — a skill in none of them fails `a2_uncovered`.
+
+4. **sources.md** (`plugins/tools/github/skills/sources.md`): add a `## PR Review` section.
+   Every `sources.toml` entry `name` must appear in this file's **prose** — URLs do not
+   count, since `c2_md_no_mention` strips them before matching. If the prose does not
+   already name the source, append it to the `Entries:` sentence on the pointer line.
 
 ## Two validators to run
 
@@ -43,7 +49,8 @@ Both must pass (no new failures beyond the baseline) before committing.
 - [ ] No cross-skill invocation (`/plugin:skill`) that does not resolve to a real local skill
 - [ ] Agent files use `tools:` as a comma-separated string, not a YAML list
 - [ ] `model:` in each agent is one of `haiku`, `sonnet`, `opus`
-- [ ] `sources.md` contains `pr-review` (or the frontmatter name)
+- [ ] `sources.toml` covers `pr-review` in some entry's `skills` array
+- [ ] every `sources.toml` entry `name` appears in `sources.md` prose (not only inside a URL)
 - [ ] `nu test/validate-plugin.nu github` passes
 - [ ] `nu test/validate-skills-quality.nu` passes with no new failures
 

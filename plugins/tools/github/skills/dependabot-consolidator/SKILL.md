@@ -117,7 +117,7 @@ Hand mechanical cherry-picking to `agents/dependabot-consolidator-worker.md`. Re
 
 ## Registration
 
-See `references/registration.md` for the build checklist covering marketplace.json, plugin.json, and sources.md edits, plus the two validators to run before committing.
+See `references/registration.md` for the build checklist covering marketplace.json, plugin.json, sources.toml, and sources.md edits, plus the two validators to run before committing.
 
 ## Related skills
 

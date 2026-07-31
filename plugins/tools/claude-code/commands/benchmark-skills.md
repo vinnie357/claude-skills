@@ -42,7 +42,7 @@ Use Agent tool with subagent_type: "general-purpose" to:
    - **Content quality**: ≤500 lines, has examples, imperative language
    - **Progressive disclosure**: Has references/, no nested references
    - **Anti-fabrication**: Contains anti-fab rules or references `core:anti-fabrication`
-   - **Source documentation**: Skill appears in plugin's `sources.md`
+   - **Source coverage**: Skill is listed in one of the plugin's `sources.toml` entries' `skills` array
 4. Classify each skill as Capability Uplift or Encoded Preference
 5. Calculate score (X/11 checks passing)
 6. Present results as a formatted scorecard table

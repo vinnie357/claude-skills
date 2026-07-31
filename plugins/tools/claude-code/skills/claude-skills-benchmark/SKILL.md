@@ -20,7 +20,7 @@ Activate when:
 
 The check list, pass criteria, and failure keys are defined in `test/validate-skills-quality.nu` — that script is the single source of truth; do not restate its checks here. Run `mise run test:skills-quality` to produce the current scorecard.
 
-The checks' intent: descriptions that trigger accurately (length caps, "Use when" triggers, third person), spec-compliant naming, bounded body size, working examples, resolvable links, one-level reference depth with no orphaned files, anti-fabrication rules present, and sources documented in the plugin's `sources.md`.
+The checks' intent: descriptions that trigger accurately (length caps, "Use when" triggers, third person), spec-compliant naming, bounded body size, working examples, resolvable links, one-level reference depth with no orphaned files, anti-fabrication rules present, and coverage recorded in the plugin's `skills/sources.toml` (each entry's `skills` array), verified by set difference against the plugin's declared skill set in `test/validate-sources.nu`.
 
 ## Skill Categories
 
