@@ -133,6 +133,8 @@ def cross-skill-qualified [prefix_line: string, dir_name: string, path: string, 
 
 # Text preceding the first occurrence of `path` in `content`, truncated to
 # just its own line (so cross-skill-qualified only sees same-line context).
+# The same truncation makes the exemption order-sensitive for checks 14 and
+# Pass-2 too — see has-unqualified-references-token's header for the rationale.
 def preceding-line [content: string, path: string]: nothing -> string {
     let idx = ($content | str index-of $path)
     if $idx < 0 {
@@ -261,6 +263,25 @@ def pass2-dir-in-scope [top: string, own_dir: string, plugin_dir: string]: nothi
 #   concrete sibling file. Accepted residual: a sibling pointer written
 #   without a file extension escapes (check 14's link regex shares this
 #   extension requirement).
+# - The cross-skill exemption is evaluated against the text BEFORE the
+#   `references/` token only (the prefix/rest split just below), so it
+#   fires only when the `/ns:skill` (or `plugins/<...>/skills/<other>/`)
+#   qualifier PRECEDES the path on the same line. This residual differs in
+#   kind from the two above: those silently PASS things that should fail;
+#   this one silently FAILS something legitimate. Flagged:
+#   ``Per `references/x.md` in `/core:tdd`: ...``. Exempt:
+#   ``Per `/core:tdd`'s `references/x.md`: ...``. Both name the same real
+#   file — fix by reordering the sentence. Not widened to whole-line
+#   matching: measured against this corpus (claude-skills-195 plan), that
+#   breaks the `plugins/<...>/skills/<other>/` qualifier form (its regex is
+#   `$`-anchored, so it can only match a line-ending prefix), costing 1
+#   corpus exemption, while a later mention of an unknown namespace or of a
+#   sibling skill sharing the same reference basename (19 such basenames in
+#   this corpus) would silently exempt a genuine same-skill link — against
+#   0 current false positives from the order requirement. A gated design
+#   (prefix-first, whole-line fallback only when the citing skill does not
+#   own the cited path) was evaluated and deferred until a real instance
+#   needs it.
 def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list]: nothing -> bool {
     ($content | lines | any {|line|
         if not ($line | str contains "references/") {
@@ -2314,7 +2335,7 @@ def main [--update-baseline, --self-test] {
                 score: $"($score)/($check_count)"
                 failed: ($failed | str join " ")
                 new: ($new_failures | each {|k| $k | split row ":" | last} | str join " ")
-                details: ($broken_links | append $bad_invocations | append $stale_pins | append ($orphans | each {|f| $f | path basename}) | append ($fm_unknown | each {|k| $"frontmatter:($k)"}) | str join " ")
+                details: ($broken_links | append $bad_invocations | append $stale_pins | append ($orphans | each {|f| $f | path basename}) | append ($fm_unknown | each {|k| $"frontmatter:($k)"}) | append ($nested | each {|r| $"nested:($r.name)"}) | str join " ")
             })
 
             if ($failed | is-empty) {
