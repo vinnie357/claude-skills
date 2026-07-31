@@ -4,7 +4,7 @@ How this skill is registered in the marketplace and the validators to run.
 
 ## Files involved in registration
 
-Three files must be updated when adding or updating this skill:
+Four files must be updated when adding or updating this skill:
 
 1. **marketplace.json** (repo root `.claude-plugin/marketplace.json`): the `github` plugin entry. Bump `version`; extend `description` to mention Dependabot; add `"dependabot"` and `"dependencies"` to `keywords`.
 

@@ -133,7 +133,7 @@ by this skill's close-out step.
 
 ## Registration
 
-See `references/registration.md` for the marketplace.json, plugin.json, and sources.md edits,
+See `references/registration.md` for the marketplace.json, plugin.json, sources.toml, and sources.md edits,
 plus the two validators to run before committing.
 
 ## Related skills
