@@ -791,7 +791,7 @@ def run-baseline-self-test [] {
         let got = (try {
             find-stale-version-pins $c.content $c.toml_versions | sort
         } catch {|e|
-            print $"(ansi red_bold)❌ find-stale-version-pins: ($c.label): not yet implemented \(($e.msg)\)(ansi reset)"
+            print $"(ansi red_bold)❌ find-stale-version-pins: ($c.label): call raised \(($e.msg)\)(ansi reset)"
             "FIND-STALE-VERSION-PINS-NOT-IMPLEMENTED"
         })
         if ($got | describe) == "string" {

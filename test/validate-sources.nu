@@ -1732,7 +1732,7 @@ update_priority = "medium"
         let got = (try {
             missing-sources-findings $c.pending
         } catch {|e|
-            print $"(ansi red_bold)❌ missing-sources-findings: ($c.label): not yet implemented \(($e.msg)\)(ansi reset)"
+            print $"(ansi red_bold)❌ missing-sources-findings: ($c.label): call raised \(($e.msg)\)(ansi reset)"
             "MISSING-SOURCES-FINDINGS-NOT-IMPLEMENTED"
         })
         if ($got | describe) == "string" {
