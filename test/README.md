@@ -140,7 +140,7 @@ mise list-plugins
 
 ## Skill Quality Checks
 
-`mise test:skills-quality` runs four passes — 17 static checks per skill, an
+`mise test:skills-quality` runs four passes — 16 static checks per skill, an
 agents/commands/hooks surface pass per plugin, one corpus-wide
 duplicate-block scan, and a syntax-vs-usage vocabulary cross-check —
 enforcing all four against the same ratchet baseline
@@ -168,7 +168,7 @@ regenerating would add any new key. Fix the skill instead of baselining a
 new violation. A deliberate net-new debt acknowledgment requires editing
 `test/quality-baseline.json` by hand and stating why in the PR.
 
-### Per-skill checks (17)
+### Per-skill checks (16)
 
 | Key | Meaning |
 |-----|---------|
@@ -182,14 +182,13 @@ new violation. A deliberate net-new debt acknowledgment requires editing
 | `examples` | Contains a code fence or a "## Example" header |
 | `ref_depth` | `references/*.md` do not themselves link into `references/` (one level deep only) |
 | `anti_fab` | Anti-fabrication rules present inline or referenced (`core:anti-fabrication`) |
-| `source` | Skill is documented in the plugin's `skills/sources.md` |
 | `allowed_tools` | Frontmatter does not set `allowed-tools` (tool allowlists belong on agents) |
 | `fm_schema` | Every frontmatter key is in the schema for that file's kind. Answers "is this key real", not "do we permit it" — `allowed-tools` is upstream-valid and separately rejected by `allowed_tools` above |
 | `name_dir` | Frontmatter `name` matches the skill's directory name |
 | `links` | Every `references/`, `agents/`, `scripts/`, `templates/`, `hooks/` path mentioned in prose exists on disk |
 | `orphans` | Every file under `references/` and `agents/` is mentioned at least once in SKILL.md |
 | `invocations` | Every `/plugin:skill` token resolves to a real skill or command of a local plugin (external namespaces skipped) |
-| `version_pin` | A "Current stable: X" / "Currently at version X" claim matches an "X (current)" entry in `sources.md` |
+| `version_pin` | A "Current stable: X" / "Currently at version X" claim matches a `current_version` value in the plugin's `skills/sources.toml`. Prose in `sources.md` does not satisfy it — the structured file is the only evidence (claude-skills-184) |
 
 ### Duplicate-block check
 
