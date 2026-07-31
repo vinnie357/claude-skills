@@ -78,13 +78,13 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **URL**: https://crates.io/crates/tokio
 - **Purpose**: Async runtime version tracking
 - **Date Accessed**: 2026-07-17
-- **Key Topics**: Version 1.53.0 (current), async/await, task spawning
+- **Key Topics**: Version 1.53.0, async/await, task spawning
 
 ### Serde Serialization
 - **URL**: https://crates.io/crates/serde
 - **Purpose**: Serialization framework version tracking
 - **Date Accessed**: 2026-07-17
-- **Key Topics**: Version 1.0.228 (current), derive macros, data formats
+- **Key Topics**: Version 1.0.228, derive macros, data formats
 
 ## Anti-Patterns Skill
 

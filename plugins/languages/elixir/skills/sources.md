@@ -48,13 +48,13 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **URL**: https://hex.pm/packages/phoenix
 - **Purpose**: Phoenix framework package and version tracking
 - **Date Accessed**: 2026-03-25
-- **Key Topics**: Version 1.8.5 (current), release history, dependencies
+- **Key Topics**: Version 1.8.5, release history, dependencies
 
 ### Phoenix LiveView Hex Package
 - **URL**: https://hex.pm/packages/phoenix_live_view
 - **Purpose**: Phoenix LiveView package and version tracking
 - **Date Accessed**: 2026-03-25
-- **Key Topics**: Version 1.1.27 (current), release history
+- **Key Topics**: Version 1.1.27, release history
 
 ## Tidewave MCP Dev Tools (Phoenix Skill Extension)
 
@@ -128,13 +128,13 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **URL**: https://github.com/elixir-lang/elixir/releases
 - **Purpose**: Elixir language release tracking
 - **Date Accessed**: 2026-03-25
-- **Key Topics**: Version 1.19.5 (current), release notes, changelog
+- **Key Topics**: Version 1.19.5, release notes, changelog
 
 ### Erlang/OTP
 - **URL**: https://github.com/erlang/otp/releases
 - **Purpose**: Erlang/OTP release tracking
 - **Date Accessed**: 2026-03-25
-- **Key Topics**: Version 28.4.1 (current), release notes
+- **Key Topics**: Version 28.4.1, release notes
 
 ## Testing Skill
 

@@ -10,9 +10,10 @@
 #   C-group: sources.toml <-> sources.md agreement (index exists, every
 #            entry is mentioned, no stale '- **Version**:' bullet)
 #
-# MISSING sources.toml is reported, not failed — this is the PR1..PR3
-# migration rollout lever (claude-skills-180). PR4 flips it to a failure
-# once every plugin has been converted.
+# A MISSING sources.toml is a FAILURE (claude-skills-184). It was reported
+# rather than failed during the PR1..PR3 rollout, as the lever that let the
+# migration land plugin-by-plugin; all 28 are converted, so the lever is
+# pulled. Adding a plugin without a sources.toml now breaks the build.
 #
 # Zero network calls. Reads only the working tree.
 #
@@ -514,8 +515,13 @@ def main [--self-test] {
     }
 
     if ($pending | is-not-empty) {
-        print $"  ⚪ ($pending | length) plugin\(s\) without sources.toml — migration pending \(claude-skills-180\):"
-        print $"     ($pending | sort | str join ', ')\n"
+        for name in ($pending | sort) {
+            $findings = ($findings | append {
+                rule: "missing_sources_toml"
+                severity: "fail"
+                message: $"($name): missing skills/sources.toml — every plugin must have one \(migration complete as of claude-skills-180\)"
+            })
+        }
     }
 
     let info_findings = ($findings | where severity == "info")
@@ -536,7 +542,7 @@ def main [--self-test] {
         exit 1
     }
 
-    print $"(ansi green_bold)✅ sources.toml validation clean \(($validated) file\(s\) validated, ($pending | length) pending\)(ansi reset)"
+    print $"(ansi green_bold)✅ sources.toml validation clean \(($validated) file\(s\) validated, 0 pending\)(ansi reset)"
     exit 0
 }
 

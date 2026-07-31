@@ -541,6 +541,11 @@ def burn-down-counts [baseline: list] {
 # Embedded self-test for the baseline schema + count ratchet
 # (claude-skills-132). Exercises validate-baseline-entries, ratchet-baseline,
 # and burn-down-counts directly — the same implementations main calls.
+# Cases 1-15 are hermetic in-memory fixtures. Cases 16-17 (claude-skills-184)
+# depart from that: they read real repo artifacts (test/quality-baseline.json,
+# plugins/*/skills/sources.md), because they assert on the flip-enforcement
+# epic's atomic data changes rather than on a callable pure function — see
+# each case's comment for why no pure function exists to test instead.
 # Returns true when any case failed.
 def run-baseline-self-test [] {
     mut failed = false
@@ -670,8 +675,52 @@ def run-baseline-self-test [] {
         $failed = true
     }
 
+    # Case 16 (claude-skills-184, C3 — data half): the baseline must carry
+    # zero waivers for the retired "source" check (whole-file substring check
+    # 11). This reads the REAL test/quality-baseline.json rather than a
+    # fixture, because the epic's scope note makes this an atomic pair:
+    # removing check 11 without shrinking the baseline leaves stale passing
+    # keys (a hard failure), and shrinking without removing leaves the check
+    # still firing. check 11 itself lives inline in `main`'s corpus loop, not
+    # in a callable pure function, so its removal cannot be unit-tested here —
+    # this case proves only the baseline side of the atomic pair.
+    let repo_root_184 = (git rev-parse --show-toplevel | str trim)
+    let source_keys = (
+        open ($repo_root_184 | path join "test" "quality-baseline.json")
+        | get allowed_failures
+        | where {|e| ($e.key | str ends-with ":source") }
+        | get key
+    )
+    if ($source_keys | is-not-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: baseline still carries ':source' waivers, must shrink atomically with check 11's removal: ($source_keys | str join ', ')(ansi reset)"
+        $failed = true
+    }
+
+    # Case 17 (claude-skills-184, C2 — data half): the stale '(current)'
+    # sources.md annotation lines PR1 left behind must be deleted so the
+    # toml-only version_pin flip has no residual sources.md acceptance
+    # signal. Reads the real sources.md files for the three plugins that
+    # carry a version-pin phrase in their SKILL.md prose. This proves the
+    # annotations are gone; it does NOT exercise the sources.md-acceptance-
+    # path removal itself — like check 11, that logic is inline in main's
+    # per-skill loop (the `stale_pins` computation), not a callable function.
+    let annotated_files = (
+        ["core" "languages/elixir" "languages/rust"]
+        | each {|p| ($repo_root_184 | path join "plugins" $p "skills" "sources.md") }
+        | where {|f| $f | path exists }
+    )
+    let current_lines = (
+        $annotated_files
+        | each {|f| open --raw $f | lines | where {|l| $l =~ '\(current\)' } }
+        | flatten
+    )
+    if ($current_lines | is-not-empty) {
+        print $"(ansi red_bold)❌ baseline self-test: ($current_lines | length) stale '\(current\)' annotation line\(s\) remain in sources.md — delete them so the toml-only version_pin flip has no residual acceptance signal(ansi reset)"
+        $failed = true
+    }
+
     if not $failed {
-        print $"(ansi green_bold)✅ Baseline schema/ratchet self-test passed \(15 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Baseline schema/ratchet self-test passed \(17 cases\)(ansi reset)"
     }
     $failed
 }
@@ -1886,18 +1935,11 @@ def main [--update-baseline, --self-test] {
         let plugin_json = (open ($plugin_dir | path join ".claude-plugin" "plugin.json"))
         let skills = ($plugin_json | get -o skills | default [])
 
-        # Find sources.md for the plugin
-        let sources_path = ($plugin_dir | path join "skills" "sources.md")
-        let sources_content = if ($sources_path | path exists) {
-            open --raw $sources_path
-        } else {
-            ""
-        }
-
-        # Second acceptance path for check 17: a prose version pin may be
-        # recorded in the structured sources.toml instead of annotated
-        # "X (current)" in sources.md. Adding an acceptance path can only turn
-        # failures into passes, so this is ratchet-safe at any coverage level.
+        # Check 17's sole acceptance path (claude-skills-184, C2): a prose
+        # version pin must be recorded in the structured sources.toml. The
+        # sources.md "X (current)" annotation path was retired once every
+        # plugin had a conforming sources.toml (claude-skills-180) — toml is
+        # now the single source of truth for pinned versions.
         let sources_toml_path = ($plugin_dir | path join "skills" "sources.toml")
         let toml_versions = if ($sources_toml_path | path exists) {
             try {
@@ -2026,16 +2068,6 @@ def main [--update-baseline, --self-test] {
                 $failed = ($failed | append "anti_fab")
             }
 
-            # 11. Source documented (keyed on directory name OR frontmatter name,
-            # so a frontmatter/directory mismatch doesn't produce a false FAIL)
-            let sources_lower = ($sources_content | str downcase)
-            let source_ok = if ($sources_content | str length) > 0 {
-                ($sources_lower | str contains ($dir_name | str downcase)) or ($sources_lower | str contains ($name | str downcase))
-            } else {
-                false
-            }
-            if not $source_ok { $failed = ($failed | append "source") }
-
             # 12. No 'allowed-tools' in frontmatter
             let has_allowed_tools = ($fm_lines | any {|line| ($line | str trim) | str starts-with "allowed-tools:"})
             if $has_allowed_tools { $failed = ($failed | append "allowed_tools") }
@@ -2102,16 +2134,15 @@ def main [--update-baseline, --self-test] {
             let bad_invocations = (find-bad-invocations $invocation_content $registry)
             if ($bad_invocations | is-not-empty) { $failed = ($failed | append "invocations") }
 
-            # 17. Version pins agree with sources.md: a "Current stable: X" /
-            # "Currently at version X" claim must appear as "X (current)" in the
-            # plugin's sources.md. Skills without a pin pass (soft check).
+            # 17. Version pins agree with sources.toml: a "Current stable: X" /
+            # "Currently at version X" claim must match a current_version
+            # recorded in the plugin's sources.toml. Skills without a pin pass
+            # (soft check).
             let pins = ($content
                 | parse --regex 'Current stable: (?P<ver>v?[0-9][0-9A-Za-z.]*)'
                 | append ($content | parse --regex 'Currently at version (?P<ver>v?[0-9][0-9A-Za-z.]*)')
                 | get ver | each {|v| $v | str trim -c '.'} | uniq)
-            let stale_pins = ($pins | where {|v|
-                (not ($sources_content | str contains ($v + " (current)"))) and ($v not-in $toml_versions)
-            })
+            let stale_pins = ($pins | where {|v| $v not-in $toml_versions })
             if ($stale_pins | is-not-empty) { $failed = ($failed | append "version_pin") }
 
             # Classify failures against the baseline
@@ -2135,7 +2166,7 @@ def main [--update-baseline, --self-test] {
                 }
             }
 
-            let check_count = 17
+            let check_count = 16
             let score = $check_count - ($failed | length)
 
             $results = ($results | append {

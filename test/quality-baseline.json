@@ -65,13 +65,6 @@
       "detail_count": 1
     },
     {
-      "key": "claude-code/skill-update:source",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "core/bees:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -80,13 +73,6 @@
     },
     {
       "key": "core/code-review:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "core/code-review:source",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
@@ -149,21 +135,7 @@
       "detail_count": null
     },
     {
-      "key": "dagu/rest-api:source",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "dagu/webui:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "dagu/webui:source",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
@@ -276,13 +248,6 @@
     },
     {
       "key": "runex/runex:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "rust/troubleshooting:source",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
@@ -408,13 +373,6 @@
       "detail_count": null
     },
     {
-      "key": "zig/c-interop:source",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "zig/language:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -430,13 +388,6 @@
     },
     {
       "key": "zig/troubleshooting:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/troubleshooting:source",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
