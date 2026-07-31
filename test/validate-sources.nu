@@ -40,6 +40,10 @@ const NONE_FORBIDDEN = ["url" "releases_url" "current_version" "version_constrai
                         "update_priority" "github_repo" "hex_package" "crate_name"]
 const DATE_RE = '^\d{4}-\d{2}-\d{2}$'
 const SEMVER_RE = '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
+# Shape-based (not strict semver) — accepts "unknown" as a literal, checked
+# separately. See claude-skills-189: upstream version schemes are
+# heterogeneous (CalVer, OTP-style, bare major/minor) and not all semver.
+const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.]+)?$'
 
 # Returns [{rule, severity, message}] for ONE plugin. severity is "fail" or
 # "info"; main exits 1 only on "fail". Pure: no filesystem, no network —
@@ -366,6 +370,23 @@ def check-sources [
                         rule: "b3_date"
                         severity: "fail"
                         message: $"($plugin)/($name): last_checked '($lc)' is neither YYYY-MM-DD nor 'unknown'"
+                    })
+                }
+            }
+
+            if "current_version" in $cols {
+                let cv = (scalar-str $entry.current_version)
+                if $cv == null {
+                    $findings = ($findings | append {
+                        rule: "b3_version_shape"
+                        severity: "fail"
+                        message: $"($plugin)/($name): current_version is a ($entry.current_version | describe), expected a version string or 'unknown'"
+                    })
+                } else if not ($cv == "unknown" or ($cv =~ $VERSION_SHAPE_RE)) {
+                    $findings = ($findings | append {
+                        rule: "b3_version_shape"
+                        severity: "fail"
+                        message: $"($plugin)/($name): current_version '($cv)' is neither a recognizable version string nor 'unknown'"
                     })
                 }
             }
