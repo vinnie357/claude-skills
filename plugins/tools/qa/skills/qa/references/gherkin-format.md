@@ -99,17 +99,6 @@ The `qa-lead` aborts (no workers spawned) if any of the following hold. Each rej
 9. A multiline step (continuation without a leading keyword) is detected.
 10. `Background:` contains a `When` or `Then` (Background may only contain `Given` and continuations).
 
-## Worker Assignment Hints
-
-The lead inspects each fully-expanded scenario's step text to assign a worker, per `references/stack-detection.md`:
-
-- Step text mentions a URL, page, button, link, form, click, type, see, scroll, navigate → likely UI → `qa-playwright`.
-- Step text mentions a record, row, query, schema, GenServer, log, Phoenix module, Ecto, supervisor → likely Phoenix backend → `qa-tidewave`.
-- Step text mentions an endpoint, status code, response body, JSON, HTTP, CLI command, exit code → generic backend → `qa-backend`.
-- Mixed → multiple workers correlate by scenario name.
-
-The hints are heuristic. When uncertain, the lead asks via AskUserQuestion before spawning.
-
 ## Full Example
 
 ````markdown

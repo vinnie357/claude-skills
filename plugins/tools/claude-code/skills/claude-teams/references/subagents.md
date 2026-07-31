@@ -141,4 +141,4 @@ Invoke via the Agent tool (`Task` remains a deprecated alias, renamed in v2.1.63
 Use the Agent tool with subagent_type: "code-reviewer" to review the authentication module.
 ```
 
-Or programmatically via the Agent SDK (see `references/agent-sdk.md`).
+Or programmatically via the Agent SDK — this skill's SKILL.md "Agent SDK" section points to the SDK reference for setup and session-management details.

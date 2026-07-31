@@ -39,7 +39,7 @@ Execution flags: `--agent`, `--model`, `--non-interactive`, `--plan`, `--yolo`, 
 
 The `--agent` flag sets the **default** for steps that do not name an agent; it does **not** override steps that explicitly specify one.
 
-For workflows designed on the fly by a leader agent (`--dynamic`), see `references/command-reference.md` — dynamic mode generates and executes a `workflow.toml` from a work item without a hand-authored file.
+For workflows designed on the fly by a leader agent (`--dynamic`), see this skill's command reference — dynamic mode generates and executes a `workflow.toml` from a work item without a hand-authored file.
 
 ---
 
@@ -55,7 +55,7 @@ implement → tests
 
 Once `implement` completes, `tests` and `docs` start immediately; `review` waits for both.
 
-- **Scheduling:** eligible steps launch in workflow file order up to the `maxConcurrentAgents` cap; when a slot frees, the next queued step starts. Unset cap = unlimited; `1` disables parallelism; `0` is rejected. Precedence: `--max-concurrent` → `AWMAN_MAX_CONCURRENT_AGENTS` → repo config → global config. See `references/config.md`.
+- **Scheduling:** eligible steps launch in workflow file order up to the `maxConcurrentAgents` cap; when a slot frees, the next queued step starts. Unset cap = unlimited; `1` disables parallelism; `0` is rejected. Precedence: `--max-concurrent` → `AWMAN_MAX_CONCURRENT_AGENTS` → repo config → global config. See this skill's config schema reference for the full key.
 - **Failure:** a failed step without `abort_on_failure` lets siblings continue; `abort_on_failure = true` kills all active peers in the group instantly.
 - **Per-container tracking:** stuck detection (30 s silent) and yolo countdowns (60 s) apply to each container independently — one stuck or expired container does not affect its siblings.
 - **TUI:** `Ctrl-S` rotates focus between running containers (passes through to the PTY when only one runs). The Workflow Control Board (`Ctrl-W`) scopes actions to the focused container; "Restart current step", "Cancel to previous step", and "Finish workflow" are disabled while peers run, but "Pause" and "Abort" stay available.

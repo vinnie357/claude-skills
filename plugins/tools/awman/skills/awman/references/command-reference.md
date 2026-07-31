@@ -170,7 +170,7 @@ awman exec workflow ./workflows/implement.toml --work-item 0027 --max-concurrent
 
 `--work-item <nnnn>` injects template variables (`{{work_item_number}}`, `{{work_item_content}}`, etc.) into step prompts. `--issue <ref>` (0.10.0) fetches a GitHub issue and populates the same variables — mutually exclusive with `--work-item`. Reference forms: bare number (requires GitHub `origin` remote), `owner/repo#N`, or full URL; auth via `gh` CLI, then `GITHUB_TOKEN`, then unauthenticated (public repos, 60 req/hr). The worktree is never auto-deleted — a merge/discard/keep dialog appears at completion or abort.
 
-`--max-concurrent <n>` (0.11.0) caps simultaneous step containers for this run, overriding `AWMAN_MAX_CONCURRENT_AGENTS` and the `maxConcurrentAgents` config key. See `references/workflows.md` for parallel-group semantics.
+`--max-concurrent <n>` (0.11.0) caps simultaneous step containers for this run, overriding `AWMAN_MAX_CONCURRENT_AGENTS` and the `maxConcurrentAgents` config key. See this skill's workflow-authoring reference for parallel-group semantics.
 
 ### `awman exec workflow --dynamic` (0.11.0)
 
@@ -287,7 +287,7 @@ awman api kill                                               # Graceful shutdown
 | `--dangerously-skip-tls` | Serve plain HTTP instead of self-signed HTTPS |
 | `--dangerously-skip-auth` | Disable auth for this process lifetime only; `api_key.hash` is untouched and the next normal start re-enables auth |
 
-See `references/api.md` for the full REST endpoint table and auth model.
+See this skill's API reference for the full REST endpoint table and auth model.
 
 ---
 
