@@ -719,8 +719,94 @@ def run-baseline-self-test [] {
         $failed = true
     }
 
+    # Case 18 (claude-skills-192): find-stale-version-pins is the pure
+    # function extracted from main's per-skill loop (lines ~2141-2146, the
+    # `stale_pins` computation). Cases 16/17 above prove only that the
+    # retired sources.md acceptance path is gone from the real corpus; they
+    # do not exercise this parse/trim/dedup/membership logic directly. These
+    # fixtures do, without needing a plugin's sources.toml or SKILL.md on
+    # disk. Contract: `find-stale-version-pins [content: string, toml_versions: list]`
+    # runs both "Current stable: X" / "Currently at version X" regexes over
+    # `content`, trims trailing dots off each captured version, dedupes, and
+    # returns the subset absent from `toml_versions` — the same list whose
+    # length feeds the version_pin failure/count today.
+    #
+    # The function does not exist yet, so every case wraps the call in
+    # try/catch rather than calling it bare. main aggregates eight self-test
+    # suites sequentially (line ~1844+) and this one runs second; an unguarded
+    # call raises `nu::shell::external_command` at runtime and aborts the
+    # WHOLE script unhandled, which would silently skip the six suites still
+    # queued behind this one (checks, duplicate, vocab, pass2_links, orphans,
+    # fm_schema) — confirmed by probe, not assumed. The catch turns that into
+    # one red line per case plus a sentinel string result instead, so this
+    # function keeps returning $failed normally, main's aggregation and every
+    # other suite still runs, and cases 1-17 above are unaffected. Once the
+    # implementer adds the function, the try block just returns its real
+    # result and these become normal got-vs-want comparisons.
+    let pin_cases = [
+        {
+            label: "pin only in prose, absent from toml_versions -> stale"
+            content: "Current stable: 2.0.0"
+            toml_versions: ["1.0.0"]
+            want: ["2.0.0"]
+        }
+        {
+            label: "pin present in toml_versions -> not stale"
+            content: "Current stable: 1.0.0"
+            toml_versions: ["1.0.0"]
+            want: []
+        }
+        {
+            label: "no pin at all -> empty result (soft check)"
+            content: "This skill has no version claim anywhere."
+            toml_versions: ["1.0.0"]
+            want: []
+        }
+        {
+            label: "'Currently at version X' form, absent from toml -> stale"
+            content: "Currently at version 3.1.4"
+            toml_versions: ["1.0.0"]
+            want: ["3.1.4"]
+        }
+        {
+            label: "trailing dot is trimmed before comparison"
+            content: "Current stable: 1.2.3."
+            toml_versions: ["1.2.3"]
+            want: []
+        }
+        {
+            label: "both regex forms present with different versions, only the un-pinned one is stale"
+            content: "Current stable: 1.0.0. Currently at version 2.0.0."
+            toml_versions: ["1.0.0"]
+            want: ["2.0.0"]
+        }
+        {
+            label: "same version pinned via both forms dedupes to one stale entry"
+            content: "Current stable: 1.0.0. Currently at version 1.0.0."
+            toml_versions: []
+            want: ["1.0.0"]
+        }
+    ]
+    for c in $pin_cases {
+        let got = (try {
+            find-stale-version-pins $c.content $c.toml_versions | sort
+        } catch {|e|
+            print $"(ansi red_bold)❌ find-stale-version-pins: ($c.label): call raised \(($e.msg)\)(ansi reset)"
+            "FIND-STALE-VERSION-PINS-NOT-IMPLEMENTED"
+        })
+        if ($got | describe) == "string" {
+            $failed = true
+            continue
+        }
+        let want = ($c.want | sort)
+        if $got != $want {
+            print $"(ansi red_bold)❌ find-stale-version-pins: ($c.label): want ($want), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
     if not $failed {
-        print $"(ansi green_bold)✅ Baseline schema/ratchet self-test passed \(17 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Baseline schema/ratchet self-test passed \(18 cases\)(ansi reset)"
     }
     $failed
 }
@@ -734,6 +820,18 @@ def find-orphan-files [content: string, files: list]: nothing -> list {
         let subdir = ($f | path dirname | path basename)
         not ($content | str contains $"($subdir)/($f | path basename)")
     }
+}
+
+# Check 17 (version_pin) predicate, extracted so it can be self-tested
+# (claude-skills-192). A "Current stable: X" / "Currently at version X"
+# claim must match a current_version recorded in the plugin's sources.toml;
+# skills without a pin pass (soft check) — hence the empty-result cases.
+def find-stale-version-pins [content: string, toml_versions: list]: nothing -> list<string> {
+    let pins = ($content
+        | parse --regex 'Current stable: (?P<ver>v?[0-9][0-9A-Za-z.]*)'
+        | append ($content | parse --regex 'Currently at version (?P<ver>v?[0-9][0-9A-Za-z.]*)')
+        | get ver | each {|v| $v | str trim -c '.'} | uniq)
+    $pins | where {|v| $v not-in $toml_versions }
 }
 
 def run-orphans-self-test [] {
@@ -2138,11 +2236,7 @@ def main [--update-baseline, --self-test] {
             # "Currently at version X" claim must match a current_version
             # recorded in the plugin's sources.toml. Skills without a pin pass
             # (soft check).
-            let pins = ($content
-                | parse --regex 'Current stable: (?P<ver>v?[0-9][0-9A-Za-z.]*)'
-                | append ($content | parse --regex 'Currently at version (?P<ver>v?[0-9][0-9A-Za-z.]*)')
-                | get ver | each {|v| $v | str trim -c '.'} | uniq)
-            let stale_pins = ($pins | where {|v| $v not-in $toml_versions })
+            let stale_pins = (find-stale-version-pins $content $toml_versions)
             if ($stale_pins | is-not-empty) { $failed = ($failed | append "version_pin") }
 
             # Classify failures against the baseline

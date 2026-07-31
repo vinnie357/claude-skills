@@ -457,6 +457,18 @@ def check-sources [
     $findings
 }
 
+# The missing-sources.toml guard, extracted so it can be self-tested
+# (claude-skills-192). Takes the raw (unsorted) pending plugin-name list and
+# returns one {rule, severity, message} finding per name, sorted by name to
+# match main's `for name in ($pending | sort)` iteration order.
+def missing-sources-findings [pending: list<string>]: nothing -> list<record> {
+    $pending | sort | each {|name| {
+        rule: "missing_sources_toml"
+        severity: "fail"
+        message: $"($name): missing skills/sources.toml — every plugin must have one \(migration complete as of claude-skills-180\)"
+    }}
+}
+
 def main [--self-test] {
     let repo_root = (git rev-parse --show-toplevel | str trim)
     cd $repo_root
@@ -515,13 +527,7 @@ def main [--self-test] {
     }
 
     if ($pending | is-not-empty) {
-        for name in ($pending | sort) {
-            $findings = ($findings | append {
-                rule: "missing_sources_toml"
-                severity: "fail"
-                message: $"($name): missing skills/sources.toml — every plugin must have one \(migration complete as of claude-skills-180\)"
-            })
-        }
+        $findings = ($findings | append (missing-sources-findings $pending))
     }
 
     let info_findings = ($findings | where severity == "info")
@@ -1674,6 +1680,71 @@ update_priority = "medium"
     if ($severity_fail | is-not-empty) or ($severity_info | length) != 1 or ($severity_info | first | get rule) != "a4_review_pending" {
         print $"(ansi red_bold)❌ a4_review_pending severity case: expected exactly one info finding \(a4_review_pending\) and zero fail findings, got ($severity_findings | to nuon)(ansi reset)"
         $failed = true
+    }
+
+    # missing-sources-findings (claude-skills-192): the pure function
+    # extracted from main's pending-plugin loop (lines ~488-525). main
+    # accumulates plugin names lacking a sources.toml into `pending`, then
+    # turns each into a missing_sources_toml finding — that finding-
+    # production half was never reachable from check-sources (which only
+    # ever receives an already-parsed toml), so it is untestable inline.
+    # Contract: `missing-sources-findings [pending: list<string>]` takes the
+    # raw (unsorted) plugin-name list and returns one {rule, severity,
+    # message} record per name, sorted by name to match today's `for name in
+    # ($pending | sort)` iteration order. The emitted message text is exact —
+    # it must not change: "<name>: missing skills/sources.toml — every
+    # plugin must have one (migration complete as of claude-skills-180)".
+    #
+    # The function does not exist yet (that is the implementer's job), so
+    # every case below wraps its call in try/catch. Nushell resolves a
+    # custom-command call at RUNTIME here, not at parse time (confirmed by
+    # probe: a script with an undefined call still parses and runs everything
+    # before it) — so an unguarded call would raise `nu::shell::
+    # external_command` ("Command ... not found") and abort the whole
+    # self-test with no further output. The catch turns that into one red
+    # line per case (naming the case and nushell's message) and a sentinel
+    # string result, so all cases still get evaluated, the pre-existing 48
+    # cases above are unaffected, and $failed still drives `exit 1` below —
+    # no unhandled-error abort. Once the implementer adds the function, the
+    # try block just returns its real result and these become normal
+    # got-vs-want comparisons.
+    let missing_cases = [
+        {
+            label: "empty pending list produces no findings"
+            pending: []
+            want: []
+        }
+        {
+            label: "one missing plugin produces one finding naming it"
+            pending: ["demo-plugin"]
+            want: ["demo-plugin: missing skills/sources.toml — every plugin must have one (migration complete as of claude-skills-180)"]
+        }
+        {
+            label: "multiple missing plugins each produce their own finding, sorted by name"
+            pending: ["zeta-plugin" "alpha-plugin"]
+            want: [
+                "alpha-plugin: missing skills/sources.toml — every plugin must have one (migration complete as of claude-skills-180)"
+                "zeta-plugin: missing skills/sources.toml — every plugin must have one (migration complete as of claude-skills-180)"
+            ]
+        }
+    ]
+    for c in $missing_cases {
+        let got = (try {
+            missing-sources-findings $c.pending
+        } catch {|e|
+            print $"(ansi red_bold)❌ missing-sources-findings: ($c.label): call raised \(($e.msg)\)(ansi reset)"
+            "MISSING-SOURCES-FINDINGS-NOT-IMPLEMENTED"
+        })
+        if ($got | describe) == "string" {
+            $failed = true
+            continue
+        }
+        let got_messages = ($got | get message)
+        let rules_ok = ($got | all {|f| $f.rule == "missing_sources_toml" and $f.severity == "fail"})
+        if $got_messages != $c.want or (not $rules_ok) {
+            print $"(ansi red_bold)❌ missing-sources-findings: ($c.label): want ($c.want), got ($got | to nuon)(ansi reset)"
+            $failed = true
+        }
     }
 
     if $failed { exit 1 }
