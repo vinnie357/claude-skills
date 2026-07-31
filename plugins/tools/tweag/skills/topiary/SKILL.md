@@ -366,6 +366,10 @@ mise run fmt:check
 mise run fmt:debug -- script.ncl
 ```
 
+## References
+
+- `references/query-syntax.md` — the S-expression query syntax Topiary uses to match code patterns and apply formatting rules. Read when writing or debugging a `.scm` query file.
+
 ## Anti-Fabrication Note
 
 Before claiming that Topiary formats a language or query correctly, verify behavior by running `topiary fmt` on actual code files and inspecting the output. Do not assume query behavior without testing; use `topiary visualise` to inspect the parse tree and confirm node names and structure match the query. Test idempotency by running the formatter twice and confirming output is identical.

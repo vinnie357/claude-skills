@@ -452,7 +452,7 @@
       "source": "./plugins/tools/tweag",
       "strict": true,
       "description": "Tweag tools: Topiary universal code formatter and Nickel configuration language",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "category": "tools",
       "keywords": [
         "tweag",
