@@ -2260,7 +2260,7 @@ def main [--update-baseline, --self-test] {
                 }
             }
 
-            let check_count = 16
+            let check_count = 17
             let score = $check_count - ($failed | length)
 
             $results = ($results | append {

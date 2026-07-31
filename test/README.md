@@ -140,7 +140,7 @@ mise list-plugins
 
 ## Skill Quality Checks
 
-`mise test:skills-quality` runs four passes — 16 static checks per skill, an
+`mise test:skills-quality` runs four passes — 17 static checks per skill, an
 agents/commands/hooks surface pass per plugin, one corpus-wide
 duplicate-block scan, and a syntax-vs-usage vocabulary cross-check —
 enforcing all four against the same ratchet baseline
@@ -168,7 +168,7 @@ regenerating would add any new key. Fix the skill instead of baselining a
 new violation. A deliberate net-new debt acknowledgment requires editing
 `test/quality-baseline.json` by hand and stating why in the PR.
 
-### Per-skill checks (16)
+### Per-skill checks (17)
 
 | Key | Meaning |
 |-----|---------|
