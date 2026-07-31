@@ -133,6 +133,8 @@ def cross-skill-qualified [prefix_line: string, dir_name: string, path: string, 
 
 # Text preceding the first occurrence of `path` in `content`, truncated to
 # just its own line (so cross-skill-qualified only sees same-line context).
+# The same truncation makes the exemption order-sensitive for checks 14 and
+# Pass-2 too — see has-unqualified-references-token's header for the rationale.
 def preceding-line [content: string, path: string]: nothing -> string {
     let idx = ($content | str index-of $path)
     if $idx < 0 {
@@ -261,6 +263,25 @@ def pass2-dir-in-scope [top: string, own_dir: string, plugin_dir: string]: nothi
 #   concrete sibling file. Accepted residual: a sibling pointer written
 #   without a file extension escapes (check 14's link regex shares this
 #   extension requirement).
+# - The cross-skill exemption is evaluated against the text BEFORE the
+#   `references/` token only (the prefix/rest split just below), so it
+#   fires only when the `/ns:skill` (or `plugins/<...>/skills/<other>/`)
+#   qualifier PRECEDES the path on the same line. This residual differs in
+#   kind from the two above: those silently PASS things that should fail;
+#   this one silently FAILS something legitimate. Flagged:
+#   ``Per `references/x.md` in `/core:tdd`: ...``. Exempt:
+#   ``Per `/core:tdd`'s `references/x.md`: ...``. Both name the same real
+#   file — fix by reordering the sentence. Not widened to whole-line
+#   matching: measured against this corpus (claude-skills-195 plan), that
+#   breaks the `plugins/<...>/skills/<other>/` qualifier form (its regex is
+#   `$`-anchored, so it can only match a line-ending prefix), costing 1
+#   corpus exemption, while a later mention of an unknown namespace or of a
+#   sibling skill sharing the same reference basename (19 such basenames in
+#   this corpus) would silently exempt a genuine same-skill link — against
+#   0 current false positives from the order requirement. A gated design
+#   (prefix-first, whole-line fallback only when the citing skill does not
+#   own the cited path) was evaluated and deferred until a real instance
+#   needs it.
 def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list]: nothing -> bool {
     ($content | lines | any {|line|
         if not ($line | str contains "references/") {
@@ -1033,6 +1054,76 @@ def run-check-fixes-self-test [] {
         $failed = true
     }
 
+    # --- ref_depth cross-skill exemption is word-order sensitive (claude-skills-195) ---
+    # These four cases pin the documented residual on
+    # has-unqualified-references-token's header comment (accepted-residual
+    # bullet three): the exemption fires only when the /ns:skill qualifier
+    # PRECEDES the references/ path on the same line. Unlike the cases
+    # above, they build a REAL skill_dir_map fixture — the existing ref_depth
+    # cases all pass `[] []`, which makes every qualifier resolve as
+    # "unknown -> exempt" and would make an order check vacuous. This
+    # fixture (a synthetic mktemp tree, never a real corpus skill, so a
+    # future reference-file rename in this repo can't break it) makes the
+    # `path exists` branch of cross-skill-qualified genuinely fire. otherskill
+    # owns BOTH foo.md and bar.md — the bar.md duplicate basename is what
+    # makes case 3 below load-bearing (the 19-colliding-basenames shape).
+    let rd_root = (mktemp -d)
+    mkdir ($rd_root | path join "otherns" "skills" "otherskill" "references")
+    "content" | save ($rd_root | path join "otherns" "skills" "otherskill" "references" "foo.md")
+    "content" | save ($rd_root | path join "otherns" "skills" "otherskill" "references" "bar.md")
+    let rd_map = [{skill: "otherskill", dir: ($rd_root | path join "otherns" "skills" "otherskill"), plugin: "otherns"}]
+    let rd_plugins = ["otherns"]
+
+    # Case: qualifier BEFORE the path — a real cross-skill pointer whose
+    # target file exists in the other skill's own tree. NOT flagged.
+    if (has-unqualified-references-token "Per `/otherns:otherskill`'s `references/foo.md`: see there for detail." "myskill" $rd_map $rd_plugins) {
+        print $"(ansi red_bold)❌ check-fix self-test: qualifier-before cross-skill pointer wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case: the SAME pointer, reordered so the qualifier comes AFTER the
+    # path. This is the documented residual, not a bug — the test's purpose
+    # is to make a silent future widening (to whole-line matching)
+    # impossible without a failing test alerting the author.
+    if not (has-unqualified-references-token "Per `references/foo.md` in `/otherns:otherskill`: see there for detail." "myskill" $rd_map $rd_plugins) {
+        print $"(ansi red_bold)❌ check-fix self-test: qualifier-after cross-skill pointer no longer flagged \(documented residual regressed\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case: a genuine same-skill reference (references/bar.md, owned by
+    # THIS skill, "myskill") followed by an unrelated mention of a
+    # DIFFERENT, real sibling skill (otherskill) that happens to own a
+    # DIFFERENT file sharing the same basename bar.md — the 19-colliding-
+    # basenames shape the header comment cites. Under prefix-only matching
+    # (shipped) the trailing mention is irrelevant since it comes after the
+    # path — correctly flagged. This is the load-bearing regression guard
+    # against whole-line widening: gate-verified that widening resolves
+    # `otherskill` and finds ITS bar.md exists, flipping this to wrongly
+    # exempt even though the path never named otherskill at all.
+    if not (has-unqualified-references-token "See references/bar.md for detail, mirroring the layout in /otherns:otherskill." "myskill" $rd_map $rd_plugins) {
+        print $"(ansi red_bold)❌ check-fix self-test: same-skill link with trailing same-basename sibling mention wrongly exempted(ansi reset)"
+        $failed = true
+    }
+
+    # Case: a genuine same-skill reference (references/qux.md — no fixture
+    # file needed; the same-skill link never reaches the `path exists`
+    # branch since no qualifier precedes it) followed by a mention of a
+    # namespace/skill this marketplace does NOT know about at all
+    # (unknown skill "codex" under unknown plugin "openai" — neither is in
+    # rd_map/rd_plugins). Correctly flagged today: no qualifier precedes
+    # the path, so cross-skill-qualified never reaches the "unknown ->
+    # exempt" leniency branch. The second documented false-negative shape:
+    # gate-verified that whole-line widening resolves `codex` via
+    # lookup-skill-dir, gets "" back (truly unknown), and that empty-target
+    # branch (line ~128-130) returns true unconditionally — flipping this
+    # to wrongly exempt via a namespace that owns nothing at all.
+    if not (has-unqualified-references-token "See references/qux.md for detail; the equivalent for Codex lives in /openai:codex." "myskill" $rd_map $rd_plugins) {
+        print $"(ansi red_bold)❌ check-fix self-test: same-skill link with trailing unknown-namespace mention wrongly exempted(ansi reset)"
+        $failed = true
+    }
+
+    rm -rf $rd_root
+
     # --- invocations (enumerated upstream commands, no namespace exemption) ---
     let allium_cmds = ($UPSTREAM_COMMANDS | where ns == "allium" | first | get commands)
     let reg = [
@@ -1057,7 +1148,7 @@ def run-check-fixes-self-test [] {
     }
 
     if not $failed {
-        print $"(ansi green_bold)✅ Check-fix self-test passed \(19 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Check-fix self-test passed \(23 cases\)(ansi reset)"
     }
     $failed
 }
@@ -2270,7 +2361,7 @@ def main [--update-baseline, --self-test] {
                 score: $"($score)/($check_count)"
                 failed: ($failed | str join " ")
                 new: ($new_failures | each {|k| $k | split row ":" | last} | str join " ")
-                details: ($broken_links | append $bad_invocations | append $stale_pins | append ($orphans | each {|f| $f | path basename}) | append ($fm_unknown | each {|k| $"frontmatter:($k)"}) | str join " ")
+                details: ($broken_links | append $bad_invocations | append $stale_pins | append ($orphans | each {|f| $f | path basename}) | append ($fm_unknown | each {|k| $"frontmatter:($k)"}) | append ($nested | each {|r| $"nested:($r.name)"}) | str join " ")
             })
 
             if ($failed | is-empty) {
