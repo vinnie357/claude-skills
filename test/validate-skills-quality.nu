@@ -822,6 +822,18 @@ def find-orphan-files [content: string, files: list]: nothing -> list {
     }
 }
 
+# Check 17 (version_pin) predicate, extracted so it can be self-tested
+# (claude-skills-192). A "Current stable: X" / "Currently at version X"
+# claim must match a current_version recorded in the plugin's sources.toml;
+# skills without a pin pass (soft check) — hence the empty-result cases.
+def find-stale-version-pins [content: string, toml_versions: list]: nothing -> list<string> {
+    let pins = ($content
+        | parse --regex 'Current stable: (?P<ver>v?[0-9][0-9A-Za-z.]*)'
+        | append ($content | parse --regex 'Currently at version (?P<ver>v?[0-9][0-9A-Za-z.]*)')
+        | get ver | each {|v| $v | str trim -c '.'} | uniq)
+    $pins | where {|v| $v not-in $toml_versions }
+}
+
 def run-orphans-self-test [] {
     mut failed = false
     let refs = ["/tmp/skill/references/alpha.md"]
@@ -2224,11 +2236,7 @@ def main [--update-baseline, --self-test] {
             # "Currently at version X" claim must match a current_version
             # recorded in the plugin's sources.toml. Skills without a pin pass
             # (soft check).
-            let pins = ($content
-                | parse --regex 'Current stable: (?P<ver>v?[0-9][0-9A-Za-z.]*)'
-                | append ($content | parse --regex 'Currently at version (?P<ver>v?[0-9][0-9A-Za-z.]*)')
-                | get ver | each {|v| $v | str trim -c '.'} | uniq)
-            let stale_pins = ($pins | where {|v| $v not-in $toml_versions })
+            let stale_pins = (find-stale-version-pins $content $toml_versions)
             if ($stale_pins | is-not-empty) { $failed = ($failed | append "version_pin") }
 
             # Classify failures against the baseline

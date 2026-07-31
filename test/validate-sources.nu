@@ -457,6 +457,18 @@ def check-sources [
     $findings
 }
 
+# The missing-sources.toml guard, extracted so it can be self-tested
+# (claude-skills-192). Takes the raw (unsorted) pending plugin-name list and
+# returns one {rule, severity, message} finding per name, sorted by name to
+# match main's `for name in ($pending | sort)` iteration order.
+def missing-sources-findings [pending: list<string>]: nothing -> list<record> {
+    $pending | sort | each {|name| {
+        rule: "missing_sources_toml"
+        severity: "fail"
+        message: $"($name): missing skills/sources.toml — every plugin must have one \(migration complete as of claude-skills-180\)"
+    }}
+}
+
 def main [--self-test] {
     let repo_root = (git rev-parse --show-toplevel | str trim)
     cd $repo_root
@@ -515,13 +527,7 @@ def main [--self-test] {
     }
 
     if ($pending | is-not-empty) {
-        for name in ($pending | sort) {
-            $findings = ($findings | append {
-                rule: "missing_sources_toml"
-                severity: "fail"
-                message: $"($name): missing skills/sources.toml — every plugin must have one \(migration complete as of claude-skills-180\)"
-            })
-        }
+        $findings = ($findings | append (missing-sources-findings $pending))
     }
 
     let info_findings = ($findings | where severity == "info")
