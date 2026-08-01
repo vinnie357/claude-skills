@@ -113,6 +113,8 @@ Create, inspect, and prune container networks (`container network ...`). Full fl
 
 Full IPv6 support (0.8.0+); host-only/isolated modes (0.9.0+, verify syntax with `--help`); `mtu` network attachment (0.11.0+).
 
+To reach host services from a container: the default network's gateway (`192.168.64.1`, no setup required) only reaches services bound to a non-loopback address. Services bound to `127.0.0.1` (the common local-dev-server case) are NOT reachable via the gateway — use `container system dns create <domain> --localhost <ip>` instead, which is a reachability feature, not just a naming convenience. See [references/command-reference.md](references/command-reference.md) "Reaching host services from a container".
+
 ## Volume Management
 
 Create, inspect, and prune persistent volumes (`container volume ...`). Full flag tables: [references/command-reference.md](references/command-reference.md). Mount with `-v name:/path[:ro]` on `container run`; see Common Workflows below for a persistent-data example.

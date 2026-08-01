@@ -433,6 +433,25 @@ Remove unused networks.
 container network prune
 ```
 
+### Reaching host services from a container
+
+For a host service bound to `127.0.0.1` (loopback) — e.g. a local dev server started with `--bind 127.0.0.1` — the container's network gateway does NOT reach it; loopback-bound services are only visible on the host itself. Per the upstream ["Access a host service from a container"](https://github.com/apple/container/blob/main/docs/how-to.md) guide, create a local DNS domain with `--localhost <ipv4-address>` (admin privileges required) to reach it:
+
+```bash
+sudo container system dns create host.container.internal --localhost 203.0.113.113
+container run -it --rm alpine/curl curl http://host.container.internal:8000
+```
+
+`--localhost <ipv4-address>` is the address ASSIGNED TO the domain name inside the container (the redirect's FROM side), not the host address the traffic is forwarded to — the PF rule always redirects to the host's `127.0.0.1` regardless of the address chosen. Pick an address unlikely to collide with real traffic; upstream recommends the RFC5737 documentation ranges (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`).
+
+Two upstream-documented limitations (`docs/how-to.md`, "Access a host service from a container"):
+- Creating a localhost domain disables Private Relay.
+- The PF rule is removed on restart — the domain must be re-created after every reboot.
+
+The upstream docs' own example domain is `host.container.internal`, not `host.docker.internal` — the 0.9.0 release notes' "`host.docker.internal`" phrasing (apple/container#346, PR #1078) was illustrative, not a hostname Apple Container resolves automatically or ships pre-configured. `strings` probes of the installed 1.0.0 `container`, `container-apiserver`, `container-network-vmnet`, and `container-runtime-linux` binaries contain zero literal occurrences of `docker.internal`, consistent with it never being hardcoded.
+
+For a host service bound to a non-loopback address (`0.0.0.0` or a specific LAN IP), the default network's gateway reaches it with no setup: apple/container's [technical overview](https://github.com/apple/container/blob/main/docs/technical-overview.md) and the `how-to.md` guide both document the default network as `192.168.64.1/24`, with `192.168.64.1` as the gateway address. This does NOT help for loopback-bound services — use the DNS-domain approach above for those.
+
 ## Volume Management
 
 ### `container volume create`

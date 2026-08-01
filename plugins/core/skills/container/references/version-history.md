@@ -10,7 +10,7 @@ Per-release feature history, the full migration checklist, and the dependency ma
 
 **0.8.0**: `--read-only` for run/create, architecture aliases (amd64/arm64/x86_64/aarch64), `network prune`, full IPv6, volume relative paths, env vars from named pipes, CVE-2026-20613 fix
 
-**0.9.0**: Resource limits (`--cpus`/`--memory`), `host.docker.internal`, host-only/isolated networks, `--dns` on build, `--force` on image delete, zstd compression, container prune improvements, enhanced image inspection, Kata 3.26.0 kernel
+**0.9.0**: Resource limits (`--cpus`/`--memory`), `container system dns create --localhost` for named local DNS domains that redirect to the host (apple/container#346 — per upstream `docs/how-to.md`, `host.docker.internal` was an illustrative example name, not a hostname resolved automatically; see `templates/0.9.0/commands.md`), host-only/isolated networks, `--dns` on build, `--force` on image delete, zstd compression, container prune improvements, enhanced image inspection, Kata 3.26.0 kernel
 
 **0.10.0**: `--init-image` selection, `container export`, `--runtime` flag, `container registry list`, `--format` on `system status`, minimum memory validation, multiple network plugins, SELinux kernel panic fix, env var duplication fix
 

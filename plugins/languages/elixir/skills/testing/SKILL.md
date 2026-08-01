@@ -328,10 +328,11 @@ test "test1"
 # Mark tests as async when they don't share state
 use ExUnit.Case, async: true
 
-# Don't use async when tests:
-# - Modify global state
-# - Use database without sandbox
-# - Access shared resources
+# A test that touches shared state (global config, a shared key, the
+# filesystem) is not automatically an async: false candidate — isolate
+# the state first (see Test Isolation below); reach for async: false
+# only when isolation genuinely is not possible, e.g. real unsandboxed
+# database access.
 ```
 
 ### Test Data
@@ -347,6 +348,17 @@ use ExUnit.Case, async: true
 - Use Mox for behavior-based mocking
 - Stub at the boundary - don't mock internal modules
 - Tag tests that require external services
+
+## Test Isolation
+
+Non-deterministic test failures (SQLite "database busy", env-dependent, fails-locally-passes-in-CI) are broken test isolation, not runtime flakiness. Default diagnosis: shared mutable state leaking across tests, not the runtime being unreliable.
+
+- Every test that mutates `Application.put_env/3` saves and restores it in `setup` + `on_exit`.
+- Every test that uses `Process.put/2` on a shared key cleans up in `on_exit`.
+- Every test that writes files uses a unique temp dir (`System.unique_integer([:positive])`) and removes it via `on_exit`.
+- `async: false` is a LAST RESORT, with a comment naming the shared state that forces it.
+- The determinism check varies the CONCURRENCY SHAPE, not the repetition count: run the suite normally, then again at a 2-vCPU CI runner's shape via `mix test --max-cases 4`. Repeating identical runs samples the same shape N times and proves nothing.
+- Never rerun CI to turn a failure green. A remote-only failure is a reproduction recipe: reproduce locally at the runner's concurrency shape, fix the isolation bug, push the fix.
 
 ## Debugging Tests
 

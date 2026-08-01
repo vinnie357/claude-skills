@@ -160,7 +160,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 ### Apple Container Release 0.9.0
 - **URL**: https://github.com/apple/container/releases/tag/0.9.0
 - **Purpose**: Version 0.9.0 release notes
-- **Key Topics**: Resource limits (--cpus/--memory), host.docker.internal, host-only/isolated networks, --dns on build, --force on image delete, zstd compression, Kata 3.26.0
+- **Key Topics**: Resource limits (--cpus/--memory), `container system dns create --localhost` for named local DNS domains that redirect to the host (host.docker.internal is an illustrative example name from the release notes, not an automatically-resolved hostname — per upstream docs/how-to.md, whose own example domain is host.container.internal; see plugins/core/skills/container/templates/0.9.0/commands.md), host-only/isolated networks, --dns on build, --force on image delete, zstd compression, Kata 3.26.0
 
 ### Apple Container Release 0.10.0
 - **URL**: https://github.com/apple/container/releases/tag/0.10.0
