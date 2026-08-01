@@ -119,7 +119,7 @@
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills for plugin marketplace management, validation, and component creation",
-      "version": "0.2.42",
+      "version": "0.2.43",
       "category": "tools",
       "keywords": [
         "claude-code",

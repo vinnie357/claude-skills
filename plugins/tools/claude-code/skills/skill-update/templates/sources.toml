@@ -46,10 +46,13 @@ check_method = "manual"
 # crate_name = "crate"          # REQUIRED iff check_method = "crates-io"
 
 # The upstream version this skill's content was last verified or documented
-# against. Exact version string (e.g. "0.10.0"), or "stable"/"rolling" for
-# those constraints, or "unknown" when nobody has measured it yet.
+# against. A QUOTED exact version string (e.g. "0.10.0"), or "unknown" when
+# nobody has measured it yet OR the source has no discrete version to pin -
+# that includes rolling/stable sources (117 of 119 "rolling" entries and 8 of
+# 12 "stable" entries in this repo record "unknown" here; "stable"/"rolling"
+# are version_constraint values below, never current_version values).
 # A guessed version is fabrication - use "unknown".
-current_version = ""
+current_version = "unknown"
 
 # version_constraint describes how this source is versioned:
 #   pre-1.0  - Actively developed, may break in any release

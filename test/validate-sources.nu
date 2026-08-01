@@ -43,7 +43,28 @@ const SEMVER_RE = '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # Shape-based (not strict semver) — accepts "unknown" as a literal, checked
 # separately. See claude-skills-189: upstream version schemes are
 # heterogeneous (CalVer, OTP-style, bare major/minor) and not all semver.
-const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.]+)?$'
+# claude-skills-196 (D1b) widened the suffix class by one character to admit
+# a hyphenated prerelease segment (e.g. "1.0.0-alpha-1"), matching SEMVER_RE.
+# PR #188 Gate 3 found that widening also admitted bare calendar dates
+# ("2024-01-01", "10-11-2025") and other hyphenated junk ("1-800-flowers") —
+# SEMVER_RE rejects that whole family too (no dotted numeric base), so
+# "we already agree with SEMVER_RE" did not cover it.
+# claude-skills-196/197 fix: a hyphenated suffix is legal only when the base
+# has at least one dot-group. Semver itself requires dotted numeric
+# components before any prerelease/build suffix, so a bare-integer base
+# (no dots) has no business carrying a hyphenated one — that is exactly the
+# date/junk family's shape. Two branches: base WITH a dot-group may take a
+# suffix containing hyphens ([-+][0-9A-Za-z.-]+); base with NO dot-group may
+# only take a suffix without hyphens ([-+][0-9A-Za-z.]+). Measured against
+# this file's corpus: 0 of 39 distinct non-"unknown" current_version values
+# change acceptance, and the full date/junk family (the two PR #188 dates,
+# non-ISO "10-11-2025", "1-800-flowers", "v1-2-3", "1--2") is rejected.
+# Rejected alternatives: leaving the D1b widening as-is leaks the whole date
+# family; requiring a letter somewhere in the suffix still admits
+# "1-800-flowers" ("flowers" is alphabetic). PEP 440 separator-less suffixes
+# (D1a) and dual -prerelease+build suffixes (D1c) were also considered and
+# rejected — see SKILL.md's field table for the reasoning.
+const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+((\.\d+){1,4}([-+][0-9A-Za-z.-]+)?|([-+][0-9A-Za-z.]+)?)$'
 
 # Returns [{rule, severity, message}] for ONE plugin. severity is "fail" or
 # "info"; main exits 1 only on "fail". Pure: no filesystem, no network —
@@ -375,18 +396,31 @@ def check-sources [
             }
 
             if "current_version" in $cols {
-                let cv = (scalar-str $entry.current_version)
-                if $cv == null {
+                let raw_t = ($entry.current_version | describe)
+                if $raw_t != "string" {
+                    # claude-skills-197: current_version is the ONLY scalar-str
+                    # consumer whose check silently ACCEPTS a coerced numeric —
+                    # an unquoted 1.10 parses as a TOML float and coerces to
+                    # "1.1", a different version, with no diagnostic. Every
+                    # other scalar-str field (b3_date, SEMVER_RE, the two
+                    # enums) rejects a coerced numeric loudly on its own, so
+                    # they need no extra type rule. Hence the divergence from
+                    # the shared helper here and nowhere else. Checking the
+                    # RAW type ahead of scalar-str also subsumes the old
+                    # `$cv == null` wrong-type branch (list / datetime), so
+                    # those cases keep landing on this same rule id. Measured:
+                    # 0 corpus entries are non-string.
                     $findings = ($findings | append {
                         rule: "b3_version_shape"
                         severity: "fail"
-                        message: $"($plugin)/($name): current_version is a ($entry.current_version | describe), expected a version string or 'unknown'"
+                        message: $"($plugin)/($name): current_version is a ($raw_t), expected a QUOTED version string or 'unknown' — an unquoted numeric records a different value \(1.10 becomes 1.1\)"
                     })
-                } else if not ($cv == "unknown" or ($cv =~ $VERSION_SHAPE_RE)) {
+                } else if not ($entry.current_version == "unknown"
+                               or ($entry.current_version =~ $VERSION_SHAPE_RE)) {
                     $findings = ($findings | append {
                         rule: "b3_version_shape"
                         severity: "fail"
-                        message: $"($plugin)/($name): current_version '($cv)' is neither a recognizable version string nor 'unknown'"
+                        message: $"($plugin)/($name): current_version '($entry.current_version)' is neither a recognizable version string nor 'unknown'"
                     })
                 }
             }
@@ -549,6 +583,72 @@ def main [--self-test] {
 
     if ($pending | is-not-empty) {
         $findings = ($findings | append (missing-sources-findings $pending))
+    }
+
+    # claude-skills-198 / D4(b): guard the AUTHORING TEMPLATE against the same
+    # drift it teaches authors to avoid. Reads the real file — not a copy —
+    # so this check cannot itself become the stale second place. Only the
+    # format-ruled fields are checked; url/notes/skills/name are legitimately
+    # placeholders (see plan §6).
+    # PR #188 Gate 3: a missing, unparseable, [meta]-less, or [[sources]]-less
+    # template used to crash the whole run with a raw Nushell error, masking
+    # every other finding already collected in $findings. Degrade to a
+    # b6_template_drift finding instead — fail closed, but report. Gate 3
+    # round 2: the container-shape guard below (null / no meta / no sources /
+    # empty sources) does not cover a template that parses into a
+    # well-formed record whose first [[sources]] entry is missing a checked
+    # field, has a non-list `sources` (e.g. `sources = "oops"`, caught by
+    # `.sources | first` failing, not by `is-empty`), or holds a value the
+    # regex match can't run on (e.g. an unquoted numeric current_version).
+    # Those raise `column_not_found` / `only_supports_this_input_type` /
+    # `operator_unsupported_type` from INSIDE the check construction, not
+    # from `open` — so the field access and regex matching for all six
+    # checked fields is wrapped in its own try/catch below, one level in.
+    let tmpl_path = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "skill-update" "templates" "sources.toml")
+    let tmpl = (try { open $tmpl_path } catch { |e| print $"  (ansi yellow)⚠  templates/sources.toml: ($e.msg)(ansi reset)"; null })
+    if $tmpl == null or not ("meta" in $tmpl) or not ("sources" in $tmpl) or ($tmpl.sources | is-empty) {
+        $findings = ($findings | append {
+            rule: "b6_template_drift"
+            severity: "fail"
+            message: $"templates/sources.toml: missing, unparseable, or lacks [meta] / [[sources]] at ($tmpl_path)"
+        })
+    } else {
+        let tmpl_check_result = (try {
+            let tmpl_src = ($tmpl.sources | first)
+            {
+                ok: true
+                rows: [
+                    ["meta.reviewed_at_plugin_version" $tmpl.meta.reviewed_at_plugin_version ($tmpl.meta.reviewed_at_plugin_version == "unknown" or $tmpl.meta.reviewed_at_plugin_version =~ $SEMVER_RE)]
+                    ["meta.last_full_check" $tmpl.meta.last_full_check ($tmpl.meta.last_full_check == "unknown" or $tmpl.meta.last_full_check =~ $DATE_RE)]
+                    ["sources.0.current_version" $tmpl_src.current_version ($tmpl_src.current_version == "unknown" or $tmpl_src.current_version =~ $VERSION_SHAPE_RE)]
+                    ["sources.0.last_checked" $tmpl_src.last_checked ($tmpl_src.last_checked == "unknown" or $tmpl_src.last_checked =~ $DATE_RE)]
+                    ["sources.0.version_constraint" $tmpl_src.version_constraint ($tmpl_src.version_constraint in $VERSION_CONSTRAINTS)]
+                    ["sources.0.update_priority" $tmpl_src.update_priority ($tmpl_src.update_priority in $UPDATE_PRIORITIES)]
+                ]
+            }
+        } catch { |e|
+            { ok: false, err: $e.msg }
+        })
+        if not $tmpl_check_result.ok {
+            $findings = ($findings | append {
+                rule: "b6_template_drift"
+                severity: "fail"
+                message: $"templates/sources.toml: a checked field is missing or the wrong type \(($tmpl_check_result.err)\)"
+            })
+        } else {
+            for row in $tmpl_check_result.rows {
+                let field = ($row | get 0)
+                let value = ($row | get 1)
+                let ok = ($row | get 2)
+                if not $ok {
+                    $findings = ($findings | append {
+                        rule: "b6_template_drift"
+                        severity: "fail"
+                        message: $"templates/sources.toml: ($field) = '($value)' fails its own format rule"
+                    })
+                }
+            }
+        }
     }
 
     let info_findings = ($findings | where severity == "info")
@@ -1659,13 +1759,18 @@ update_priority = "medium"
             want: ["b3_date"]
         }
         # ---- b3_version_shape: current_version format validation (claude-skills-189) ----
-        # Contract (shape-based, not strict semver — see claude-skills-189):
+        # Contract (shape-based, not strict semver — see claude-skills-189,
+        # widened by claude-skills-196/197 — see the VERSION_SHAPE_RE comment
+        # above for the full history):
         # accept the literal "unknown", or a string matching
-        # ^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.]+)?$
+        # ^[A-Za-z]{0,10}[-.]?\d+((\.\d+){1,4}([-+][0-9A-Za-z.-]+)?|([-+][0-9A-Za-z.]+)?)$
         # i.e. an optional short alpha prefix (v, OTP, ...) with an optional
         # '-' or '.' separator, one to five dot-separated numeric groups, and
-        # an optional -prerelease or +build suffix. No whitespace, no URL
-        # scheme, no letters after the numeric body outside that suffix.
+        # an optional -prerelease or +build suffix. A hyphenated suffix is
+        # legal only when at least one dot-group is present in the base — a
+        # bare-integer base (e.g. "1-800-flowers", a bare calendar date) may
+        # not carry one. No whitespace, no URL scheme, no letters after the
+        # numeric body outside that suffix.
         # Rejects: no digits at all, embedded whitespace, a pasted URL, and
         # an empty string. TOML-native int/float values are coerced via
         # scalar-str (same helper already used for last_checked/
@@ -1811,6 +1916,60 @@ update_priority = "medium"
             want: []
         }
         {
+            # claude-skills-196 (D1b): the suffix class widens by one
+            # character ([-+][0-9A-Za-z.]+ -> [-+][0-9A-Za-z.-]+) so a
+            # hyphenated prerelease segment is legal. Not a policy widening —
+            # SEMVER_RE four lines above already accepts this exact string;
+            # VERSION_SHAPE_RE was narrower than the strict-semver constant
+            # sitting next to it for this input, an internal contradiction.
+            # Measured: 0 of 39 corpus values affected, 0 of 31 adversarial
+            # junk strings newly accepted.
+            label: "current_version = 1.0.0-alpha-1 (hyphenated prerelease segment — SEMVER_RE already accepts this; claude-skills-196)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0-alpha-1"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0.0-rc-2 (hyphenated prerelease segment — SEMVER_RE already accepts this; claude-skills-196)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0-rc-2"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
             label: "current_version = 3 (bare single-digit string, real corpus value)"
             toml: '
 [meta]
@@ -1834,7 +1993,18 @@ update_priority = "medium"
             want: []
         }
         {
-            label: "current_version = 2025 (unquoted TOML int, real corpus value — exercises scalar-str's int path)"
+            # claude-skills-197: this used to assert want: [] under the label
+            # "real corpus value" — misleading. The corpus value is the QUOTED
+            # string "2025"; unquoted here only to exercise scalar-str's int
+            # coercion path. That silent coercion is exactly the bug: an
+            # unquoted int/float current_version records a DIFFERENT value
+            # than what the author typed (2025 -> "2025" round-trips here,
+            # but 1.10 -> "1.1" does not — see the sibling float case below).
+            # current_version is the only scalar-str consumer with no natural
+            # type guard (b3_date needs YYYY-MM-DD, SEMVER_RE needs 3 numeric
+            # groups, both enums need exact membership — all reject a coerced
+            # numeric loudly already). This case now requires a QUOTED string.
+            label: "current_version = 2025 (unquoted TOML int — now REJECTED, must be a quoted string; claude-skills-197)"
             toml: '
 [meta]
 plugin = "demo"
@@ -1854,10 +2024,16 @@ update_priority = "medium"
             plugin: "demo"
             version: "1.0.0"
             md: "demo-source is documented here"
-            want: []
+            want: ["b3_version_shape"]
         }
         {
-            label: "current_version = 1.0 (unquoted TOML float — exercises scalar-str's float path, e.g. mix.exs-style bare version)"
+            # claude-skills-197: this used to assert want: [] under the label
+            # "exercises scalar-str's float path" — the case that motivates
+            # the whole fix. Unquoted 1.0 parses as a TOML float and coerces
+            # to "1" (not "1.0"), a value the author never wrote, and the
+            # shape regex happened to accept the coerced "1" silently. Now
+            # rejected at the type-check site before coercion runs.
+            label: "current_version = 1.0 (unquoted TOML float — now REJECTED; coerces to '1', a different value than the author typed; claude-skills-197)"
             toml: '
 [meta]
 plugin = "demo"
@@ -1869,6 +2045,35 @@ name = "demo-source"
 url = "https://example.com"
 check_method = "manual"
 current_version = 1.0
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            # claude-skills-197 (D3 positive control): a QUOTED "1.10" must
+            # still be accepted. Proves the new type-check targets the TOML
+            # TYPE (must be a string), not the value — a trailing-zero
+            # version like 1.10 is legitimate and quoting it is all an author
+            # needs to do. Without this case, an implementer could satisfy
+            # the two flipped cases above by over-rejecting valid strings.
+            label: "current_version = \"1.10\" (quoted trailing-zero version — must stay accepted; claude-skills-197)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.10"
 version_constraint = "semver"
 last_checked = "2026-01-01"
 update_priority = "medium"
@@ -1971,12 +2176,127 @@ update_priority = "medium"
             md: "demo-source is documented here"
             want: ["b3_version_shape"]
         }
+        # ---- D1a / D1c: deliberate won't-fix rejections (claude-skills-196)
+        # ----
+        # These pin the plan's refusal so a later widening of
+        # VERSION_SHAPE_RE is a deliberate act, not silent drift. Measured
+        # cost of admitting the PEP-440 separator-less form (D1a): 4 more
+        # corpus-style targets gained, but 6 of 31 adversarial junk strings
+        # newly accepted, the sharpest being "1.x" — a version CONSTRAINT,
+        # not a version, exactly the class of silently-wrong pin this rule
+        # exists to block. There is also no PyPI check_method and 0 corpus
+        # entries name a Python/CPython upstream, so the demand is absent,
+        # not dormant. D1c (dual -prerelease+build suffix) is rejected by
+        # SEMVER_RE itself, which permits only one suffix group — widening
+        # VERSION_SHAPE_RE alone would make it wider than strict semver in a
+        # direction semver itself forbids.
+        {
+            label: "current_version = 3.13.0rc1 (PEP 440 separator-less suffix — WON'T FIX, D1a; claude-skills-196)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "3.13.0rc1"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = 2.0b1 (PEP 440 separator-less suffix — WON'T FIX, D1a; claude-skills-196)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "2.0b1"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = 1.0.post1 (PEP 440 separator-less suffix — WON'T FIX, D1a; claude-skills-196)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.post1"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = 1.0.0-rc.1+build.5 (dual prerelease+build suffix — WON'T FIX, D1c; rejected by SEMVER_RE too; claude-skills-196)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0-rc.1+build.5"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
         {
             # Mirrors "entry last_checked as a list must report, not crash =~
             # (claude-skills-185 rd2)" above: scalar-str returns null for a
             # list<string> (not in its coercible-type set), which routes
             # through the genuine `$cv == null` wrong-type branch rather than
             # the shape-regex branch.
+            # claude-skills-197 verification note: the D3 fix moves the type
+            # check ahead of scalar-str, testing `describe` on the RAW value
+            # directly. A list's raw type is "list<string>", never "string",
+            # so this case is caught by the new pre-coercion check instead of
+            # the old post-scalar-str null branch — same rule id
+            # (b3_version_shape), unchanged `want`. This case must keep
+            # passing unmodified; if the implementer's diff changes its
+            # outcome or rule id, that is a regression, not an expected
+            # side-effect of D3.
             label: "current_version as a list must report, not crash =~ (claude-skills-189 wrong-type guard)"
             toml: '
 [meta]
@@ -2003,12 +2323,21 @@ update_priority = "medium"
             # Mirrors "A-F4.3: TOML-native unquoted date must not crash =~"
             # above. Looks like a plausible authoring mistake (someone typing
             # a bare date meaning a version). Unlike the list case, `datetime`
-            # IS in scalar-str's coercible set, so this does NOT hit the
-            # `$cv == null` branch — it coerces to a string like
-            # "Thu Jan  1 00:00:00 2026" and then fails the shape regex,
-            # landing in the second (shape-mismatch) branch. Pinned anyway
-            # because it is the sneakier of the two non-scalar shapes: it
-            # reads as ordinary input, not an obvious wrong type.
+            # IS in scalar-str's coercible set, so under the OLD logic this
+            # did not hit the `$cv == null` branch — it coerced to a string
+            # like "Thu Jan  1 00:00:00 2026" and failed the shape regex.
+            # claude-skills-197 verification note: under the D3 fix the raw
+            # `describe` of a TOML date is "date" (or "datetime"), never
+            # "string" — coercion never runs, so this now lands on the NEW
+            # pre-coercion type-check branch instead of the old
+            # shape-mismatch branch. Still the same rule id
+            # (b3_version_shape) and unchanged `want`, but the reasoning for
+            # WHY it fails moves from "shape regex mismatch" to "wrong TOML
+            # type" — a distinction that only shows up if a future change
+            # inspects the message text, not the rule id this self-test
+            # checks. Pinned anyway because it is the sneakier of the two
+            # non-scalar shapes: it reads as ordinary input, not an obvious
+            # wrong type.
             label: "current_version = unquoted TOML date must not crash — parses as datetime, not a version string (claude-skills-189 wrong-type guard)"
             toml: '
 [meta]
@@ -2031,7 +2360,168 @@ update_priority = "medium"
             md: "demo-source is documented here"
             want: ["b3_version_shape"]
         }
+        # ---- date-family false positives — PR #188 Gate 3 finding ----
+        # gh pr view 188 --json comments (comment id 5151684337): the D1b
+        # suffix widening ([-+][0-9A-Za-z.]+ -> [-+][0-9A-Za-z.-]+) also
+        # admits a QUOTED bare calendar date — a plausible authoring mistake,
+        # not a constructed one, since last_checked sits two lines away in
+        # every entry and takes exactly this YYYY-MM-DD shape. This is
+        # distinct from "current_version = unquoted TOML date" above: that
+        # case is an unquoted TOML date literal caught by the raw-type check
+        # ahead of the regex; these are ordinary quoted strings that must be
+        # rejected by VERSION_SHAPE_RE itself. SEMVER_RE also rejects every
+        # string below (no three-dot-group), so "we already agree with
+        # SEMVER_RE" does not cover this family either. Measured against
+        # this file's current VERSION_SHAPE_RE: all four match (false
+        # positive) — confirmed with `=~` directly, not inferred.
+        {
+            label: "current_version = 2024-01-01 (quoted ISO calendar date — plausible authoring mistake, PR #188 Gate 3)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "2024-01-01"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = 2026-07-30 (quoted ISO calendar date matching last_checked's own format — plausible authoring mistake, PR #188 Gate 3)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "2026-07-30"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            # Non-ISO date order (US-style MM-DD-YYYY). Pins that the block
+            # is a general "digit run + hyphenated numeric suffix" shape, not
+            # an ISO-specific patch keyed on a 4-digit leading year — a
+            # narrower fix would leave this order still leaking.
+            label: "current_version = 10-11-2025 (non-ISO date order — confirms the block is shape-based, not ISO-specific)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "10-11-2025"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            # Distinguishes the chosen fix (require a dot-group present
+            # before a hyphenated suffix is legal) from a REJECTED
+            # alternative: "require a letter somewhere in the suffix" was
+            # considered and discarded specifically because this string
+            # still slips through it — "flowers" is alphabetic, so a
+            # letter-in-suffix rule would accept "1-800-flowers" even though
+            # it is not a version at all. Pinning this locks in WHY that
+            # alternative was insufficient, not merely that dates are
+            # blocked.
+            label: "current_version = 1-800-flowers (hyphenated non-date junk — rules out the 'require a letter in suffix' alternative)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1-800-flowers"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
     ]
+
+    # ---- claude-skills-198 / D4(b) — b6_template_drift: NOT covered by a
+    # $cases entry, deliberately ----
+    # The plan's own restraint note names this the cuttable item, and warns
+    # explicitly against faking coverage: "do NOT write a self-test that
+    # hard-codes the template's expected values — that is a copy that can
+    # drift from the template, reproducing the exact two-places-no-link
+    # failure being fixed."
+    #
+    # check-sources (tested via $cases above) takes an already-parsed record
+    # plus a plugin name/version/skill_dirs/md — it has no notion of "read
+    # this specific file path." The D4(b) check as scoped in the plan lives
+    # in `main` (~10 lines, reusing VERSION_SHAPE_RE / DATE_RE /
+    # VERSION_CONSTRAINTS / UPDATE_PRIORITIES) and reads
+    # plugins/tools/claude-code/skills/skill-update/templates/sources.toml
+    # directly — unlike missing-sources-findings (claude-skills-192), the
+    # plan does not specify a pure, testable function contract for it, and
+    # inventing one here would be the test author deciding an implementation
+    # shape the plan left open, not encoding a contract that exists.
+    #
+    # Two options were considered and rejected:
+    #   1. A $cases entry with a literal copy of the template's live-block
+    #      values, asserting want: [] or want: ["b6_template_drift"] — this
+    #      is exactly the hard-coded-copy anti-pattern the plan calls out.
+    #   2. A synthetic record with deliberately bad values (e.g.
+    #      current_version = "") asserting the rule fires — this tests
+    #      generic type/shape logic already covered by the b3_version_shape
+    #      cases above; it does not touch the actual template file at all,
+    #      so it would not catch template drift (the defect claude-skills-198
+    #      reports) — coverage theater, not coverage.
+    #
+    # The honest answer: b6_template_drift is only meaningfully verified as
+    # an INTEGRATION check, run after D4(a) (the template doc fix) and D4(b)
+    # (the check itself) both land:
+    #   - `nu test/validate-sources.nu` must report zero b6_template_drift
+    #     findings against the real (fixed) template on disk.
+    #   - A manual regression probe — temporarily reintroduce
+    #     `current_version = ""` in templates/sources.toml and re-run the
+    #     validator — must show the new rule firing, then the edit reverted.
+    # This is implementer/CI-verification work, not something a unit-style
+    # $cases entry can honestly cover without copying the file it is meant
+    # to guard.
 
     mut failed = false
     for c in $cases {
