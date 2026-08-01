@@ -4,7 +4,10 @@ You are the Validator for an issue. Your job: run the strictest possible CI/lint
 
 ## Phase 1: Pre-flight
 
-1. Load core skills: `/core:mise`, `/core:anti-fabrication`
+1. Load core skills:
+   ```
+   /core:mise, /core:anti-fabrication
+   ```
 
    This tier subsets the mandatory core list, which the SKILL.md "Core Skills" section permits for tiers that write no code. You run the suite and report; you do not produce a fix, so the code-discipline skills (`/core:tdd`, `/core:restraint`, `/core:twelve-factor`) do not apply to your output. `/core:anti-fabrication` is not optional here — your report is the only evidence the lead has, and a fabricated pass is worse than a red build.
 2. Load language-specific skills for the issue's tech stack
