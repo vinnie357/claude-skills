@@ -4,8 +4,13 @@
 # Reads sources.toml files across all plugins and queries upstream APIs
 #
 # Usage: nu sources-check.nu [--plugin <name>]
+#        nu sources-check.nu --self-test
 #
-# Output: table with columns: plugin | skill | source | current | latest | stale | priority
+# Output: table with columns: plugin | skill | source | current | latest | stale | priority | notes
+#
+# On-demand, network-dependent operator tool (claude-skills-176). Deliberately
+# NOT wired into `mise test`/`mise run ci` — CI has no credentials and must
+# pass with zero external dependencies. Run manually via `mise sources:check`.
 
 # Resolve the repo root relative to this script's location
 def repo-root [] {
@@ -43,6 +48,41 @@ def find-sources-toml [plugin_dir: string] {
     }
 }
 
+# Classify a caught HTTP error's text into a specific latest-version sentinel.
+# Pure function (string -> string), self-tested below — the network call
+# stays at the boundary in check-github-releases; this only interprets the
+# text nushell's `http get` catch already produced.
+#
+# claude-skills-176: a dead/404 release feed and a rate-limited/
+# unauthenticated GitHub response both used to collapse into a generic
+# "error" — no way to tell "this source will never have a releases feed"
+# from "try again with a token".
+#
+# claude-skills-176 Gate 3 (F3): match `(404)`/`(403)` WITH the parens, not
+# bare digits. `$err.debug` embeds nushell's own `Span[<byte-offsets>]` from
+# the failing call site, and a bare `str contains "404"` matches those
+# offsets too — reviewer forced a DNS-failure text whose span happened to
+# contain "404"/"403" as plain digits and got misclassified. nushell's HTTP
+# error text always wraps the real status as `(404):`/`(403):` (see the
+# self-test fixtures below, copied from an actual caught error); a byte
+# offset is never rendered inside parens, so requiring them is structural,
+# not just narrower. Does not fire on live traffic today (see the docstring
+# above classify-staleness for why), so this was latent, not observed.
+#
+# hex-pm and crates-io still fall through to a bare `catch { "error" }` —
+# neither wraps a status code the same way, and GitHub's secondary
+# (undocumented-shape) 429 rate limit is not classified separately from a
+# generic error either. Both are known gaps, not silently assumed handled.
+def classify-fetch-error [err_text: string]: nothing -> string {
+    if ($err_text | str contains "(404)") {
+        "no-releases"
+    } else if ($err_text | str contains "(403)") or ($err_text | str downcase | str contains "rate limit") {
+        "rate-limited"
+    } else {
+        "error"
+    }
+}
+
 # Check latest version via github-releases API
 def check-github-releases [repo: string] {
     let url = $"https://api.github.com/repos/($repo)/releases/latest"
@@ -56,8 +96,8 @@ def check-github-releases [repo: string] {
         let response = http get -H $headers $url
         let tag = $response.tag_name? | default ""
         $tag | str replace -r '^v' ''
-    } catch {
-        "error"
+    } catch {|err|
+        classify-fetch-error ($err.debug? | default ($err.msg? | default ""))
     }
 }
 
@@ -111,6 +151,48 @@ def fetch-latest [source: record] {
     }
 }
 
+# Classify (current, latest) into a staleness sentinel. Pure function,
+# self-tested below — no network, no I/O.
+#
+# claude-skills-176: `current_version = "unknown"` is a documented schema
+# placeholder (test/validate-sources.nu's VERSION_SHAPE_RE accepts it as a
+# literal) meaning "no pin recorded to compare against upstream", not a real
+# version. Comparing it against `latest` made every such entry (152 in the
+# corpus today) report false-positive drift. It classifies as "no-pin",
+# distinct from "unset" (field genuinely absent) and "yes" (a real pin is
+# behind).
+#
+# claude-skills-176 Gate 3 (F4): the equality check strips a leading `v` from
+# BOTH sides before comparing — only for the comparison, the displayed
+# `current`/`latest` values are untouched. `check-github-releases` already
+# strips `v` from the upstream tag, but `current_version` in sources.toml is
+# free text and sometimes keeps it (e.g. "v0.0.0"), so "v0.0.0" vs "0.0.0"
+# compared unequal and reported false-positive drift for an entry that is
+# actually current.
+def classify-staleness [current: string, latest: string]: nothing -> string {
+    if $latest == "internal" {
+        "no"
+    } else if $latest == "manual" {
+        "manual"
+    } else if $latest == "no-releases" {
+        "no-releases"
+    } else if $latest == "rate-limited" {
+        "rate-limited"
+    } else if $latest == "unknown" {
+        "unknown"
+    } else if $latest == "error" {
+        "error"
+    } else if $current == "unset" {
+        "unset"
+    } else if $current == "unknown" {
+        "no-pin"
+    } else if ($current | str replace -r '^v' '') != ($latest | str replace -r '^v' '') {
+        "yes"
+    } else {
+        "no"
+    }
+}
+
 # Process a single sources.toml file and return rows
 def process-sources-toml [toml_path: string, plugin_name: string] {
     let data = try {
@@ -131,25 +213,13 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
         let current   = $src.current_version? | default "unset"
         let priority  = $src.update_priority? | default "medium"
         let method    = $src.check_method? | default "manual"
+        let notes     = $src.notes? | default ""
         let last_checked = $src.last_checked? | default ""
 
         print $"  Checking ($plugin_name)/($skill)/($name) via ($method)..."
 
         let latest = fetch-latest $src
-
-        let stale = if $latest == "internal" {
-            "no"
-        } else if $latest == "manual" {
-            "manual"
-        } else if $latest == "error" {
-            "error"
-        } else if $current == "unset" {
-            "unset"
-        } else if $current != $latest {
-            "yes"
-        } else {
-            "no"
-        }
+        let stale = classify-staleness $current $latest
 
         {
             plugin:   $plugin_name
@@ -160,12 +230,71 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
             stale:    $stale
             priority: $priority
             method:   $method
+            notes:    $notes
             last_checked: $last_checked
         }
     }
 }
 
-def main [--plugin: string = ""] {
+# Self-test for the pure classify-staleness / classify-fetch-error logic.
+# Follows the house case-table pattern (run-self-test in
+# test/validate-sources.nu). No network — proves the parsing/comparison
+# logic independent of the HTTP boundary.
+def run-self-test [] {
+    mut failed = false
+
+    let staleness_cases = [
+        {label: "unknown pin is no-pin, not drift" current: "unknown" latest: "9.9.9" want: "no-pin"}
+        {label: "unset pin is unset" current: "unset" latest: "9.9.9" want: "unset"}
+        {label: "matching pins are current" current: "1.0.0" latest: "1.0.0" want: "no"}
+        {label: "mismatched pins are stale" current: "1.0.0" latest: "1.1.0" want: "yes"}
+        {label: "manual check_method never compared" current: "1.0.0" latest: "manual" want: "manual"}
+        {label: "none check_method is internal, always current" current: "unknown" latest: "internal" want: "no"}
+        {label: "dead/404 release feed is no-releases, not error" current: "1.0.0" latest: "no-releases" want: "no-releases"}
+        {label: "rate-limited/unauthenticated is distinct from error" current: "1.0.0" latest: "rate-limited" want: "rate-limited"}
+        {label: "hex-pm/crates-io package with zero releases" current: "1.0.0" latest: "unknown" want: "unknown"}
+        {label: "generic fetch failure still reported as error" current: "1.0.0" latest: "error" want: "error"}
+        {label: "unknown pin plus no-releases feed: feed status wins" current: "unknown" latest: "no-releases" want: "no-releases"}
+        {label: "v-prefixed pin matching a v-stripped latest is current, not stale" current: "v0.0.0" latest: "0.0.0" want: "no"}
+        {label: "v-prefixed pin genuinely behind is still stale" current: "v0.0.0" latest: "0.1.0" want: "yes"}
+    ]
+    for c in $staleness_cases {
+        let got = classify-staleness $c.current $c.latest
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ classify-staleness: ($c.label): want ($c.want), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    let fetch_error_cases = [
+        {label: "404 body classifies as no-releases" text: "Requested file not found (404): \"https://api.github.com/repos/x/y/releases/latest\"" want: "no-releases"}
+        {label: "403 status classifies as rate-limited" text: "Client error (403): API rate limit exceeded" want: "rate-limited"}
+        {label: "rate limit phrase without 403 digits still matches" text: "GitHub secondary rate limit hit, retry later" want: "rate-limited"}
+        {label: "unrelated network failure falls through to error" text: "Could not resolve host: api.github.com" want: "error"}
+        {label: "empty error text falls through to error" text: "" want: "error"}
+        {label: "bare digits in a byte-offset span do NOT collide with a real (404)" text: "NetworkFailure { msg: \"Could not resolve host: api.github.com\", span: Span[160039..160404] }" want: "error"}
+        {label: "bare digits spelling 403 in a span do NOT collide with a real (403)" text: "NetworkFailure { msg: \"connection reset\", span: Span[140033..140403] }" want: "error"}
+    ]
+    for c in $fetch_error_cases {
+        let got = classify-fetch-error $c.text
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ classify-fetch-error: ($c.label): want ($c.want), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    if $failed {
+        exit 1
+    }
+    print $"(ansi green_bold)✅ sources-check self-test passed \(($staleness_cases | length) + ($fetch_error_cases | length) cases\)(ansi reset)"
+    exit 0
+}
+
+def main [--plugin: string = "", --self-test] {
+    if $self_test {
+        run-self-test
+    }
+
     let repo = repo-root
 
     print $"(ansi cyan_bold)Sources Version Check(ansi reset)"
@@ -222,5 +351,5 @@ def main [--plugin: string = ""] {
     }
 
     # Render results table
-    $all_rows | select plugin skill source current latest stale priority
+    $all_rows | select plugin skill source current latest stale priority notes
 }

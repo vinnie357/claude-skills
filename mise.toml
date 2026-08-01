@@ -277,6 +277,16 @@ run = """
 let repo_root = (git rev-parse --show-toplevel | str trim)
 nu ($repo_root | path join "test" "validate-sources.nu") --self-test
 nu ($repo_root | path join "test" "validate-sources.nu")
+
+# claude-skills-176 Gate 3 (F5): these are the pure classify-staleness /
+# classify-fetch-error / sanitize-notes-cell self-tests for the network-
+# dependent sources:check/stale/report scripts — no network, ~0.1s total.
+# The scripts themselves stay unwired (live upstream calls have no place
+# in a credential-less CI run); only their offline logic is checked here.
+let scripts_dir = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "skill-update" "scripts")
+nu ($scripts_dir | path join "sources-check.nu") --self-test
+nu ($scripts_dir | path join "sources-report.nu") --self-test
+nu ($scripts_dir | path join "sources-stale.nu") --self-test
 """
 
 [tasks."test:plugin"]
