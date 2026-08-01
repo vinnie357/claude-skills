@@ -1,6 +1,6 @@
 {
   "name": "pm",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Product management toolkit: harvest implementation-agnostic feature specs from prototypes with SDLC guardrails and author PRDs as implementation contracts",
   "author": {
     "name": "vinnie357"

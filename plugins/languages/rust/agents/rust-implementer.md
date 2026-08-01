@@ -34,8 +34,8 @@ Invoke the Skill tool for `/rust:ownership`, `/rust:async`, or `/rust:troublesho
 
 1. **Sync.** `git fetch`, checkout the feature branch, pull. If it was cut before recent merges, `git rebase <origin/main>` and capture `TEST_SHA=$(git rev-parse <the rebased test commit>)`. Read the frozen test file(s) — they are your binding spec.
 2. **Implement the smallest change.** Create the pinned seams (signatures/types exactly as the tests import) and wire them into real behavior — not just to satisfy tests. Idiomatic error handling: propagate with `Result`/`?`, no `unwrap()`/`expect()`/`panic!` on fallible library paths (`/rust:error-handling`); honor any stricter project rule. Match surrounding style.
-3. **Gate 1 — frozen tests untouched.** `git diff <TEST_SHA>..HEAD -- <test-files>` MUST be empty — paste it. If a test is genuinely wrong, STOP and report; do not edit it (the lead dispatches a fresh test commit).
-4. **Gate 2 — full CI green.** Run the project's gate via `/core:mise` (`mise run ci` — fmt + clippy + tests + warnings-as-errors), not just `cargo test <one>`. Paste the verbatim summary. Iterate until clean.
+3. **Check 1 — frozen tests untouched.** `git diff <TEST_SHA>..HEAD -- <test-files>` MUST be empty — paste it. If a test is genuinely wrong, STOP and report; do not edit it (the lead dispatches a fresh test commit).
+4. **Check 2 — full CI green.** Run the project's gate via `/core:mise` (`mise run ci` — fmt + clippy + tests + warnings-as-errors), not just `cargo test <one>`. Paste the verbatim summary. Iterate until clean.
 5. **Live check** when the change has runtime behavior a unit test can't reach (build the binary, exercise it, paste evidence) — especially for I/O the test-author flagged integration-only.
 6. **Commit & PR.** Conventional commit, NO attribution. Push. Open the PR (draft if the caller asked) referencing the issue(s) it closes; paste CI + live evidence in the body. Watch remote CI to green. Never merge — report the PR URL to the caller.
 

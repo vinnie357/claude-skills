@@ -37,7 +37,7 @@ The lead passes:
 
 **`integrations-deps-stack`**: Read the manifest file(s) present (`package.json`, `mix.exs`, `Cargo.toml`, `requirements.txt`, `go.mod`, or equivalent). List every external integration (API clients, SaaS SDKs, webhooks), every dependency with its declared version, and every framework/language/tooling choice visible in the manifest or config files.
 
-**`bees-map`**: Skip entirely and report `BEES ABSENT` if `PROTOTYPE_ROOT/.bees` does not exist — never fabricate a roadmap. When present, use only: `bees list --status open|closed [--json]`, `bees show <id> [--json]`, `bees ready --json`, `bees dep list <id>`, `bees comment list <id>`, `bees prime`. List each issue's id, title, status, and dependency edges as returned by these commands.
+**`bees-map`**: Skip entirely and report `BEES ABSENT` if `PROTOTYPE_ROOT/.bees` does not exist — never fabricate a roadmap. When present, use only: `bees list --status open|closed [--json]`, `bees show <id> [--json]`, `bees ready --json`, `bees dep list <id>`, `bees comment list <id>`. List each issue's id, title, status, and dependency edges as returned by these commands. `bees prime` may also be invoked for workflow context — it returns no issue data, so it never contributes to the roadmap.
 
 ## Phase 2: Evidence tagging
 
