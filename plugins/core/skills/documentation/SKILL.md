@@ -17,6 +17,15 @@ Activate when:
 - Creating architecture or design documents
 - Writing changelogs or release notes
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Most of it is house convention — README
+structure, ADR templates, changelog format, comment style — not claims that can go stale
+against an upstream. The one real claim area is the "Documentation Tools" section's
+generator commands (`mix docs` for ExDoc, `cargo doc` for rustdoc, Sphinx, MkDocs, JSDoc,
+TypeDoc): verify the invocation against the tool's current docs before asserting it,
+rather than repeating it from memory — these are stable but not immune to CLI changes.
+
 ## README Files
 
 ### Essential README Structure

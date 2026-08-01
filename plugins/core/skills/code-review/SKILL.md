@@ -17,6 +17,15 @@ Activate when:
 - Suggesting refactoring improvements
 - Checking adherence to coding standards
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`, but has little to verify against an external
+source: the checklist and etiquette content is house convention (Google's review guide,
+cited in `sources.md`, for the checklist's shape), and "Language-Specific
+Considerations" is broad, stable idiom rather than versioned API claims. Don't assert a
+language-specific rule this skill doesn't cover without checking that language's own
+style skill first.
+
 ## Code Review Checklist
 
 ### 1. Correctness and Functionality
