@@ -14,10 +14,10 @@ convention, but the "Remote and Authentication Conventions" section makes specif
 checkable claims about Git and the GitHub API — this is the one skill in this set that
 does, and its two claims are verified two different ways:
 
-- **Anonymous access to GitHub Releases on a private repo returns 404, not 403** (not
-  401 — corrected from an earlier draft of this section). Confirmed against GitHub's own
-  documentation, cited in `sources.md`: "GitHub uses a 404 Not Found response instead of
-  a 403 Forbidden response to avoid confirming the existence of private repositories."
+- **Anonymous access to GitHub Releases on a private repo returns 404, not 403.**
+  Confirmed against GitHub's own documentation, cited in `sources.md`: "GitHub uses a 404
+  Not Found response instead of a 403 Forbidden response to avoid confirming the
+  existence of private repositories."
 - **SSH key auth bypasses the `workflow` OAuth scope that HTTPS push enforces.** GitHub
   documents the `workflow` scope requirement for OAuth apps/PATs pushing Actions workflow
   files (cited in `sources.md`), but does not document the SSH-side exemption as a general
