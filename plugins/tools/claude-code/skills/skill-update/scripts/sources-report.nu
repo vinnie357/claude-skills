@@ -45,11 +45,17 @@ def resolve-plugin-path [repo: string, source: any] {
 # e.g. a monorepo or unreleased tool) and a rate-limited/unauthenticated
 # GitHub response both used to collapse into a generic "error", which reads
 # identically to "the request itself failed" — no way to tell "this source
-# will never have a releases feed" from "try again with a token". Three
-# entries in the corpus hit the 404 case today (see sources.toml `notes`
-# fields citing `releases/latest` 404s); they run check_method=manual so
-# never reach this path live, but the classifier still needs to be correct
-# for any entry that later flips to github-releases.
+# will never have a releases feed" from "try again with a token". Six
+# sources.toml entries across 5 plugins document a live 404 on
+# `releases/latest` today (grep `notes` fields for "404" — allium's
+# juxt-allium, github's actions-toolkit, claude-code's
+# example-skills-repository and skills-cookbook, tweag's JSON-Schema-to-
+# Nickel tool, runex's private-repo entry). All six are check_method=manual,
+# so none reach this classifier live — the schema already routes 404-prone
+# repos away from github-releases specifically to avoid this failure mode.
+# This branch is proven only by the self-test below, not by live traffic;
+# it exists for the day an entry is flipped to github-releases without
+# re-checking the feed first.
 def classify-fetch-error [err_text: string]: nothing -> string {
     if ($err_text | str contains "404") {
         "no-releases"
