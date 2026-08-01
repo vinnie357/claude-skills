@@ -107,25 +107,11 @@
       "detail_count": null
     },
     {
-      "key": "dupe/1182fd06:duplicate_block",
-      "class": "DEBT",
-      "issue": "claude-skills-149",
-      "first_seen": "2026-07-26",
-      "detail_count": 5
-    },
-    {
       "key": "dupe/28ccd32d:duplicate_block",
       "class": "DEBT",
       "issue": "claude-skills-148",
       "first_seen": "2026-07-26",
       "detail_count": 7
-    },
-    {
-      "key": "dupe/639413bb:duplicate_block",
-      "class": "DEBT",
-      "issue": "claude-skills-149",
-      "first_seen": "2026-07-26",
-      "detail_count": 1
     },
     {
       "key": "elixir/anti-patterns:anti_fab",

@@ -97,7 +97,7 @@ Tidewave exposes an MCP server at `/tidewave/mcp` on the Phoenix app's port. The
 
 Default URL: `http://localhost:4000/tidewave/mcp`
 
-See `references/mcp-setup.md` for verbatim setup commands and JSON config for **Claude Code, Codex CLI, Gemini CLI, and opencode**, plus a `curl` ping for raw verification and a troubleshooting table.
+See `references/mcp-setup.md` for verbatim setup commands and JSON config for **Claude Code, Codex CLI, Gemini CLI, and opencode**, an unverified Cursor/VS Code/Zed config table, plus a `curl` ping for raw verification and a troubleshooting table.
 
 ## MCP Tools Reference
 
