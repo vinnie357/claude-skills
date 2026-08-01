@@ -78,6 +78,45 @@ Returns issues with no unresolved dependencies.
 
 Per-flag syntax for the 13 day-to-day subcommands (`create`, `list`, `show`, `update`, `close`, `ready`, `dep`, `label`, `comment`, `config`, `sync`, `import`, `prime`): `references/commands.md`. bees 0.4.0 has 19 top-level commands; for the rest (`upgrade`, `edit`, `rename-prefix`, `daemon`, `version`, and the `ls` alias) run `bees <cmd> --help` — except `bees upgrade --help`, which executes a real database migration instead of printing help (see Troubleshooting).
 
+## No Enum Validation — a Typo Silently Breaks the Queue
+
+bees 0.4.0 does not validate enum-shaped values against the sets `--help` documents. `bees create -t`, `bees update --status`/`-t`, and `bees dep add -t` all accept and store any string verbatim — a typo does not error, it is stored, and it breaks queue behavior later with no indication why.
+
+Verified against bees 0.4.0 in a throwaway `.bees/`:
+
+```bash
+$ bees update <id> --status bogus
+Updated <id>                                    # exit 0
+$ bees list --json | jq '.[] | select(.id=="<id>") | .status'
+"bogus"
+```
+
+The issue then silently disappears from `bees ready` — no error, no warning, nothing distinguishing it from a real `closed` or `deferred` state. The same pattern holds for `bees dep add <id> <blocker> -t nonsense` (exit 0, `nonsense` stored as the dependency type) and `bees create <title> -t garbage` (exit 0, `garbage` stored as `issue_type`).
+
+Documented value sets, none of them enforced:
+- `create -t` / `update -t` (issue type): `task, bug, feature, epic, story` per `--help` — `bees prime`'s cheatsheet lists `chore` in place of `story`; both are accepted since nothing validates either.
+- `update -s`/`--status`: `open, in_progress, closed, deferred`
+- `dep add -t`: `blocks, related, parent-child` per `--help` — this doc's own table below uses `parent`; both spellings are accepted since nothing validates either.
+
+**Mitigation**: after `bees update --status` or `bees dep add -t`, verify with `bees show <id> --json` (check `.status`) or `bees dep list <id> --json` (check `.depends_on[].type`) rather than trusting a zero exit code. An issue missing from `bees ready` with no explicit close and no blocking dependency is the tell of a typo'd status, not a real state transition.
+
+This is upstream bees behavior, not a docs defect in this skill — worth a feature request against `ctxshift/bees` for enum validation on `create -t`, `update -s`/`-t`, and `dep add -t`.
+
+## `.bees/` Is Found by Walking Up, Like `.git/`
+
+`bees list`, `bees ready`, `bees create`, and every other bees command that needs a tracker walk up from the current directory to the nearest ancestor `.bees/`, the same way `git` walks up to `.git/`. There is no scoping to "this project" — a subdirectory of an already-initialized tree silently participates in the parent's tracker instead of getting its own.
+
+Verified against bees 0.4.0: from an uninitialized child directory of an already-initialized parent, `bees create` writes the new issue into the *parent's* tracker (ID prefixed with the parent's project prefix) with no local `.bees/` created and no error — behaviorally indistinguishable from having its own tracker until `bees show <id>` or `bees list --json` is checked. Beads has the identical behavior: `bd status` from the child reports the parent's `.beads/` stats, again with no local `.beads/` and no error.
+
+**Mitigation**: don't infer "already initialized here" from a zero exit code on `bees list`/`bees ready` (or `bd status`) — that only proves an ancestor tracker exists somewhere on the path, not that it belongs to the current directory. Check for the directory itself:
+
+```bash
+test -d .bees      # bees — true only if THIS directory owns a tracker
+test -d .beads     # beads — same caveat
+```
+
+This is the same failure class as the enum-validation trap above: a command that exits 0 and looks correct while quietly doing the wrong thing. A `cd` that lands anywhere under a bees-tracked tree — not just the tracker root — followed by `bees create`, silently files into that tree's tracker with no indication the write landed somewhere other than intended.
+
 ## Dependency Management
 
 ### Dependency Types
@@ -93,6 +132,8 @@ bees dep add <id> <blocker-id>           # id depends on blocker-id
 | blocks | `-t blocks` (default) | Prevents `bees ready` from showing dependent issue |
 | related | `-t related` | Informational link, no blocking |
 | parent | `-t parent` | Parent-child hierarchy |
+
+`--help` spells this type `parent-child`; both `parent` and `parent-child` are accepted as literal, distinct stored values since neither is validated — see "No Enum Validation" above.
 
 ### Ready Queue
 

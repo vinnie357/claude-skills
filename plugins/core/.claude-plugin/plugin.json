@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "0.2.45",
+  "version": "0.2.48",
   "description": "Essential development skills: Git, TDD, code review, gitleaks secret scanning, documentation, restraint, anti-fabrication, twelve-factor apps, the agent loop, bees issue tracking, mise, nushell, and Apple Container",
   "author": {
     "name": "vinnie357"
@@ -39,6 +39,8 @@
   ],
   "agents": [
     "./skills/bees/agents/bees-worker.md",
-    "./skills/bees/agents/bees-manager.md"
+    "./skills/bees/agents/bees-manager.md",
+    "./agents/setup.md",
+    "./agents/gcms.md"
   ]
 }

@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.94",
+      "version": "0.4.97",
       "category": "meta",
       "keywords": [
         "skills",
@@ -143,7 +143,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, TDD, code review, gitleaks secret scanning, documentation, restraint, anti-fabrication, twelve-factor apps, the agent loop, bees issue tracking, mise, nushell, and Apple Container",
-      "version": "0.2.45",
+      "version": "0.2.48",
       "category": "development",
       "keywords": [
         "git",
@@ -197,7 +197,7 @@
       "source": "./plugins/languages/elixir",
       "strict": true,
       "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style, and anti-patterns",
-      "version": "0.1.20",
+      "version": "0.1.21",
       "category": "language",
       "keywords": [
         "elixir",

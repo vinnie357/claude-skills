@@ -84,4 +84,4 @@ Migrating to the adapter pattern: DELETE any prior `setup_all` blocks that check
 
 ## Confirm determinism
 
-After landing the adapter, run the project's CI suite three times. Flaky behavior in the previously-subprocess-driven tests indicates a remaining shared-state leak (see the `/elixir:testing` skill body on test isolation).
+After landing the adapter, run the project's CI suite normally, then again at a 2-vCPU CI runner's shape via `mix test --max-cases 4` — vary the concurrency shape, not the repetition count. Flaky behavior in the previously-subprocess-driven tests at either shape indicates a remaining shared-state leak (see the `/elixir:testing` skill body's Test Isolation section).
