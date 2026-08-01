@@ -593,7 +593,17 @@ def main [--self-test] {
     # PR #188 Gate 3: a missing, unparseable, [meta]-less, or [[sources]]-less
     # template used to crash the whole run with a raw Nushell error, masking
     # every other finding already collected in $findings. Degrade to a
-    # b6_template_drift finding instead — fail closed, but report.
+    # b6_template_drift finding instead — fail closed, but report. Gate 3
+    # round 2: the container-shape guard below (null / no meta / no sources /
+    # empty sources) does not cover a template that parses into a
+    # well-formed record whose first [[sources]] entry is missing a checked
+    # field, has a non-list `sources` (e.g. `sources = "oops"`, caught by
+    # `.sources | first` failing, not by `is-empty`), or holds a value the
+    # regex match can't run on (e.g. an unquoted numeric current_version).
+    # Those raise `column_not_found` / `only_supports_this_input_type` /
+    # `operator_unsupported_type` from INSIDE the check construction, not
+    # from `open` — so the field access and regex matching for all six
+    # checked fields is wrapped in its own try/catch below, one level in.
     let tmpl_path = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "skill-update" "templates" "sources.toml")
     let tmpl = (try { open $tmpl_path } catch { |e| print $"  (ansi yellow)⚠  templates/sources.toml: ($e.msg)(ansi reset)"; null })
     if $tmpl == null or not ("meta" in $tmpl) or not ("sources" in $tmpl) or ($tmpl.sources | is-empty) {
@@ -603,25 +613,40 @@ def main [--self-test] {
             message: $"templates/sources.toml: missing, unparseable, or lacks [meta] / [[sources]] at ($tmpl_path)"
         })
     } else {
-        let tmpl_src = ($tmpl.sources | first)
-        let tmpl_checks = [
-            ["meta.reviewed_at_plugin_version" $tmpl.meta.reviewed_at_plugin_version ($tmpl.meta.reviewed_at_plugin_version == "unknown" or $tmpl.meta.reviewed_at_plugin_version =~ $SEMVER_RE)]
-            ["meta.last_full_check" $tmpl.meta.last_full_check ($tmpl.meta.last_full_check == "unknown" or $tmpl.meta.last_full_check =~ $DATE_RE)]
-            ["sources.0.current_version" $tmpl_src.current_version ($tmpl_src.current_version == "unknown" or $tmpl_src.current_version =~ $VERSION_SHAPE_RE)]
-            ["sources.0.last_checked" $tmpl_src.last_checked ($tmpl_src.last_checked == "unknown" or $tmpl_src.last_checked =~ $DATE_RE)]
-            ["sources.0.version_constraint" $tmpl_src.version_constraint ($tmpl_src.version_constraint in $VERSION_CONSTRAINTS)]
-            ["sources.0.update_priority" $tmpl_src.update_priority ($tmpl_src.update_priority in $UPDATE_PRIORITIES)]
-        ]
-        for row in $tmpl_checks {
-            let field = ($row | get 0)
-            let value = ($row | get 1)
-            let ok = ($row | get 2)
-            if not $ok {
-                $findings = ($findings | append {
-                    rule: "b6_template_drift"
-                    severity: "fail"
-                    message: $"templates/sources.toml: ($field) = '($value)' fails its own format rule"
-                })
+        let tmpl_check_result = (try {
+            let tmpl_src = ($tmpl.sources | first)
+            {
+                ok: true
+                rows: [
+                    ["meta.reviewed_at_plugin_version" $tmpl.meta.reviewed_at_plugin_version ($tmpl.meta.reviewed_at_plugin_version == "unknown" or $tmpl.meta.reviewed_at_plugin_version =~ $SEMVER_RE)]
+                    ["meta.last_full_check" $tmpl.meta.last_full_check ($tmpl.meta.last_full_check == "unknown" or $tmpl.meta.last_full_check =~ $DATE_RE)]
+                    ["sources.0.current_version" $tmpl_src.current_version ($tmpl_src.current_version == "unknown" or $tmpl_src.current_version =~ $VERSION_SHAPE_RE)]
+                    ["sources.0.last_checked" $tmpl_src.last_checked ($tmpl_src.last_checked == "unknown" or $tmpl_src.last_checked =~ $DATE_RE)]
+                    ["sources.0.version_constraint" $tmpl_src.version_constraint ($tmpl_src.version_constraint in $VERSION_CONSTRAINTS)]
+                    ["sources.0.update_priority" $tmpl_src.update_priority ($tmpl_src.update_priority in $UPDATE_PRIORITIES)]
+                ]
+            }
+        } catch { |e|
+            { ok: false, err: $e.msg }
+        })
+        if not $tmpl_check_result.ok {
+            $findings = ($findings | append {
+                rule: "b6_template_drift"
+                severity: "fail"
+                message: $"templates/sources.toml: a checked field is missing or the wrong type \(($tmpl_check_result.err)\)"
+            })
+        } else {
+            for row in $tmpl_check_result.rows {
+                let field = ($row | get 0)
+                let value = ($row | get 1)
+                let ok = ($row | get 2)
+                if not $ok {
+                    $findings = ($findings | append {
+                        rule: "b6_template_drift"
+                        severity: "fail"
+                        message: $"templates/sources.toml: ($field) = '($value)' fails its own format rule"
+                    })
+                }
             }
         }
     }
