@@ -52,6 +52,19 @@
 #      that DOES appear in a pointer satellite must match canonical, so a
 #      helpfully re-pasted partial list fails.
 #
+#   3c. SUBSET SHAPE — a satellite whose entry carries an `expected` list
+#      replaces the full-canonical comparison with its own declared subset:
+#      every run in the file is checked against `expected`, not `canonical`,
+#      in both directions — a name dropped from the subset (missing) or a
+#      name added beyond it (extra) both fail. This is how a tier that
+#      deliberately omits skills per the exemption in SKILL.md's "Core
+#      Skills (Mandatory)" section gets drift protection instead of being
+#      invisible below the sweep threshold (rule 4). `expected` names are
+#      validated against the canonical set at load time — a typo'd or
+#      renamed name inside `expected` itself is a hard failure, not a silent
+#      no-op. Used today by references/validator.md and
+#      references/fix-agent.md (claude-skills-152).
+#
 #   4. SWEEP — every git-tracked .md/.sh file NOT registered as a satellite
 #      fails if the UNION of its runs carries EXPECTED_COUNT - 2 or more
 #      CANONICAL names. A file carrying (nearly) the full stack is a
@@ -67,15 +80,18 @@
 #   - Prose mentions are ignored by design; restraint/SKILL.md may discuss
 #     /core:tdd freely.
 #   - Files carrying a deliberate SUBSET of the stack (fewer than
-#     EXPECTED_COUNT - 2 canonical names) are invisible to the sweep. Subsets
-#     are now policy, decided in claude-skills-125: a tier may omit a skill its
-#     role cannot exercise, per the "Core Skills (Mandatory)" section of
-#     agent-loop/SKILL.md. Today references/fix-agent.md (5 names) and
-#     references/validator.md (2 names) rely on this. Subset MEMBERSHIP is
-#     unchecked here — a tier dropping a skill it should carry passes; only the
-#     invocations check in validate-skills-quality.nu catches names that do not
-#     resolve. Adding teeth would need a subset-aware entry shape
-#     ({path, expected: [...]}); tracked as claude-skills-152.
+#     EXPECTED_COUNT - 2 canonical names) are invisible to the sweep UNLESS
+#     registered as a satellite. Subsets are policy, decided in
+#     claude-skills-125: a tier may omit a skill its role cannot exercise, per
+#     the "Core Skills (Mandatory)" section of agent-loop/SKILL.md.
+#     references/fix-agent.md (5 names) and references/validator.md (2 names)
+#     are registered with a subset-aware entry ({path, expected: [...]}, added
+#     in claude-skills-152): every run is checked against its declared
+#     `expected` set instead of the full canonical set, both directions —
+#     dropping a name from the subset or adding an unexpected one both fail.
+#     A subsetting tier that has NOT registered an `expected` entry is still
+#     invisible here; only the invocations check in validate-skills-quality.nu
+#     catches its stale/misspelled names, and review catches a bad omission.
 #   - Divergent names scattered as single-name fenced mentions escape the
 #     every-run rule, since each run falls under the 2-name threshold. Same
 #     class as prose mentions; not a plausible reader-followed idiom.
@@ -137,6 +153,16 @@ const SATELLITES = [
   { path: "plugins/core/skills/agent-loop/references/agent-worker.md"
     anchor: "Load core skills"
     pointer: $POINTER_REGEX }
+  # Subset satellites (claude-skills-152): these two tiers deliberately omit
+  # names under the exemption in SKILL.md's "Core Skills (Mandatory)"
+  # section. `expected` swaps the comparison target from the full canonical
+  # set to this declared subset — see doc item 3c above.
+  { path: "plugins/core/skills/agent-loop/references/validator.md"
+    anchor: "Load core skills"
+    expected: [/core:mise /core:anti-fabrication] }
+  { path: "plugins/core/skills/agent-loop/references/fix-agent.md"
+    anchor: "Load core skills"
+    expected: [/core:anti-fabrication /core:git /core:tdd /core:restraint /core:mise] }
   # This satellite IS a worked example: its operative list sits inside the
   # example prompt's fence, so the anchor must be allowed to match in-fence.
   { path: "plugins/core/skills/agent-loop/references/leader-spawn-example.md"
@@ -180,7 +206,28 @@ def main [--self-test] {
 
     let in_fence_ok = ($satellite | get -o anchor_in_fence | default false)
     let pointer = ($satellite | get -o pointer | default "")
-    let result = (check-satellite (open --raw $path | lines) $satellite.anchor $canonical_names $in_fence_ok $pointer)
+    let expected = ($satellite | get -o expected | default [])
+
+    # A subset satellite's own `expected` list is validated against the
+    # canonical set before it is used as a comparison target — a typo'd or
+    # renamed name inside `expected` is a finding for THIS satellite, not a
+    # reason to abort the whole run: aborting here would hide every other
+    # satellite's real drift behind one bad SATELLITES entry (claude-skills-152
+    # review finding — an early `exit 1` on this check masked a genuine
+    # anchor failure planted in a different file in the same run).
+    let unknown_expected = ($expected | where { |name| $name not-in $canonical_names })
+    if ($unknown_expected | is-not-empty) {
+      $failures = ($failures | append {
+        file: $satellite.path
+        errors: [$"expected subset name\(s\) not in the canonical list — ($unknown_expected | str join ', ')"]
+        missing: []
+        extra: []
+        lists: []
+      })
+      continue
+    }
+
+    let result = (check-satellite (open --raw $path | lines) $satellite.anchor $canonical_names $in_fence_ok $pointer $expected)
 
     if (($result.errors | is-not-empty) or ($result.missing | is-not-empty) or ($result.extra | is-not-empty)) {
       $failures = ($failures | append ($result | insert file $satellite.path))
@@ -282,7 +329,10 @@ def extract-canonical-names [file: string] {
 # A non-empty `pointer` selects the pointer shape: instead of a run, the
 # anchor line itself or the first non-blank/non-fence line after it must
 # match the pointer regex. Every-run still applies either way.
-def check-satellite [lines: list<string>, anchor: string, canonical: list<string>, anchor_in_fence: bool = false, pointer: string = ""] {
+# A non-empty `expected` selects the subset shape (doc item 3c): every run is
+# compared against `expected` instead of the full `canonical` set, in both
+# directions.
+def check-satellite [lines: list<string>, anchor: string, canonical: list<string>, anchor_in_fence: bool = false, pointer: string = "", expected: list<string> = []] {
   let runs = (find-load-list-runs $lines)
 
   mut errors = []
@@ -331,12 +381,16 @@ def check-satellite [lines: list<string>, anchor: string, canonical: list<string
   # carry worked examples — and a second correct list is not a defect. What
   # this forbids is a run that DISAGREES with canonical hiding behind one
   # that agrees.
+  # Subset satellites compare against their declared `expected` set instead
+  # of the full canonical set; everyone else compares against canonical.
+  let target = (if ($expected | is-empty) { $canonical } else { $expected })
+
   mut missing = []
   mut extra = []
 
   for run in $runs {
-    $missing = ($missing | append ($canonical | where { |name| $name not-in $run.names }))
-    $extra = ($extra | append ($run.names | where { |name| $name not-in $canonical }))
+    $missing = ($missing | append ($target | where { |name| $name not-in $run.names }))
+    $extra = ($extra | append ($run.names | where { |name| $name not-in $target }))
   }
 
   {
@@ -780,10 +834,40 @@ def self-test [] {
       missing: []
       extra: []
     }
+    {
+      name: "subset_exact_match_passes"
+      why: "claude-skills-152: a subset satellite compares against its declared `expected` set, not the full 3-name canonical — an exact match on the smaller set is clean"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n```\n"
+      anchor: "Load these first"
+      expected: [/core:aa /core:bb]
+      error: ""
+      missing: []
+      extra: []
+    }
+    {
+      name: "subset_missing_name_reported"
+      why: "lower bound: dropping a name from a 3-name declared subset (leaving a 2-name run, still above the run-detection threshold) surfaces as missing, exactly as it would against the full canonical set — mirrors the real fix-agent.md mutation (5 names to 4) verified live during claude-skills-152"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n```\n"
+      anchor: "Load these first"
+      expected: [/core:aa /core:bb /core:cc]
+      error: ""
+      missing: [/core:cc]
+      extra: []
+    }
+    {
+      name: "subset_extra_name_reported"
+      why: "upper bound: a subset satellite gaining a name BEYOND its declared `expected` set is drift too — the earlier design had no target to compare against here at all, so this could not previously be expressed"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n/core:cc\n```\n"
+      anchor: "Load these first"
+      expected: [/core:aa /core:bb]
+      error: ""
+      missing: []
+      extra: [/core:cc]
+    }
   ]
 
   for c in $satellite_cases {
-    let got = (check-satellite ($c.content | lines) $c.anchor $canonical ($c | get -o in_fence | default false) ($c | get -o pointer | default ""))
+    let got = (check-satellite ($c.content | lines) $c.anchor $canonical ($c | get -o in_fence | default false) ($c | get -o pointer | default "") ($c | get -o expected | default []))
     let error_ok = (if ($c.error | is-empty) {
       $got.errors | is-empty
     } else {
