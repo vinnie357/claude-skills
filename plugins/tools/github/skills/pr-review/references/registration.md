@@ -26,17 +26,7 @@ Four files must be updated when adding or updating this skill:
 
 ## Two validators to run
 
-After every change to skill files or registration:
-
-```bash
-# Validate the github plugin structure
-nu test/validate-plugin.nu github
-
-# Validate skill quality across all plugins
-nu test/validate-skills-quality.nu
-```
-
-Both must pass (no new failures beyond the baseline) before committing.
+Same two validators as any plugin skill — see `/github:dependabot-consolidator`'s `references/registration.md` "Two validators to run" for the exact commands and pass criteria.
 
 ## Build checklist
 

@@ -425,7 +425,7 @@ Connect Claude Code: `claude mcp add --transport http tidewave http://localhost:
 
 Tidewave is dev-only — never deploy to production. It only accepts localhost requests by default.
 
-For full setup, MCP tools reference, CLI app, editor configs, LiveView annotations, and troubleshooting, see `/elixir:tidewave` or `references/tidewave.md`.
+For full setup, MCP tools reference, CLI app, editor configs, LiveView annotations, and troubleshooting, see `/elixir:tidewave`.
 
 ## Key Principles
 
