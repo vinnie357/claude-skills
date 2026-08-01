@@ -253,14 +253,21 @@ def validate-plugin-content [
   }
 
   # Description agreement with the marketplace entry — plugin.json is
-  # authoritative, the marketplace entry is the copy. Only compared when
-  # both sides define the field (an omission on either side is not a
-  # failure) and only for local sources (see the caller for the gate).
+  # authoritative, the marketplace entry is the copy, and only for local
+  # sources (see the caller for the gate). Gated on plugin.json defining the
+  # field, not on the marketplace side: when plugin.json HAS a description,
+  # the marketplace entry omitting it is itself a failure (Level 1 discovery
+  # text silently disappearing from the marketplace listing), not a valid
+  # "both sides agree to omit it" state — a bare deletion of the marketplace
+  # field used to pass this check silently (claude-skills-170). plugin.json
+  # omitting the field entirely stays a soft warning above; nothing here.
   # NOTE: `mise update-all-skills` does NOT maintain the all-skills
   # description, so that one entry can drift again after this check passes.
-  if ($mkt_description | is-not-empty) {
-    let pj_description = ($plugin | get -o description)
-    if ($pj_description | is-not-empty) and ($pj_description != $mkt_description) {
+  let pj_description = ($plugin | get -o description)
+  if ($pj_description | is-not-empty) {
+    if ($mkt_description | is-empty) {
+      $errors = ($errors | append $"marketplace.json entry is missing 'description' that plugin.json defines: '($pj_description)'")
+    } else if ($pj_description != $mkt_description) {
       let regen_note = if ($plugin | get -o name) == "all-skills" {
         " \(mise update-all-skills does not maintain this description, so it can drift again\)"
       } else { "" }
@@ -412,10 +419,19 @@ def validate-plugin-content [
   }
 
   # Keywords agreement with the marketplace entry — same authority rule and
-  # same omission-is-not-a-failure rule as description, above.
-  if ($mkt_keywords | is-not-empty) {
-    let pj_keywords = ($plugin | get -o keywords)
-    if ($pj_keywords | is-not-empty) and ($pj_keywords != $mkt_keywords) {
+  # same deletion-is-a-failure rule as description, above (claude-skills-170):
+  # gated on plugin.json defining keywords, not on the marketplace side, so a
+  # bare deletion of the marketplace field can no longer pass silently.
+  # Compared as SETS, not ordered lists: the two arrays are meant to carry
+  # the same discovery keywords, and reordering them (e.g. an alphabetize
+  # pass) changes no meaning, so an order-only difference is not a genuine
+  # mismatch — it previously produced a "mismatch" error message that was
+  # misleading about what actually differed (claude-skills-170).
+  let pj_keywords = ($plugin | get -o keywords)
+  if ($pj_keywords | is-not-empty) {
+    if ($mkt_keywords | is-empty) {
+      $errors = ($errors | append $"marketplace.json entry is missing 'keywords' that plugin.json defines: ($pj_keywords)")
+    } else if ($pj_keywords | sort) != ($mkt_keywords | sort) {
       $errors = ($errors | append $"keywords mismatch — plugin.json is authoritative: plugin.json=($pj_keywords) marketplace.json=($mkt_keywords)")
     }
   }
