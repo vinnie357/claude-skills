@@ -88,7 +88,7 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
   let result = if $is_ext {
     validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose
   } else {
-    validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose --mkt-description ($plugin_entry | get -o description | default "") --mkt-keywords ($plugin_entry | get -o keywords | default [])
+    validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose --has-marketplace-context --mkt-description ($plugin_entry | get -o description | default "") --mkt-keywords ($plugin_entry | get -o keywords | default [])
   }
 
   # Cleanup temp directory
@@ -190,6 +190,16 @@ def validate-plugin-content [
   verbose: bool
   --mkt-description: string = ""   # marketplace.json entry's description, for local sources only
   --mkt-keywords: list<string> = [] # marketplace.json entry's keywords, for local sources only
+  --has-marketplace-context        # true only when the caller has an actual marketplace entry to
+                                    # compare against (validate-from-marketplace's local-source
+                                    # branch). Direct-file mode (validate-plugin-file) and the
+                                    # external/GitHub-object branch of validate-from-marketplace
+                                    # omit this flag on purpose — they have no marketplace entry at
+                                    # all, and --mkt-description/--mkt-keywords defaulting to
+                                    # ""/[] is indistinguishable from "marketplace entry deleted
+                                    # the field" without this flag. Without it, claude-skills-170's
+                                    # deletion-is-a-failure fix fired on those defaults and broke
+                                    # both non-marketplace invocation modes.
 ] {
   let plugin = try {
     open $plugin_path
@@ -253,18 +263,29 @@ def validate-plugin-content [
   }
 
   # Description agreement with the marketplace entry — plugin.json is
-  # authoritative, the marketplace entry is the copy. Only compared when
-  # both sides define the field (an omission on either side is not a
-  # failure) and only for local sources (see the caller for the gate).
+  # authoritative, the marketplace entry is the copy, and only when the
+  # caller actually has a marketplace entry to compare against (see
+  # --has-marketplace-context above and the caller for the gate). Within
+  # that scope, gated on plugin.json defining the field, not on the
+  # marketplace side: when plugin.json HAS a description, the marketplace
+  # entry omitting it is itself a failure (Level 1 discovery text silently
+  # disappearing from the marketplace listing), not a valid "both sides
+  # agree to omit it" state — a bare deletion of the marketplace field used
+  # to pass this check silently (claude-skills-170). plugin.json omitting
+  # the field entirely stays a soft warning above; nothing here.
   # NOTE: `mise update-all-skills` does NOT maintain the all-skills
   # description, so that one entry can drift again after this check passes.
-  if ($mkt_description | is-not-empty) {
+  if $has_marketplace_context {
     let pj_description = ($plugin | get -o description)
-    if ($pj_description | is-not-empty) and ($pj_description != $mkt_description) {
-      let regen_note = if ($plugin | get -o name) == "all-skills" {
-        " \(mise update-all-skills does not maintain this description, so it can drift again\)"
-      } else { "" }
-      $errors = ($errors | append $"description mismatch — plugin.json is authoritative: plugin.json='($pj_description)' marketplace.json='($mkt_description)'($regen_note)")
+    if ($pj_description | is-not-empty) {
+      if ($mkt_description | is-empty) {
+        $errors = ($errors | append $"marketplace.json entry is missing 'description' that plugin.json defines: '($pj_description)'")
+      } else if ($pj_description != $mkt_description) {
+        let regen_note = if ($plugin | get -o name) == "all-skills" {
+          " \(mise update-all-skills does not maintain this description, so it can drift again\)"
+        } else { "" }
+        $errors = ($errors | append $"description mismatch — plugin.json is authoritative: plugin.json='($pj_description)' marketplace.json='($mkt_description)'($regen_note)")
+      }
     }
   }
 
@@ -411,12 +432,27 @@ def validate-plugin-content [
     }
   }
 
-  # Keywords agreement with the marketplace entry — same authority rule and
-  # same omission-is-not-a-failure rule as description, above.
-  if ($mkt_keywords | is-not-empty) {
+  # Keywords agreement with the marketplace entry — same authority rule, same
+  # marketplace-context gate, and same deletion-is-a-failure rule as
+  # description, above (claude-skills-170): gated on plugin.json defining
+  # keywords, not on the marketplace side, so a bare deletion of the
+  # marketplace field can no longer pass silently.
+  # Compared as SORTED LISTS, not as sets: `sort` doesn't dedupe, so a
+  # repeated keyword still has to be repeated on both sides to match — this
+  # is stricter than a true set comparison, in the safe direction. The
+  # intent is the same either way: the two arrays are meant to carry the
+  # same discovery keywords, and reordering them (e.g. an alphabetize pass)
+  # changes no meaning, so an order-only difference is not a genuine
+  # mismatch — it previously produced a "mismatch" error message that was
+  # misleading about what actually differed (claude-skills-170).
+  if $has_marketplace_context {
     let pj_keywords = ($plugin | get -o keywords)
-    if ($pj_keywords | is-not-empty) and ($pj_keywords != $mkt_keywords) {
-      $errors = ($errors | append $"keywords mismatch — plugin.json is authoritative: plugin.json=($pj_keywords) marketplace.json=($mkt_keywords)")
+    if ($pj_keywords | is-not-empty) {
+      if ($mkt_keywords | is-empty) {
+        $errors = ($errors | append $"marketplace.json entry is missing 'keywords' that plugin.json defines: ($pj_keywords)")
+      } else if ($pj_keywords | sort) != ($mkt_keywords | sort) {
+        $errors = ($errors | append $"keywords mismatch — plugin.json is authoritative: plugin.json=($pj_keywords) marketplace.json=($mkt_keywords)")
+      }
     }
   }
 

@@ -42,8 +42,8 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Version verified against**: v0.0.0 (2026-05-19) — alpha
 - **License**: Apache-2.0
 - **Used in**: `agent-substrate-overview`
-- **Extracted**: maturity caveat ("VERY early development"), component list (`ateapi`, `atelet`, `atecontroller`, `atenet`, `kubectl-ate`), `WorkerPool` + `ActorTemplate` CRDs, kind + GKE install recipes, `demos/claude-code-multiplex/`.
-- **Date accessed**: 2026-05-23
+- **Extracted**: maturity caveat ("VERY early development"), component list (`ateapi`, `atelet`, `atecontroller`, `atenet`, `kubectl-ate`), `WorkerPool` + `ActorTemplate` CRDs, kind + GKE install recipes, `demos/claude-code-multiplex/`. The worked `WorkerPool`/`ActorTemplate` YAML example (added claude-skills-142) is trimmed verbatim from `demos/claude-code-multiplex/claude-code-multiplex.yaml.tmpl` at the same commit (blob sha `eb06f284ad5d1cf4c3e892a875fb4adad12291bb`). The `workerSelector` field annotation is verified against the Go type definition in `pkg/api/v1alpha1/actortemplate_types.go` (`WorkerSelector *metav1.LabelSelector`, `+optional`, doc comment quoted in the annotation), not inferred from the YAML alone.
+- **Date accessed**: 2026-05-23 (YAML example and `workerSelector` field semantics re-verified 2026-08-01)
 
 ## Claude Code
 

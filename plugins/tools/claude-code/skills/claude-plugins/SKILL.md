@@ -91,7 +91,7 @@ nu <CLAUDE_SKILL_DIR>/scripts/init-plugin.nu
 
 `validate-plugin.nu` checks JSON syntax, `name` presence and casing, field types, path accessibility, and invalid-field detection. Add `--verbose` for per-field output.
 
-With `--marketplace`, it also checks that `description` and `keywords` agree with the plugin's marketplace entry, when that entry's `source` is a local path. **`plugin.json` is authoritative.** Entries whose `source` is a GitHub object are skipped — there is no local manifest to compare — and a field absent from either side is not a mismatch.
+With `--marketplace`, it also checks that `description` and `keywords` agree with the plugin's marketplace entry, when that entry's `source` is a local path. **`plugin.json` is authoritative.** Entries whose `source` is a GitHub object are skipped — there is no local manifest to compare. When plugin.json defines a field, the marketplace entry must carry it too: an entry that omits `description` or `keywords` while plugin.json defines them is flagged as missing, not treated as agreement (`marketplace.json entry is missing '<field>' that plugin.json defines`). A field plugin.json itself omits is not compared at all. `keywords` compares as a sorted list, so reordering the array alone is not a mismatch — only a genuine difference in members is.
 
 What each message means, and the install-time failures no script detects, is in `references/validation-and-troubleshooting.md`.
 

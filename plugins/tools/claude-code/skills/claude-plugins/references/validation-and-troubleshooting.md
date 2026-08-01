@@ -58,7 +58,28 @@ Reported as a **warning**, not an error, as is `Missing recommended field: versi
 Invoked with `--marketplace`, the validator compares `description` and `keywords` against the
 plugin's marketplace entry when that entry's `source` is a local path. `plugin.json` is
 authoritative. Entries whose `source` is a GitHub object are skipped — there is no local manifest to
-compare. A field absent from either side is not a mismatch.
+compare (direct-file mode, `nu validate-plugin.nu <path-to-plugin.json>`, skips the comparison for
+the same reason: no marketplace entry exists to compare against).
+
+When plugin.json defines a field, the marketplace entry must carry it too. An entry that omits
+`description` or `keywords` while plugin.json defines them is flagged as missing, not treated as
+agreement:
+
+```
+marketplace.json entry is missing 'description' that plugin.json defines: '<plugin.json value>'
+marketplace.json entry is missing 'keywords' that plugin.json defines: [<plugin.json values>]
+```
+
+A field plugin.json itself omits is not compared at all — only a warning fires, from the separate
+"Missing recommended field" check above. When both sides define the field but the values differ:
+
+```
+description mismatch — plugin.json is authoritative: plugin.json='<a>' marketplace.json='<b>'
+keywords mismatch — plugin.json is authoritative: plugin.json=[<a>] marketplace.json=[<b>]
+```
+
+`keywords` compares as a sorted list, not order-sensitively — reordering the array alone is not a
+mismatch, only a genuine difference in members is.
 
 ## Runtime troubleshooting
 
