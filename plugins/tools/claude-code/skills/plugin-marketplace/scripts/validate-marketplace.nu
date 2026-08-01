@@ -3,11 +3,22 @@
 # Validate Claude Code marketplace.json file
 #
 # Usage: nu validate-marketplace.nu <path-to-marketplace.json> [--verbose]
+#   nu validate-marketplace.nu --self-test  # verify the is-list / is-record helpers
 
 def main [
-  marketplace_path: string  # Path to marketplace.json file
-  --verbose                 # Show detailed validation output
+  marketplace_path?: string  # Path to marketplace.json file (required unless --self-test)
+  --verbose                  # Show detailed validation output
+  --self-test                # Run embedded self-test for is-list / is-record and exit
 ] {
+  if $self_test {
+    exit (run-self-test)
+  }
+
+  if $marketplace_path == null {
+    print $"(ansi red_bold)Error:(ansi reset) marketplace_path is required unless --self-test is passed"
+    exit 1
+  }
+
   print $"(ansi green_bold)Validating marketplace:(ansi reset) ($marketplace_path)"
   print ""
 
@@ -144,24 +155,36 @@ def main [
               $"($plugin_root)/($plugin.source)"
             }
 
-            # Plugin source paths are relative to the repository root, not .claude-plugin dir
-            let full_path = ($repo_root | path join $source_path | path expand)
-            if not ($full_path | path exists) {
-              $warnings = ($warnings | append $"Plugin '($plugin_name)' source path not found: ($full_path)")
-            } else if $verbose {
-              print $"    ✓ source path exists: ($source_path)"
+            # Upstream: "Don't use `../` to reference paths outside the
+            # marketplace root." A "./"-prefixed source still passes this far
+            # even with a ".." segment further in (e.g. "./plugins/../../x"),
+            # so check path components rather than just the "./" prefix.
+            if ($source_path | path split | any {|part| $part == ".."}) {
+              $errors = ($errors | append $"Plugin '($plugin_name)' source path contains '..': ($source_path)")
+            } else {
+              # Plugin source paths are relative to the repository root, not .claude-plugin dir
+              let full_path = ($repo_root | path join $source_path | path expand)
+              if not ($full_path | path exists) {
+                $warnings = ($warnings | append $"Plugin '($plugin_name)' source path not found: ($full_path)")
+              } else if ($full_path | path type) != "dir" {
+                $warnings = ($warnings | append $"Plugin '($plugin_name)' source path is not a directory: ($full_path)")
+              } else if $verbose {
+                print $"    ✓ source path exists: ($source_path)"
+              }
             }
           }
-        } else if ($plugin.source | describe) == "record" {
+        } else if (is-record $plugin.source) {
           # Validate source object
           let source_type = $plugin.source | get -o source
           if $source_type == null {
             $errors = ($errors | append $"Plugin '($plugin_name)' source object missing 'source' field")
-          } else if $source_type not-in ["github", "url"] {
+          } else if $source_type not-in ["github", "url", "git-subdir", "npm"] {
             $errors = ($errors | append $"Plugin '($plugin_name)' invalid source type: ($source_type)")
           } else if $verbose {
             print $"    ✓ source type: ($source_type)"
           }
+        } else {
+          $errors = ($errors | append $"Plugin '($plugin_name)' source must be a string or object, got: (($plugin.source | describe))")
         }
       }
 
@@ -197,7 +220,7 @@ def main [
       }
 
       if ($plugin | get -o author) != null {
-        if ($plugin.author | describe) != "record" {
+        if not (is-record $plugin.author) {
           $errors = ($errors | append $"Plugin '($plugin_name)' 'author' must be an object")
         } else if ($plugin.author | get -o name) == null {
           $errors = ($errors | append $"Plugin '($plugin_name)' 'author.name' is required when author is specified")
@@ -271,7 +294,7 @@ def main [
 
       if ($plugin | get -o hooks) != null {
         let hooks_type = $plugin.hooks | describe
-        if $hooks_type not-in ["string", "record"] {
+        if $hooks_type != "string" and not (is-record $plugin.hooks) {
           $errors = ($errors | append $"Plugin '($plugin_name)' 'hooks' must be a string or object")
         } else if $verbose {
           print $"    ✓ hooks: ($hooks_type)"
@@ -280,7 +303,7 @@ def main [
 
       if ($plugin | get -o mcpServers) != null {
         let mcp_type = $plugin.mcpServers | describe
-        if $mcp_type not-in ["string", "record"] {
+        if $mcp_type != "string" and not (is-record $plugin.mcpServers) {
           $errors = ($errors | append $"Plugin '($plugin_name)' 'mcpServers' must be a string or object")
         } else if $verbose {
           print $"    ✓ mcpServers: ($mcp_type)"
@@ -353,6 +376,18 @@ def is-list [value: any] {
   ($value | describe --detailed | get type) == "list"
 }
 
+# Check if a value is a record (object).
+#
+# Same `describe` structural-type trap as `is-list` above: `describe` on a
+# non-empty record renders its field shape (e.g. `record<source: string,
+# repo: string>`), so `(describe) == "record"` only matches an EMPTY record
+# `{}` — every real object (a source descriptor, an author, a hooks config)
+# silently falls through. `describe --detailed | get type` reports the
+# underlying type instead, matching `is-list`'s discipline.
+def is-record [value: any] {
+  ($value | describe --detailed | get type) == "record"
+}
+
 # Check if string is kebab-case (lowercase alphanumeric and hyphens only)
 def is-kebab-case [name: string] {
   $name =~ '^[a-z0-9]+(-[a-z0-9]+)*$'
@@ -366,4 +401,55 @@ def is-semver [version: string] {
 # Check if string is a valid URL
 def is-url [url: string] {
   $url =~ '^https?://.+'
+}
+
+# Embedded self-test for the is-list / is-record structural-type helpers
+# (claude-skills-179): `describe` renders a non-empty list as `table<...>`
+# and a non-empty record as `record<...>`, so a naive `(describe) == "list"`
+# / `(describe) == "record"` comparison only matches the empty case — every
+# real plugins array and every real source/author/hooks object silently
+# fell through the dead branch. Both helpers use `describe --detailed | get
+# type` instead; this locks that in.
+def run-self-test [] {
+  mut failed = 0
+
+  let list_cases = [
+    [input, expected, label];
+    [[1 2 3], true, "non-empty list of ints"]
+    [[{a: 1} {a: 2}], true, "non-empty list of records (renders as table<...>)"]
+    [[], true, "empty list"]
+    [{a: 1}, false, "record is not a list"]
+    [42, false, "int is not a list"]
+    ["x", false, "string is not a list"]
+  ]
+  for case in $list_cases {
+    let got = is-list $case.input
+    if $got != $case.expected {
+      print $"(ansi red_bold)❌ is-list self-test: ($case.label) — want ($case.expected), got ($got)(ansi reset)"
+      $failed = $failed + 1
+    }
+  }
+
+  let record_cases = [
+    [input, expected, label];
+    [{source: "github", repo: "x/y"}, true, "non-empty record (renders as record<...>)"]
+    [{}, true, "empty record"]
+    [{name: "a"}, true, "single-field record"]
+    [[1 2], false, "list is not a record"]
+    [42, false, "int is not a record"]
+    ["x", false, "string is not a record"]
+  ]
+  for case in $record_cases {
+    let got = is-record $case.input
+    if $got != $case.expected {
+      print $"(ansi red_bold)❌ is-record self-test: ($case.label) — want ($case.expected), got ($got)(ansi reset)"
+      $failed = $failed + 1
+    }
+  }
+
+  if $failed == 0 {
+    print $"(ansi green_bold)✅ validate-marketplace self-test passed \((($list_cases | length) + ($record_cases | length)) cases\)(ansi reset)"
+  }
+
+  $failed
 }
