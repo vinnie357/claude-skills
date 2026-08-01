@@ -20,7 +20,7 @@
 #
 # Usage:
 #   nu test/validate-skills-quality.nu              # scan all plugins
-#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter, baseline schema/ratchet, check-fix fixtures, and Pass-2 agents/commands links
+#   nu test/validate-skills-quality.nu --self-test  # verify the skills: frontmatter, baseline schema/ratchet, check-fix fixtures, Pass-2 agents/commands links, and the shared detail-count accumulators
 
 # Checks whose findings are countable at runtime; their baseline entries must
 # carry an integer detail_count so a waiver covers the recorded count, not
@@ -550,6 +550,54 @@ def ratchet-baseline [baseline: list, failing_keys: list, failing_counts: list] 
     }
 }
 
+# Feed detail-producing checks' counts into the ratchet ledger
+# (claude-skills-151, claude-skills-175). `failed` is a pass's set of check
+# names that fired for one finding; `key_base` is the finding's stable
+# key prefix (e.g. "<plugin>/<skill>" or "<plugin>/agents/<file>"); each
+# `{check, count}` pair whose check name is present in `failed` contributes
+# one `{key, count}` entry.
+#
+# This is the single call site the two recorded defects both trace back to:
+# a hand-rolled loop with two independent statements — append the key,
+# append the count — lets one half (the count) be deleted while the other
+# (done separately by the caller before this ever runs) survives untouched.
+# The per-skill Pass-1 loop already had this exact shape inline; Pass-2's
+# agent/command loops computed the same detail counts (`links`, `fm_schema`)
+# but never fed them here at all (claude-skills-175) — not a partial
+# mutation, the wiring was simply never written for that surface. Routing
+# every pass's detail-count accumulation through this one function turns
+# "a pass computed a count but never fed the ratchet" into a single,
+# reviewable call site instead of N independently-forgettable inline loops.
+# It narrows the mutation surface (no more two-statement loop body to
+# half-delete) but does not make a *whole-call* deletion self-test-visible —
+# see the claude-skills-151 PR body for why a full main-body integration
+# harness was weighed and not built this round.
+def accumulate-detail-counts [failing_counts: list, key_base: string, failed: list, detail_entries: list] {
+    mut fc = $failing_counts
+    for e in $detail_entries {
+        if $e.check in $failed {
+            $fc = ($fc | append {key: $"($key_base):($e.check)", count: $e.count})
+        }
+    }
+    $fc
+}
+
+# Feed whole findings (key AND count together) into both ratchet
+# accumulators in one call (claude-skills-151). Used by passes where every
+# finding IS a detail-producing check by construction (corpus-wide
+# duplicate-block groups, syntax-vs-usage vocabulary findings) — unlike
+# accumulate-detail-counts, there is no separate "all failing keys"
+# superset to reconcile against, so key and count travel together.
+def accumulate-findings [failing_keys: list, failing_counts: list, entries: list] {
+    mut fk = $failing_keys
+    mut fc = $failing_counts
+    for e in $entries {
+        $fk = ($fk | append $e.key)
+        $fc = ($fc | append {key: $e.key, count: $e.count})
+    }
+    {failing_keys: $fk, failing_counts: $fc}
+}
+
 # Burn-down split for the summary line: CHECK_DEFECT entries are defects in
 # the checks themselves (each entry's issue field names the tracker item),
 # not skill debt — they must be reported separately so their exclusion
@@ -828,6 +876,91 @@ def run-baseline-self-test [] {
 
     if not $failed {
         print $"(ansi green_bold)✅ Baseline schema/ratchet self-test passed \(18 cases\)(ansi reset)"
+    }
+    $failed
+}
+
+# Embedded self-test for the shared detail-count accumulators
+# (claude-skills-151, claude-skills-175): accumulate-detail-counts and
+# accumulate-findings. These are the single call sites every pass now routes
+# through instead of a hand-rolled loop; testing them directly proves the
+# accumulation VALUE is correct. It does not prove every pass in main still
+# CALLS them — that whole-call-site wiring gap is the recorded limitation of
+# this fix (see the accumulate-detail-counts doc comment and the PR body).
+# Case 6 goes one step further and chains accumulate-findings' own output
+# into ratchet-baseline, the closest a hermetic test gets to the real
+# pipeline shape without executing main.
+def run-accumulator-self-test [] {
+    mut failed = false
+
+    # Case 1: only checks present in `failed` contribute a count entry
+    let c1 = (accumulate-detail-counts [] "p/s" ["links"] [
+        {check: "links", count: 2}
+        {check: "fm_schema", count: 5}
+    ])
+    if $c1 != [{key: "p/s:links", count: 2}] {
+        print $"(ansi red_bold)❌ accumulator self-test: accumulate-detail-counts included a check absent from failed(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2: an empty `failed` list contributes nothing, regardless of the
+    # detail_entries offered — this is the exact shape claude-skills-175 hit
+    # (a check computed its count but the failing_counts append was simply
+    # never written for that pass).
+    let c2 = (accumulate-detail-counts [] "p/s" [] [{check: "links", count: 3}])
+    if ($c2 | is-not-empty) {
+        print $"(ansi red_bold)❌ accumulator self-test: accumulate-detail-counts fired with an empty failed list(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3: multiple detail_entries all present in `failed` all append,
+    # keyed off the given key_base, and prior failing_counts are preserved
+    let c3 = (accumulate-detail-counts [{key: "existing:check", count: 9}] "p/agents/a.md" ["links" "fm_schema"] [
+        {check: "links", count: 1}
+        {check: "fm_schema", count: 4}
+    ])
+    if ($c3 | length) != 3 or ({key: "p/agents/a.md:links", count: 1} not-in $c3) or ({key: "p/agents/a.md:fm_schema", count: 4} not-in $c3) or ({key: "existing:check", count: 9} not-in $c3) {
+        print $"(ansi red_bold)❌ accumulator self-test: accumulate-detail-counts multi-entry accumulation wrong \(($c3 | to json --raw)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4: accumulate-findings appends the SAME key to both failing_keys
+    # and failing_counts in lockstep — this is what Pass 3 (dupe) and Pass 4
+    # (vocab) now call instead of a two-statement inline loop.
+    let c4 = (accumulate-findings ["prior:key"] [{key: "prior:key", count: 1}] [
+        {key: "dupe/abc:duplicate_block", count: 3}
+    ])
+    if $c4.failing_keys != ["prior:key" "dupe/abc:duplicate_block"] or ($c4.failing_counts != [{key: "prior:key", count: 1} {key: "dupe/abc:duplicate_block", count: 3}]) {
+        print $"(ansi red_bold)❌ accumulator self-test: accumulate-findings did not append key and count together(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5: an empty entries list is a no-op — accumulators are additive,
+    # never destructive of what the caller already accumulated.
+    let c5 = (accumulate-findings ["x"] [{key: "x", count: 1}] [])
+    if $c5.failing_keys != ["x"] or $c5.failing_counts != [{key: "x", count: 1}] {
+        print $"(ansi red_bold)❌ accumulator self-test: accumulate-findings mutated on an empty entries list(ansi reset)"
+        $failed = true
+    }
+
+    # Case 6: chain accumulate-findings' own output into ratchet-baseline —
+    # a waived dupe group whose real window count GREW must still surface as
+    # a count_regression when accumulate-findings is the thing that produced
+    # failing_counts, not a hand-assembled fixture list (as case 13 in
+    # run-duplicate-self-test does). This is the closest a hermetic test
+    # gets to reproducing the actual claude-skills-151 defect shape without
+    # running main.
+    let key = "dupe/repro151:duplicate_block"
+    let baseline = [{key: $key, class: "DEBT", issue: "claude-skills-900", first_seen: "2026-07-26", detail_count: 1}]
+    let acc = (accumulate-findings [] [] [{key: $key, count: 4}])
+    let ratchet = (ratchet-baseline $baseline $acc.failing_keys $acc.failing_counts)
+    if ($ratchet.count_regressions | is-empty) or ($ratchet.count_regressions | first | get current) != 4 {
+        print $"(ansi red_bold)❌ accumulator self-test: accumulate-findings -> ratchet-baseline chain did not catch a grown waived group(ansi reset)"
+        $failed = true
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Accumulator self-test passed \(6 cases\)(ansi reset)"
     }
     $failed
 }
@@ -1269,9 +1402,35 @@ def dupe-key [file_set: list] {
 # this check exists to find. If the parse ever breaks it returns fewer
 # entries and exemption 3 stops firing, which surfaces LOUDLY as new hard
 # failures (and the self-test asserts the known shapes are present).
+# Lines between `const SATELLITES = [` and the matching top-level `]` in
+# validate-core-list.nu. Scoping to this block (claude-skills-151 follow-up)
+# matters because the unscoped form matched `path: "..."` ANYWHERE in the
+# file — a future test fixture or self-test case adding that literal
+# substring elsewhere would silently widen exemption 3 beyond the real
+# satellite list. Entries in SATELLITES are flat `{ path: ... anchor: ... }`
+# records with no nested `[`/`]`, so the first bare `]` after the opener is
+# always the block's own close.
+def satellites-block-lines [all_lines: list] {
+    let start_matches = ($all_lines | enumerate | where {|item| $item.item | str starts-with "const SATELLITES = ["})
+    if ($start_matches | is-empty) {
+        []
+    } else {
+        let start_idx = ($start_matches | first | get index)
+        let rest = ($all_lines | skip ($start_idx + 1))
+        let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "]"})
+        if ($end_matches | is-not-empty) {
+            let end_idx = ($end_matches | first | get index)
+            $rest | first $end_idx
+        } else {
+            []
+        }
+    }
+}
+
 def core-list-satellites [script_path: string] {
     let raw = (open --raw $script_path)
-    let sat = ($raw | parse --regex '(?m)path: "(?P<p>[^"]+)"' | get p)
+    let block = (satellites-block-lines ($raw | lines) | str join "\n")
+    let sat = ($block | parse --regex 'path: "(?P<p>[^"]+)"' | get p)
     let canonical = ($raw | parse --regex 'const CANONICAL_FILE = "(?P<p>[^"]+)"' | get p)
     $sat | append $canonical | uniq
 }
@@ -1463,11 +1622,45 @@ def run-duplicate-self-test [] {
 
     # Case 14: satellite derivation — the list parsed out of
     # test/validate-core-list.nu carries the canonical file and the known
-    # satellite shapes; if the parse silently broke, exemption 3 would too
+    # satellite shapes; if the parse silently broke, exemption 3 would too.
+    # Bounded to the real, measured count (8: the 8 SATELLITES entries,
+    # deduped against CANONICAL_FILE which repeats the first) rather than
+    # only a lower bound — a lower-bound-only assertion would not have
+    # caught the unscoped-regex bug this case's sibling (case 14b) exists
+    # to guard.
     let repo_root = (git rev-parse --show-toplevel | str trim)
     let derived = (core-list-satellites ($repo_root | path join "test" "validate-core-list.nu"))
-    if ("plugins/core/skills/agent-loop/SKILL.md" not-in $derived) or ("plugins/core/hooks/session-start.sh" not-in $derived) or (($derived | length) < 5) {
-        print $"(ansi red_bold)❌ duplicate self-test: satellite derivation from validate-core-list.nu broke \(got ($derived | length) entries\)(ansi reset)"
+    if ("plugins/core/skills/agent-loop/SKILL.md" not-in $derived) or ("plugins/core/hooks/session-start.sh" not-in $derived) or (($derived | length) != 8) {
+        print $"(ansi red_bold)❌ duplicate self-test: satellite derivation from validate-core-list.nu broke \(got ($derived | length) entries, want 8\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 14b (claude-skills-151 follow-up): a `path: "..."` line OUTSIDE
+    # the SATELLITES block — e.g. a future test fixture or self-test case in
+    # the same file — must not widen exemption 3. satellites-block-lines
+    # scopes the parse to between `const SATELLITES = [` and the matching
+    # `]`; a line before the opener and a line after the closer both carry
+    # the `path: "..."` substring and neither must appear in the result.
+    let scoped_fixture = [
+        "const OTHER = ["
+        '  { path: "before/the/block.md" }'
+        "]"
+        "const SATELLITES = ["
+        '  { path: "inside/the/block.md"'
+        "    anchor: \"x\" }"
+        "]"
+        "def some-later-fn [] {"
+        '  path: "after/the/block.md"'
+        "}"
+    ]
+    let scoped = (satellites-block-lines $scoped_fixture)
+    let scoped_paths = ($scoped | str join "\n" | parse --regex 'path: "(?P<p>[^"]+)"' | get p)
+    if ("before/the/block.md" in $scoped_paths) or ("after/the/block.md" in $scoped_paths) {
+        print $"(ansi red_bold)❌ duplicate self-test: satellites-block-lines leaked a path outside the SATELLITES block \(got ($scoped_paths | str join ', ')\)(ansi reset)"
+        $failed = true
+    }
+    if ("inside/the/block.md" not-in $scoped_paths) {
+        print $"(ansi red_bold)❌ duplicate self-test: satellites-block-lines dropped a genuine in-block path(ansi reset)"
         $failed = true
     }
 
@@ -1505,7 +1698,7 @@ def run-duplicate-self-test [] {
     }
 
     if not $failed {
-        print $"(ansi green_bold)✅ Duplicate-block self-test passed \(15 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Duplicate-block self-test passed \(16 cases\)(ansi reset)"
     }
     $failed
 }
@@ -2038,7 +2231,8 @@ def main [--update-baseline, --self-test] {
         let pass2_links_failed = (run-pass2-links-self-test)
         let orphans_failed = (run-orphans-self-test)
         let fm_schema_failed = (run-frontmatter-schema-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $fm_schema_failed { exit 1 }
+        let accumulator_failed = (run-accumulator-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $fm_schema_failed or $accumulator_failed { exit 1 }
         exit 0
     }
 
@@ -2337,7 +2531,7 @@ def main [--update-baseline, --self-test] {
 
             # Per-finding counts for the detail_count ratchet: a waiver covers
             # the recorded count, not further growth of the same check.
-            for c in [
+            $failing_counts = (accumulate-detail-counts $failing_counts $"($plugin_name)/($dir_name)" $failed [
                 {check: "lines", count: $line_count}
                 {check: "links", count: ($broken_links | length)}
                 {check: "orphans", count: ($orphans | length)}
@@ -2345,11 +2539,7 @@ def main [--update-baseline, --self-test] {
                 {check: "version_pin", count: ($stale_pins | length)}
                 {check: "ref_depth", count: ($nested | length)}
                 {check: "fm_schema", count: ($fm_unknown | length)}
-            ] {
-                if $c.check in $failed {
-                    $failing_counts = ($failing_counts | append {key: $"($plugin_name)/($dir_name):($c.check)", count: $c.count})
-                }
-            }
+            ])
 
             let check_count = 17
             let score = $check_count - ($failed | length)
@@ -2387,12 +2577,15 @@ def main [--update-baseline, --self-test] {
     # the citing FILE, not a bare plugin-level bucket, so a failure is always
     # reportable down to one file even though most of these files have no
     # owning skill.
-    # NOTE: Pass-2 checks with countable findings (bad_invocations, the
-    # skills: frontmatter checks, links) are NOT wired into the detail_count
-    # ratchet. No Pass-2 waivers exist today, so the hard-failure path guards
-    # them — if a Pass-2 waiver is ever added, give its check the same
-    # DETAIL_CHECKS + failing_counts treatment the per-skill checks got, or
-    # one waiver will absorb every later finding of that check on that file.
+    # NOTE (claude-skills-175, fixed): Pass-2's two DETAIL_CHECKS-listed
+    # checks — links and fm_schema — are now wired into the detail_count
+    # ratchet via accumulate-detail-counts, same as the per-skill checks in
+    # Pass 1. bad_invocations and the skills: frontmatter checks are boolean
+    # (not in DETAIL_CHECKS) and correctly carry no count. Previously a
+    # Pass-2 waiver on links/fm_schema would have absorbed unlimited later
+    # growth of that finding on the same file — the corpus had zero such
+    # waivers when the gap was found, so nothing was masked in practice, but
+    # the hole was live the moment one was added.
     let known_models = ["haiku" "sonnet" "opus"]
     let known_hook_events = ["PreToolUse" "PostToolUse" "SessionStart" "SessionEnd" "UserPromptSubmit" "Stop" "SubagentStop" "PreCompact" "Notification"]
     mut surface_results = []
@@ -2480,6 +2673,15 @@ def main [--update-baseline, --self-test] {
             if ($failed | is-not-empty) {
                 let key_base = $"($plugin_name)/agents/($f | path basename)"
                 $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
+                # Detail-count ratchet wiring for the two detail-producing
+                # checks this loop computes (claude-skills-175): links and
+                # fm_schema previously had no failing_counts entry at all, so
+                # a waiver on either absorbed unlimited later growth on the
+                # same file. See accumulate-detail-counts above.
+                $failing_counts = (accumulate-detail-counts $failing_counts $key_base $failed [
+                    {check: "links", count: ($agent_broken_links | length)}
+                    {check: "fm_schema", count: ($agent_fm_unknown | length)}
+                ])
                 $surface_results = ($surface_results | append {
                     plugin: $plugin_name, kind: "agent", file: ($f | path basename), failed: ($failed | str join " ")
                     details: ($bad_invocations | append $skills_check.bad_tokens | append $agent_broken_links | append ($agent_fm_unknown | each {|k| $"frontmatter:($k)"}) | str join " ")
@@ -2534,6 +2736,12 @@ def main [--update-baseline, --self-test] {
             if ($failed | is-not-empty) {
                 let key_base = $"($plugin_name)/commands/($f | path basename)"
                 $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
+                # See the agent loop above (claude-skills-175): same two
+                # detail-producing checks, same missing wiring.
+                $failing_counts = (accumulate-detail-counts $failing_counts $key_base $failed [
+                    {check: "links", count: ($cmd_broken_links | length)}
+                    {check: "fm_schema", count: ($cmd_fm_unknown | length)}
+                ])
                 $surface_results = ($surface_results | append {
                     plugin: $plugin_name, kind: "command", file: ($f | path basename), failed: ($failed | str join " ")
                     details: ($bad_invocations | append $cmd_broken_links | append ($cmd_fm_unknown | each {|k| $"frontmatter:($k)"}) | str join " ")
@@ -2590,10 +2798,14 @@ def main [--update-baseline, --self-test] {
         | where {|g| not (dupe-exempt $g.files $satellites)}
         | each {|g| $g | insert key (dupe-key $g.files)}
         | sort-by key)
-    for g in $dupe_groups {
-        $failing_keys = ($failing_keys | append $g.key)
-        $failing_counts = ($failing_counts | append {key: $g.key, count: $g.windows})
-    }
+    # claude-skills-151: routed through accumulate-findings rather than a
+    # hand-rolled two-statement loop — the exact shape whose count-append
+    # statement was found deletable while the key-append survived, leaving
+    # every self-test (which only exercises find-duplicate-groups/
+    # dupe-exempt/ratchet-baseline directly, never this loop) green.
+    let dupe_acc = (accumulate-findings $failing_keys $failing_counts ($dupe_groups | each {|g| {key: $g.key, count: $g.windows}}))
+    $failing_keys = $dupe_acc.failing_keys
+    $failing_counts = $dupe_acc.failing_counts
 
     # Pass 4: syntax-vs-usage vocabulary cross-check (claude-skills-141).
     # For each format this repo both documents and contains, compare the
@@ -2650,8 +2862,12 @@ def main [--update-baseline, --self-test] {
             $vocab_doc_empty = ($vocab_doc_empty | append $vf.format)
         } else if $res.status == "fires" {
             let key = $"syntax/($vf.format):vocab_disjoint"
-            $failing_keys = ($failing_keys | append $key)
-            $failing_counts = ($failing_counts | append {key: $key, count: ($res.disjoint | length)})
+            # claude-skills-151: same shared accumulator as Pass 3, for the
+            # same consistency reason — one call site per pass, not a
+            # hand-rolled pair of appends.
+            let vocab_acc = (accumulate-findings $failing_keys $failing_counts [{key: $key, count: ($res.disjoint | length)}])
+            $failing_keys = $vocab_acc.failing_keys
+            $failing_counts = $vocab_acc.failing_counts
             $vocab_findings = ($vocab_findings | append {
                 format: $vf.format, key: $key, doc: $vf.doc, real: $vf.real
             })
