@@ -35,7 +35,7 @@ Typical names: `claude-code-kata`, `claude-code-gvisor`, `claude-code-kina`.
 ### 3. Render the claim
 
 ```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/render-claim.nu \
+nu <CLAUDE_PLUGIN_ROOT>/scripts/render-claim.nu \
   --session-id $SESSION_ID \
   --template $TEMPLATE_NAME \
   ${SHUTDOWN_TIME:+--shutdown-time $SHUTDOWN_TIME} \
@@ -47,7 +47,7 @@ The script reads `templates/SandboxClaim.session.yaml`, substitutes placeholders
 ### 4. Wait for Bound
 
 ```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/wait-bound.nu --session-id $SESSION_ID --timeout 120
+nu <CLAUDE_PLUGIN_ROOT>/scripts/wait-bound.nu --session-id $SESSION_ID --timeout 120
 ```
 
 The script polls `kubectl get sandboxclaim` every 2 seconds until `status.phase == Bound` or the timeout elapses. Reports the bound pod name on success; reports controller log excerpts on timeout.

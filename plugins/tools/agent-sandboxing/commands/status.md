@@ -16,7 +16,7 @@ Show the live state of all SandboxClaims for at-a-glance triage.
 ### 1. Render the table
 
 ```bash
-nu ${CLAUDE_PLUGIN_ROOT}/scripts/list-claims.nu ${NAMESPACE:+--namespace $NAMESPACE}
+nu <CLAUDE_PLUGIN_ROOT>/scripts/list-claims.nu ${NAMESPACE:+--namespace $NAMESPACE}
 ```
 
 The script wraps `kubectl get sandboxclaim -o json`, extracts session id, phase, template ref, bound pod, age, and shutdown policy, and emits a nushell table.
@@ -43,7 +43,7 @@ Surface the actual condition text, not a guess.
 If `--watch` was passed:
 
 ```bash
-watch -n 2 "nu ${CLAUDE_PLUGIN_ROOT}/scripts/list-claims.nu"
+watch -n 2 "nu <CLAUDE_PLUGIN_ROOT>/scripts/list-claims.nu"
 ```
 
 Or with kubectl directly:

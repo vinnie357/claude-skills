@@ -87,7 +87,7 @@ Pick the template matching the substrate:
 Override the placeholder image:
 
 ```bash
-TEMPLATE=${CLAUDE_PLUGIN_ROOT}/templates/SandboxTemplate.kata.yaml
+TEMPLATE=<CLAUDE_PLUGIN_ROOT>/templates/SandboxTemplate.kata.yaml
 REGISTRY=${REGISTRY:-ghcr.io/$USER}
 TAG=${TAG:-latest}
 sed -e "s|REGISTRY/claude-code:TAG|${REGISTRY}/claude-code:${TAG}|" $TEMPLATE | kubectl apply -f -
