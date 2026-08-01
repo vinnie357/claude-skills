@@ -1971,6 +1971,66 @@ update_priority = "medium"
             md: "demo-source is documented here"
             want: ["b3_version_shape"]
         }
+        {
+            # Mirrors "entry last_checked as a list must report, not crash =~
+            # (claude-skills-185 rd2)" above: scalar-str returns null for a
+            # list<string> (not in its coercible-type set), which routes
+            # through the genuine `$cv == null` wrong-type branch rather than
+            # the shape-regex branch.
+            label: "current_version as a list must report, not crash =~ (claude-skills-189 wrong-type guard)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = ["1.0"]
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            # Mirrors "A-F4.3: TOML-native unquoted date must not crash =~"
+            # above. Looks like a plausible authoring mistake (someone typing
+            # a bare date meaning a version). Unlike the list case, `datetime`
+            # IS in scalar-str's coercible set, so this does NOT hit the
+            # `$cv == null` branch — it coerces to a string like
+            # "Thu Jan  1 00:00:00 2026" and then fails the shape regex,
+            # landing in the second (shape-mismatch) branch. Pinned anyway
+            # because it is the sneakier of the two non-scalar shapes: it
+            # reads as ordinary input, not an obvious wrong type.
+            label: "current_version = unquoted TOML date must not crash — parses as datetime, not a version string (claude-skills-189 wrong-type guard)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = 2026-01-01
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
     ]
 
     mut failed = false
