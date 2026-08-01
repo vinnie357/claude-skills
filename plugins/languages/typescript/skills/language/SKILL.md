@@ -44,12 +44,12 @@ Activate when:
 | `alwaysStrict` | Every emitted file is parsed as, and emits, ECMAScript strict mode |
 | `useUnknownInCatchVariables` | `catch (e)` types `e` as `unknown`, not `any` — forces a type check before use |
 
-Two flags `strict` does **not** enable — turn them on explicitly when the codebase can bear the churn:
+Two flags `strict` does **not** enable — they are separate opt-ins the `strict` family does not imply, though a current `tsc --init` now writes both into a fresh project's generated `tsconfig.json` alongside `strict: true` (listed under its own "Stricter Typechecking Options" heading, not inside the `strict` block itself):
 
 - `exactOptionalPropertyTypes` — an optional property (`foo?: string`) rejects an explicit `undefined` assignment unless the type says `foo?: string | undefined`. Catches call sites that "clear" a field by writing `undefined` when the schema meant "omit it."
 - `noUncheckedIndexedAccess` — indexing into a `Record<string, T>` or array by a computed key returns `T | undefined` instead of `T`, since JavaScript doesn't guarantee the key exists.
 
-Both close real holes; both also touch a large fraction of existing index/optional-property call sites when retrofitted onto an established codebase. Turn them on for new projects by default; treat enabling them on an existing one as its own reviewed change, not a drive-by.
+Both close real holes; both also touch a large fraction of existing index/optional-property call sites when retrofitted onto an established codebase. For a **new** project, accept them as part of the scaffolded default rather than deleting them — that's what `tsc --init` on a current release now hands you. For an **existing** codebase without them, treat enabling them as its own reviewed migration, not a drive-by addition alongside an unrelated change.
 
 ## The Type System
 

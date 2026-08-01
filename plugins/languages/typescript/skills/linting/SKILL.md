@@ -33,7 +33,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  js.recommended,
+  js.configs.recommended,
   ...tseslint.configs.strict,
   ...tseslint.configs.stylistic,
   {
@@ -43,6 +43,8 @@ export default tseslint.config(
   },
 );
 ```
+
+`@eslint/js` exports `{ meta, configs }` — `js.configs.recommended`, not `js.recommended` or `js.default`. Running `js.recommended` directly fails at config-load time (`Unexpected undefined config`) since it resolves to `undefined`.
 
 ### Preset selection
 

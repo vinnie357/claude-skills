@@ -34,10 +34,10 @@ If a single application ends up loading the package through **both** paths — o
 Mitigations, roughly in order of preference:
 
 1. **Keep the package stateless at the module level.** No top-level singletons, no module-level mutable caches. If there's no shared state to duplicate, dual instantiation is harmless.
-2. **Make the CJS entry point a thin wrapper that re-exports the ESM implementation**, so there's only one real implementation and one place state can live — common in packages that publish CJS purely for backward compatibility with older Node consumers.
+2. **Make the ESM entry point a thin wrapper that re-exports the CJS implementation** — the direction Node's own dual CJS/ESM package guidance uses, and for a structural reason, not just convention: an ESM module can cleanly `import` a CommonJS module (Node's CJS-in-ESM interop is old and universally supported), but the reverse — a CommonJS module synchronously `require()`-ing an ESM module — only works at all on Node ≥22.12, and even then fails with `ERR_REQUIRE_ASYNC_MODULE` if the target ESM module uses top-level await. Keeping the real implementation as CJS and the ESM file as the wrapper avoids depending on that narrower, version-gated, TLA-sensitive path. Verified directly against Node v24.18.0: the ESM-wraps-CJS direction works with no top-level await required in the wrapper.
 3. **Publish ESM-only** where the audience can bear it (a library targeting only current Node/bundler consumers) — no dual entry, no hazard, at the cost of dropping older CJS-only consumers.
 
-This is the concrete, load-bearing reason the Node module skill in this plugin defaults new projects to `"type": "module"` rather than shipping dual CJS/ESM by default: dual publishing solves a real compatibility problem but introduces this hazard as its cost, so it should be a deliberate choice for a library maintaining broad compatibility, not the default for an application.
+This is the concrete, load-bearing reason the Node module skill in this plugin defaults new projects to `"type": "module"` rather than shipping dual CJS/ESM by default: dual publishing solves a real compatibility problem but introduces this hazard as its cost, so it should be a deliberate choice for a library maintaining broad compatibility, not the default for an application. When that choice is made, keep the CJS file as the canonical implementation and the ESM file as the wrapper, not the other way around.
 
 ## Subpath Imports (`#internal/*`)
 

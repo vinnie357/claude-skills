@@ -142,7 +142,7 @@ Default new projects to `"type": "module"` — ESM is where the Node and browser
 }
 ```
 
-Conditions are evaluated most-specific-first (`node-addons` → `node` → `import`/`require` → `default`); always include a `"default"` fallback last. Keep a top-level `"main"` pointing at the CJS build alongside `"exports"` only for consumers on Node versions old enough not to read `exports` — new projects that don't need that floor can rely on `exports` alone.
+Node evaluates conditions in the **order they're written in the object** — first matching key wins, not some engine-enforced specificity ranking. Author them most-specific-first (`node-addons`, then `node`, then `import`/`require`, then `default` last) as a matter of convention, because listing a broader condition earlier would shadow every narrower one written after it and it would never be reached. `"default"` always goes last for the same reason: it matches everything, so anything after it is dead. Keep a top-level `"main"` pointing at the CJS build alongside `"exports"` only for consumers on Node versions old enough not to read `exports` — new projects that don't need that floor can rely on `exports` alone.
 
 ## Package Managers
 

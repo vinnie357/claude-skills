@@ -16,14 +16,14 @@ skills = ["language"]
 name = "typescript"
 url = "https://www.typescriptlang.org/docs/handbook/"
 releases_url = "https://github.com/microsoft/TypeScript/releases"
-check_method = "github-releases"
+check_method = "manual"
 github_repo = "microsoft/TypeScript"
 current_version = "7.0.2"
 version_constraint = "semver"
 last_checked = "2026-08-01"
 update_priority = "high"
 breaking_changes_likely = true
-notes = "current_version 7.0.2 is the npm registry 'latest' dist-tag (registry.npmjs.org/typescript/latest, checked live 2026-08-01). Two other live checks the same day disagreed: the typescriptlang.org/docs/handbook/release-notes/typescript-5-9.html page describes a 5.9 release dated 2026-07-27, and github.com/microsoft/TypeScript/releases showed 6.0.3 as its top entry — GitHub's releases page returned partial-render errors on fetch, so that number may be stale/incomplete rather than authoritative. Skill content (generics, conditional types, mapped types, utility types, strict flags, modules) is grounded in the stable Handbook feature set that has not changed across these point releases, not in any single version's changelog — re-verify before adding a claim specific to TypeScript 6 or 7 (e.g. the native/Go compiler port) that this skill does not currently make."
+notes = "current_version 7.0.2 is the npm registry 'latest' dist-tag (registry.npmjs.org/typescript/latest, published 2026-07-08, checked live 2026-08-01). check_method is deliberately 'manual' rather than 'github-releases' despite github_repo being known: github.com/microsoft/TypeScript/releases tops out at 6.0.3, four months stale relative to the npm dist-tag, so an automated github-releases check against this repo would permanently report 'latest older than current' and be wrong every time — the npm registry is the correct authority for this package, GitHub's release feed is not kept current for it. A third live source, typescriptlang.org/docs/handbook/release-notes/typescript-5-9.html, describes an even older 5.9 release dated 2026-07-27; also superseded by 7.0.2. Skill content (generics, conditional types, mapped types, utility types, strict flags, modules) is grounded in the stable Handbook feature set that has not changed across these point releases, not in any single version's changelog — re-verify before adding a claim specific to TypeScript 6 or 7 (e.g. the native/Go compiler port) that this skill does not currently make."
 
 # ----------------------------------------------------------------------------
 # Vitest — testing skill's primary unit-test runner section.

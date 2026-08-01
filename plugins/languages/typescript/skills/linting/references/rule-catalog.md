@@ -76,4 +76,21 @@ Autofixable — safe to run with `eslint --fix` as part of a pre-commit hook or 
 
 ## Applying These Deliberately
 
-These four rules require the type-aware parser configuration (`parserOptions.project` / `projectService`) described in the main skill body — they inspect actual inferred types, not just syntax, so they only run correctly once ESLint has a `tsconfig.json` to type-check against. Enable them as part of `strictTypeChecked` rather than one at a time; the preset already bundles them with the parser wiring documented above.
+These four rules split into two groups, and conflating them means either configuring type-aware parsing a rule doesn't need, or assuming a preset enables a rule it doesn't:
+
+- **`no-floating-promises` and `no-misused-promises` are type-aware** (`requiresTypeChecking: true`) — they inspect actual inferred types (is this expression's type a `Promise`?), not just syntax, so they only run correctly once ESLint has the type-aware parser configuration (`parserOptions.project` / `projectService`) described in the main skill body. Both are included in `strictTypeChecked`.
+- **`no-explicit-any` is syntax-only** (`requiresTypeChecking: false`) — it flags the literal `any` token in an annotation, no type inference required. It runs under plain `recommended`/`strict`, with no `parserOptions.project` wiring needed.
+- **`consistent-type-imports` is also syntax-only, and is in no preset at all** — not `recommended`, not `strict`, not `stylistic`, and not any of the `*TypeChecked` variants. Adding `strictTypeChecked` does **not** turn it on; it must be enabled explicitly:
+
+```javascript
+export default tseslint.config(
+  ...tseslint.configs.strict,
+  {
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "error",
+    },
+  },
+);
+```
+
+Verify a rule's `requiresTypeChecking` value and preset membership against the installed `typescript-eslint` package's own metadata before assuming either — preset composition changes across releases more often than rule behavior does.
