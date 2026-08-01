@@ -197,7 +197,7 @@
       "source": "./plugins/languages/elixir",
       "strict": true,
       "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style, and anti-patterns",
-      "version": "0.1.20",
+      "version": "0.1.21",
       "category": "language",
       "keywords": [
         "elixir",

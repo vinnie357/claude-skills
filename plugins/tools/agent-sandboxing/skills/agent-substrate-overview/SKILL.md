@@ -62,7 +62,7 @@ Substrate's `demos/claude-code-multiplex/` ships a working example:
 
 ## Example: WorkerPool + ActorTemplate field semantics
 
-Trimmed from `demos/claude-code-multiplex/claude-code-multiplex.yaml.tmpl` upstream (Apache-2.0) — the `WorkerPool` plus one of its three `ActorTemplate`s (`mars` and `orion` are structurally identical to `luna`, differing only in `metadata.name` and the `TASK` env value):
+Trimmed from `demos/claude-code-multiplex/claude-code-multiplex.yaml.tmpl` upstream (Apache-2.0) — the `WorkerPool` plus one of its three `ActorTemplate`s (`mars` and `orion` are structurally identical to `luna`, differing only in `metadata.name` and the `ACTOR_NAME`/`TASK` env values):
 
 ```yaml
 # 2 worker replicas for 3 actors — the multiplex pressure that makes the
@@ -111,7 +111,7 @@ Field semantics not obvious from the names alone:
 
 - `WorkerPool.spec.replicas` — pod count, independent of how many `ActorTemplate`s target it. Here, 2 pods host 3 actors, so Substrate must suspend at least one actor at any moment.
 - `WorkerPool.spec.ateomImage` — the `ateom-gvisor` interior helper image each pod runs to perform checkpoint/restore; not the workload image itself.
-- `ActorTemplate.spec.workerSelector.matchLabels` — how an `ActorTemplate` claims a `WorkerPool`: it must match the pool's `metadata.labels`, the same label-selector idiom as a Kubernetes Service.
+- `ActorTemplate.spec.workerSelector.matchLabels` — restricts which `WorkerPool`s this template's actors may schedule onto, by matching pool `metadata.labels`. Typed `*metav1.LabelSelector` (the Deployment/NetworkPolicy idiom, not a Service's bare `spec.selector` map) and optional — upstream docs it as a gate: "if nil, all pools are eligible," and it can only narrow the eligible set, never expand it.
 - `ActorTemplate.spec.snapshotsConfig.location` — where suspended-actor state is persisted (an object-storage URI here) so a later resume can restore it, potentially onto a different pod.
 - `ActorTemplate.spec.pauseImage` — the sandbox/pause container each actor's pod slot boots from; unrelated to the workload container image.
 
