@@ -2309,6 +2309,125 @@ update_priority = "medium"
             md: "demo-source is documented here"
             want: ["b3_version_shape"]
         }
+        # ---- date-family false positives — PR #188 Gate 3 finding ----
+        # gh pr view 188 --json comments (comment id 5151684337): the D1b
+        # suffix widening ([-+][0-9A-Za-z.]+ -> [-+][0-9A-Za-z.-]+) also
+        # admits a QUOTED bare calendar date — a plausible authoring mistake,
+        # not a constructed one, since last_checked sits two lines away in
+        # every entry and takes exactly this YYYY-MM-DD shape. This is
+        # distinct from "current_version = unquoted TOML date" above: that
+        # case is an unquoted TOML date literal caught by the raw-type check
+        # ahead of the regex; these are ordinary quoted strings that must be
+        # rejected by VERSION_SHAPE_RE itself. SEMVER_RE also rejects every
+        # string below (no three-dot-group), so "we already agree with
+        # SEMVER_RE" does not cover this family either. Measured against
+        # this file's current VERSION_SHAPE_RE: all four match (false
+        # positive) — confirmed with `=~` directly, not inferred.
+        {
+            label: "current_version = 2024-01-01 (quoted ISO calendar date — plausible authoring mistake, PR #188 Gate 3)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "2024-01-01"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = 2026-07-30 (quoted ISO calendar date matching last_checked's own format — plausible authoring mistake, PR #188 Gate 3)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "2026-07-30"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            # Non-ISO date order (US-style MM-DD-YYYY). Pins that the block
+            # is a general "digit run + hyphenated numeric suffix" shape, not
+            # an ISO-specific patch keyed on a 4-digit leading year — a
+            # narrower fix would leave this order still leaking.
+            label: "current_version = 10-11-2025 (non-ISO date order — confirms the block is shape-based, not ISO-specific)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "10-11-2025"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            # Distinguishes the chosen fix (require a dot-group present
+            # before a hyphenated suffix is legal) from a REJECTED
+            # alternative: "require a letter somewhere in the suffix" was
+            # considered and discarded specifically because this string
+            # still slips through it — "flowers" is alphabetic, so a
+            # letter-in-suffix rule would accept "1-800-flowers" even though
+            # it is not a version at all. Pinning this locks in WHY that
+            # alternative was insufficient, not merely that dates are
+            # blocked.
+            label: "current_version = 1-800-flowers (hyphenated non-date junk — rules out the 'require a letter in suffix' alternative)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1-800-flowers"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
     ]
 
     # ---- claude-skills-198 / D4(b) — b6_template_drift: NOT covered by a
