@@ -76,6 +76,28 @@ Complete JSON schema for Claude Code plugin marketplaces.
 }
 ```
 
+### Git Subdirectory (Object)
+```json
+"source": {
+  "source": "git-subdir",
+  "url": "https://github.com/acme-corp/monorepo.git",
+  "path": "plugins/formatter"
+}
+```
+Sparse-clones just the subdirectory — use for a plugin that lives inside a monorepo.
+
+### npm Package (Object)
+```json
+"source": {
+  "source": "npm",
+  "package": "@acme/claude-plugin",
+  "version": "2.1.0"
+}
+```
+Installed via `npm install`. Not supported for marketplaces distributed through Organization settings (Team/Enterprise plans) — those accept `github`, `url`, and `git-subdir` only.
+
+Valid `source` values for the object form: `github`, `url`, `git-subdir`, `npm`.
+
 ## Field Validation Rules
 
 ### name
@@ -198,7 +220,8 @@ Complete JSON schema for Claude Code plugin marketplaces.
 - [ ] `plugins` is an array (can be empty)
 - [ ] Each plugin entry has `name` and `source`
 - [ ] Versions use semantic versioning (if specified)
-- [ ] Source paths exist (for relative paths)
+- [ ] Source paths exist and resolve to a directory (for relative paths)
+- [ ] Relative source paths don't contain `..` (must stay inside the marketplace root)
 - [ ] No circular dependencies
 - [ ] All dependency references exist in marketplace
 - [ ] `${CLAUDE_PLUGIN_ROOT}` used correctly in paths
