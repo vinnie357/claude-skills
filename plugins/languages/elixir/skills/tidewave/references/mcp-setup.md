@@ -96,6 +96,16 @@ Config file (global `~/.config/opencode/opencode.json` or project
 }
 ```
 
+## Other Editors
+
+For MCP-compatible editors without Tidewave-specific docs upstream, point to the same HTTP endpoint. **Unverified against current upstream** — carried over from an older reference, not re-checked against today's Tidewave docs; confirm the config key before relying on it.
+
+| Editor | Config File | URL Key |
+|--------|-------------|---------|
+| Cursor | `.cursor/mcp.json` | `mcpServers.tidewave.url` |
+| VS Code | `.vscode/mcp.json` | `servers.tidewave.url` |
+| Zed | Zed `settings.json` | `context_servers.tidewave.settings.url` |
+
 ## Verification (all editors)
 
 Raw MCP ping — answers `200 OK` with a JSON-RPC result when Tidewave is

@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.102",
+      "version": "0.4.103",
       "category": "meta",
       "keywords": [
         "skills",
@@ -197,7 +197,7 @@
       "source": "./plugins/languages/elixir",
       "strict": true,
       "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style, and anti-patterns",
-      "version": "0.1.21",
+      "version": "0.1.22",
       "category": "language",
       "keywords": [
         "elixir",
@@ -215,7 +215,7 @@
       "source": "./plugins/tools/github",
       "strict": true,
       "description": "GitHub Actions, Workflows, act local testing, community health files, Dependabot consolidation, and PR review",
-      "version": "0.3.10",
+      "version": "0.3.11",
       "category": "tools",
       "keywords": [
         "github",
