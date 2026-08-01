@@ -113,6 +113,14 @@ const CANONICAL_FILE = "plugins/core/skills/agent-loop/SKILL.md"
 const CANONICAL_HEADING = "## Core Skills (Mandatory)"
 const EXPECTED_COUNT = 10
 
+# Per SKILL.md's "Core Skills (Mandatory)" section, /core:anti-fabrication is
+# never omissible — every tier reports, and a fabricated pass is worse than a
+# red build. A subset satellite's `expected` declaration is checked against
+# this list independently of the file's actual content: dropping the name
+# from BOTH the file's load list AND its `expected` array at once would
+# otherwise pass, because the two would still agree with each other.
+const NEVER_OMISSIBLE = [/core:anti-fabrication]
+
 # One definition of each name shape, shared by the canonical extractor and
 # the grammar. Keeping these separate previously let them disagree on case
 # and digits, so a name like /core:s3-tools parsed in a satellite but was
@@ -208,18 +216,14 @@ def main [--self-test] {
     let pointer = ($satellite | get -o pointer | default "")
     let expected = ($satellite | get -o expected | default [])
 
-    # A subset satellite's own `expected` list is validated against the
-    # canonical set before it is used as a comparison target — a typo'd or
-    # renamed name inside `expected` is a finding for THIS satellite, not a
-    # reason to abort the whole run: aborting here would hide every other
-    # satellite's real drift behind one bad SATELLITES entry (claude-skills-152
-    # review finding — an early `exit 1` on this check masked a genuine
-    # anchor failure planted in a different file in the same run).
-    let unknown_expected = ($expected | where { |name| $name not-in $canonical_names })
-    if ($unknown_expected | is-not-empty) {
+    # A subset satellite's own `expected` list is validated before it is used
+    # as a comparison target — see expected-preflight-errors for what this
+    # catches and why aborting on it would be wrong.
+    let pre_errors = (expected-preflight-errors $expected $canonical_names)
+    if ($pre_errors | is-not-empty) {
       $failures = ($failures | append {
         file: $satellite.path
-        errors: [$"expected subset name\(s\) not in the canonical list — ($unknown_expected | str join ', ')"]
+        errors: $pre_errors
         missing: []
         extra: []
         lists: []
@@ -316,6 +320,40 @@ def extract-canonical-names [file: string] {
   }
 
   $names
+}
+
+# Validate a satellite's declared `expected` subset itself, independent of
+# what the file's actual load list says. An empty `expected` (the non-subset
+# shape) always passes. Returns a list of error strings, empty when clean.
+#
+#   - unknown: a typo'd or renamed name inside `expected` that is not even a
+#     canonical name.
+#   - missing NEVER_OMISSIBLE: `expected` dropping a name from
+#     NEVER_OMISSIBLE. Without this, deleting /core:anti-fabrication from
+#     BOTH a satellite's load list AND its `expected` declaration at once
+#     passes — the two still agree with each other, so the ordinary
+#     missing/extra comparison in check-satellite never fires
+#     (claude-skills-152 Gate 3 finding).
+#
+# Findings here are reported per-satellite by the caller, not a reason to
+# abort the whole run — aborting would hide every other satellite's real
+# drift behind one bad SATELLITES entry (claude-skills-152 review finding —
+# an early `exit 1` on this check masked a genuine anchor failure planted in
+# a different file in the same run).
+def expected-preflight-errors [expected: list<string>, canonical: list<string>] {
+  if ($expected | is-empty) { return [] }
+
+  let unknown = ($expected | where { |name| $name not-in $canonical })
+  let missing_never_omissible = ($NEVER_OMISSIBLE | where { |name| $name not-in $expected })
+
+  ([]
+    | append (if ($unknown | is-empty) { [] } else {
+        [$"expected subset name\(s\) not in the canonical list — ($unknown | str join ', ')"]
+      })
+    | append (if ($missing_never_omissible | is-empty) { [] } else {
+        [$"expected subset drops never-omissible name\(s\) — ($missing_never_omissible | str join ', ')"]
+      })
+    | flatten)
 }
 
 # Validate one satellite's content: anchor uniqueness, run (or pointer)
@@ -919,6 +957,44 @@ def self-test [] {
     }
   }
 
+  # Expected-preflight fixtures: a subset satellite's `expected` declaration
+  # is validated independently of what the file's load list actually says.
+  let ef_canonical = [/core:anti-fabrication /core:aa /core:bb]
+
+  let expected_preflight_cases = [
+    {
+      name: "expected_preflight_clean_subset_passes"
+      why: "a well-formed subset (real canonical names, keeps the never-omissible one) has no findings"
+      expected: [/core:anti-fabrication /core:aa]
+      expect: []
+    }
+    {
+      name: "expected_preflight_unknown_name_reported"
+      why: "a typo'd or renamed name inside `expected` is not even a canonical name"
+      expected: [/core:anti-fabrication /core:zz]
+      expect: ["expected subset name(s) not in the canonical list — /core:zz"]
+    }
+    {
+      name: "expected_preflight_drops_never_omissible_reported"
+      why: "claude-skills-152 Gate 3 finding: deleting /core:anti-fabrication from BOTH a satellite's load list AND its `expected` declaration at once must not silently agree with itself"
+      expected: [/core:aa /core:bb]
+      expect: ["expected subset drops never-omissible name(s) — /core:anti-fabrication"]
+    }
+    {
+      name: "expected_preflight_empty_expected_passes"
+      why: "an empty `expected` (the non-subset shape) is not a subset satellite at all — nothing to check"
+      expected: []
+      expect: []
+    }
+  ]
+
+  for c in $expected_preflight_cases {
+    let got = (expected-preflight-errors $c.expected $ef_canonical)
+    if $got != $c.expect {
+      $failures = ($failures | append $"($c.name): expected ($c.expect | to nuon), got ($got | to nuon)")
+    }
+  }
+
   # Sweep-measure fixtures: union overlap per FILE, not per run.
   let sweep_cases = [
     {
@@ -942,7 +1018,7 @@ def self-test [] {
     }
   }
 
-  let total = (($cases | length) + ($satellite_cases | length) + ($fence_cases | length) + ($sweep_cases | length))
+  let total = (($cases | length) + ($satellite_cases | length) + ($fence_cases | length) + ($expected_preflight_cases | length) + ($sweep_cases | length))
 
   if ($failures | is-not-empty) {
     print $"(ansi red_bold)❌ Core-list self-test failed:(ansi reset)"
