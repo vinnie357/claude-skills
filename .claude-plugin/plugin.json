@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.97",
+  "version": "0.4.98",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -110,6 +110,10 @@
     "./plugins/tools/slidev/skills/interactive",
     "./plugins/tools/tweag/skills/topiary",
     "./plugins/tools/tweag/skills/nickel",
+    "./plugins/languages/typescript/skills/language",
+    "./plugins/languages/typescript/skills/testing",
+    "./plugins/languages/typescript/skills/linting",
+    "./plugins/languages/typescript/skills/node",
     "./plugins/ui/skills/daisyui",
     "./plugins/wasm/skills/wasmtime",
     "./plugins/wasm/skills/wit",
