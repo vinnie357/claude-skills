@@ -4,8 +4,13 @@
 # Suitable for pasting into a GitHub issue body
 #
 # Usage: nu sources-report.nu [--plugin <name>]
+#        nu sources-report.nu --self-test
 #
 # Output: markdown to stdout (redirect to a file or pipe to pbcopy)
+#
+# On-demand, network-dependent operator tool (claude-skills-176). Deliberately
+# NOT wired into `mise test`/`mise run ci` — CI has no credentials and must
+# pass with zero external dependencies. Run manually via `mise sources:report`.
 
 # Resolve the repo root relative to this script's location
 def repo-root [] {
@@ -31,6 +36,30 @@ def resolve-plugin-path [repo: string, source: any] {
     }
 }
 
+# Classify a caught HTTP error's text into a specific latest-version sentinel.
+# Pure function (string -> string), self-tested below — the network call
+# stays at the boundary in check-github-releases; this only interprets the
+# text nushell's `http get` catch already produced.
+#
+# claude-skills-176: a dead/404 release feed (repo has no GitHub Releases,
+# e.g. a monorepo or unreleased tool) and a rate-limited/unauthenticated
+# GitHub response both used to collapse into a generic "error", which reads
+# identically to "the request itself failed" — no way to tell "this source
+# will never have a releases feed" from "try again with a token". Three
+# entries in the corpus hit the 404 case today (see sources.toml `notes`
+# fields citing `releases/latest` 404s); they run check_method=manual so
+# never reach this path live, but the classifier still needs to be correct
+# for any entry that later flips to github-releases.
+def classify-fetch-error [err_text: string]: nothing -> string {
+    if ($err_text | str contains "404") {
+        "no-releases"
+    } else if ($err_text | str contains "403") or ($err_text | str downcase | str contains "rate limit") {
+        "rate-limited"
+    } else {
+        "error"
+    }
+}
+
 # Check latest version via github-releases API
 def check-github-releases [repo: string] {
     let url = $"https://api.github.com/repos/($repo)/releases/latest"
@@ -44,8 +73,8 @@ def check-github-releases [repo: string] {
         let response = http get -H $headers $url
         let tag = $response.tag_name? | default ""
         $tag | str replace -r '^v' ''
-    } catch {
-        "error"
+    } catch {|err|
+        classify-fetch-error ($err.debug? | default ($err.msg? | default ""))
     }
 }
 
@@ -102,13 +131,51 @@ def fetch-latest [source: record] {
 # Render a stale indicator emoji for markdown
 def stale-badge [stale: string] {
     match $stale {
-        "yes"      => "🔴 stale"
-        "no"       => "🟢 current"
-        "manual"   => "🔵 manual"
-        "internal" => "⚪ no upstream"
-        "error"    => "⚠️ error"
-        "unset"    => "❓ unset"
-        _          => $stale
+        "yes"          => "🔴 stale"
+        "no"           => "🟢 current"
+        "manual"       => "🔵 manual"
+        "internal"     => "⚪ no upstream"
+        "no-pin"       => "❔ no pin to compare"
+        "no-releases"  => "⚫ no releases feed"
+        "rate-limited" => "🟠 rate-limited/unauthenticated"
+        "unknown"      => "❔ upstream has no releases"
+        "error"        => "⚠️ error"
+        "unset"        => "❓ unset"
+        _              => $stale
+    }
+}
+
+# Classify (current, latest) into a staleness sentinel. Pure function,
+# self-tested below — no network, no I/O.
+#
+# claude-skills-176: `current_version = "unknown"` is a documented schema
+# placeholder (see test/validate-sources.nu's VERSION_SHAPE_RE — "unknown" is
+# an accepted literal, not a missing value) meaning "no pin recorded to
+# compare against upstream". Treating it as a real version made every one of
+# these entries compare unequal to whatever `latest` resolved to and report
+# false-positive drift. It must classify as "no-pin", distinct from "unset"
+# (the field is genuinely absent) and from "yes" (a real pin is behind).
+def classify-staleness [current: string, latest: string]: nothing -> string {
+    if $latest == "internal" {
+        "no"
+    } else if $latest == "manual" {
+        "manual"
+    } else if $latest == "no-releases" {
+        "no-releases"
+    } else if $latest == "rate-limited" {
+        "rate-limited"
+    } else if $latest == "unknown" {
+        "unknown"
+    } else if $latest == "error" {
+        "error"
+    } else if $current == "unset" {
+        "unset"
+    } else if $current == "unknown" {
+        "no-pin"
+    } else if $current != $latest {
+        "yes"
+    } else {
+        "no"
     }
 }
 
@@ -129,23 +196,11 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
         let priority = $src.update_priority?  | default "medium"
         let method   = $src.check_method?    | default "manual"
         let url      = $src.url?             | default ""
+        let notes    = $src.notes?           | default ""
         let last_checked = $src.last_checked? | default "unknown"
 
         let latest = fetch-latest $src
-
-        let stale = if $latest == "internal" {
-            "no"
-        } else if $latest == "manual" {
-            "manual"
-        } else if $latest == "error" {
-            "error"
-        } else if $current == "unset" {
-            "unset"
-        } else if $current != $latest {
-            "yes"
-        } else {
-            "no"
-        }
+        let stale = classify-staleness $current $latest
 
         {
             plugin:       $plugin_name
@@ -157,6 +212,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
             stale:        $stale
             priority:     $priority
             method:       $method
+            notes:        $notes
             last_checked: $last_checked
         }
     }
@@ -173,7 +229,62 @@ def md-row [r: record] {
     $"| ($r.plugin) | ($r.skill) | ($link) | ($r.current) | ($r.latest) | ($badge) | ($r.priority) |"
 }
 
-def main [--plugin: string = ""] {
+# Self-test for the pure classify-staleness / classify-fetch-error logic.
+# Follows the house case-table pattern (run-self-test in
+# test/validate-sources.nu): records with named fields, one got != want
+# comparison per case. No network — proves the parsing/comparison logic
+# independent of the HTTP boundary (classify-staleness never calls http get).
+def run-self-test [] {
+    mut failed = false
+
+    let staleness_cases = [
+        {label: "unknown pin is no-pin, not drift" current: "unknown" latest: "9.9.9" want: "no-pin"}
+        {label: "unset pin is unset" current: "unset" latest: "9.9.9" want: "unset"}
+        {label: "matching pins are current" current: "1.0.0" latest: "1.0.0" want: "no"}
+        {label: "mismatched pins are stale" current: "1.0.0" latest: "1.1.0" want: "yes"}
+        {label: "manual check_method never compared" current: "1.0.0" latest: "manual" want: "manual"}
+        {label: "none check_method is internal, always current" current: "unknown" latest: "internal" want: "no"}
+        {label: "dead/404 release feed is no-releases, not error" current: "1.0.0" latest: "no-releases" want: "no-releases"}
+        {label: "rate-limited/unauthenticated is distinct from error" current: "1.0.0" latest: "rate-limited" want: "rate-limited"}
+        {label: "hex-pm/crates-io package with zero releases" current: "1.0.0" latest: "unknown" want: "unknown"}
+        {label: "generic fetch failure still reported as error" current: "1.0.0" latest: "error" want: "error"}
+        {label: "unknown pin plus no-releases feed: feed status wins" current: "unknown" latest: "no-releases" want: "no-releases"}
+    ]
+    for c in $staleness_cases {
+        let got = classify-staleness $c.current $c.latest
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ classify-staleness: ($c.label): want ($c.want), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    let fetch_error_cases = [
+        {label: "404 body classifies as no-releases" text: "Requested file not found (404): \"https://api.github.com/repos/x/y/releases/latest\"" want: "no-releases"}
+        {label: "403 status classifies as rate-limited" text: "Client error (403): API rate limit exceeded" want: "rate-limited"}
+        {label: "rate limit phrase without 403 digits still matches" text: "GitHub secondary rate limit hit, retry later" want: "rate-limited"}
+        {label: "unrelated network failure falls through to error" text: "Could not resolve host: api.github.com" want: "error"}
+        {label: "empty error text falls through to error" text: "" want: "error"}
+    ]
+    for c in $fetch_error_cases {
+        let got = classify-fetch-error $c.text
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ classify-fetch-error: ($c.label): want ($c.want), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    if $failed {
+        exit 1
+    }
+    print $"(ansi green_bold)✅ sources-report self-test passed \(($staleness_cases | length) + ($fetch_error_cases | length) cases\)(ansi reset)"
+    exit 0
+}
+
+def main [--plugin: string = "", --self-test] {
+    if $self_test {
+        run-self-test
+    }
+
     let repo = repo-root
 
     # Suppress progress output when redirected (stderr vs stdout)
@@ -233,11 +344,14 @@ def main [--plugin: string = ""] {
     print "## Summary"
     print ""
 
-    let total   = $all_rows | length
-    let current = $all_rows | where stale == "no"     | length
-    let stale   = $all_rows | where stale == "yes"    | length
-    let manual  = $all_rows | where stale == "manual" | length
-    let errored = $all_rows | where stale == "error"  | length
+    let total        = $all_rows | length
+    let current      = $all_rows | where stale == "no"           | length
+    let stale        = $all_rows | where stale == "yes"          | length
+    let manual       = $all_rows | where stale == "manual"       | length
+    let no_pin       = $all_rows | where stale == "no-pin"       | length
+    let no_releases  = $all_rows | where stale == "no-releases"  | length
+    let rate_limited = $all_rows | where stale == "rate-limited" | length
+    let errored      = $all_rows | where stale == "error"        | length
 
     print $"| Metric | Count |"
     print $"| ------ | ----- |"
@@ -245,6 +359,9 @@ def main [--plugin: string = ""] {
     print $"| Up to date | ($current) |"
     print $"| Stale \(needs update\) | ($stale) |"
     print $"| Manual check required | ($manual) |"
+    print $"| No pin recorded \(current_version = unknown\) | ($no_pin) |"
+    print $"| No upstream releases feed | ($no_releases) |"
+    print $"| Rate-limited / unauthenticated | ($rate_limited) |"
     print $"| Check errors | ($errored) |"
     print ""
 
@@ -257,6 +374,9 @@ def main [--plugin: string = ""] {
         print "| ------ | ----- | ------ | ------- | ------ | ------ | -------- |"
         for r in ($all_rows | where stale == "yes" | sort-by priority) {
             print (md-row $r)
+            if not ($r.notes | is-empty) {
+                print $"  - Notes: ($r.notes)"
+            }
         }
         print ""
     }

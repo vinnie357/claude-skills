@@ -79,13 +79,18 @@ See `references/version-check-methods.md` for Nushell parsing examples.
 
 ## Phase 1: Discovery
 
-Run `mise sources:check` to produce a staleness table:
+Run `mise sources:check` to produce a staleness table. Live run against this repo's own corpus, 2026-08-01 (verbatim, columns trimmed):
 
 ```
-plugin        | skill       | source          | current | latest  | stale | priority
-claude-code   | container   | apple-container | 0.10.0  | 0.11.0  | yes   | high
-elixir        | tidewave    | tidewave        | 0.5.6   | 0.5.6   | no    | medium
+plugin | skill   | source     | current    | latest    | stale  | priority | notes
+core   | mise    | mise       | v2026.3.15 | 2026.7.18 | yes    | medium   | pinned version is months behind upstream
+core   | nushell | nushell    | 0.113.1    | 0.114.1   | yes    | high     | pinned version is one minor behind upstream
+github | act     | nektos-act | unknown    | 0.2.89    | no-pin | medium   | current_version was never pinned — not drift
 ```
+
+`sources:check` / `sources:stale` / `sources:report` are on-demand, network-dependent operator tools — deliberately NOT part of `mise test`/`mise run ci` (CI has zero external dependencies). `stale` is one of: `yes` (real drift), `no` (current), `no-pin` (`current_version = "unknown"` — nothing recorded to compare, not drift), `manual`/`internal` (check_method doesn't query an API), `no-releases` (upstream has no GitHub Releases feed — a 404, not an error; the corpus keeps 404-prone repos on `check_method = "manual"` precisely to avoid this state, so it currently only fires when a source is later flipped to `github-releases` without checking first), `rate-limited` (403/unauthenticated GitHub response — retry with `GITHUB_TOKEN` set), `unknown` (hex-pm/crates-io package exists with zero published releases), `unset` (no `current_version` recorded at all), `error` (fetch failed for another reason). The `notes` column surfaces the toml entry's free-text rationale — e.g. marking an upstream-documented default as intentionally pinned (act's own docs still present `node:16-buster-slim` as the micro-image example) — there is no separate schema field for this; it lives in `notes`.
+
+The three scripts' comparison/classification logic (`classify-staleness`, `classify-fetch-error`) is pure and self-tested independent of the network boundary: `nu <script> --self-test`. This proves the parsing/comparison logic; a live run against the real corpus is the only way to exercise the HTTP calls themselves.
 
 If `sources.toml` does not exist for a plugin, run `mise sources:init <plugin>` first.
 
