@@ -1,6 +1,6 @@
 ---
 name: claude-agents
-description: Guide for creating custom agents for Claude Code. Use when creating specialized agents, configuring agent tools.
+description: Guide for creating custom agents (subagents) for Claude Code. Use when writing agents/*.md files, choosing agent frontmatter (tools, model, skills, permissionMode, maxTurns), restricting a subagent tool allowlist, preloading skills into an agent, or troubleshooting agent invocation.
 ---
 
 # Claude Code Agents
@@ -82,24 +82,7 @@ You are a code reviewer. Analyze code for quality, security, and best practices.
 - **Prioritized**: Critical issues first
 ```
 
-## Agent Writing Style
-
-Effective agents use direct, imperative language:
-
-### Opening Statement
-
-- **Do**: "You are a [role]. Your role is to [primary function]."
-- **Don't**: "I am a specialized [role] focused on..."
-
-### Workflow Steps
-
-- **Do**: Numbered steps with specific commands
-- **Don't**: Bullet lists describing capabilities
-
-### Guidelines Section
-
-- **Do**: Single-word bold labels with brief explanations
-- **Don't**: Verbose explanations of best practices
+Writing style: direct, imperative language. Open with "You are a [role]. Your role is to [primary function]" rather than "I am a specialized [role]...". Use numbered workflow steps with specific commands, not bullet lists describing capabilities. Full style guidance and worked best-practice examples: `references/patterns.md`.
 
 ## Agent Configuration
 
@@ -126,62 +109,7 @@ Complete field reference (source: https://code.claude.com/docs/en/sub-agents):
 | `color` | no | `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink`, `cyan`. |
 | `initialPrompt` | no | Auto-submitted first user turn when run as a main-session agent (`--agent`). |
 
-Example:
-
-```markdown
----
-name: agent-name                    # Required: kebab-case identifier
-description: Brief description      # Required: What this agent does
-tools:                             # Optional: tool allowlist, inherits all if omitted
-  - Read
-  - Write
-  - Bash
-model: sonnet                      # Optional: model to use, defaults to inherit
----
-```
-
-### Tool Allowlist
-
-Restrict agent to specific tools:
-
-- Can read files
-- Can search code
-- Can find files
-- Cannot use Write, Edit, Bash, etc.
-
-Example:
-
-```markdown
----
-tools: Read, Grep, Glob     
----
-```
-
-
-
-
-**No tool restrictions** (access to all tools):
-
-```markdown
----
-# Omit tools field entirely
----
-```
-
-### Model Selection
-
-Choose the model for the task, or inherit the parent session's model:
-
-```markdown
----
-model: haiku               # Fast, cost-effective for simple tasks
-# model: sonnet            # Balanced
-# model: opus              # Complex reasoning
-# model: fable             # Fable 5 tier
-# model: claude-opus-4-8   # Full model ID pins an exact version
-# model: inherit           # Default — matches the parent session's model
----
-```
+**Model selection**: match the model to task complexity — `haiku` for simple/repetitive tasks, `sonnet` for standard tasks, `opus`/`fable` for complex reasoning, `inherit` (default) to match the parent session's model.
 
 ### Preloading Skills
 
@@ -202,240 +130,27 @@ Skills not listed in `skills` remain invocable through the Skill tool during the
 
 ## Common Agent Patterns
 
-### Read-Only Analysis Agent
+Four recurring shapes, each with a runnable template:
 
-For security scans, code reviews, or audits. Restricted to Read, Grep, Glob.
+- **Read-only analysis** (security scans, code reviews, audits): restrict `tools` to `Read, Grep, Glob`. Template: `templates/read-only-analyzer.md`
+- **Write-capable** (generating tests, docs, code): add `Write`. Template: `templates/write-capable-agent.md`
+- **Full-access** (refactoring, migrations, complex modifications): omit `tools` entirely for no restrictions. Template: `templates/full-access-agent.md`
+- **MCP-enabled** (browser automation, external APIs): mix core tools with MCP tool names. Template: `templates/mcp-agent.md`
 
-See: `templates/read-only-analyzer.md`
+Minimal starting point: `templates/basic-agent.md`. Best-practice worked examples (clear purpose, appropriate tool access, explicit instructions): `references/patterns.md`. Plugin wiring, invocation mechanics, and troubleshooting: `references/plugin-config.md`.
 
-### Write-Capable Agent
+## Security
 
-For generating tests, documentation, or code. Includes Write tool.
-
-See: `templates/write-capable-agent.md`
-
-### Full-Access Agent
-
-For refactoring, migrations, or complex modifications. Omit tools field entirely for no restrictions.
-
-See: `templates/full-access-agent.md`
-
-### MCP-Enabled Agent
-
-For browser automation, external APIs, or specialized MCP server tools. Mix core tools with MCP tools.
-
-See: `templates/mcp-agent.md`
-
-## Agent Plugin Configuration
-
-### In plugin.json
-
-```json
-{
-  "agents": [
-    "./agents/code-reviewer.md",
-    "./agents/test-generator.md",
-    "./agents/security-analyzer.md"
-  ]
-}
-```
-
-### Directory-Based Loading
-
-```json
-{
-  "agents": "./agents"
-}
-```
-
-Loads all `.md` files in `agents/` directory.
-
-## Invoking Agents
-
-Agents are launched via the Agent tool (`Task` remains a deprecated alias, renamed in v2.1.63):
-
-```python
-# In parent Claude conversation
-Agent(
-    subagent_type="code-reviewer",
-    description="Review authentication module",
-    prompt="""
-    Review the authentication module for:
-    - Security vulnerabilities
-    - Error handling
-    - Input validation
-    - Best practices
-    """
-)
-```
-
-## Agent Communication
-
-### Input to Agent
-
-- Task description
-- Detailed prompt
-- Access to conversation history (if configured)
-
-### Output from Agent
-
-- Final report/result
-- No ongoing dialogue
-- One-time execution
-
-## Best Practices
-
-### Clear Purpose
-
-Each agent has a specific, well-defined purpose:
-
-```markdown
----
-name: migration-helper
-description: Assists with database schema migrations
----
-
-# Database Migration Agent
-
-Specialized in creating and validating database migrations.
-```
-
-### Appropriate Tool Access
-
-Only grant necessary tools:
-
-```markdown
----
-# Analysis agent - read-only
-tools: Read, Grep, Glob
----
-```
-
-```markdown
----
-# Implementation agent - can modify
-tools: Read, Write, Edit, Glob, Grep
----
-```
-
-### Model Selection
-
-Match model to task complexity:
-
-- **haiku**: Simple, repetitive tasks
-- **sonnet**: Standard tasks
-- **opus** / **fable**: Complex reasoning required
-- **inherit**: Default when `model` is omitted — matches the parent session
-
-### Turn Limits
-
-Set `maxTurns` for task complexity:
-
-```markdown
----
-maxTurns: 5    # Simple, focused task
-# maxTurns: 20 # Complex, multi-step workflow
----
-```
-
-### Clear Instructions
-
-Provide explicit behavior guidelines:
-
-```markdown
-# Testing Agent
-
-## Mandatory Requirements
-
-- Generate tests for ALL public methods
-- Achieve minimum 80% code coverage
-- Include edge cases and error scenarios
-- Use project's testing framework conventions
-
-## Constraints
-
-- Do not modify source code
-- Follow existing test file naming patterns
-- Use appropriate assertions
-```
-
-## Security Considerations
-
-### Tool Restrictions
-
-Limit dangerous operations:
-
-```markdown
----
-# Don't give Bash access to untrusted agents
-tools:
-  - Read
-  - Write  # Safer than arbitrary shell commands
----
-```
-
-### Input Validation
-
-Validate agent inputs:
-
-```markdown
-# Deployment Agent
-
-Before deploying:
-1. Verify target environment is valid
-2. Check deployment permissions
-3. Validate configuration
-4. Confirm destructive operations
-```
-
-### Sensitive Data
-
-Never hardcode:
-- Credentials
-- API keys
-- Private URLs
-- Access tokens
-
-## Agent Examples
-
-For complete, production-ready agent templates:
-
-- `templates/basic-agent.md` - Official minimal example
-- `templates/read-only-analyzer.md` - Security analyzer pattern
-- `templates/write-capable-agent.md` - Test generator pattern
-- `templates/full-access-agent.md` - Refactoring pattern (no tool restrictions)
-- `templates/mcp-agent.md` - Browser testing with MCP tools
-
-## Troubleshooting
-
-### Agent Not Found
-
-- Verify agent file location matches plugin.json
-- Check file naming (kebab-case, .md extension)
-- Ensure plugin is properly installed
-
-### Tool Access Denied
-
-- Check tools allowlist in frontmatter
-- Verify tool names match exactly
-- Ensure parent context permits delegation
-
-### Unexpected Behavior
-
-- Review agent instructions for clarity
-- Check model selection appropriateness
-- Verify iteration limits aren't too restrictive
-- Test with verbose output
+Grant only the tools an agent's task requires — a read-only analyzer never needs `Bash` or `Write`. Never hardcode credentials, API keys, private URLs, or access tokens in agent files; agent bodies are prompts checked into repos and plugins. Worked tool-restriction and input-validation examples: `references/patterns.md`.
 
 ## References
 
-Templates directory:
-- `templates/basic-agent.md` - Official minimal example
-- `templates/read-only-analyzer.md` - Security analysis pattern
-- `templates/write-capable-agent.md` - Test generation pattern
-- `templates/full-access-agent.md` - Refactoring pattern (no tool restrictions)
-- `templates/mcp-agent.md` - MCP tools pattern (browser automation)
-
-Documentation:
+- `templates/basic-agent.md` — official minimal example
+- `templates/read-only-analyzer.md` — security analysis pattern
+- `templates/write-capable-agent.md` — test generation pattern
+- `templates/full-access-agent.md` — refactoring pattern (no tool restrictions)
+- `templates/mcp-agent.md` — MCP tools pattern (browser automation)
+- `references/patterns.md` — writing style, common patterns, and worked best-practice/security examples
+- `references/plugin-config.md` — plugin.json wiring, invoking agents, agent communication, troubleshooting
 - Claude Code Agents: https://code.claude.com/docs/en/agents
 - Subagents (Agent Tool): https://code.claude.com/docs/en/sub-agents
