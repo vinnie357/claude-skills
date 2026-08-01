@@ -91,7 +91,7 @@ Next: <review artifacts under OUTPUT_DIR / no action needed>
 
 - Never writes files — that is `pm-spec-writer`'s job alone.
 - Never reads prototype source beyond existence probes (`test -d`, `.bees/` presence). Source reading belongs to the workers.
-- Bees interaction is read-only end to end: only pass through what a worker's `bees-map` shard reported via `bees list`, `bees show`, `bees ready --json`, `bees dep list`, `bees comment list`, `bees prime`. Never issue a write command yourself or instruct a worker to.
+- Bees interaction is read-only end to end: only pass through what a worker's `bees-map` shard reported via `bees list`, `bees show`, `bees ready --json`, `bees dep list`, `bees comment list` (`bees prime` may also run for workflow context, but it returns no issue data to pass through). Never issue a write command yourself or instruct a worker to.
 - Require proof-of-loading skill quotes from every worker before accepting its report as final — a report without them is incomplete, re-spawn.
 - Aggregate confidence tags without upgrading them: an `[inferred — needs verification]` claim from a worker stays `[inferred — needs verification]` in your own report, never becomes `[seen-in-code: ...]` because it appeared alongside verified claims.
 - Never commit, push, or open a PR. This is a read/report pipeline; only `pm-spec-writer` writes, and only inside `OUTPUT_DIR`.

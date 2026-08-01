@@ -34,7 +34,7 @@ See `references/installation.md` for npm, Homebrew, Go install, and mise
 (multi-architecture) methods:
 
 ```bash
-npm install -g @anthropic/beads
+npm install -g @beads/bd
 ```
 
 ## Getting Started
