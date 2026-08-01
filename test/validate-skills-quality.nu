@@ -568,10 +568,31 @@ def ratchet-baseline [baseline: list, failing_keys: list, failing_counts: list] 
 # every pass's detail-count accumulation through this one function turns
 # "a pass computed a count but never fed the ratchet" into a single,
 # reviewable call site instead of N independently-forgettable inline loops.
-# It narrows the mutation surface (no more two-statement loop body to
-# half-delete) but does not make a *whole-call* deletion self-test-visible —
-# see the claude-skills-151 PR body for why a full main-body integration
-# harness was weighed and not built this round.
+#
+# What this DOES and does NOT close (corrected after a Gate 3 review of the
+# first version of this comment, which overclaimed): the accumulation VALUE
+# is now correct and directly unit-tested (run-accumulator-self-test,
+# run-pass2-eval-self-test) wherever a caller routes through this function
+# instead of hand-rolling the loop. It does NOT remove the two-statement
+# shape from every call site — Pass 3 and Pass 4 still unpack this
+# function's `{failing_keys, failing_counts}` result into two separate
+# assignment lines, and the Gate 3 reviewer proved that pair is exactly as
+# half-deletable as the original inline loop was: deleting only the
+# failing_counts unpack line reproduces claude-skills-151 with both
+# --self-test and the full run staying green. Two things genuinely did
+# change: (1) the VALUE this function computes, given its inputs, is now
+# provably correct in isolation — a bug in the accumulation logic itself,
+# as opposed to a caller forgetting to use it, is caught directly; (2) a
+# *whole* call-site deletion (removing this function's call along with
+# BOTH unpack lines) IS caught by a full run against a real baseline,
+# because the finding's key also disappears from failing_keys, which
+# trips the baseline's stale-key check — not self-test-visible, but not
+# silent either. The genuinely invisible mutation, in both Pass 3 and
+# Pass 4, remains the half delete. Pass 2 (agents/commands) closes this
+# further via evaluate-agent-file / evaluate-command-file below, which
+# fold the wiring call and its result into one function that IS
+# hermetically self-tested directly — see that pair's doc comment for
+# what residual remains even there.
 def accumulate-detail-counts [failing_counts: list, key_base: string, failed: list, detail_entries: list] {
     mut fc = $failing_counts
     for e in $detail_entries {
@@ -1429,7 +1450,15 @@ def satellites-block-lines [all_lines: list] {
 
 def core-list-satellites [script_path: string] {
     let raw = (open --raw $script_path)
-    let block = (satellites-block-lines ($raw | lines) | str join "\n")
+    # Full-line comments are dropped before parsing (claude-skills-151 Gate 3
+    # finding): satellites-block-lines only bounds WHERE the parse looks
+    # (inside vs outside the SATELLITES block); a comment line INSIDE the
+    # block that happens to contain the literal substring `path: "..."` —
+    # documentation, a worked example, a commented-out entry — would
+    # otherwise leak into the result exactly as if it were a real record.
+    let block_lines = (satellites-block-lines ($raw | lines)
+        | where {|l| not ($l | str trim | str starts-with "#")})
+    let block = ($block_lines | str join "\n")
     let sat = ($block | parse --regex 'path: "(?P<p>[^"]+)"' | get p)
     let canonical = ($raw | parse --regex 'const CANONICAL_FILE = "(?P<p>[^"]+)"' | get p)
     $sat | append $canonical | uniq
@@ -1623,17 +1652,46 @@ def run-duplicate-self-test [] {
     # Case 14: satellite derivation — the list parsed out of
     # test/validate-core-list.nu carries the canonical file and the known
     # satellite shapes; if the parse silently broke, exemption 3 would too.
-    # Bounded to the real, measured count (8: the 8 SATELLITES entries,
-    # deduped against CANONICAL_FILE which repeats the first) rather than
-    # only a lower bound — a lower-bound-only assertion would not have
-    # caught the unscoped-regex bug this case's sibling (case 14b) exists
-    # to guard.
+    # Bounded to a LOWER bound plus "every derived path resolves on disk"
+    # (claude-skills-151 Gate 3 finding) rather than an exact count: an
+    # exact-count assertion collided with claude-skills-198 registering two
+    # more satellites — green on either branch alone, red once both merge,
+    # in EITHER merge order, since each branch only sees its own addition.
+    # A lower bound plus "every path is real" tolerates legitimate growth
+    # with zero maintenance while still catching a leaked bogus path — a
+    # comment-embedded `path: "..."` string won't resolve on disk.
     let repo_root = (git rev-parse --show-toplevel | str trim)
     let derived = (core-list-satellites ($repo_root | path join "test" "validate-core-list.nu"))
-    if ("plugins/core/skills/agent-loop/SKILL.md" not-in $derived) or ("plugins/core/hooks/session-start.sh" not-in $derived) or (($derived | length) != 8) {
-        print $"(ansi red_bold)❌ duplicate self-test: satellite derivation from validate-core-list.nu broke \(got ($derived | length) entries, want 8\)(ansi reset)"
+    let missing_on_disk = ($derived | where {|p| not (($repo_root | path join $p) | path exists)})
+    if ("plugins/core/skills/agent-loop/SKILL.md" not-in $derived) or ("plugins/core/hooks/session-start.sh" not-in $derived) or (($derived | length) < 5) or ($missing_on_disk | is-not-empty) {
+        print $"(ansi red_bold)❌ duplicate self-test: satellite derivation from validate-core-list.nu broke \(got ($derived | length) entries; missing on disk: ($missing_on_disk | str join ', ')\)(ansi reset)"
         $failed = true
     }
+
+    # Case 14c (claude-skills-151 Gate 3 finding): a comment LINE inside the
+    # SATELLITES block that happens to contain the literal substring
+    # `path: "..."` — documentation, a worked example, a commented-out
+    # entry — must not leak into the parsed satellite list. Exercises
+    # core-list-satellites end-to-end (not just satellites-block-lines) via
+    # a real fixture file, since the comment-filter lives in
+    # core-list-satellites itself.
+    let cl_root = (mktemp -d)
+    let cl_script = ($cl_root | path join "fixture.nu")
+    ('const SATELLITES = [' + (char newline)
+        + '  # example: path: "fake/example.md" -- not a real satellite' + (char newline)
+        + '  { path: "real/entry.md"' + (char newline)
+        + '    anchor: "x" }' + (char newline)
+        + ']' + (char newline)) | save $cl_script
+    let cl_derived = (core-list-satellites $cl_script)
+    if ("fake/example.md" in $cl_derived) {
+        print $"(ansi red_bold)❌ duplicate self-test: a path: \"...\" string inside a comment line leaked through core-list-satellites(ansi reset)"
+        $failed = true
+    }
+    if ("real/entry.md" not-in $cl_derived) {
+        print $"(ansi red_bold)❌ duplicate self-test: core-list-satellites dropped a genuine in-block path after comment filtering(ansi reset)"
+        $failed = true
+    }
+    rm -rf $cl_root
 
     # Case 14b (claude-skills-151 follow-up): a `path: "..."` line OUTSIDE
     # the SATELLITES block — e.g. a future test fixture or self-test case in
@@ -1698,7 +1756,7 @@ def run-duplicate-self-test [] {
     }
 
     if not $failed {
-        print $"(ansi green_bold)✅ Duplicate-block self-test passed \(16 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Duplicate-block self-test passed \(17 cases\)(ansi reset)"
     }
     $failed
 }
@@ -2219,6 +2277,268 @@ def run-pass2-links-self-test [] {
     $failed
 }
 
+# Evaluate one plugin-level or skill-nested agent file against Pass-2's
+# agent-surface checks (claude-skills-119/164/175), returning everything the
+# caller needs in one record: which checks fired (`failed`), the resulting
+# `failing_keys` entries, the `failing_counts` entries (via
+# accumulate-detail-counts), and the `surface_result` row for reporting.
+#
+# Extracted (claude-skills-151 Gate 3 finding) so the link between "a
+# detail-producing check fired" and "failing_counts got an entry" — the
+# exact wiring claude-skills-175 was missing — is a directly unit-tested
+# function, not only provable by reading main's call site. Before this
+# extraction, that wiring was a 4-line block inline in main's loop; the
+# Gate 3 reviewer deleted it and both --self-test and the full run stayed
+# green. That block now lives INSIDE this function, where
+# run-pass2-eval-self-test exercises it directly against a real fixture
+# file — deleting it now fails a hermetic test, not only a live corpus scan.
+#
+# Known residual (see accumulate-detail-counts doc comment for the general
+# framing): this proves evaluate-agent-file's OWN wiring is correct — the
+# accumulate-detail-counts call now lives where a hermetic test reaches it.
+# It does not prove main's loop still USES the result. apply-surface-finding
+# below merges `failing_keys`/`failing_counts`/`surface_result` in one call,
+# so main's loop body is one function call plus three unpack lines; deleting
+# the whole call is a loud, obvious diff (and is caught by the full run's
+# stale-key check), but deleting only the `failing_counts` unpack line among
+# the three remains exactly as invisible as the Pass 3/4 residual described
+# there — apply-surface-finding computes the merge correctly, but nothing
+# stops a caller from discarding one field of what it returns.
+def evaluate-agent-file [f: string, plugin_name: string, own_dir: string, dir_name: string, plugin_dir: string, registry: list, skill_dir_map: list, known_models: list] {
+    let content = (open --raw $f)
+    let all_lines = ($content | lines)
+    let fm_lines = if ($all_lines | first | default "" | str trim) == "---" {
+        let rest = ($all_lines | skip 1)
+        let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
+        if ($end_matches | is-not-empty) {
+            $rest | first ($end_matches | first | get index)
+        } else { [] }
+    } else { [] }
+
+    mut failed = []
+    if not ($fm_lines | any {|line| $line | str starts-with "name:"}) {
+        $failed = ($failed | append "missing_name")
+    }
+    if not ($fm_lines | any {|line| $line | str starts-with "description:"}) {
+        $failed = ($failed | append "missing_desc")
+    }
+    let model_lines = ($fm_lines | where {|line| $line | str starts-with "model:"})
+    if ($model_lines | is-not-empty) {
+        let model_val = ($model_lines | first | str replace "model:" "" | str trim | str trim -c '"' | str trim -c "'" | str downcase)
+        if $model_val not-in $known_models { $failed = ($failed | append "bad_model") }
+    }
+
+    let skills_check = (check-agent-skills $fm_lines $registry)
+    $failed = ($failed | append $skills_check.failed)
+
+    let bad_invocations = (find-bad-invocations $content $registry)
+    if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
+
+    let agent_stripped = (strip-fences $content)
+    let agent_link_paths = (extract-link-path-tokens $agent_stripped)
+    let agent_broken_links = ($agent_link_paths | where {|p|
+        let top = ($p | split row "/" | first)
+        let dir_gated = $top in ["scripts" "templates" "hooks"]
+        let in_scope = (not $dir_gated) or (pass2-dir-in-scope $top $own_dir $plugin_dir)
+        $in_scope and not (resolve-pass2-path $p (preceding-line $agent_stripped $p) $own_dir $dir_name $plugin_dir $skill_dir_map ($registry | get name))
+    })
+    if ($agent_broken_links | is-not-empty) { $failed = ($failed | append "links") }
+
+    let agent_fm_unknown = (unknown-frontmatter-keys $fm_lines $AGENT_FM_KEYS)
+    if ($agent_fm_unknown | is-not-empty) { $failed = ($failed | append "fm_schema") }
+
+    let key_base = $"($plugin_name)/agents/($f | path basename)"
+    {
+        failed: $failed
+        failing_keys: ($failed | each {|c| $"($key_base):($c)"})
+        failing_counts: (accumulate-detail-counts [] $key_base $failed [
+            {check: "links", count: ($agent_broken_links | length)}
+            {check: "fm_schema", count: ($agent_fm_unknown | length)}
+        ])
+        surface_result: {
+            plugin: $plugin_name, kind: "agent", file: ($f | path basename), failed: ($failed | str join " ")
+            details: ($bad_invocations | append $skills_check.bad_tokens | append $agent_broken_links | append ($agent_fm_unknown | each {|k| $"frontmatter:($k)"}) | str join " ")
+        }
+    }
+}
+
+# Evaluate one plugin-level command file against Pass-2's command-surface
+# checks. Same shape and same claude-skills-151/175 rationale as
+# evaluate-agent-file above.
+def evaluate-command-file [f: string, plugin_name: string, plugin_dir: string, registry: list, skill_dir_map: list] {
+    let content = (open --raw $f)
+    let all_lines = ($content | lines)
+    let fm_lines = if ($all_lines | first | default "" | str trim) == "---" {
+        let rest = ($all_lines | skip 1)
+        let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
+        if ($end_matches | is-not-empty) {
+            $rest | first ($end_matches | first | get index)
+        } else { [] }
+    } else { [] }
+
+    mut failed = []
+    if not ($fm_lines | any {|line| $line | str starts-with "description:"}) {
+        $failed = ($failed | append "missing_desc")
+    }
+    let bad_invocations = (find-bad-invocations $content $registry)
+    if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
+
+    let cmd_stripped = (strip-fences $content)
+    let cmd_link_paths = (extract-link-path-tokens $cmd_stripped)
+    let cmd_broken_links = ($cmd_link_paths | where {|p|
+        let top = ($p | split row "/" | first)
+        let dir_gated = $top in ["scripts" "templates" "hooks"]
+        let in_scope = (not $dir_gated) or (pass2-dir-in-scope $top $plugin_dir $plugin_dir)
+        $in_scope and not (resolve-pass2-path $p (preceding-line $cmd_stripped $p) $plugin_dir "" $plugin_dir $skill_dir_map ($registry | get name))
+    })
+    if ($cmd_broken_links | is-not-empty) { $failed = ($failed | append "links") }
+
+    let cmd_fm_unknown = (unknown-frontmatter-keys $fm_lines $SKILL_FM_KEYS)
+    if ($cmd_fm_unknown | is-not-empty) { $failed = ($failed | append "fm_schema") }
+
+    let key_base = $"($plugin_name)/commands/($f | path basename)"
+    {
+        failed: $failed
+        failing_keys: ($failed | each {|c| $"($key_base):($c)"})
+        failing_counts: (accumulate-detail-counts [] $key_base $failed [
+            {check: "links", count: ($cmd_broken_links | length)}
+            {check: "fm_schema", count: ($cmd_fm_unknown | length)}
+        ])
+        surface_result: {
+            plugin: $plugin_name, kind: "command", file: ($f | path basename), failed: ($failed | str join " ")
+            details: ($bad_invocations | append $cmd_broken_links | append ($cmd_fm_unknown | each {|k| $"frontmatter:($k)"}) | str join " ")
+        }
+    }
+}
+
+# Merge one evaluate-agent-file/evaluate-command-file result into the
+# running failing_keys/failing_counts/surface_results accumulators. The
+# merge ITSELF is atomic — a caller either gets all three fields correctly
+# appended together or, on a failed-empty result, none of them touched;
+# there is no way to independently break "append the keys" vs "append the
+# counts" from INSIDE this function, and run-pass2-eval-self-test's noop/
+# merged cases test exactly that.
+#
+# What this does NOT close: main still unpacks this function's return value
+# into three separate `$failing_keys = $acc.failing_keys` /
+# `$failing_counts = $acc.failing_counts` / `$surface_results =
+# $acc.surface_results` lines (nushell's `mut` variables cannot be
+# destructure-assigned from one record in one statement). Deleting only the
+# middle line remains exactly as invisible as the Pass 3/4 residual
+# documented at accumulate-detail-counts and dupe_acc above — this function
+# moves where the risk lives, not whether it exists.
+def apply-surface-finding [failing_keys: list, failing_counts: list, surface_results: list, res: record] {
+    if ($res.failed | is-empty) {
+        {failing_keys: $failing_keys, failing_counts: $failing_counts, surface_results: $surface_results}
+    } else {
+        {
+            failing_keys: ($failing_keys | append $res.failing_keys)
+            failing_counts: ($failing_counts | append $res.failing_counts)
+            surface_results: ($surface_results | append $res.surface_result)
+        }
+    }
+}
+
+# Embedded self-test for evaluate-agent-file, evaluate-command-file, and
+# apply-surface-finding (claude-skills-151 Gate 3 finding, claude-skills-175).
+# The load-bearing assertions are the failing_counts checks: every
+# detail-producing check present in `failed` MUST also appear in
+# `failing_counts` with the right count. That is precisely the wiring the
+# Gate 3 reviewer found invisible to every prior test when it lived as an
+# inline 4-line block in main — deleting the accumulate-detail-counts call
+# now inside evaluate-agent-file/evaluate-command-file fails THIS self-test
+# directly, hermetically, without depending on a corpus scan.
+def run-pass2-eval-self-test [] {
+    mut failed = false
+    let root = (mktemp -d)
+    let plugin_dir = ($root | path join "pluginX")
+    mkdir ($plugin_dir | path join "agents")
+    mkdir ($plugin_dir | path join "commands")
+
+    "---
+name: broken-agent
+description: test fixture
+badkey: nope
+---
+
+See references/does-not-exist.md for detail.
+" | save ($plugin_dir | path join "agents" "broken-agent.md")
+
+    let registry = [{name: "pluginX", dir: $plugin_dir, invocables: [], skills: []}]
+    let empty_map = []
+    let known_models = ["haiku" "sonnet" "opus"]
+
+    let agent_res = (evaluate-agent-file ($plugin_dir | path join "agents" "broken-agent.md") "pluginX" $plugin_dir "" $plugin_dir $registry $empty_map $known_models)
+    let agent_key_base = "pluginX/agents/broken-agent.md"
+
+    if ("links" not-in $agent_res.failed) or ("fm_schema" not-in $agent_res.failed) {
+        print $"(ansi red_bold)❌ pass2-eval self-test: evaluate-agent-file missed a check \(got ($agent_res.failed | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+    if ({key: $"($agent_key_base):links", count: 1} not-in $agent_res.failing_counts) {
+        print $"(ansi red_bold)❌ pass2-eval self-test: evaluate-agent-file computed a links finding but failing_counts is missing it \(got ($agent_res.failing_counts | to json --raw)\)(ansi reset)"
+        $failed = true
+    }
+    if ({key: $"($agent_key_base):fm_schema", count: 1} not-in $agent_res.failing_counts) {
+        print $"(ansi red_bold)❌ pass2-eval self-test: evaluate-agent-file computed an fm_schema finding but failing_counts is missing it(ansi reset)"
+        $failed = true
+    }
+    if ($"($agent_key_base):links" not-in $agent_res.failing_keys) or ($"($agent_key_base):fm_schema" not-in $agent_res.failing_keys) {
+        print $"(ansi red_bold)❌ pass2-eval self-test: evaluate-agent-file's failing_keys missing an expected entry(ansi reset)"
+        $failed = true
+    }
+
+    "---
+name: clean-agent
+description: test fixture
+---
+
+Nothing to see here.
+" | save ($plugin_dir | path join "agents" "clean-agent.md")
+    let clean_res = (evaluate-agent-file ($plugin_dir | path join "agents" "clean-agent.md") "pluginX" $plugin_dir "" $plugin_dir $registry $empty_map $known_models)
+    if ($clean_res.failed | is-not-empty) or ($clean_res.failing_counts | is-not-empty) {
+        print $"(ansi red_bold)❌ pass2-eval self-test: clean agent file wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    "---
+description: test fixture
+badkey: nope
+---
+
+See references/does-not-exist.md for detail.
+" | save ($plugin_dir | path join "commands" "broken-command.md")
+    let cmd_res = (evaluate-command-file ($plugin_dir | path join "commands" "broken-command.md") "pluginX" $plugin_dir $registry $empty_map)
+    let cmd_key_base = "pluginX/commands/broken-command.md"
+    if ({key: $"($cmd_key_base):links", count: 1} not-in $cmd_res.failing_counts) {
+        print $"(ansi red_bold)❌ pass2-eval self-test: evaluate-command-file computed a links finding but failing_counts is missing it(ansi reset)"
+        $failed = true
+    }
+    if ({key: $"($cmd_key_base):fm_schema", count: 1} not-in $cmd_res.failing_counts) {
+        print $"(ansi red_bold)❌ pass2-eval self-test: evaluate-command-file computed an fm_schema finding but failing_counts is missing it(ansi reset)"
+        $failed = true
+    }
+
+    # apply-surface-finding: a failed-empty result is a no-op; a non-empty
+    # result appends all three accumulators together in one call.
+    let noop = (apply-surface-finding ["x"] [{key: "x", count: 1}] [{plugin: "p", kind: "agent", file: "f", failed: "", details: ""}] {failed: [], failing_keys: [], failing_counts: [], surface_result: {}})
+    if $noop.failing_keys != ["x"] or $noop.failing_counts != [{key: "x", count: 1}] or ($noop.surface_results | length) != 1 {
+        print $"(ansi red_bold)❌ pass2-eval self-test: apply-surface-finding mutated on a failed-empty result(ansi reset)"
+        $failed = true
+    }
+    let merged = (apply-surface-finding [] [] [] $agent_res)
+    if $merged.failing_keys != $agent_res.failing_keys or $merged.failing_counts != $agent_res.failing_counts or ($merged.surface_results | length) != 1 {
+        print $"(ansi red_bold)❌ pass2-eval self-test: apply-surface-finding did not append all three accumulators together(ansi reset)"
+        $failed = true
+    }
+
+    rm -rf $root
+    if not $failed {
+        print $"(ansi green_bold)✅ Pass-2 eval self-test passed \(9 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -2232,7 +2552,8 @@ def main [--update-baseline, --self-test] {
         let orphans_failed = (run-orphans-self-test)
         let fm_schema_failed = (run-frontmatter-schema-self-test)
         let accumulator_failed = (run-accumulator-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $fm_schema_failed or $accumulator_failed { exit 1 }
+        let pass2_eval_failed = (run-pass2-eval-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed { exit 1 }
         exit 0
     }
 
@@ -2586,6 +2907,21 @@ def main [--update-baseline, --self-test] {
     # growth of that finding on the same file — the corpus had zero such
     # waivers when the gap was found, so nothing was masked in practice, but
     # the hole was live the moment one was added.
+    #
+    # (claude-skills-151 Gate 3 finding) The per-file evaluation — every
+    # check below, including the accumulate-detail-counts call — now lives
+    # in evaluate-agent-file / evaluate-command-file, unit-tested directly
+    # by run-pass2-eval-self-test: deleting that call now fails --self-test,
+    # not only a live corpus scan. The loops below are a merge step only,
+    # via apply-surface-finding. Known residual, corrected after a Gate 3
+    # review found the first version of this comment overclaimed: main
+    # still unpacks apply-surface-finding's result into three separate
+    # `mut` assignments (nushell has no one-statement destructure-assign
+    # for `mut`), and deleting only the `failing_counts` line among the
+    # three is exactly as invisible as before — see apply-surface-finding's
+    # own doc comment. What DID change: the per-file wiring is hermetically
+    # tested, and a WHOLE deletion of the merge call is caught by the full
+    # run via a baseline stale-key failure.
     let known_models = ["haiku" "sonnet" "opus"]
     let known_hook_events = ["PreToolUse" "PostToolUse" "SessionStart" "SessionEnd" "UserPromptSubmit" "Stop" "SubagentStop" "PreCompact" "Notification"]
     mut surface_results = []
@@ -2614,79 +2950,18 @@ def main [--update-baseline, --self-test] {
             })
         let agent_entries = ($plugin_agent_entries | append $nested_agent_entries)
 
+        # claude-skills-151 Gate 3 finding: evaluation logic (all the checks,
+        # including the links/fm_schema detail-count wiring) now lives in
+        # evaluate-agent-file, unit-tested directly by run-pass2-eval-self-test
+        # against a real fixture file. This loop is the merge step only —
+        # apply-surface-finding folds one result into all three accumulators
+        # in a single call.
         for entry in $agent_entries {
-            let f = $entry.file
-            let content = (open --raw $f)
-            let all_lines = ($content | lines)
-            let fm_lines = if ($all_lines | first | default "" | str trim) == "---" {
-                let rest = ($all_lines | skip 1)
-                let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
-                if ($end_matches | is-not-empty) {
-                    $rest | first ($end_matches | first | get index)
-                } else { [] }
-            } else { [] }
-
-            mut failed = []
-            if not ($fm_lines | any {|line| $line | str starts-with "name:"}) {
-                $failed = ($failed | append "missing_name")
-            }
-            if not ($fm_lines | any {|line| $line | str starts-with "description:"}) {
-                $failed = ($failed | append "missing_desc")
-            }
-            let model_lines = ($fm_lines | where {|line| $line | str starts-with "model:"})
-            if ($model_lines | is-not-empty) {
-                let model_val = ($model_lines | first | str replace "model:" "" | str trim | str trim -c '"' | str trim -c "'" | str downcase)
-                if $model_val not-in $known_models { $failed = ($failed | append "bad_model") }
-            }
-
-            # skills: frontmatter (claude-skills-119) — well-formed entries, no
-            # duplicates, and each entry resolves against a local plugin's
-            # `skills` list. Only runs when the agent has a `skills:` field.
-            let skills_check = (check-agent-skills $fm_lines $registry)
-            $failed = ($failed | append $skills_check.failed)
-
-            let bad_invocations = (find-bad-invocations $content $registry)
-            if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
-
-            # links (claude-skills-164): dir-gating uses pass2-dir-in-scope —
-            # WIDER than check 14's own-level-only rule, since a Pass-2 file
-            # has no single owning skill dir and resolve-pass2-path itself
-            # checks own level, sibling skills, AND the plugin root; gating
-            # on own-level alone excluded real pointers from evaluation
-            # (Gate 3 finding, PR 160). references/agents are always in scope.
-            let agent_stripped = (strip-fences $content)
-            let agent_link_paths = (extract-link-path-tokens $agent_stripped)
-            let agent_broken_links = ($agent_link_paths | where {|p|
-                let top = ($p | split row "/" | first)
-                let dir_gated = $top in ["scripts" "templates" "hooks"]
-                let in_scope = (not $dir_gated) or (pass2-dir-in-scope $top $entry.own_dir $plugin_dir)
-                $in_scope and not (resolve-pass2-path $p (preceding-line $agent_stripped $p) $entry.own_dir $entry.dir_name $plugin_dir $skill_dir_map ($registry | get name))
-            })
-            if ($agent_broken_links | is-not-empty) { $failed = ($failed | append "links") }
-
-            # Frontmatter keys are real (claude-skills-175). Agents use their
-            # OWN schema — `paths`/`shell` are skill-only, `tools`/`isolation`
-            # are agent-only — so this deliberately does not reuse SKILL_FM_KEYS.
-            let agent_fm_unknown = (unknown-frontmatter-keys $fm_lines $AGENT_FM_KEYS)
-            if ($agent_fm_unknown | is-not-empty) { $failed = ($failed | append "fm_schema") }
-
-            if ($failed | is-not-empty) {
-                let key_base = $"($plugin_name)/agents/($f | path basename)"
-                $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
-                # Detail-count ratchet wiring for the two detail-producing
-                # checks this loop computes (claude-skills-175): links and
-                # fm_schema previously had no failing_counts entry at all, so
-                # a waiver on either absorbed unlimited later growth on the
-                # same file. See accumulate-detail-counts above.
-                $failing_counts = (accumulate-detail-counts $failing_counts $key_base $failed [
-                    {check: "links", count: ($agent_broken_links | length)}
-                    {check: "fm_schema", count: ($agent_fm_unknown | length)}
-                ])
-                $surface_results = ($surface_results | append {
-                    plugin: $plugin_name, kind: "agent", file: ($f | path basename), failed: ($failed | str join " ")
-                    details: ($bad_invocations | append $skills_check.bad_tokens | append $agent_broken_links | append ($agent_fm_unknown | each {|k| $"frontmatter:($k)"}) | str join " ")
-                })
-            }
+            let res = (evaluate-agent-file $entry.file $plugin_name $entry.own_dir $entry.dir_name $plugin_dir $registry $skill_dir_map $known_models)
+            let acc = (apply-surface-finding $failing_keys $failing_counts $surface_results $res)
+            $failing_keys = $acc.failing_keys
+            $failing_counts = $acc.failing_counts
+            $surface_results = $acc.surface_results
         }
 
         # Commands: plugin-level commands/ dir only (no nested-skill convention observed).
@@ -2695,58 +2970,14 @@ def main [--update-baseline, --self-test] {
             glob ($commands_dir | path join "*.md")
         } else { [] }
 
+        # Same shape as the agent loop above — evaluate-command-file owns the
+        # checks and the detail-count wiring, this is the merge step only.
         for f in $command_files {
-            let content = (open --raw $f)
-            let all_lines = ($content | lines)
-            let fm_lines = if ($all_lines | first | default "" | str trim) == "---" {
-                let rest = ($all_lines | skip 1)
-                let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
-                if ($end_matches | is-not-empty) {
-                    $rest | first ($end_matches | first | get index)
-                } else { [] }
-            } else { [] }
-
-            mut failed = []
-            if not ($fm_lines | any {|line| $line | str starts-with "description:"}) {
-                $failed = ($failed | append "missing_desc")
-            }
-            let bad_invocations = (find-bad-invocations $content $registry)
-            if ($bad_invocations | is-not-empty) { $failed = ($failed | append "bad_invocations") }
-
-            # links (claude-skills-164): commands are always plugin-level, so
-            # own_dir == plugin_dir — bases 1 and 4 of resolve-pass2-path
-            # collapse to the same check for command files. Dir-gating uses
-            # pass2-dir-in-scope so a command's citation of a SIBLING skill's
-            # templates/ dir (e.g. linear's plan-epic.md -> a skill-owned
-            # templates/0.1.0/epic.md) is still evaluated even though the
-            # plugin itself has no plugin-level templates/ dir.
-            let cmd_stripped = (strip-fences $content)
-            let cmd_link_paths = (extract-link-path-tokens $cmd_stripped)
-            let cmd_broken_links = ($cmd_link_paths | where {|p|
-                let top = ($p | split row "/" | first)
-                let dir_gated = $top in ["scripts" "templates" "hooks"]
-                let in_scope = (not $dir_gated) or (pass2-dir-in-scope $top $plugin_dir $plugin_dir)
-                $in_scope and not (resolve-pass2-path $p (preceding-line $cmd_stripped $p) $plugin_dir "" $plugin_dir $skill_dir_map ($registry | get name))
-            })
-            if ($cmd_broken_links | is-not-empty) { $failed = ($failed | append "links") }
-
-            let cmd_fm_unknown = (unknown-frontmatter-keys $fm_lines $SKILL_FM_KEYS)
-            if ($cmd_fm_unknown | is-not-empty) { $failed = ($failed | append "fm_schema") }
-
-            if ($failed | is-not-empty) {
-                let key_base = $"($plugin_name)/commands/($f | path basename)"
-                $failing_keys = ($failing_keys | append ($failed | each {|c| $"($key_base):($c)"}))
-                # See the agent loop above (claude-skills-175): same two
-                # detail-producing checks, same missing wiring.
-                $failing_counts = (accumulate-detail-counts $failing_counts $key_base $failed [
-                    {check: "links", count: ($cmd_broken_links | length)}
-                    {check: "fm_schema", count: ($cmd_fm_unknown | length)}
-                ])
-                $surface_results = ($surface_results | append {
-                    plugin: $plugin_name, kind: "command", file: ($f | path basename), failed: ($failed | str join " ")
-                    details: ($bad_invocations | append $cmd_broken_links | append ($cmd_fm_unknown | each {|k| $"frontmatter:($k)"}) | str join " ")
-                })
-            }
+            let res = (evaluate-command-file $f $plugin_name $plugin_dir $registry $skill_dir_map)
+            let acc = (apply-surface-finding $failing_keys $failing_counts $surface_results $res)
+            $failing_keys = $acc.failing_keys
+            $failing_counts = $acc.failing_counts
+            $surface_results = $acc.surface_results
         }
 
         # Hooks: plugin-level hooks/hooks.json only.
@@ -2798,11 +3029,17 @@ def main [--update-baseline, --self-test] {
         | where {|g| not (dupe-exempt $g.files $satellites)}
         | each {|g| $g | insert key (dupe-key $g.files)}
         | sort-by key)
-    # claude-skills-151: routed through accumulate-findings rather than a
-    # hand-rolled two-statement loop — the exact shape whose count-append
-    # statement was found deletable while the key-append survived, leaving
-    # every self-test (which only exercises find-duplicate-groups/
-    # dupe-exempt/ratchet-baseline directly, never this loop) green.
+    # claude-skills-151: routed through accumulate-findings, whose value is
+    # unit-tested directly (run-accumulator-self-test), rather than a
+    # hand-rolled loop appending to both accumulators inline. Known residual
+    # (Gate 3 finding on this PR): the two unpack lines right below are
+    # STILL exactly as half-deletable as the original inline loop was —
+    # deleting only the `$failing_counts = $dupe_acc.failing_counts` line
+    # reproduces claude-skills-151 with both --self-test and the full run
+    # green. The shape was relocated here from the loop body, not removed.
+    # See accumulate-detail-counts's doc comment above for what a whole
+    # call-site deletion DOES catch (a full-run stale-key failure) versus
+    # what a half delete still doesn't (nothing).
     let dupe_acc = (accumulate-findings $failing_keys $failing_counts ($dupe_groups | each {|g| {key: $g.key, count: $g.windows}}))
     $failing_keys = $dupe_acc.failing_keys
     $failing_counts = $dupe_acc.failing_counts
@@ -2854,25 +3091,26 @@ def main [--update-baseline, --self-test] {
         {format: "agents", doc: (extract-agent-doc-keys (vocab-doc-content ($doc_skills_root | path join "claude-agents"))), real: $agent_real, foreign: []}
         {format: "hooks", doc: (extract-hook-doc-events (vocab-doc-content ($doc_skills_root | path join "claude-hooks"))), real: $hook_real, foreign: []}
     ]
-    mut vocab_findings = []
-    mut vocab_doc_empty = []
-    for vf in $vocab_formats {
-        let res = (check-vocab-disjoint $vf.doc $vf.real $vf.foreign)
-        if $res.status == "doc_empty" {
-            $vocab_doc_empty = ($vocab_doc_empty | append $vf.format)
-        } else if $res.status == "fires" {
-            let key = $"syntax/($vf.format):vocab_disjoint"
-            # claude-skills-151: same shared accumulator as Pass 3, for the
-            # same consistency reason — one call site per pass, not a
-            # hand-rolled pair of appends.
-            let vocab_acc = (accumulate-findings $failing_keys $failing_counts [{key: $key, count: ($res.disjoint | length)}])
-            $failing_keys = $vocab_acc.failing_keys
-            $failing_counts = $vocab_acc.failing_counts
-            $vocab_findings = ($vocab_findings | append {
-                format: $vf.format, key: $key, doc: $vf.doc, real: $vf.real
-            })
-        }
-    }
+    # claude-skills-151: collected functionally (no per-iteration mutation)
+    # then folded into the ratchet with ONE accumulate-findings call after
+    # the loop — the same shape as Pass 3's dupe_groups, and for the same
+    # reason: a fixed-size call site regardless of how many formats fire,
+    # instead of a hand-rolled append pair repeated once per firing format.
+    # Same known residual as Pass 3 (see the comment at dupe_acc above):
+    # this does not make the two unpack lines below any less half-deletable.
+    let vocab_evals = ($vocab_formats | each {|vf| {vf: $vf, res: (check-vocab-disjoint $vf.doc $vf.real $vf.foreign)}})
+    let vocab_doc_empty = ($vocab_evals | where {|e| $e.res.status == "doc_empty"} | each {|e| $e.vf.format})
+    let vocab_fired = ($vocab_evals | where {|e| $e.res.status == "fires"} | each {|e| {
+        format: $e.vf.format
+        key: $"syntax/($e.vf.format):vocab_disjoint"
+        doc: $e.vf.doc
+        real: $e.vf.real
+        count: ($e.res.disjoint | length)
+    }})
+    let vocab_findings = ($vocab_fired | each {|f| {format: $f.format, key: $f.key, doc: $f.doc, real: $f.real}})
+    let vocab_acc = (accumulate-findings $failing_keys $failing_counts ($vocab_fired | each {|f| {key: $f.key, count: $f.count}}))
+    $failing_keys = $vocab_acc.failing_keys
+    $failing_counts = $vocab_acc.failing_counts
     if ($vocab_doc_empty | is-not-empty) {
         print $"(ansi red_bold)❌ syntax-vs-usage: EMPTY documented vocabulary for format\(s\): ($vocab_doc_empty | str join ', ')(ansi reset)"
         print "These skills are known to document tokens, so extracting none means the doc extractor broke (or the doc lost its syntax section). Fix the extractor or the doc — this is a hard error, not a baselineable finding."
@@ -2881,9 +3119,11 @@ def main [--update-baseline, --self-test] {
 
     # Accumulation loops are done — rebind as immutable so the closures below
     # can capture them (Nushell closures cannot capture mut variables).
+    # vocab_findings is already immutable (claude-skills-151: collected
+    # functionally, no longer built with a mut + for loop) so it needs no
+    # rebind here.
     let failing_keys = $failing_keys
     let failing_counts = $failing_counts
-    let vocab_findings = $vocab_findings
 
     if ($results | is-empty) {
         print "No skills found to validate."
