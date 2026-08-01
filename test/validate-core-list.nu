@@ -52,6 +52,19 @@
 #      that DOES appear in a pointer satellite must match canonical, so a
 #      helpfully re-pasted partial list fails.
 #
+#   3c. SUBSET SHAPE — a satellite whose entry carries an `expected` list
+#      replaces the full-canonical comparison with its own declared subset:
+#      every run in the file is checked against `expected`, not `canonical`,
+#      in both directions — a name dropped from the subset (missing) or a
+#      name added beyond it (extra) both fail. This is how a tier that
+#      deliberately omits skills per the exemption in SKILL.md's "Core
+#      Skills (Mandatory)" section gets drift protection instead of being
+#      invisible below the sweep threshold (rule 4). `expected` names are
+#      validated against the canonical set at load time — a typo'd or
+#      renamed name inside `expected` itself is a hard failure, not a silent
+#      no-op. Used today by references/validator.md and
+#      references/fix-agent.md (claude-skills-152).
+#
 #   4. SWEEP — every git-tracked .md/.sh file NOT registered as a satellite
 #      fails if the UNION of its runs carries EXPECTED_COUNT - 2 or more
 #      CANONICAL names. A file carrying (nearly) the full stack is a
@@ -67,15 +80,18 @@
 #   - Prose mentions are ignored by design; restraint/SKILL.md may discuss
 #     /core:tdd freely.
 #   - Files carrying a deliberate SUBSET of the stack (fewer than
-#     EXPECTED_COUNT - 2 canonical names) are invisible to the sweep. Subsets
-#     are now policy, decided in claude-skills-125: a tier may omit a skill its
-#     role cannot exercise, per the "Core Skills (Mandatory)" section of
-#     agent-loop/SKILL.md. Today references/fix-agent.md (5 names) and
-#     references/validator.md (2 names) rely on this. Subset MEMBERSHIP is
-#     unchecked here — a tier dropping a skill it should carry passes; only the
-#     invocations check in validate-skills-quality.nu catches names that do not
-#     resolve. Adding teeth would need a subset-aware entry shape
-#     ({path, expected: [...]}); tracked as claude-skills-152.
+#     EXPECTED_COUNT - 2 canonical names) are invisible to the sweep UNLESS
+#     registered as a satellite. Subsets are policy, decided in
+#     claude-skills-125: a tier may omit a skill its role cannot exercise, per
+#     the "Core Skills (Mandatory)" section of agent-loop/SKILL.md.
+#     references/fix-agent.md (5 names) and references/validator.md (2 names)
+#     are registered with a subset-aware entry ({path, expected: [...]}, added
+#     in claude-skills-152): every run is checked against its declared
+#     `expected` set instead of the full canonical set, both directions —
+#     dropping a name from the subset or adding an unexpected one both fail.
+#     A subsetting tier that has NOT registered an `expected` entry is still
+#     invisible here; only the invocations check in validate-skills-quality.nu
+#     catches its stale/misspelled names, and review catches a bad omission.
 #   - Divergent names scattered as single-name fenced mentions escape the
 #     every-run rule, since each run falls under the 2-name threshold. Same
 #     class as prose mentions; not a plausible reader-followed idiom.
@@ -96,6 +112,14 @@
 const CANONICAL_FILE = "plugins/core/skills/agent-loop/SKILL.md"
 const CANONICAL_HEADING = "## Core Skills (Mandatory)"
 const EXPECTED_COUNT = 10
+
+# Per SKILL.md's "Core Skills (Mandatory)" section, /core:anti-fabrication is
+# never omissible — every tier reports, and a fabricated pass is worse than a
+# red build. A subset satellite's `expected` declaration is checked against
+# this list independently of the file's actual content: dropping the name
+# from BOTH the file's load list AND its `expected` array at once would
+# otherwise pass, because the two would still agree with each other.
+const NEVER_OMISSIBLE = [/core:anti-fabrication]
 
 # One definition of each name shape, shared by the canonical extractor and
 # the grammar. Keeping these separate previously let them disagree on case
@@ -137,6 +161,16 @@ const SATELLITES = [
   { path: "plugins/core/skills/agent-loop/references/agent-worker.md"
     anchor: "Load core skills"
     pointer: $POINTER_REGEX }
+  # Subset satellites (claude-skills-152): these two tiers deliberately omit
+  # names under the exemption in SKILL.md's "Core Skills (Mandatory)"
+  # section. `expected` swaps the comparison target from the full canonical
+  # set to this declared subset — see doc item 3c above.
+  { path: "plugins/core/skills/agent-loop/references/validator.md"
+    anchor: "Load core skills"
+    expected: [/core:mise /core:anti-fabrication] }
+  { path: "plugins/core/skills/agent-loop/references/fix-agent.md"
+    anchor: "Load core skills"
+    expected: [/core:anti-fabrication /core:git /core:tdd /core:restraint /core:mise] }
   # This satellite IS a worked example: its operative list sits inside the
   # example prompt's fence, so the anchor must be allowed to match in-fence.
   { path: "plugins/core/skills/agent-loop/references/leader-spawn-example.md"
@@ -180,7 +214,24 @@ def main [--self-test] {
 
     let in_fence_ok = ($satellite | get -o anchor_in_fence | default false)
     let pointer = ($satellite | get -o pointer | default "")
-    let result = (check-satellite (open --raw $path | lines) $satellite.anchor $canonical_names $in_fence_ok $pointer)
+    let expected = ($satellite | get -o expected | default [])
+
+    # A subset satellite's own `expected` list is validated before it is used
+    # as a comparison target — see expected-preflight-errors for what this
+    # catches and why aborting on it would be wrong.
+    let pre_errors = (expected-preflight-errors $expected $canonical_names)
+    if ($pre_errors | is-not-empty) {
+      $failures = ($failures | append {
+        file: $satellite.path
+        errors: $pre_errors
+        missing: []
+        extra: []
+        lists: []
+      })
+      continue
+    }
+
+    let result = (check-satellite (open --raw $path | lines) $satellite.anchor $canonical_names $in_fence_ok $pointer $expected)
 
     if (($result.errors | is-not-empty) or ($result.missing | is-not-empty) or ($result.extra | is-not-empty)) {
       $failures = ($failures | append ($result | insert file $satellite.path))
@@ -271,6 +322,40 @@ def extract-canonical-names [file: string] {
   $names
 }
 
+# Validate a satellite's declared `expected` subset itself, independent of
+# what the file's actual load list says. An empty `expected` (the non-subset
+# shape) always passes. Returns a list of error strings, empty when clean.
+#
+#   - unknown: a typo'd or renamed name inside `expected` that is not even a
+#     canonical name.
+#   - missing NEVER_OMISSIBLE: `expected` dropping a name from
+#     NEVER_OMISSIBLE. Without this, deleting /core:anti-fabrication from
+#     BOTH a satellite's load list AND its `expected` declaration at once
+#     passes — the two still agree with each other, so the ordinary
+#     missing/extra comparison in check-satellite never fires
+#     (claude-skills-152 Gate 3 finding).
+#
+# Findings here are reported per-satellite by the caller, not a reason to
+# abort the whole run — aborting would hide every other satellite's real
+# drift behind one bad SATELLITES entry (claude-skills-152 review finding —
+# an early `exit 1` on this check masked a genuine anchor failure planted in
+# a different file in the same run).
+def expected-preflight-errors [expected: list<string>, canonical: list<string>] {
+  if ($expected | is-empty) { return [] }
+
+  let unknown = ($expected | where { |name| $name not-in $canonical })
+  let missing_never_omissible = ($NEVER_OMISSIBLE | where { |name| $name not-in $expected })
+
+  ([]
+    | append (if ($unknown | is-empty) { [] } else {
+        [$"expected subset name\(s\) not in the canonical list — ($unknown | str join ', ')"]
+      })
+    | append (if ($missing_never_omissible | is-empty) { [] } else {
+        [$"expected subset drops never-omissible name\(s\) — ($missing_never_omissible | str join ', ')"]
+      })
+    | flatten)
+}
+
 # Validate one satellite's content: anchor uniqueness, run (or pointer)
 # adjacency to the anchor, and every-run-must-match. Returns
 # { errors: [...], missing: [...], extra: [...], lists: [...] }.
@@ -282,7 +367,10 @@ def extract-canonical-names [file: string] {
 # A non-empty `pointer` selects the pointer shape: instead of a run, the
 # anchor line itself or the first non-blank/non-fence line after it must
 # match the pointer regex. Every-run still applies either way.
-def check-satellite [lines: list<string>, anchor: string, canonical: list<string>, anchor_in_fence: bool = false, pointer: string = ""] {
+# A non-empty `expected` selects the subset shape (doc item 3c): every run is
+# compared against `expected` instead of the full `canonical` set, in both
+# directions.
+def check-satellite [lines: list<string>, anchor: string, canonical: list<string>, anchor_in_fence: bool = false, pointer: string = "", expected: list<string> = []] {
   let runs = (find-load-list-runs $lines)
 
   mut errors = []
@@ -331,12 +419,16 @@ def check-satellite [lines: list<string>, anchor: string, canonical: list<string
   # carry worked examples — and a second correct list is not a defect. What
   # this forbids is a run that DISAGREES with canonical hiding behind one
   # that agrees.
+  # Subset satellites compare against their declared `expected` set instead
+  # of the full canonical set; everyone else compares against canonical.
+  let target = (if ($expected | is-empty) { $canonical } else { $expected })
+
   mut missing = []
   mut extra = []
 
   for run in $runs {
-    $missing = ($missing | append ($canonical | where { |name| $name not-in $run.names }))
-    $extra = ($extra | append ($run.names | where { |name| $name not-in $canonical }))
+    $missing = ($missing | append ($target | where { |name| $name not-in $run.names }))
+    $extra = ($extra | append ($run.names | where { |name| $name not-in $target }))
   }
 
   {
@@ -780,10 +872,40 @@ def self-test [] {
       missing: []
       extra: []
     }
+    {
+      name: "subset_exact_match_passes"
+      why: "claude-skills-152: a subset satellite compares against its declared `expected` set, not the full 3-name canonical — an exact match on the smaller set is clean"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n```\n"
+      anchor: "Load these first"
+      expected: [/core:aa /core:bb]
+      error: ""
+      missing: []
+      extra: []
+    }
+    {
+      name: "subset_missing_name_reported"
+      why: "lower bound: dropping a name from a 3-name declared subset (leaving a 2-name run, still above the run-detection threshold) surfaces as missing, exactly as it would against the full canonical set — mirrors the real fix-agent.md mutation (5 names to 4) verified live during claude-skills-152"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n```\n"
+      anchor: "Load these first"
+      expected: [/core:aa /core:bb /core:cc]
+      error: ""
+      missing: [/core:cc]
+      extra: []
+    }
+    {
+      name: "subset_extra_name_reported"
+      why: "upper bound: a subset satellite gaining a name BEYOND its declared `expected` set is drift too — the earlier design had no target to compare against here at all, so this could not previously be expressed"
+      content: "Load these first:\n\n```\n/core:aa\n/core:bb\n/core:cc\n```\n"
+      anchor: "Load these first"
+      expected: [/core:aa /core:bb]
+      error: ""
+      missing: []
+      extra: [/core:cc]
+    }
   ]
 
   for c in $satellite_cases {
-    let got = (check-satellite ($c.content | lines) $c.anchor $canonical ($c | get -o in_fence | default false) ($c | get -o pointer | default ""))
+    let got = (check-satellite ($c.content | lines) $c.anchor $canonical ($c | get -o in_fence | default false) ($c | get -o pointer | default "") ($c | get -o expected | default []))
     let error_ok = (if ($c.error | is-empty) {
       $got.errors | is-empty
     } else {
@@ -835,6 +957,44 @@ def self-test [] {
     }
   }
 
+  # Expected-preflight fixtures: a subset satellite's `expected` declaration
+  # is validated independently of what the file's load list actually says.
+  let ef_canonical = [/core:anti-fabrication /core:aa /core:bb]
+
+  let expected_preflight_cases = [
+    {
+      name: "expected_preflight_clean_subset_passes"
+      why: "a well-formed subset (real canonical names, keeps the never-omissible one) has no findings"
+      expected: [/core:anti-fabrication /core:aa]
+      expect: []
+    }
+    {
+      name: "expected_preflight_unknown_name_reported"
+      why: "a typo'd or renamed name inside `expected` is not even a canonical name"
+      expected: [/core:anti-fabrication /core:zz]
+      expect: ["expected subset name(s) not in the canonical list — /core:zz"]
+    }
+    {
+      name: "expected_preflight_drops_never_omissible_reported"
+      why: "claude-skills-152 Gate 3 finding: deleting /core:anti-fabrication from BOTH a satellite's load list AND its `expected` declaration at once must not silently agree with itself"
+      expected: [/core:aa /core:bb]
+      expect: ["expected subset drops never-omissible name(s) — /core:anti-fabrication"]
+    }
+    {
+      name: "expected_preflight_empty_expected_passes"
+      why: "an empty `expected` (the non-subset shape) is not a subset satellite at all — nothing to check"
+      expected: []
+      expect: []
+    }
+  ]
+
+  for c in $expected_preflight_cases {
+    let got = (expected-preflight-errors $c.expected $ef_canonical)
+    if $got != $c.expect {
+      $failures = ($failures | append $"($c.name): expected ($c.expect | to nuon), got ($got | to nuon)")
+    }
+  }
+
   # Sweep-measure fixtures: union overlap per FILE, not per run.
   let sweep_cases = [
     {
@@ -858,7 +1018,7 @@ def self-test [] {
     }
   }
 
-  let total = (($cases | length) + ($satellite_cases | length) + ($fence_cases | length) + ($sweep_cases | length))
+  let total = (($cases | length) + ($satellite_cases | length) + ($fence_cases | length) + ($expected_preflight_cases | length) + ($sweep_cases | length))
 
   if ($failures | is-not-empty) {
     print $"(ansi red_bold)❌ Core-list self-test failed:(ansi reset)"
