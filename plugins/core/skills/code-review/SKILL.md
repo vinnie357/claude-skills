@@ -19,14 +19,12 @@ Activate when:
 
 ## Anti-fabrication
 
-This skill follows `core:anti-fabrication`, but genuinely has little to verify against an
-external source: the checklist, review-etiquette, and anti-pattern content is house
-convention and general engineering practice (Google's review guide is cited in
-`sources.md` for the checklist's shape), not versioned claims about a specific tool or
-API. The "Language-Specific Considerations" section is broad, stable idioms (pattern
-matching, ownership, type hints) rather than anything that drifts release to release —
-still, don't assert a language- or framework-specific rule this skill doesn't cover
-without checking that language's own style skill first.
+This skill follows `core:anti-fabrication`, but has little to verify against an external
+source: the checklist and etiquette content is house convention (Google's review guide,
+cited in `sources.md`, for the checklist's shape), and "Language-Specific
+Considerations" is broad, stable idiom rather than versioned API claims. Don't assert a
+language-specific rule this skill doesn't cover without checking that language's own
+style skill first.
 
 ## Code Review Checklist
 

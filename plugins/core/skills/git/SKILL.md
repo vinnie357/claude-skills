@@ -10,13 +10,25 @@ Activate when creating commits, managing branches, creating pull requests, resol
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. The commit/PR format rules are house
-convention, but the "Remote and Authentication Conventions" section makes specific
-behavioral claims about Git and the GitHub API — SSH key auth bypassing OAuth scope
-checks that HTTPS push enforces, and anonymous access to GitHub Releases on a private
-repo returning 404 rather than 401 — verified against Git and GitHub documentation cited
-in `sources.md`. Don't assert `git`/`gh` CLI or GitHub API behavior this skill doesn't
-already cover without checking the current docs; CLI flags and API responses do change
-across versions.
+convention, but the "Remote and Authentication Conventions" section makes specific,
+checkable claims about Git and the GitHub API — this is the one skill in this set that
+does, and its two claims are verified two different ways:
+
+- **Anonymous access to GitHub Releases on a private repo returns 404, not 403** (not
+  401 — corrected from an earlier draft of this section). Confirmed against GitHub's own
+  documentation, cited in `sources.md`: "GitHub uses a 404 Not Found response instead of
+  a 403 Forbidden response to avoid confirming the existence of private repositories."
+- **SSH key auth bypasses the `workflow` OAuth scope that HTTPS push enforces.** GitHub
+  documents the `workflow` scope requirement for OAuth apps/PATs pushing Actions workflow
+  files (cited in `sources.md`), but does not document the SSH-side exemption as a general
+  principle — that half is empirically observed, not centrally documented: pushing a
+  `.github/workflows/*.yml` change over HTTPS with a token lacking `workflow` scope is
+  rejected ("Refusing to allow an OAuth App to create or update workflow ... without
+  `workflow` scope"); the identical push over SSH succeeds.
+
+Don't assert `git`/`gh` CLI or GitHub API behavior this skill doesn't already cover
+without checking the current docs, or testing it directly when the docs don't say —
+CLI flags and API responses do change across versions.
 
 ## Commit Format
 

@@ -37,6 +37,39 @@ breaking_changes_likely = false
 notes = "Commit message convention (types, scopes, breaking changes). sources.md records no Date Accessed for this bullet, so last_checked is unknown rather than guessed."
 
 # ----------------------------------------------------------------------------
+# GitHub REST API Troubleshooting — 404-vs-403 private-repo behavior, quoted
+# verbatim in the skill's Anti-fabrication section.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["git"]
+name = "github-rest-troubleshooting"
+url = "https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-08-01"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Docs-based reference, no version pinned. Confirmed verbatim: \"GitHub uses a 404 Not Found response instead of a 403 Forbidden response to avoid confirming the existence of private repositories.\" (section \"404 Not Found for an existing resource\")."
+
+# ----------------------------------------------------------------------------
+# GitHub OAuth App Scopes — documents the `workflow` scope requirement for
+# HTTPS/OAuth pushes to Actions workflow files. Does NOT document the SSH-side
+# exemption; that half of the skill's claim is empirical, not cited here.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["git"]
+name = "github-oauth-scopes"
+url = "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-08-01"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "Docs-based reference, no version pinned. Confirms the `workflow` scope entry (\"Grants the ability to add and update GitHub Actions workflow files\") — covers only the HTTPS/OAuth-token side of the skill's SSH-vs-HTTPS claim. No GitHub docs page found stating the SSH-side exemption as a general principle; that half is described in the skill as observed behavior (a workflow-file push rejected over HTTPS without the scope, identical push succeeding over SSH), not as a citable claim."
+
+# ----------------------------------------------------------------------------
 # mise — tool version manager and task runner. CalVer releases via GitHub.
 # current_version is the version the skill content was verified against per
 # sources.md ("Version v2026.3.15", accessed 2026-03-25), not

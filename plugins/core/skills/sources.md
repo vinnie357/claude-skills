@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the core plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model` (Agent Loop Skill).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits`, `github-rest-troubleshooting`, `github-oauth-scopes` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model` (Agent Loop Skill).
 
 ## Git Skill
 
@@ -16,6 +16,18 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **URL**: https://www.conventionalcommits.org/
 - **Purpose**: Commit message convention and best practices
 - **Key Topics**: Commit message format, types, scopes, breaking changes
+
+### GitHub REST API Troubleshooting
+- **URL**: https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api
+- **Purpose**: Documents the 404-instead-of-403 behavior for unauthenticated/unauthorized access to private repository resources — quoted verbatim in the skill's Anti-fabrication section
+- **Date Accessed**: 2026-08-01
+- **Key Topics**: 404 vs 403 for private resources, token scope troubleshooting
+
+### GitHub OAuth App Scopes
+- **URL**: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps
+- **Purpose**: Documents the `workflow` scope OAuth apps/PATs need to push GitHub Actions workflow files over HTTPS — the documented half of the SSH-bypasses-scope claim; the SSH-side exemption itself is not documented on this or any GitHub page found, and is described in the skill as empirically observed, not cited, for that reason
+- **Date Accessed**: 2026-08-01
+- **Key Topics**: OAuth app scopes, `workflow` scope, PAT scope requirements
 
 ## Mise Skill
 
