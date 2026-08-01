@@ -43,7 +43,19 @@ const SEMVER_RE = '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # Shape-based (not strict semver) — accepts "unknown" as a literal, checked
 # separately. See claude-skills-189: upstream version schemes are
 # heterogeneous (CalVer, OTP-style, bare major/minor) and not all semver.
-const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.]+)?$'
+# claude-skills-196 (D1b): suffix class widened by one character (added the
+# trailing '-') to match SEMVER_RE four lines above, which already accepts a
+# hyphenated prerelease segment (e.g. "1.0.0-alpha-1"). Not a policy
+# widening — this file was internally inconsistent, rejecting here what it
+# already accepted there. Measured: 0 of 39 corpus values change acceptance.
+# What the extra character newly admits is exactly the hyphenated-suffix
+# family: the two intended forms above, plus degenerate ones like "1.0.0--"
+# (which SEMVER_RE already accepts, so agreeing with it is the point) and
+# "a-1-2-3" (alpha prefix plus hyphenated suffix — not a plausible typo).
+# No plausible authoring mistake became acceptable. PEP 440 separator-less suffixes
+# (D1a) and dual -prerelease+build suffixes (D1c) were also considered and
+# rejected — see SKILL.md's field table for the reasoning.
+const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.-]+)?$'
 
 # Returns [{rule, severity, message}] for ONE plugin. severity is "fail" or
 # "info"; main exits 1 only on "fail". Pure: no filesystem, no network —
@@ -375,18 +387,31 @@ def check-sources [
             }
 
             if "current_version" in $cols {
-                let cv = (scalar-str $entry.current_version)
-                if $cv == null {
+                let raw_t = ($entry.current_version | describe)
+                if $raw_t != "string" {
+                    # claude-skills-197: current_version is the ONLY scalar-str
+                    # consumer whose check silently ACCEPTS a coerced numeric —
+                    # an unquoted 1.10 parses as a TOML float and coerces to
+                    # "1.1", a different version, with no diagnostic. Every
+                    # other scalar-str field (b3_date, SEMVER_RE, the two
+                    # enums) rejects a coerced numeric loudly on its own, so
+                    # they need no extra type rule. Hence the divergence from
+                    # the shared helper here and nowhere else. Checking the
+                    # RAW type ahead of scalar-str also subsumes the old
+                    # `$cv == null` wrong-type branch (list / datetime), so
+                    # those cases keep landing on this same rule id. Measured:
+                    # 0 corpus entries are non-string.
                     $findings = ($findings | append {
                         rule: "b3_version_shape"
                         severity: "fail"
-                        message: $"($plugin)/($name): current_version is a ($entry.current_version | describe), expected a version string or 'unknown'"
+                        message: $"($plugin)/($name): current_version is a ($raw_t), expected a QUOTED version string or 'unknown' — an unquoted numeric records a different value \(1.10 becomes 1.1\)"
                     })
-                } else if not ($cv == "unknown" or ($cv =~ $VERSION_SHAPE_RE)) {
+                } else if not ($entry.current_version == "unknown"
+                               or ($entry.current_version =~ $VERSION_SHAPE_RE)) {
                     $findings = ($findings | append {
                         rule: "b3_version_shape"
                         severity: "fail"
-                        message: $"($plugin)/($name): current_version '($cv)' is neither a recognizable version string nor 'unknown'"
+                        message: $"($plugin)/($name): current_version '($entry.current_version)' is neither a recognizable version string nor 'unknown'"
                     })
                 }
             }
@@ -549,6 +574,35 @@ def main [--self-test] {
 
     if ($pending | is-not-empty) {
         $findings = ($findings | append (missing-sources-findings $pending))
+    }
+
+    # claude-skills-198 / D4(b): guard the AUTHORING TEMPLATE against the same
+    # drift it teaches authors to avoid. Reads the real file — not a copy —
+    # so this check cannot itself become the stale second place. Only the
+    # format-ruled fields are checked; url/notes/skills/name are legitimately
+    # placeholders (see plan §6).
+    let tmpl_path = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "skill-update" "templates" "sources.toml")
+    let tmpl = (open $tmpl_path)
+    let tmpl_src = ($tmpl.sources | first)
+    let tmpl_checks = [
+        ["meta.reviewed_at_plugin_version" $tmpl.meta.reviewed_at_plugin_version ($tmpl.meta.reviewed_at_plugin_version == "unknown" or $tmpl.meta.reviewed_at_plugin_version =~ $SEMVER_RE)]
+        ["meta.last_full_check" $tmpl.meta.last_full_check ($tmpl.meta.last_full_check == "unknown" or $tmpl.meta.last_full_check =~ $DATE_RE)]
+        ["sources.0.current_version" $tmpl_src.current_version ($tmpl_src.current_version == "unknown" or $tmpl_src.current_version =~ $VERSION_SHAPE_RE)]
+        ["sources.0.last_checked" $tmpl_src.last_checked ($tmpl_src.last_checked == "unknown" or $tmpl_src.last_checked =~ $DATE_RE)]
+        ["sources.0.version_constraint" $tmpl_src.version_constraint ($tmpl_src.version_constraint in $VERSION_CONSTRAINTS)]
+        ["sources.0.update_priority" $tmpl_src.update_priority ($tmpl_src.update_priority in $UPDATE_PRIORITIES)]
+    ]
+    for row in $tmpl_checks {
+        let field = ($row | get 0)
+        let value = ($row | get 1)
+        let ok = ($row | get 2)
+        if not $ok {
+            $findings = ($findings | append {
+                rule: "b6_template_drift"
+                severity: "fail"
+                message: $"templates/sources.toml: ($field) = '($value)' fails its own format rule"
+            })
+        }
     }
 
     let info_findings = ($findings | where severity == "info")
