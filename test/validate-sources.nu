@@ -40,6 +40,10 @@ const NONE_FORBIDDEN = ["url" "releases_url" "current_version" "version_constrai
                         "update_priority" "github_repo" "hex_package" "crate_name"]
 const DATE_RE = '^\d{4}-\d{2}-\d{2}$'
 const SEMVER_RE = '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
+# Shape-based (not strict semver) — accepts "unknown" as a literal, checked
+# separately. See claude-skills-189: upstream version schemes are
+# heterogeneous (CalVer, OTP-style, bare major/minor) and not all semver.
+const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.]+)?$'
 
 # Returns [{rule, severity, message}] for ONE plugin. severity is "fail" or
 # "info"; main exits 1 only on "fail". Pure: no filesystem, no network —
@@ -366,6 +370,23 @@ def check-sources [
                         rule: "b3_date"
                         severity: "fail"
                         message: $"($plugin)/($name): last_checked '($lc)' is neither YYYY-MM-DD nor 'unknown'"
+                    })
+                }
+            }
+
+            if "current_version" in $cols {
+                let cv = (scalar-str $entry.current_version)
+                if $cv == null {
+                    $findings = ($findings | append {
+                        rule: "b3_version_shape"
+                        severity: "fail"
+                        message: $"($plugin)/($name): current_version is a ($entry.current_version | describe), expected a version string or 'unknown'"
+                    })
+                } else if not ($cv == "unknown" or ($cv =~ $VERSION_SHAPE_RE)) {
+                    $findings = ($findings | append {
+                        rule: "b3_version_shape"
+                        severity: "fail"
+                        message: $"($plugin)/($name): current_version '($cv)' is neither a recognizable version string nor 'unknown'"
                     })
                 }
             }
@@ -1636,6 +1657,379 @@ update_priority = "medium"
             version: "1.0.0"
             md: "demo-source is documented here"
             want: ["b3_date"]
+        }
+        # ---- b3_version_shape: current_version format validation (claude-skills-189) ----
+        # Contract (shape-based, not strict semver — see claude-skills-189):
+        # accept the literal "unknown", or a string matching
+        # ^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.]+)?$
+        # i.e. an optional short alpha prefix (v, OTP, ...) with an optional
+        # '-' or '.' separator, one to five dot-separated numeric groups, and
+        # an optional -prerelease or +build suffix. No whitespace, no URL
+        # scheme, no letters after the numeric body outside that suffix.
+        # Rejects: no digits at all, embedded whitespace, a pasted URL, and
+        # an empty string. TOML-native int/float values are coerced via
+        # scalar-str (same helper already used for last_checked/
+        # update_priority/version_constraint) before the shape check runs, so
+        # an unquoted `current_version = 2025` or `= 1.0` is judged on its
+        # stringified form, not rejected for wrong type.
+        {
+            label: "current_version = unknown"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0.0 (valid semver)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = v2026.3.15 (v-prefixed CalVer, real corpus value)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "v2026.3.15"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = OTP-29.0.4 (letter-prefixed scheme, absent from corpus today but must be accepted)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "OTP-29.0.4"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0.0-rc1 (pre-release suffix, absent from corpus today but must be accepted)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0-rc1"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0.0+build.5 (build metadata suffix, absent from corpus today but must be accepted)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0+build.5"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 3 (bare single-digit string, real corpus value)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "3"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 2025 (unquoted TOML int, real corpus value — exercises scalar-str's int path)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = 2025
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = 1.0 (unquoted TOML float — exercises scalar-str's float path, e.g. mix.exs-style bare version)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = 1.0
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "current_version = banana (no digit at all — clearly invalid)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "banana"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = '1.0.0 beta' (embedded whitespace — clearly invalid)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "1.0.0 beta"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = a pasted URL (accidental paste — clearly invalid)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = "https://example.com/releases/v1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            label: "current_version = '' (empty string — clearly invalid)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = ""
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            # Mirrors "entry last_checked as a list must report, not crash =~
+            # (claude-skills-185 rd2)" above: scalar-str returns null for a
+            # list<string> (not in its coercible-type set), which routes
+            # through the genuine `$cv == null` wrong-type branch rather than
+            # the shape-regex branch.
+            label: "current_version as a list must report, not crash =~ (claude-skills-189 wrong-type guard)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = ["1.0"]
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
+        }
+        {
+            # Mirrors "A-F4.3: TOML-native unquoted date must not crash =~"
+            # above. Looks like a plausible authoring mistake (someone typing
+            # a bare date meaning a version). Unlike the list case, `datetime`
+            # IS in scalar-str's coercible set, so this does NOT hit the
+            # `$cv == null` branch — it coerces to a string like
+            # "Thu Jan  1 00:00:00 2026" and then fails the shape regex,
+            # landing in the second (shape-mismatch) branch. Pinned anyway
+            # because it is the sneakier of the two non-scalar shapes: it
+            # reads as ordinary input, not an obvious wrong type.
+            label: "current_version = unquoted TOML date must not crash — parses as datetime, not a version string (claude-skills-189 wrong-type guard)"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "manual"
+current_version = 2026-01-01
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
         }
     ]
 
