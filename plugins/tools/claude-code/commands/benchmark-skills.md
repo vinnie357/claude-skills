@@ -18,9 +18,11 @@ A scorecard table showing quality metrics for each skill:
 ```
 Skill            | Plugin   | Desc | Lines   | Refs | Examples | Score
 ─────────────────┼──────────┼──────┼─────────┼──────┼──────────┼──────
-git              | core     | Pass | 120/500 | Pass | Pass     | 9/11
-claude-skills    | cl-code  | Pass | 380/500 | Pass | Pass     | 10/11
+git              | core     | Pass | 120/500 | Pass | Pass     | X/N
+claude-skills    | cl-code  | Pass | 380/500 | Pass | Pass     | X/N
 ```
+
+`X/N` above is a placeholder. Copy the real score from the `mise run test:skills-quality` scorecard, which prints concrete values such as `17/17` — `N` is the validator's `check_count`, not a fixed number, so it will not go stale as the check list grows. The validator takes no `--plugin` filter, so run the full suite and read the rows you need.
 
 **Examples:**
 ```
@@ -44,7 +46,7 @@ Use Agent tool with subagent_type: "general-purpose" to:
    - **Anti-fabrication**: Contains anti-fab rules or references `core:anti-fabrication`
    - **Source coverage**: Skill is listed in one of the plugin's `sources.toml` entries' `skills` array
 4. Classify each skill as Capability Uplift or Encoded Preference
-5. Calculate score (X/11 checks passing)
+5. Read each skill's score from `mise run test:skills-quality` rather than computing one — `test/validate-skills-quality.nu` is the single source of truth for both the check list and `check_count`. Copy the printed value verbatim; do not hand-count checks or write a fixed denominator
 6. Present results as a formatted scorecard table
 7. Summarize: total skills, average score, skills needing attention
 

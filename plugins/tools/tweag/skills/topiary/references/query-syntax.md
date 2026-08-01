@@ -369,5 +369,5 @@ Compare this structure against your query patterns. Adjust field names, node typ
 ## Resources
 
 - [Topiary Query Reference](https://topiary.tweag.io/book/reference/capture-names/index.html)
-- [Tree-sitter Queries Documentation](https://tree-sitter.github.io/tree-sitter/using-parsers#query-syntax)
+- [Tree-sitter Query Syntax](https://tree-sitter.github.io/tree-sitter/using-parsers/queries/1-syntax.html)
 - [Topiary Tutorial Part 1](https://www.tweag.io/blog/2025-01-30-topiary-tutorial-part-1/)
