@@ -82,12 +82,12 @@ Both isolate untrusted agent code from the host. Both are valid; pick the one wh
 
 ## Substrate-specific files in this plugin
 
-- `templates/Dockerfile.claude-code` — mise-driven OCI image (uses `claude-code = "latest"` mise registry short name).
-- `templates/SandboxTemplate.{kata,gvisor,kina}.yaml` — three variants; pick by substrate.
-- `templates/SandboxClaim.session.yaml` — per-session claim with `shutdownPolicy: Delete`.
-- `templates/NetworkPolicy.anthropic.yaml` — standalone default-deny + Anthropic egress allowlist (when `networkPolicyManagement: Unmanaged`).
-- `CLAUDE_PLUGIN_ROOT/scripts/render-claim.nu`, `wait-bound.nu`, `list-claims.nu` — nushell scripts at the plugin root (not inside this skill directory), invoked by the slash commands. Shown as a bare path here, not the brace-expansion form, because the braced form itself expands to an absolute path when this skill loads.
-- `mise.toml` — plugin-root mise.toml pinning `nu` + `jq`; exposes `mise run render-claim` / `wait-bound` / `list-claims` / `install-controller` for direct operator use without Claude.
+- `<CLAUDE_PLUGIN_ROOT>/templates/Dockerfile.claude-code` — mise-driven OCI image (uses `claude-code = "latest"` mise registry short name).
+- `<CLAUDE_PLUGIN_ROOT>/templates/SandboxTemplate.{kata,gvisor,kina}.yaml` — three variants; pick by substrate.
+- `<CLAUDE_PLUGIN_ROOT>/templates/SandboxClaim.session.yaml` — per-session claim with `shutdownPolicy: Delete`.
+- `<CLAUDE_PLUGIN_ROOT>/templates/NetworkPolicy.anthropic.yaml` — standalone default-deny + Anthropic egress allowlist (when `networkPolicyManagement: Unmanaged`).
+- `<CLAUDE_PLUGIN_ROOT>/scripts/render-claim.nu`, `wait-bound.nu`, `list-claims.nu` — nushell scripts, invoked by the slash commands.
+- `<CLAUDE_PLUGIN_ROOT>/mise.toml` — plugin-root mise.toml pinning `nu` + `jq`; exposes `mise run render-claim` / `wait-bound` / `list-claims` / `install-controller` for direct operator use without Claude.
 
 ## Anti-fabrication
 

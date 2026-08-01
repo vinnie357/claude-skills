@@ -24,8 +24,8 @@ Stage them into a build context:
 
 ```bash
 BUILD_DIR=$(mktemp -d)
-cp ${CLAUDE_PLUGIN_ROOT}/templates/Dockerfile.claude-code $BUILD_DIR/Dockerfile
-cp ${CLAUDE_PLUGIN_ROOT}/templates/mise.toml.claude-code $BUILD_DIR/mise.toml
+cp <CLAUDE_PLUGIN_ROOT>/templates/Dockerfile.claude-code $BUILD_DIR/Dockerfile
+cp <CLAUDE_PLUGIN_ROOT>/templates/mise.toml.claude-code $BUILD_DIR/mise.toml
 ```
 
 ### 2. Build
@@ -65,7 +65,7 @@ Or re-apply from the plugin template with placeholders substituted:
 
 ```bash
 sed -e "s|REGISTRY/claude-code:TAG|${REGISTRY}/claude-code:${TAG}|" \
-  ${CLAUDE_PLUGIN_ROOT}/templates/SandboxTemplate.kata.yaml | kubectl apply -f -
+  <CLAUDE_PLUGIN_ROOT>/templates/SandboxTemplate.kata.yaml | kubectl apply -f -
 ```
 
 ### 5. Clean up

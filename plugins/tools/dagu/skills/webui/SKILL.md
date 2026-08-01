@@ -57,7 +57,7 @@ For detailed information on a running workflow, consult `references/monitoring.m
 
 ### View History
 
-All executions are preserved; open a workflow's history to review past runs, find failed executions, and retry them (see Common Tasks).
+Execution history is not unconditionally preserved — the REST API supports deleting individual records (`DELETE /dags/{dagName}/history/{requestId}`, see `/dagu:rest-api` `references/api-endpoints.md` "Delete Execution History"). Open a workflow's history to review past runs, find failed executions, and retry them (see Common Tasks).
 
 ### Workflow Visualization
 
@@ -96,7 +96,7 @@ For advanced log analysis, consult `references/monitoring.md`.
 
 - **Real-time visibility**: Web UI provides live updates of workflow execution
 - **Click-based operations**: No CLI needed for basic workflow management
-- **History preservation**: All executions are logged and accessible
+- **History preservation**: Executions are logged and accessible; individual records can be deleted via the REST API
 - **Visual feedback**: Status indicators show current state at a glance
 - **Log accessibility**: Detailed logs available for debugging
 

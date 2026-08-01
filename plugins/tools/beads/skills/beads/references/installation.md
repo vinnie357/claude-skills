@@ -6,14 +6,16 @@ Installation methods for the `bd` binary: npm, Homebrew, Go install, and mise
 ### npm (Recommended)
 
 ```bash
-npm install -g @anthropic/beads
+npm install -g @beads/bd
 ```
 
-### Homebrew (macOS)
+### Homebrew (macOS/Linux)
 
 ```bash
-brew install anthropic/tap/beads
+brew install beads
 ```
+
+This is the `homebrew-core` formula (no tap needed).
 
 ### Go Install
 
