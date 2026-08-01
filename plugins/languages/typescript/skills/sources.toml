@@ -1,0 +1,247 @@
+# sources.toml - Machine-readable version tracking for skill dependencies
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "typescript"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-08-01"
+
+# ----------------------------------------------------------------------------
+# TypeScript itself — the Handbook (type system, strict flags, utility types,
+# modules, declaration files) cited from the language skill, and moduleResolution
+# semantics cited from the language and node skills' modules-reference material.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["language"]
+name = "typescript"
+url = "https://www.typescriptlang.org/docs/handbook/"
+releases_url = "https://github.com/microsoft/TypeScript/releases"
+check_method = "github-releases"
+github_repo = "microsoft/TypeScript"
+current_version = "7.0.2"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "current_version 7.0.2 is the npm registry 'latest' dist-tag (registry.npmjs.org/typescript/latest, checked live 2026-08-01). Two other live checks the same day disagreed: the typescriptlang.org/docs/handbook/release-notes/typescript-5-9.html page describes a 5.9 release dated 2026-07-27, and github.com/microsoft/TypeScript/releases showed 6.0.3 as its top entry — GitHub's releases page returned partial-render errors on fetch, so that number may be stale/incomplete rather than authoritative. Skill content (generics, conditional types, mapped types, utility types, strict flags, modules) is grounded in the stable Handbook feature set that has not changed across these point releases, not in any single version's changelog — re-verify before adding a claim specific to TypeScript 6 or 7 (e.g. the native/Go compiler port) that this skill does not currently make."
+
+# ----------------------------------------------------------------------------
+# Vitest — testing skill's primary unit-test runner section.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["testing"]
+name = "vitest"
+url = "https://vitest.dev/guide/"
+releases_url = "https://github.com/vitest-dev/vitest/releases"
+check_method = "github-releases"
+github_repo = "vitest-dev/vitest"
+current_version = "4.1.10"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "high"
+breaking_changes_likely = false
+notes = "current_version 4.1.10 verified via both vitest.dev/guide/ (documented version) and registry.npmjs.org/vitest/latest (npm dist-tag), checked live 2026-08-01 — the two agreed. github.com/vitest-dev/vitest/releases shows a v5.0.0-beta.7 prerelease ahead of this on the same date; not used as current_version since it is pre-release, not the npm 'latest' dist-tag."
+
+# ----------------------------------------------------------------------------
+# Jest — testing skill's alternative unit-test runner section.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["testing"]
+name = "jest"
+url = "https://jestjs.io/docs/getting-started"
+releases_url = "https://github.com/jestjs/jest/releases"
+check_method = "github-releases"
+github_repo = "jestjs/jest"
+current_version = "30.4.2"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version 30.4.2 verified via registry.npmjs.org/jest/latest and cross-checked against github.com/jestjs/jest/releases (both agreed), live 2026-08-01. jestjs.io/docs/getting-started itself only states the shorter '30.4'."
+
+# ----------------------------------------------------------------------------
+# Playwright — testing skill's end-to-end section.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["testing"]
+name = "playwright"
+url = "https://playwright.dev/docs/intro"
+releases_url = "https://github.com/microsoft/playwright/releases"
+check_method = "github-releases"
+github_repo = "microsoft/playwright"
+current_version = "1.62.1"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version 1.62.1 is the @playwright/test npm registry 'latest' dist-tag (registry.npmjs.org/@playwright/test/latest), checked live 2026-08-01. playwright.dev/docs/intro does not state a version number directly."
+
+# ----------------------------------------------------------------------------
+# Type-level testing tools — expect-type and tsd, cited from the testing
+# skill's 'Type-Level Testing' section only, not separately documented in depth.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["testing"]
+name = "expect-type"
+url = "https://github.com/mmkal/expect-type"
+releases_url = "https://github.com/mmkal/expect-type/releases"
+check_method = "manual"
+current_version = "1.4.0"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "current_version 1.4.0 from registry.npmjs.org/expect-type/latest, checked live 2026-08-01. check_method=manual because this is a supporting reference, not a primary section — full API surface not independently verified beyond the documented expectTypeOf entry point."
+
+[[sources]]
+skills = ["testing"]
+name = "tsd"
+url = "https://github.com/tsdjs/tsd"
+releases_url = "https://github.com/tsdjs/tsd/releases"
+check_method = "manual"
+current_version = "0.33.0"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "current_version 0.33.0 from registry.npmjs.org/tsd/latest, checked live 2026-08-01. check_method=manual because this is a supporting reference, not a primary section."
+
+# ----------------------------------------------------------------------------
+# ESLint (flat config) — linting skill's primary linter section.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["linting"]
+name = "eslint"
+url = "https://eslint.org/docs/latest/use/getting-started"
+releases_url = "https://github.com/eslint/eslint/releases"
+check_method = "github-releases"
+github_repo = "eslint/eslint"
+current_version = "10.8.0"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "high"
+breaking_changes_likely = false
+notes = "current_version 10.8.0 verified via both eslint.org/docs/latest/use/getting-started (documented version) and registry.npmjs.org/eslint/latest, checked live 2026-08-01 — agreed. Flat config (eslint.config.js) is the only config format documented in this skill; the legacy .eslintrc cascading format is intentionally not covered."
+
+# ----------------------------------------------------------------------------
+# typescript-eslint — linting skill's TypeScript-aware rule presets and the
+# rule-catalog reference's individual rule pages.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["linting"]
+name = "typescript-eslint"
+url = "https://typescript-eslint.io/getting-started/"
+releases_url = "https://github.com/typescript-eslint/typescript-eslint/releases"
+check_method = "github-releases"
+github_repo = "typescript-eslint/typescript-eslint"
+current_version = "8.65.0"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "high"
+breaking_changes_likely = false
+notes = "current_version 8.65.0 verified via registry.npmjs.org/typescript-eslint/latest and cross-checked against github.com/typescript-eslint/typescript-eslint/releases (both agreed), live 2026-08-01. Covers the getting-started page plus the four individual rule pages extracted into references/rule-catalog.md: no-floating-promises, no-misused-promises, no-explicit-any, consistent-type-imports."
+
+# ----------------------------------------------------------------------------
+# Biome — linting skill's all-in-one linter/formatter alternative.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["linting"]
+name = "biome"
+url = "https://biomejs.dev/guides/getting-started/"
+releases_url = "https://github.com/biomejs/biome/releases"
+check_method = "github-releases"
+github_repo = "biomejs/biome"
+current_version = "2.5.6"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version 2.5.6 (published as 'Biome CLI v2.5.6') verified via both registry.npmjs.org/@biomejs/biome/latest and github.com/biomejs/biome/releases, live 2026-08-01 — agreed."
+
+# ----------------------------------------------------------------------------
+# Prettier — linting skill's formatter section, and the eslint-config-prettier
+# integration guidance.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["linting"]
+name = "prettier"
+url = "https://prettier.io/docs/integrating-with-linters"
+releases_url = "https://github.com/prettier/prettier/releases"
+check_method = "github-releases"
+github_repo = "prettier/prettier"
+current_version = "3.9.6"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "current_version 3.9.6 from registry.npmjs.org/prettier/latest, checked live 2026-08-01. The eslint-plugin-prettier vs eslint-config-prettier guidance in the skill is drawn directly from prettier.io/docs/integrating-with-linters, the 'Integrating with linters' page's own stated recommendation."
+
+# ----------------------------------------------------------------------------
+# Pre-commit hook tooling — husky and lint-staged, cited from the linting
+# skill's 'Pre-Commit Hooks' section only.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["linting"]
+name = "husky"
+url = "https://typicode.github.io/husky/"
+releases_url = "https://github.com/typicode/husky/releases"
+check_method = "manual"
+current_version = "9.1.7"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "current_version 9.1.7 from registry.npmjs.org/husky/latest, checked live 2026-08-01. lint-staged's exact version was not independently checked; the skill does not cite a version number for it."
+
+# ----------------------------------------------------------------------------
+# Node.js runtime itself — node skill's async/streams/modules sections.
+# check_method=manual because LTS status (not raw release recency) is what
+# matters for the version this skill recommends pinning, and nodejs.org's own
+# release table is the authoritative source for that, not the GitHub tag list.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["node"]
+name = "node"
+url = "https://nodejs.org/api/packages.html"
+releases_url = "https://nodejs.org/en/about/previous-releases"
+check_method = "manual"
+current_version = "24"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "high"
+breaking_changes_likely = false
+notes = "current_version '24' (major only) is the Active LTS line ('Krypton') per nodejs.org/en/about/previous-releases, checked live 2026-08-01; exact patch not recorded since the skill recommends pinning the LTS major via mise, not a specific patch. Node 26 is the concurrent Current (non-LTS) release line as of the same check — not recommended in the skill for new projects. Stream types, backpressure, and package.json exports/imports semantics verified against nodejs.org/api/stream.html and nodejs.org/api/packages.html directly."
+
+# ----------------------------------------------------------------------------
+# pnpm — node skill's package-manager comparison section.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["node"]
+name = "pnpm"
+url = "https://pnpm.io/motivation"
+releases_url = "https://github.com/pnpm/pnpm/releases"
+check_method = "manual"
+current_version = "11.18.0"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "current_version 11.18.0 from registry.npmjs.org/pnpm/latest, checked live 2026-08-01. pnpm.io/motivation itself only states 'versions 11 & 12' ambiguously as the current docs version, not a precise release — the npm registry figure is the one recorded here as it is unambiguous."
+
+# ----------------------------------------------------------------------------
+# Bun — node skill's package-manager/runtime comparison section. bun-types is
+# the npm package tracked since Bun itself does not publish to the npm
+# registry as an installable package (it ships via its own installer).
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["node"]
+name = "bun"
+url = "https://bun.sh/docs"
+releases_url = "https://github.com/oven-sh/bun/releases"
+check_method = "manual"
+current_version = "1.3.14"
+version_constraint = "semver"
+last_checked = "2026-08-01"
+update_priority = "low"
+breaking_changes_likely = true
+notes = "current_version 1.3.14 from registry.npmjs.org/bun-types/latest (the bun-types package version tracks the Bun runtime release it was generated from), checked live 2026-08-01, since Bun's own binary is not npm-distributed. Node-compatibility status is explicitly called out in the skill as needing a fresh check against bun.sh/docs/runtime/nodejs-compat rather than being asserted as complete."
