@@ -7,6 +7,17 @@ description: Guide for Git operations including commits, branches, rebasing, and
 
 Activate when creating commits, managing branches, creating pull requests, resolving conflicts, or following Git workflows.
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The commit/PR format rules are house
+convention, but the "Remote and Authentication Conventions" section makes specific
+behavioral claims about Git and the GitHub API — SSH key auth bypassing OAuth scope
+checks that HTTPS push enforces, and anonymous access to GitHub Releases on a private
+repo returning 404 rather than 401 — verified against Git and GitHub documentation cited
+in `sources.md`. Don't assert `git`/`gh` CLI or GitHub API behavior this skill doesn't
+already cover without checking the current docs; CLI flags and API responses do change
+across versions.
+
 ## Commit Format
 
 Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:

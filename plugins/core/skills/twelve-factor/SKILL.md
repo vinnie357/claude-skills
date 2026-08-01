@@ -20,6 +20,17 @@ Use this skill when:
 - Troubleshooting deployment or scaling issues
 - Working with environment configuration
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The 12 factors themselves are the
+methodology cited in `sources.md` (12factor.net) — a stable, versionless reference, so
+naming a factor correctly is low-risk. The risk sits in the worked examples: the
+Kubernetes manifests, `runtime.exs` snippets, and Docker Compose configs in
+`references/kubernetes.md` and `references/factor-examples.md` assert real API fields
+(e.g. `livenessProbe`, `ConfigMap` keys) that do change across Kubernetes versions —
+verify a manifest field against current API docs before asserting it applies, rather
+than assuming an older example still matches the current API.
+
 ## The 12 Factors
 
 ### I. Codebase

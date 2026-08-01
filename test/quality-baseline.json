@@ -51,27 +51,6 @@
       "detail_count": null
     },
     {
-      "key": "core/code-review:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "core/documentation:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "core/git:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "core/mise:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
@@ -87,13 +66,6 @@
     },
     {
       "key": "core/security:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "core/twelve-factor:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
