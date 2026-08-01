@@ -45,10 +45,26 @@ def resolve-plugin-path [repo: string, source: any] {
 # unauthenticated GitHub response both used to collapse into a generic
 # "error" — no way to tell "this source will never have a releases feed"
 # from "try again with a token".
+#
+# claude-skills-176 Gate 3 (F3): match `(404)`/`(403)` WITH the parens, not
+# bare digits. `$err.debug` embeds nushell's own `Span[<byte-offsets>]` from
+# the failing call site, and a bare `str contains "404"` matches those
+# offsets too — reviewer forced a DNS-failure text whose span happened to
+# contain "404"/"403" as plain digits and got misclassified. nushell's HTTP
+# error text always wraps the real status as `(404):`/`(403):` (see the
+# self-test fixtures below, copied from an actual caught error); a byte
+# offset is never rendered inside parens, so requiring them is structural,
+# not just narrower. Does not fire on live traffic today, so this was
+# latent, not observed.
+#
+# hex-pm and crates-io still fall through to a bare `catch { "error" }` —
+# neither wraps a status code the same way, and GitHub's secondary
+# (undocumented-shape) 429 rate limit is not classified separately from a
+# generic error either. Both are known gaps, not silently assumed handled.
 def classify-fetch-error [err_text: string]: nothing -> string {
-    if ($err_text | str contains "404") {
+    if ($err_text | str contains "(404)") {
         "no-releases"
-    } else if ($err_text | str contains "403") or ($err_text | str downcase | str contains "rate limit") {
+    } else if ($err_text | str contains "(403)") or ($err_text | str downcase | str contains "rate limit") {
         "rate-limited"
     } else {
         "error"
@@ -147,6 +163,14 @@ def priority-weight [p: string] {
 # version. The prior `$current != $latest` fallthrough compared it anyway,
 # reporting every one of these entries (152 in the corpus today) as
 # false-positive drift.
+#
+# claude-skills-176 Gate 3 (F4): the equality check strips a leading `v` from
+# BOTH sides before comparing — only for the comparison, the displayed
+# `current`/`latest` values are untouched. `check-github-releases` already
+# strips `v` from the upstream tag, but `current_version` in sources.toml is
+# free text and sometimes keeps it (e.g. "v0.0.0"), so "v0.0.0" vs "0.0.0"
+# compared unequal and reported false-positive drift for an entry that is
+# actually current.
 def classify-staleness [current: string, latest: string]: nothing -> string {
     if $latest == "internal" {
         "no"
@@ -164,7 +188,7 @@ def classify-staleness [current: string, latest: string]: nothing -> string {
         "unset"
     } else if $current == "unknown" {
         "no-pin"
-    } else if $current != $latest {
+    } else if ($current | str replace -r '^v' '') != ($latest | str replace -r '^v' '') {
         "yes"
     } else {
         "no"
@@ -259,6 +283,8 @@ def run-self-test [] {
         {label: "hex-pm/crates-io package with zero releases" current: "1.0.0" latest: "unknown" want: "unknown"}
         {label: "generic fetch failure still reported as error" current: "1.0.0" latest: "error" want: "error"}
         {label: "unknown pin plus no-releases feed: feed status wins" current: "unknown" latest: "no-releases" want: "no-releases"}
+        {label: "v-prefixed pin matching a v-stripped latest is current, not stale" current: "v0.0.0" latest: "0.0.0" want: "no"}
+        {label: "v-prefixed pin genuinely behind is still stale" current: "v0.0.0" latest: "0.1.0" want: "yes"}
     ]
     for c in $staleness_cases {
         let got = classify-staleness $c.current $c.latest
@@ -274,6 +300,8 @@ def run-self-test [] {
         {label: "rate limit phrase without 403 digits still matches" text: "GitHub secondary rate limit hit, retry later" want: "rate-limited"}
         {label: "unrelated network failure falls through to error" text: "Could not resolve host: api.github.com" want: "error"}
         {label: "empty error text falls through to error" text: "" want: "error"}
+        {label: "bare digits in a byte-offset span do NOT collide with a real (404)" text: "NetworkFailure { msg: \"Could not resolve host: api.github.com\", span: Span[160039..160404] }" want: "error"}
+        {label: "bare digits spelling 403 in a span do NOT collide with a real (403)" text: "NetworkFailure { msg: \"connection reset\", span: Span[140033..140403] }" want: "error"}
     ]
     for c in $fetch_error_cases {
         let got = classify-fetch-error $c.text
