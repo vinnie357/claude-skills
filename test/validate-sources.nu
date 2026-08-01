@@ -43,19 +43,28 @@ const SEMVER_RE = '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # Shape-based (not strict semver) — accepts "unknown" as a literal, checked
 # separately. See claude-skills-189: upstream version schemes are
 # heterogeneous (CalVer, OTP-style, bare major/minor) and not all semver.
-# claude-skills-196 (D1b): suffix class widened by one character (added the
-# trailing '-') to match SEMVER_RE four lines above, which already accepts a
-# hyphenated prerelease segment (e.g. "1.0.0-alpha-1"). Not a policy
-# widening — this file was internally inconsistent, rejecting here what it
-# already accepted there. Measured: 0 of 39 corpus values change acceptance.
-# What the extra character newly admits is exactly the hyphenated-suffix
-# family: the two intended forms above, plus degenerate ones like "1.0.0--"
-# (which SEMVER_RE already accepts, so agreeing with it is the point) and
-# "a-1-2-3" (alpha prefix plus hyphenated suffix — not a plausible typo).
-# No plausible authoring mistake became acceptable. PEP 440 separator-less suffixes
+# claude-skills-196 (D1b) widened the suffix class by one character to admit
+# a hyphenated prerelease segment (e.g. "1.0.0-alpha-1"), matching SEMVER_RE.
+# PR #188 Gate 3 found that widening also admitted bare calendar dates
+# ("2024-01-01", "10-11-2025") and other hyphenated junk ("1-800-flowers") —
+# SEMVER_RE rejects that whole family too (no dotted numeric base), so
+# "we already agree with SEMVER_RE" did not cover it.
+# claude-skills-196/197 fix: a hyphenated suffix is legal only when the base
+# has at least one dot-group. Semver itself requires dotted numeric
+# components before any prerelease/build suffix, so a bare-integer base
+# (no dots) has no business carrying a hyphenated one — that is exactly the
+# date/junk family's shape. Two branches: base WITH a dot-group may take a
+# suffix containing hyphens ([-+][0-9A-Za-z.-]+); base with NO dot-group may
+# only take a suffix without hyphens ([-+][0-9A-Za-z.]+). Measured against
+# this file's corpus: 0 of 39 distinct non-"unknown" current_version values
+# change acceptance, and the full date/junk family (the two PR #188 dates,
+# non-ISO "10-11-2025", "1-800-flowers", "v1-2-3", "1--2") is rejected.
+# Rejected alternatives: leaving the D1b widening as-is leaks the whole date
+# family; requiring a letter somewhere in the suffix still admits
+# "1-800-flowers" ("flowers" is alphabetic). PEP 440 separator-less suffixes
 # (D1a) and dual -prerelease+build suffixes (D1c) were also considered and
 # rejected — see SKILL.md's field table for the reasoning.
-const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.-]+)?$'
+const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+((\.\d+){1,4}([-+][0-9A-Za-z.-]+)?|([-+][0-9A-Za-z.]+)?)$'
 
 # Returns [{rule, severity, message}] for ONE plugin. severity is "fail" or
 # "info"; main exits 1 only on "fail". Pure: no filesystem, no network —
@@ -581,27 +590,39 @@ def main [--self-test] {
     # so this check cannot itself become the stale second place. Only the
     # format-ruled fields are checked; url/notes/skills/name are legitimately
     # placeholders (see plan §6).
+    # PR #188 Gate 3: a missing, unparseable, [meta]-less, or [[sources]]-less
+    # template used to crash the whole run with a raw Nushell error, masking
+    # every other finding already collected in $findings. Degrade to a
+    # b6_template_drift finding instead — fail closed, but report.
     let tmpl_path = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "skill-update" "templates" "sources.toml")
-    let tmpl = (open $tmpl_path)
-    let tmpl_src = ($tmpl.sources | first)
-    let tmpl_checks = [
-        ["meta.reviewed_at_plugin_version" $tmpl.meta.reviewed_at_plugin_version ($tmpl.meta.reviewed_at_plugin_version == "unknown" or $tmpl.meta.reviewed_at_plugin_version =~ $SEMVER_RE)]
-        ["meta.last_full_check" $tmpl.meta.last_full_check ($tmpl.meta.last_full_check == "unknown" or $tmpl.meta.last_full_check =~ $DATE_RE)]
-        ["sources.0.current_version" $tmpl_src.current_version ($tmpl_src.current_version == "unknown" or $tmpl_src.current_version =~ $VERSION_SHAPE_RE)]
-        ["sources.0.last_checked" $tmpl_src.last_checked ($tmpl_src.last_checked == "unknown" or $tmpl_src.last_checked =~ $DATE_RE)]
-        ["sources.0.version_constraint" $tmpl_src.version_constraint ($tmpl_src.version_constraint in $VERSION_CONSTRAINTS)]
-        ["sources.0.update_priority" $tmpl_src.update_priority ($tmpl_src.update_priority in $UPDATE_PRIORITIES)]
-    ]
-    for row in $tmpl_checks {
-        let field = ($row | get 0)
-        let value = ($row | get 1)
-        let ok = ($row | get 2)
-        if not $ok {
-            $findings = ($findings | append {
-                rule: "b6_template_drift"
-                severity: "fail"
-                message: $"templates/sources.toml: ($field) = '($value)' fails its own format rule"
-            })
+    let tmpl = (try { open $tmpl_path } catch { |e| print $"  (ansi yellow)⚠  templates/sources.toml: ($e.msg)(ansi reset)"; null })
+    if $tmpl == null or not ("meta" in $tmpl) or not ("sources" in $tmpl) or ($tmpl.sources | is-empty) {
+        $findings = ($findings | append {
+            rule: "b6_template_drift"
+            severity: "fail"
+            message: $"templates/sources.toml: missing, unparseable, or lacks [meta] / [[sources]] at ($tmpl_path)"
+        })
+    } else {
+        let tmpl_src = ($tmpl.sources | first)
+        let tmpl_checks = [
+            ["meta.reviewed_at_plugin_version" $tmpl.meta.reviewed_at_plugin_version ($tmpl.meta.reviewed_at_plugin_version == "unknown" or $tmpl.meta.reviewed_at_plugin_version =~ $SEMVER_RE)]
+            ["meta.last_full_check" $tmpl.meta.last_full_check ($tmpl.meta.last_full_check == "unknown" or $tmpl.meta.last_full_check =~ $DATE_RE)]
+            ["sources.0.current_version" $tmpl_src.current_version ($tmpl_src.current_version == "unknown" or $tmpl_src.current_version =~ $VERSION_SHAPE_RE)]
+            ["sources.0.last_checked" $tmpl_src.last_checked ($tmpl_src.last_checked == "unknown" or $tmpl_src.last_checked =~ $DATE_RE)]
+            ["sources.0.version_constraint" $tmpl_src.version_constraint ($tmpl_src.version_constraint in $VERSION_CONSTRAINTS)]
+            ["sources.0.update_priority" $tmpl_src.update_priority ($tmpl_src.update_priority in $UPDATE_PRIORITIES)]
+        ]
+        for row in $tmpl_checks {
+            let field = ($row | get 0)
+            let value = ($row | get 1)
+            let ok = ($row | get 2)
+            if not $ok {
+                $findings = ($findings | append {
+                    rule: "b6_template_drift"
+                    severity: "fail"
+                    message: $"templates/sources.toml: ($field) = '($value)' fails its own format rule"
+                })
+            }
         }
     }
 
@@ -1713,13 +1734,18 @@ update_priority = "medium"
             want: ["b3_date"]
         }
         # ---- b3_version_shape: current_version format validation (claude-skills-189) ----
-        # Contract (shape-based, not strict semver — see claude-skills-189):
+        # Contract (shape-based, not strict semver — see claude-skills-189,
+        # widened by claude-skills-196/197 — see the VERSION_SHAPE_RE comment
+        # above for the full history):
         # accept the literal "unknown", or a string matching
-        # ^[A-Za-z]{0,10}[-.]?\d+(\.\d+){0,4}([-+][0-9A-Za-z.]+)?$
+        # ^[A-Za-z]{0,10}[-.]?\d+((\.\d+){1,4}([-+][0-9A-Za-z.-]+)?|([-+][0-9A-Za-z.]+)?)$
         # i.e. an optional short alpha prefix (v, OTP, ...) with an optional
         # '-' or '.' separator, one to five dot-separated numeric groups, and
-        # an optional -prerelease or +build suffix. No whitespace, no URL
-        # scheme, no letters after the numeric body outside that suffix.
+        # an optional -prerelease or +build suffix. A hyphenated suffix is
+        # legal only when at least one dot-group is present in the base — a
+        # bare-integer base (e.g. "1-800-flowers", a bare calendar date) may
+        # not carry one. No whitespace, no URL scheme, no letters after the
+        # numeric body outside that suffix.
         # Rejects: no digits at all, embedded whitespace, a pasted URL, and
         # an empty string. TOML-native int/float values are coerced via
         # scalar-str (same helper already used for last_checked/
