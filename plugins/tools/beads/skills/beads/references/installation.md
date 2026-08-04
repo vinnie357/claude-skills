@@ -19,9 +19,8 @@ This is the `homebrew-core` formula (no tap needed).
 
 ### Go Install
 
-Prefer Homebrew, npm, or the install script above unless you specifically
-need `go install`. It has two supported modes, both requiring an env
-prefix:
+Prefer Homebrew or npm above unless you specifically need `go install`. It
+has two supported modes, both requiring an env prefix:
 
 ```bash
 # Server-mode only (no C compiler needed) — no embedded Dolt; run an
