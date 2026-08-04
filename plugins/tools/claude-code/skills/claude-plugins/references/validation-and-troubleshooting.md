@@ -56,15 +56,24 @@ upstream: "The version field accepts any expression supported by Node's semver p
 caret, tilde, hyphen, and comparator ranges." Accepted forms: bare version (`2.1.0`), tilde
 (`~2.1.0`), caret (`^2.0`), comparator (`>=1.4`, `>1.4`, `<2.0`, `<=2.0`, `=2.1.0`), x-range
 wildcards (`1.2.x`, `1.x`, `*`), hyphen ranges (`1.2.3 - 2.3.4`), and `||`-joined alternatives
-(`1.2.7 || >=1.2.9 <2.0.0`). A string outside this grammar — `not-a-semver!!!`, for example — is
-rejected.
+(`1.2.7 || >=1.2.9 <2.0.0`). Also accepted, matching real node-semver (`semver.validRange`,
+verified against node v24.18.0, claude-skills-234 Gate 3 review): whitespace between an operator
+and its version (`>= 1.2.3`), a `v`/`V` version prefix (`v1.2.3`), `~>` as a tilde-range alias, and
+an empty or whitespace-only string as equivalent to `*` (any version). A string outside this
+grammar — `not-a-semver!!!`, a bare operator with nothing attached (`>=`), or an incomplete hyphen
+range (`1.2.3 -`), for example — is rejected.
 
 ```json
 // Invalid
 { "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "not-a-semver!!!" }] }
+{ "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": ">=" }] }
 
 // Valid — upstream's own documented example
 { "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "~2.1.0" }] }
+
+// Valid — accepted forms node-semver allows beyond the documented examples
+{ "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": ">= 1.2.3" }] }
+{ "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "v1.2.3" }] }
 ```
 
 ### Error — skill path missing or has no SKILL.md
@@ -86,6 +95,25 @@ Reported as a **warning**, not an error, as is `Missing recommended field: versi
 "version": "v1.0.0"     // warned
 "version": "1.0.0"      // accepted
 "version": "2.1.3-beta.1"
+```
+
+### Warning — `Agent 'model' should be one of: haiku, sonnet, opus, fable, inherit, or a full model ID like claude-opus-4-8`
+
+Checked against the agent frontmatter's `model` field for every agent `.md` file a plugin lists.
+Follows `claude-agents` SKILL.md's frontmatter table (source:
+https://code.claude.com/docs/en/sub-agents), which documents `model` as one of the four short
+names, `inherit` (the default), or a full model ID. Full model IDs are open-ended, so anything
+shaped like `claude-` followed by lowercase alphanumeric segments (`claude-opus-4-8`) is accepted
+without enumerating every release. This allowlist was narrower before claude-skills-234's Gate 3
+review (`haiku`/`sonnet`/`opus` only) — under `--strict`, that stale list would have turned
+`fable`, `inherit`, or a full model ID into a hard CI failure for a value the repo's own
+documentation says is correct.
+
+```yaml
+model: fable            # accepted
+model: inherit          # accepted
+model: claude-opus-4-8  # accepted — full model ID
+model: gpt-4            # warned — not a documented value in any form
 ```
 
 ### Description and keywords agreement

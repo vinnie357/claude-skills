@@ -699,12 +699,22 @@ def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
     }
   }
 
-  # Validate model field if present
+  # Validate model field if present. Per claude-agents SKILL.md's frontmatter
+  # table (source: https://code.claude.com/docs/en/sub-agents), `model`
+  # accepts the four short names, `inherit` (the default), or a full model ID
+  # such as `claude-opus-4-8`. The short-name list alone (claude-skills-234
+  # Gate 3 review) was already stale — it was missing `fable` and `inherit`,
+  # both of which this repo's own agent files use — and under --strict a
+  # stale allowlist turns a documented, correct value into a hard CI failure
+  # with no recourse for the author. Full model IDs are open-ended, so this
+  # accepts anything shaped like one (`claude-` followed by lowercase
+  # alphanumeric segments) rather than trying to enumerate every release.
   let model = ($frontmatter | get -o model)
   if $model != null {
-    let valid_models = ["haiku", "sonnet", "opus"]
-    if not ($model in $valid_models) {
-      $warnings = ($warnings | append $"Agent 'model' should be one of: haiku, sonnet, opus - got: ($model)")
+    let valid_short_models = ["haiku", "sonnet", "opus", "fable", "inherit"]
+    let looks_like_full_model_id = ($model =~ '^claude-[a-z0-9]+(-[a-z0-9]+)*$')
+    if not ($model in $valid_short_models) and not $looks_like_full_model_id {
+      $warnings = ($warnings | append $"Agent 'model' should be one of: haiku, sonnet, opus, fable, inherit, or a full model ID like claude-opus-4-8 - got: ($model)")
     }
   }
 
@@ -734,26 +744,53 @@ def is-semver [version: string] {
 # error's mention of "||" chains. This is a restraint-scoped approximation of
 # the full node-semver grammar (rung 7 — the minimum that works), not a
 # reimplementation of node-semver itself: it accepts every documented example
-# and operator, and rejects garbage, without modeling every edge case of the
-# upstream package (e.g. strict leading-zero rejection in numeric
-# identifiers).
+# and operator plus every additional form node's own `semver.validRange`
+# accepts (verified against node v24.18.0, claude-skills-234 Gate 3 review —
+# see the accept-direction fixtures below), and rejects garbage. It DOES model
+# leading-zero rejection in numeric identifiers (`01.2.3` is rejected, same as
+# real node-semver) — that is not a gap.
+#
+# Deliberate, upstream-matching decisions worth calling out explicitly rather
+# than leaving as silent behavior:
+#   - An empty or whitespace-only constraint is ACCEPTED, equivalent to `*`
+#     (any version) — this is what `semver.validRange("")` returns in node.
+#   - A `||`-joined range with an empty branch (e.g. "1.2.3 || ") is ACCEPTED
+#     — the empty branch is itself `*`, so a manifest that constrains nothing
+#     on one side of an OR is not malformed.
+#   - Whitespace between a comparator operator and its version (">= 1.2.3",
+#     "= 2.1.0", "^ 1.2.3", "~ 1.2.3", "~> 1.2.3") is ACCEPTED, including tabs
+#     as the AND-group separator (">=1.2.3\t<2.0.0") — node's tokenizer is
+#     whitespace-insensitive here.
+#   - A `v`/`V` version prefix ("v1.2.3") is ACCEPTED — node strips it.
+#   - `~>` (Ruby/Bundler-style "twiddle-wakka") is ACCEPTED as a tilde-range
+#     alias — confirmed against node-semver's own range grammar, not assumed
+#     from Ruby conventions.
 
-# One dotted version component: exact number, or an x-range wildcard
-# (x, X, *) in any position, per node-semver's x-range extension.
+# One dotted version component: an optional v/V prefix, then an exact number
+# or an x-range wildcard (x, X, *) in any position, per node-semver's x-range
+# extension. No leading zeros in numeric identifiers (same as real semver).
 def is-version-partial [v: string] {
-  ($v | str trim) =~ '^(0|[1-9][0-9]*|[xX*])(\.(0|[1-9][0-9]*|[xX*]))?(\.(0|[1-9][0-9]*|[xX*]))?(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+  ($v | str trim) =~ '^[vV]?(0|[1-9][0-9]*|[xX*])(\.(0|[1-9][0-9]*|[xX*]))?(\.(0|[1-9][0-9]*|[xX*]))?(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
 }
 
-# One comparator token: an optional operator prefix (^, ~, >=, <=, >, <, =)
-# followed by a version-partial. A bare version-partial (no operator) is also
-# valid — e.g. the left/right sides of a hyphen range, or upstream's `=2.1.0`
-# style pin written without the leading `=`.
+# The comparator operators node-semver recognizes as a range-token prefix.
+# Order matters for the regex alternation below: `~>` must be tried before
+# `~`, and `>=`/`<=` before `>`/`<`, so the longer operator wins the match.
+def is-bare-operator [t: string] {
+  $t in ["^", "~>", "~", ">=", "<=", ">", "<", "="]
+}
+
+# One comparator token: an optional operator prefix followed directly by a
+# version-partial (no space between them — is-semver-range-group merges an
+# operator separated from its version by whitespace before tokens reach
+# here). A bare version-partial (no operator) is also valid — e.g. the
+# left/right sides of a hyphen range, or a bare pin written without `=`.
 def is-comparator-token [tok: string] {
   let t = ($tok | str trim)
   if ($t | is-empty) {
     false
   } else {
-    let m = ($t | parse -r '^(?<op>\^|~|>=|<=|>|<|=)?(?<ver>.+)$')
+    let m = ($t | parse -r '^(?<op>\^|~>|~|>=|<=|>|<|=)?(?<ver>.+)$')
     if ($m | is-empty) {
       false
     } else {
@@ -762,8 +799,9 @@ def is-comparator-token [tok: string] {
   }
 }
 
-# A hyphen range: "VERSION - VERSION" (spaces required around the hyphen,
-# per node-semver's documented hyphen-range syntax, e.g. "1.2.3 - 2.3.4").
+# A hyphen range: "VERSION - VERSION" (single space required around the
+# hyphen after whitespace normalization, per node-semver's documented
+# hyphen-range syntax, e.g. "1.2.3 - 2.3.4").
 def is-hyphen-range [group: string] {
   let parts = ($group | split row ' - ')
   if ($parts | length) != 2 {
@@ -773,32 +811,58 @@ def is-hyphen-range [group: string] {
   }
 }
 
+# node-semver tokenizes ">= 1.2.3" the same as ">=1.2.3" — a bare operator
+# token (nothing attached) absorbs the token that follows it. Applied AFTER
+# whitespace-collapse + AND-group splitting, so this only has to handle the
+# "operator by itself" case; an operator already glued to its version (the
+# common case, e.g. ">=1.2.3") passes through untouched.
+def merge-operator-tokens [tokens: list<string>] {
+  mut result = []
+  mut pending_op = null
+  for t in $tokens {
+    if $pending_op != null {
+      $result = ($result | append $"($pending_op)($t)")
+      $pending_op = null
+    } else if (is-bare-operator $t) {
+      $pending_op = $t
+    } else {
+      $result = ($result | append $t)
+    }
+  }
+  if $pending_op != null {
+    # trailing bare operator with nothing to attach to — kept as-is so
+    # is-comparator-token rejects it (ver would be empty, matched by nothing)
+    $result = ($result | append $pending_op)
+  }
+  $result
+}
+
 # One AND-group: either a hyphen range, or one-or-more whitespace-separated
-# comparator tokens (e.g. ">=1.2.7 <1.3.0").
+# comparator tokens (e.g. ">=1.2.7 <1.3.0"). Whitespace (including tabs and
+# repeated spaces) is collapsed to single spaces first, so a group is
+# equivalent under any whitespace node-semver itself treats as equivalent.
+# An empty group (blank string, or whitespace-only) is valid — see the
+# empty-constraint-means-"*" decision documented above `is-version-partial`.
 def is-semver-range-group [group: string] {
-  let g = ($group | str trim)
+  let g = ($group | str replace --all --regex '\s+' ' ' | str trim)
   if ($g | is-empty) {
-    false
+    true
   } else if ($g | str contains ' - ') {
     is-hyphen-range $g
   } else {
-    let tokens = ($g | split row ' ' | where {|t| ($t | str trim | is-not-empty) })
-    if ($tokens | is-empty) {
-      false
-    } else {
-      ($tokens | all {|t| is-comparator-token $t })
-    }
+    let raw_tokens = ($g | split row ' ' | where {|t| ($t | str trim | is-not-empty) })
+    let tokens = (merge-operator-tokens $raw_tokens)
+    ($tokens | all {|t| is-comparator-token $t })
   }
 }
 
-# Full range: one or more AND-groups joined by "||" (OR), per node-semver.
+# Full range: one or more AND-groups joined by "||" (OR), per node-semver. An
+# entirely empty/whitespace constraint delegates to is-semver-range-group's
+# own empty-group handling (equivalent to `*`) rather than special-casing it
+# here — `split row '||'` on an empty string yields a single empty group.
 def is-semver-range [constraint: string] {
-  if ($constraint | str trim | is-empty) {
-    false
-  } else {
-    let groups = ($constraint | split row '||')
-    ($groups | all {|g| is-semver-range-group $g })
-  }
+  let groups = ($constraint | split row '||')
+  ($groups | all {|g| is-semver-range-group $g })
 }
 
 # Fixture-based self-test suite for claude-skills-218 / claude-skills-219.
@@ -936,6 +1000,62 @@ def self-test [] {
       expect_errors: 1
       expect_warnings: 0
     }
+    {
+      name: "dependencies_version_space_after_operator_accepted"
+      why: "claude-skills-234 Gate 3 review — node's semver.validRange(\">= 1.2.3\") accepts whitespace between a comparator operator and its version; the pre-review grammar falsely rejected this"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: ">= 1.2.3" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_v_prefix_accepted"
+      why: "claude-skills-234 Gate 3 review — node accepts a v/V version prefix (v1.2.3); the pre-review grammar falsely rejected it"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "v1.2.3" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_empty_string_accepted"
+      why: "claude-skills-234 Gate 3 review — node's semver.validRange(\"\") returns '*' (any version); an empty constraint is a documented accept, not an accidental one"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_tilde_wakka_accepted"
+      why: "claude-skills-234 Gate 3 review — node accepts ~> (Ruby/Bundler-style twiddle-wakka) as a tilde-range alias; the pre-review grammar falsely rejected it"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "~>1.2.3" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_tab_separated_and_accepted"
+      why: "claude-skills-234 Gate 3 review — node's tokenizer is whitespace-insensitive between AND-group comparators, including tabs (>=1.2.3<TAB><2.0.0); the pre-review grammar only collapsed literal single spaces"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: ">=1.2.3\t<2.0.0" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_bare_operator_rejected"
+      why: "claude-skills-234 Gate 3 review — a comparator operator with nothing attached (>= alone) has no version to constrain and must be rejected, not silently merged into an adjacent unrelated token"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: ">=" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_incomplete_hyphen_rejected"
+      why: "claude-skills-234 Gate 3 review — a hyphen range missing its right-hand side (1.2.3 -) is malformed, not a valid range with an implicit *"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.3 -" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_embedded_newline_rejected"
+      why: "claude-skills-234 Gate 3 review — accepting any whitespace as an AND-group separator (including newlines) must not let an embedded newline smuggle garbage past validation"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.3\ngarbage" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
   ]
 
   let temp_dir = (mktemp -d)
@@ -965,6 +1085,33 @@ def self-test [] {
     }
   }
 
+  # Fixture-based coverage for validate-agent-md's `model` field
+  # (claude-skills-234 Gate 3 review): the plugin.json fixtures above never
+  # exercise validate-agent-md at all, so the pre-review narrow allowlist
+  # (["haiku","sonnet","opus"]) had zero test coverage — a mutation that
+  # reverted the widened list back to the narrow one passed the self-test
+  # suite unchanged. These cases close that gap directly.
+  let agent_model_cases = [
+    { model: "opus", expect_warnings: 0, why: "pre-existing short name — must still pass after widening" }
+    { model: "fable", expect_warnings: 0, why: "documented in claude-agents SKILL.md but was missing from the pre-review allowlist" }
+    { model: "inherit", expect_warnings: 0, why: "documented default value; was missing from the pre-review allowlist" }
+    { model: "claude-opus-4-8", expect_warnings: 0, why: "documented full-model-ID example from claude-agents SKILL.md" }
+    { model: "gpt-4", expect_warnings: 1, why: "not a documented value in any form — must still warn" }
+  ]
+  let agent_temp_dir = (mktemp -d)
+  for c in $agent_model_cases {
+    let agent_path = ($agent_temp_dir | path join $"model-($c.model | str replace -a '.' '-').md")
+    $"---\nname: fixture-agent\ndescription: test fixture\nmodel: ($c.model)\n---\n\nbody\n" | save --force $agent_path
+    let result = (validate-agent-md $agent_path "fixture-agent" false)
+    if ($result.errors | length) != 0 {
+      $failures = ($failures | append $"agent_model_($c.model): expected 0 errors, got (($result.errors | length)): ($result.errors | to nuon) -- ($c.why)")
+    }
+    if ($result.warnings | length) != $c.expect_warnings {
+      $failures = ($failures | append $"agent_model_($c.model): expected ($c.expect_warnings) warnings, got (($result.warnings | length)): ($result.warnings | to nuon) -- ($c.why)")
+    }
+  }
+  rm -rf $agent_temp_dir
+
   rm -rf $temp_dir
 
   if ($failures | length) > 0 {
@@ -975,5 +1122,5 @@ def self-test [] {
     exit 1
   }
 
-  print $"(ansi green_bold)✅ validate-plugin.nu self-test passed \((($cases | length)) cases\)(ansi reset)"
+  print $"(ansi green_bold)✅ validate-plugin.nu self-test passed \((($cases | length) + ($agent_model_cases | length)) cases\)(ansi reset)"
 }
