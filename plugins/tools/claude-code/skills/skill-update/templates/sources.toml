@@ -34,8 +34,9 @@ url = ""                         # REQUIRED unless check_method = "none".
 releases_url = ""                # Optional but recommended.
 
 # check_method controls how `mise sources:check` queries the latest version.
-# Values: github-releases | hex-pm | crates-io | manual | none
-#   github-releases / hex-pm / crates-io - automated query, needs its ID field below
+# Values: github-releases | hex-pm | crates-io | npm | docker-hub | endoflife-date | manual | none
+#   github-releases / hex-pm / crates-io / npm / docker-hub / endoflife-date
+#          - automated query, needs its ID field below
 #   manual - an external upstream exists, but a human must check it
 #   none   - there IS no external upstream (first-party doctrine authored here)
 check_method = "manual"
@@ -44,6 +45,9 @@ check_method = "manual"
 # github_repo = "owner/repo"    # REQUIRED iff check_method = "github-releases"
 # hex_package = "package"       # REQUIRED iff check_method = "hex-pm"
 # crate_name = "crate"          # REQUIRED iff check_method = "crates-io"
+# npm_package = "package"       # REQUIRED iff check_method = "npm" ("@scope/name" ok)
+# docker_image = "ns/repo"      # REQUIRED iff check_method = "docker-hub" (e.g. "library/node")
+# eol_product = "product"       # REQUIRED iff check_method = "endoflife-date" (e.g. "nodejs")
 
 # The upstream version this skill's content was last verified or documented
 # against. A QUOTED exact version string (e.g. "0.10.0"), or "unknown" when
@@ -121,6 +125,56 @@ notes = ""
 # version_constraint = "semver"
 # last_checked = "2026-03-25"
 # update_priority = "medium"
+
+# ----------------------------------------------------------------------------
+# Example: npm registry package
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skills = ["some-skill"]
+# name = "some-npm-package"
+# url = "https://www.npmjs.com/package/some-npm-package"
+# check_method = "npm"
+# npm_package = "some-npm-package"
+# current_version = "4.2.0"
+# version_constraint = "semver"
+# last_checked = "2026-06-09"
+# update_priority = "medium"
+
+# ----------------------------------------------------------------------------
+# Example: Docker Hub image tag (claude-skills-210, claude-skills-176). Tags
+# are not semver in general, so a specific pinned tag that isn't itself
+# version-shaped (e.g. "16-buster-slim") belongs in notes, not
+# current_version — current_version = "unknown" with version_constraint =
+# "rolling" is the schema-compliant way to track it. check-docker-hub
+# reports "is a newer tag available" (equality against the most-recently-
+# updated tag name), not "is there a newer semver release."
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skills = ["act"]
+# name = "node-docker-image"
+# url = "https://hub.docker.com/_/node"
+# check_method = "docker-hub"
+# docker_image = "library/node"
+# current_version = "unknown"
+# version_constraint = "rolling"
+# last_checked = "2026-08-04"
+# update_priority = "low"
+# notes = "skill content pins node:16-buster-slim; check for a newer tag manually against the pinned major"
+
+# ----------------------------------------------------------------------------
+# Example: endoflife.date product (claude-skills-210). Reports the newest
+# release cycle's `latest` patch version.
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skills = ["some-skill"]
+# name = "nodejs-eol"
+# url = "https://endoflife.date/nodejs"
+# check_method = "endoflife-date"
+# eol_product = "nodejs"
+# current_version = "20.11.0"
+# version_constraint = "semver"
+# last_checked = "2026-06-09"
+# update_priority = "low"
 
 # ----------------------------------------------------------------------------
 # Example: documentation-based upstream, checked by hand.

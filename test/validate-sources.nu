@@ -25,10 +25,13 @@ const META_KEYS = ["plugin" "reviewed_at_plugin_version" "last_full_check"]
 const ENTRY_KEYS = [
     "skills" "name" "url" "releases_url" "check_method"
     "github_repo" "hex_package" "crate_name"
+    "npm_package" "docker_image" "eol_product"
     "current_version" "version_constraint" "last_checked"
     "update_priority" "breaking_changes_likely" "notes"
 ]
-const CHECK_METHODS = ["github-releases" "hex-pm" "crates-io" "manual" "none"]
+# claude-skills-210: npm (registry.npmjs.org), docker-hub (Hub API tags list),
+# and endoflife-date (endoflife.date) added alongside the original three.
+const CHECK_METHODS = ["github-releases" "hex-pm" "crates-io" "npm" "docker-hub" "endoflife-date" "manual" "none"]
 const VERSION_CONSTRAINTS = ["pre-1.0" "semver" "rolling" "stable"]
 const UPDATE_PRIORITIES = ["high" "medium" "low"]
 # Required on every entry regardless of check_method.
@@ -37,7 +40,8 @@ const ENTRY_REQUIRED_ALWAYS = ["skills" "name" "check_method" "last_checked"]
 const ENTRY_NETWORK_KEYS = ["url" "current_version" "version_constraint" "update_priority"]
 # Forbidden when check_method = "none" (network keys plus the ID fields and releases_url).
 const NONE_FORBIDDEN = ["url" "releases_url" "current_version" "version_constraint"
-                        "update_priority" "github_repo" "hex_package" "crate_name"]
+                        "update_priority" "github_repo" "hex_package" "crate_name"
+                        "npm_package" "docker_image" "eol_product"]
 const DATE_RE = '^\d{4}-\d{2}-\d{2}$'
 const SEMVER_RE = '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # Shape-based (not strict semver) — accepts "unknown" as a literal, checked
@@ -354,7 +358,7 @@ def check-sources [
                 $findings = ($findings | append {
                     rule: "b2_enum"
                     severity: "fail"
-                    message: $"($plugin)/($name): check_method '($check_method)' not one of github-releases|hex-pm|crates-io|manual|none"
+                    message: $"($plugin)/($name): check_method '($check_method)' not one of github-releases|hex-pm|crates-io|npm|docker-hub|endoflife-date|manual|none"
                 })
             }
             if "version_constraint" in $cols {
@@ -450,6 +454,27 @@ def check-sources [
                     rule: "b4_conditional"
                     severity: "fail"
                     message: $"($plugin)/($name): check_method=crates-io requires crate_name"
+                })
+            }
+            if $check_method == "npm" and ("npm_package" not-in $cols) {
+                $findings = ($findings | append {
+                    rule: "b4_conditional"
+                    severity: "fail"
+                    message: $"($plugin)/($name): check_method=npm requires npm_package"
+                })
+            }
+            if $check_method == "docker-hub" and ("docker_image" not-in $cols) {
+                $findings = ($findings | append {
+                    rule: "b4_conditional"
+                    severity: "fail"
+                    message: $"($plugin)/($name): check_method=docker-hub requires docker_image"
+                })
+            }
+            if $check_method == "endoflife-date" and ("eol_product" not-in $cols) {
+                $findings = ($findings | append {
+                    rule: "b4_conditional"
+                    severity: "fail"
+                    message: $"($plugin)/($name): check_method=endoflife-date requires eol_product"
                 })
             }
         }
@@ -1339,6 +1364,159 @@ update_priority = "medium"
             version: "1.0.0"
             md: "demo-source is documented here"
             want: ["b4_conditional"]
+        }
+        {
+            # claude-skills-210: npm requires npm_package (same shape as the
+            # hex-pm/crates-io conditional checks above).
+            label: "npm without npm_package"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "npm"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b4_conditional"]
+        }
+        {
+            label: "clean npm entry with npm_package"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://registry.npmjs.org/demo-source"
+check_method = "npm"
+npm_package = "demo-source"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            # claude-skills-210: Docker Hub requires docker_image
+            # ("namespace/repository", e.g. "library/node").
+            label: "docker-hub without docker_image"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "docker-hub"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b4_conditional"]
+        }
+        {
+            # current_version = "unknown" is deliberate here, not a stand-in
+            # for a real value: Docker Hub tags like "16-buster-slim" are not
+            # semver-shaped and VERSION_SHAPE_RE correctly rejects them (a
+            # hyphenated suffix is only legal after a dotted base) — a
+            # specific pinned tag belongs in notes, not current_version.
+            label: "clean docker-hub entry with docker_image"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://hub.docker.com/_/node"
+check_method = "docker-hub"
+docker_image = "library/node"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-01-01"
+update_priority = "medium"
+notes = "pinned tag tracked in skill content is node:16-buster-slim; Docker Hub tags are not semver-shaped so no discrete current_version is recorded here"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            # claude-skills-210: endoflife.date requires eol_product (the
+            # product slug, e.g. "nodejs").
+            label: "endoflife-date without eol_product"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "endoflife-date"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b4_conditional"]
+        }
+        {
+            label: "clean endoflife-date entry with eol_product"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://endoflife.date/nodejs"
+check_method = "endoflife-date"
+eol_product = "nodejs"
+current_version = "20.11.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
         }
         {
             label: "github_repo present with check_method=manual (A-F1: legal, not an error)"
