@@ -314,14 +314,14 @@ notes = "sources.md Date Accessed 2026-04-04. Three key messages, three-act narr
 [[sources]]
 skills = ["styles"]
 name = "playwright-mcp-browser-tools"
-url = "https://github.com/anthropics/claude-code/tree/main/packages/mcp-server-playwright"
+url = "https://github.com/microsoft/playwright-mcp"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-04-04"
+last_checked = "2026-08-04"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-04-04. browser_navigate, browser_evaluate, browser_take_screenshot, CSS extraction. This is a directory path within the claude-code monorepo, not an independently releasable package — check_method=manual rather than github-releases (a repo-level release check would not track this subpackage specifically). Not re-verified live in this pass."
+notes = "claude-skills-220: the old URL github.com/anthropics/claude-code/tree/main/packages/mcp-server-playwright now 404s (confirmed 2026-08-04 via sources:validate) — the packages/ directory no longer exists in the claude-code repo tree. Repointed to microsoft/playwright-mcp, the standalone upstream for this MCP server (confirmed 200, 2026-08-04; README documents the same browser_navigate, browser_evaluate, browser_take_screenshot tool names this entry cites)."
 
 [[sources]]
 skills = ["styles"]

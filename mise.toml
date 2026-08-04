@@ -295,6 +295,14 @@ let scripts_dir = ($repo_root | path join "plugins" "tools" "claude-code" "skill
 nu ($scripts_dir | path join "sources-check.nu") --self-test
 nu ($scripts_dir | path join "sources-report.nu") --self-test
 nu ($scripts_dir | path join "sources-stale.nu") --self-test
+nu ($scripts_dir | path join "sources-lib.nu") --self-test
+
+# claude-skills-220: same rationale as the four self-tests above — the URL
+# validator's HEAD/GET checks are live network calls with no place in a
+# credential-less CI run, but its classification logic (404 vs
+# rate-limited vs private-repo vs generic error, plus the 405-GET-fallback
+# decision) is pure and self-tested offline.
+nu ($scripts_dir | path join "sources-validate-urls.nu") --self-test
 """
 
 [tasks."test:security-hook"]

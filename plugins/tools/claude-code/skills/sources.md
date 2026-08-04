@@ -20,7 +20,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Used In**: skills/claude-skills/SKILL.md
 
 ### Skill Creator Guide
-- **URL**: https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md
+- **URL**: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
 - **Purpose**: Best practices and guidelines for creating effective Claude skills
 - **Key Points**:
   - SKILL.md structure with YAML frontmatter
@@ -42,7 +42,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Used In**: skills/claude-skills/SKILL.md
 
 ### Agent Skills Specification
-- **URL**: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
+- **URL**: https://agentskills.io/specification
 - **Purpose**: Official specification for Agent Skills format and structure
 - **Date Accessed**: 2025-11-15
 - **Used In**: skills/claude-skills/SKILL.md
@@ -393,7 +393,7 @@ Create a modular Claude Code plugin marketplace that:
 - **Key Topics**: List releases, get latest release, release assets, tag names
 
 ### Hex.pm API
-- **URL**: https://github.com/hexpm/hexpm/blob/main/guides/API.md
+- **URL**: https://hex.pm/api
 - **Purpose**: API reference for querying Hex package versions
 - **Date Accessed**: 2026-03-25
 - **Key Topics**: Package metadata, release versions, dependency resolution

@@ -205,5 +205,5 @@ For more information:
 - **Improving Skill Creator Blog**: https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills
 - **Example Skills**: https://github.com/anthropics/skills
 - **Skills Cookbook**: https://github.com/anthropics/claude-cookbooks/tree/main/skills
-- **Skill Creator Guide**: https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md
-- **Agent Skills Specification**: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
+- **Skill Creator Guide**: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+- **Agent Skills Specification**: https://agentskills.io/specification

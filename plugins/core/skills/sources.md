@@ -253,7 +253,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 ### The Three Laws of TDD
 - **Author**: Robert C. Martin
-- **URL**: https://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd
+- **URL**: http://web.archive.org/web/20260719201717/http://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd
 - **Purpose**: Concise formalization of Beck's TDD constraints into three strict laws
 
 ### Software Craftsmanship Manifesto

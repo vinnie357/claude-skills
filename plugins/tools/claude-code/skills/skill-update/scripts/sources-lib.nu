@@ -152,7 +152,11 @@ export def sanitize-notes-cell [notes: string, max_len: int]: nothing -> string 
 
 # ---- network boundary -------------------------------------------------
 
-const USER_AGENT = "claude-skills-sources/1.0 (github.com/vinnie357/claude-skills)"
+# claude-skills-220: exported so sources-validate-urls.nu can send the same
+# identity on its HEAD/GET checks instead of nushell's unadorned default
+# (the literal string "nushell" — verified live against httpbin.org/headers,
+# 2026-08-04), which crates.io's API rejects as insufficiently informative.
+export const USER_AGENT = "claude-skills-sources/1.0 (github.com/vinnie357/claude-skills)"
 
 # Check latest version via github-releases API
 export def check-github-releases [repo: string] {

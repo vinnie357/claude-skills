@@ -149,7 +149,7 @@ Two skills have no section of their own because they draw on sources cited elsew
 ## Brand Discovery and Styles
 
 ### Playwright MCP Browser Tools
-- **URL**: https://github.com/anthropics/claude-code/tree/main/packages/mcp-server-playwright
+- **URL**: https://github.com/microsoft/playwright-mcp
 - **Purpose**: Browser automation for brand token extraction
 - **Date Accessed**: 2026-04-04
 - **Key Topics**: browser_navigate, browser_evaluate, browser_take_screenshot, CSS extraction
