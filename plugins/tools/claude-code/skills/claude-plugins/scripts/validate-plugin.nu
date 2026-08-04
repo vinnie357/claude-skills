@@ -15,6 +15,9 @@ def main [
   --marketplace: string       # Path to marketplace.json (enables name-based lookup)
   --verbose                   # Show detailed validation output
   --self-test                 # Run the fixture-based self-test suite and exit
+  --strict                    # Treat warnings as errors, mirroring upstream's `claude plugin validate --strict`
+                               # (https://code.claude.com/docs/en/plugins-reference: "Pass --strict to treat
+                               # warnings as errors. Use it in CI to catch a misspelled field name...")
 ] {
   if $self_test {
     self-test
@@ -28,14 +31,14 @@ def main [
 
   # Determine mode based on --marketplace flag
   if ($marketplace | is-not-empty) {
-    validate-from-marketplace $target $marketplace $verbose
+    validate-from-marketplace $target $marketplace $verbose $strict
   } else {
-    validate-plugin-file $target $verbose
+    validate-plugin-file $target $verbose $strict
   }
 }
 
 # Validate a plugin by name from marketplace
-def validate-from-marketplace [plugin_name: string, marketplace_path: string, verbose: bool] {
+def validate-from-marketplace [plugin_name: string, marketplace_path: string, verbose: bool, strict: bool] {
   print $"(ansi green_bold)Validating plugin:(ansi reset) ($plugin_name)\n"
 
   # Load marketplace
@@ -97,9 +100,9 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
   # (non-external) sources — a GitHub-object source has no local plugin.json
   # to compare against the clone's, so that comparison is skipped entirely.
   let result = if $is_ext {
-    validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose
+    validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose $strict
   } else {
-    validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose --has-marketplace-context --mkt-description ($plugin_entry | get -o description | default "") --mkt-keywords ($plugin_entry | get -o keywords | default [])
+    validate-plugin-content $plugin_path $plugin_root $plugin_name $source_dir $is_ext $verbose $strict --has-marketplace-context --mkt-description ($plugin_entry | get -o description | default "") --mkt-keywords ($plugin_entry | get -o keywords | default [])
   }
 
   # Cleanup temp directory
@@ -115,7 +118,7 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
 }
 
 # Validate a plugin.json file directly
-def validate-plugin-file [plugin_path: string, verbose: bool] {
+def validate-plugin-file [plugin_path: string, verbose: bool, strict: bool] {
   print $"(ansi green_bold)Validating plugin:(ansi reset) ($plugin_path)\n"
 
   if not ($plugin_path | path exists) {
@@ -136,7 +139,7 @@ def validate-plugin-file [plugin_path: string, verbose: bool] {
 
   let plugin_name = ($plugin | get -o name | default "unknown")
 
-  let result = validate-plugin-content $plugin_path $plugin_root $plugin_name $plugin_name false $verbose
+  let result = validate-plugin-content $plugin_path $plugin_root $plugin_name $plugin_name false $verbose $strict
 
   if $result.success {
     print $"\n(ansi green_bold)✓ Plugin is valid!(ansi reset)"
@@ -199,6 +202,9 @@ def validate-plugin-content [
   source_dir: string
   is_external: bool
   verbose: bool
+  strict: bool                     # claude-skills-234 — mirrors upstream's `--strict`: promote
+                                    # warnings to a failing result without reclassifying them as
+                                    # errors in the printed list (so the distinction stays visible).
   --mkt-description: string = ""   # marketplace.json entry's description, for local sources only
   --mkt-keywords: list<string> = [] # marketplace.json entry's keywords, for local sources only
   --has-marketplace-context        # true only when the caller has an actual marketplace entry to
@@ -304,6 +310,18 @@ def validate-plugin-content [
           if ($dep | get -o name) == null {
             $errors = ($errors | append $"dependencies entry missing required 'name' field: ($dep | to nuon)")
           }
+          # claude-skills-235: validate `version` as a node-semver RANGE
+          # expression, not an exact version — upstream: "The version field
+          # accepts any expression supported by Node's semver package,
+          # including caret, tilde, hyphen, and comparator ranges"
+          # (https://code.claude.com/docs/en/plugin-dependencies). Reusing
+          # is-semver here would wrongly reject upstream's own documented
+          # example (~2.1.0), which is a range, not an exact version.
+          let dep_version = ($dep | get -o version)
+          if ($dep_version != null) and not (is-semver-range $dep_version) {
+            let dep_label = ($dep | get -o name | default "?")
+            $errors = ($errors | append $"dependencies entry '($dep_label)' has a malformed version constraint: '($dep_version)' \(expected a node-semver range like ~2.1.0, ^2.0, >=1.4, =2.1.0, or 1.2.3 - 2.3.4 — see https://code.claude.com/docs/en/plugin-dependencies\)")
+          }
         } else {
           $errors = ($errors | append $"dependencies entry must be a string or object, got ($dep_type)")
         }
@@ -375,13 +393,15 @@ def validate-plugin-content [
     }
   }
 
-  # Check for skills/sources.md (recommended for plugins with skills)
-  if not $is_external and ($plugin | get -o skills) != null {
-    let sources_path = if $plugin_name == "all-skills" {
-      ($plugin_root | path join "skills" "sources.md")
-    } else {
-      ($plugin_root | path join $source_dir "skills" "sources.md")
-    }
+  # Check for skills/sources.md (recommended for plugins with skills).
+  # all-skills is exempt: it's the meta-plugin that aggregates every other
+  # plugin's skill paths (see `skills` field), so it has no repo-root
+  # `skills/sources.md` of its own — each aggregated skill's owning plugin
+  # already carries and is checked against its own sources.md when that
+  # plugin is validated directly. Checking for a nonexistent repo-root file
+  # here was a claude-skills-234 discovery: it warned unconditionally.
+  if not $is_external and $plugin_name != "all-skills" and ($plugin | get -o skills) != null {
+    let sources_path = ($plugin_root | path join $source_dir "skills" "sources.md")
     if not ($sources_path | path exists) {
       $warnings = ($warnings | append "Missing recommended file: skills/sources.md")
     } else if $verbose {
@@ -544,6 +564,12 @@ def validate-plugin-content [
   if ($errors | length) > 0 {
     print $"\n(ansi red_bold)✗ Validation failed with (($errors | length)) errors(ansi reset)"
     { success: false, errors: $errors, warnings: $warnings }
+  } else if ($warnings | length) > 0 and $strict {
+    # claude-skills-234: mirror upstream's --strict — warnings become blocking.
+    # They stay in `warnings`, not `errors`, so the printed list above keeps
+    # calling them warnings; only the pass/fail verdict changes.
+    print $"\n(ansi red_bold)✗ Validation failed \(--strict\): (($warnings | length)) warnings treated as errors(ansi reset)"
+    { success: false, errors: $errors, warnings: $warnings }
   } else if ($warnings | length) > 0 {
     print $"\n(ansi yellow_bold)⚠ Validation passed with (($warnings | length)) warnings(ansi reset)"
     { success: true, errors: $errors, warnings: $warnings }
@@ -673,12 +699,22 @@ def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
     }
   }
 
-  # Validate model field if present
+  # Validate model field if present. Per claude-agents SKILL.md's frontmatter
+  # table (source: https://code.claude.com/docs/en/sub-agents), `model`
+  # accepts the four short names, `inherit` (the default), or a full model ID
+  # such as `claude-opus-4-8`. The short-name list alone (claude-skills-234
+  # Gate 3 review) was already stale — it was missing `fable` and `inherit`,
+  # both of which this repo's own agent files use — and under --strict a
+  # stale allowlist turns a documented, correct value into a hard CI failure
+  # with no recourse for the author. Full model IDs are open-ended, so this
+  # accepts anything shaped like one (`claude-` followed by lowercase
+  # alphanumeric segments) rather than trying to enumerate every release.
   let model = ($frontmatter | get -o model)
   if $model != null {
-    let valid_models = ["haiku", "sonnet", "opus"]
-    if not ($model in $valid_models) {
-      $warnings = ($warnings | append $"Agent 'model' should be one of: haiku, sonnet, opus - got: ($model)")
+    let valid_short_models = ["haiku", "sonnet", "opus", "fable", "inherit"]
+    let looks_like_full_model_id = ($model =~ '^claude-[a-z0-9]+(-[a-z0-9]+)*$')
+    if not ($model in $valid_short_models) and not $looks_like_full_model_id {
+      $warnings = ($warnings | append $"Agent 'model' should be one of: haiku, sonnet, opus, fable, inherit, or a full model ID like claude-opus-4-8 - got: ($model)")
     }
   }
 
@@ -697,6 +733,201 @@ def is-kebab-case [name: string] {
 # Check if string is semantic version
 def is-semver [version: string] {
   $version =~ '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'
+}
+
+# claude-skills-235: validate a plugin.json `dependencies[].version` string as
+# a node-semver RANGE expression — a different, looser grammar than an exact
+# version (is-semver above). Upstream (https://code.claude.com/docs/en/plugin-dependencies):
+# "The version field accepts any expression supported by Node's semver
+# package, including caret, tilde, hyphen, and comparator ranges", with
+# documented examples ~2.1.0, ^2.0, >=1.4, =2.1.0, and the range-conflict
+# error's mention of "||" chains. This is a restraint-scoped approximation of
+# the full node-semver grammar (rung 7 — the minimum that works), not a
+# reimplementation of node-semver itself: it accepts every documented example
+# and operator plus every additional form node's own `semver.validRange`
+# accepts, and rejects garbage. It DOES model leading-zero rejection in
+# numeric identifiers (`01.2.3` is rejected, same as real node-semver) — that
+# is not a gap.
+#
+# Verified against the actual `semver` npm package, not assumed from docs or
+# memory: npm's own bundled copy on this machine is 7.8.1, but `npm view
+# semver version` reports 7.8.5 as the current published release (7.8.1 is a
+# stale bundle) — 7.8.5 is what's cited below as "node-semver" throughout,
+# since that is the version a fresh `npm install semver` resolves today and
+# the one upstream's own docs implicitly mean by "Node's semver package".
+# 7.8.1 and 7.8.5 disagree on x-range wildcard placement (see below) — this
+# was caught by testing both, not by assuming a single version is timeless.
+#
+# Deliberate, upstream-matching decisions worth calling out explicitly rather
+# than leaving as silent behavior:
+#   - An empty or whitespace-only constraint is ACCEPTED, equivalent to `*`
+#     (any version) — this is what `semver.validRange("")` returns in node.
+#   - A `||`-joined range with an empty branch (e.g. "1.2.3 || ") is ACCEPTED
+#     — the empty branch is itself `*`, so a manifest that constrains nothing
+#     on one side of an OR is not malformed.
+#   - Whitespace between a comparator operator and its version (">= 1.2.3",
+#     "= 2.1.0", "^ 1.2.3", "~ 1.2.3", "~> 1.2.3") is ACCEPTED, including tabs
+#     as the AND-group separator (">=1.2.3\t<2.0.0") — node's tokenizer is
+#     whitespace-insensitive here.
+#   - A LOWERCASE `v` version prefix ("v1.2.3") is ACCEPTED — node strips it.
+#     UPPERCASE `V` is REJECTED (`semver.validRange("V1.2.3")` returns null)
+#     — node does not case-fold this prefix, so `is-version-partial` must not
+#     either.
+#   - `~>` (Ruby/Bundler-style "twiddle-wakka") is ACCEPTED as a tilde-range
+#     alias — confirmed against node-semver's own range grammar, not assumed
+#     from Ruby conventions.
+#   - An x-range wildcard (`x`, `X`, `*`) is ONLY valid in TRAILING position —
+#     `1.2.x` and `1.x` are ACCEPTED, but `x.1.2` and `1.x.3` are REJECTED
+#     (`semver.validRange` returns null for both on 7.8.5, even though the
+#     older bundled 7.8.1 accepted them). Once a component is a wildcard, or
+#     the dotted core simply ends, no further component may be a concrete
+#     number — enforced by is-x-range-core below, not by the regex alone.
+
+# One dotted-core component: a concrete numeric identifier (no leading
+# zeros, same as real semver) or an x-range wildcard (x, X, *).
+def is-x-range-component [p: string] {
+  ($p in ["x", "X", "*"]) or ($p =~ '^(0|[1-9][0-9]*)$')
+}
+
+# Enforces node-semver's trailing-only wildcard rule across a dotted core
+# (1 to 3 components, split on '.'): once a wildcard component is seen,
+# every remaining component to its right must not be a concrete number —
+# there is none, because a wildcard-then-concrete core is rejected outright.
+def is-x-range-core [parts: list<string>] {
+  if (($parts | length) < 1) or (($parts | length) > 3) {
+    false
+  } else {
+    mut wildcard_seen = false
+    mut ok = true
+    for p in $parts {
+      if $wildcard_seen {
+        $ok = false
+      } else if ($p in ["x", "X", "*"]) {
+        $wildcard_seen = true
+      } else if not (is-x-range-component $p) {
+        $ok = false
+      }
+    }
+    $ok
+  }
+}
+
+# One dotted version component: an optional LOWERCASE-ONLY `v` prefix, then
+# an x-range core (1-3 dot-separated parts, wildcard trailing-only — see
+# is-x-range-core), then an optional prerelease/build suffix. The suffix is
+# split off before the core is dot-split, since '-'/'+' only ever appear
+# after the numeric/wildcard core, never inside it.
+def is-version-partial [v0: string] {
+  let v = ($v0 | str trim)
+  if ($v | is-empty) {
+    false
+  } else {
+    let stripped = ($v | str replace --regex '^v' '')
+    if ($stripped | is-empty) {
+      false
+    } else {
+      let m = ($stripped | parse -r '^(?<core>[^-+]+)(?<rest>[-+].*)?$')
+      if ($m | is-empty) {
+        false
+      } else {
+        let rest = $m.0.rest
+        let rest_ok = ($rest | is-empty) or ($rest =~ '^(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$')
+        $rest_ok and (is-x-range-core ($m.0.core | split row '.'))
+      }
+    }
+  }
+}
+
+# The comparator operators node-semver recognizes as a range-token prefix.
+# Order matters for the regex alternation below: `~>` must be tried before
+# `~`, and `>=`/`<=` before `>`/`<`, so the longer operator wins the match.
+def is-bare-operator [t: string] {
+  $t in ["^", "~>", "~", ">=", "<=", ">", "<", "="]
+}
+
+# One comparator token: an optional operator prefix followed directly by a
+# version-partial (no space between them — is-semver-range-group merges an
+# operator separated from its version by whitespace before tokens reach
+# here). A bare version-partial (no operator) is also valid — e.g. the
+# left/right sides of a hyphen range, or a bare pin written without `=`.
+def is-comparator-token [tok: string] {
+  let t = ($tok | str trim)
+  if ($t | is-empty) {
+    false
+  } else {
+    let m = ($t | parse -r '^(?<op>\^|~>|~|>=|<=|>|<|=)?(?<ver>.+)$')
+    if ($m | is-empty) {
+      false
+    } else {
+      is-version-partial $m.0.ver
+    }
+  }
+}
+
+# A hyphen range: "VERSION - VERSION" (single space required around the
+# hyphen after whitespace normalization, per node-semver's documented
+# hyphen-range syntax, e.g. "1.2.3 - 2.3.4").
+def is-hyphen-range [group: string] {
+  let parts = ($group | split row ' - ')
+  if ($parts | length) != 2 {
+    false
+  } else {
+    (is-version-partial $parts.0) and (is-version-partial $parts.1)
+  }
+}
+
+# node-semver tokenizes ">= 1.2.3" the same as ">=1.2.3" — a bare operator
+# token (nothing attached) absorbs the token that follows it. Applied AFTER
+# whitespace-collapse + AND-group splitting, so this only has to handle the
+# "operator by itself" case; an operator already glued to its version (the
+# common case, e.g. ">=1.2.3") passes through untouched.
+def merge-operator-tokens [tokens: list<string>] {
+  mut result = []
+  mut pending_op = null
+  for t in $tokens {
+    if $pending_op != null {
+      $result = ($result | append $"($pending_op)($t)")
+      $pending_op = null
+    } else if (is-bare-operator $t) {
+      $pending_op = $t
+    } else {
+      $result = ($result | append $t)
+    }
+  }
+  if $pending_op != null {
+    # trailing bare operator with nothing to attach to — kept as-is so
+    # is-comparator-token rejects it (ver would be empty, matched by nothing)
+    $result = ($result | append $pending_op)
+  }
+  $result
+}
+
+# One AND-group: either a hyphen range, or one-or-more whitespace-separated
+# comparator tokens (e.g. ">=1.2.7 <1.3.0"). Whitespace (including tabs and
+# repeated spaces) is collapsed to single spaces first, so a group is
+# equivalent under any whitespace node-semver itself treats as equivalent.
+# An empty group (blank string, or whitespace-only) is valid — see the
+# empty-constraint-means-"*" decision documented above `is-version-partial`.
+def is-semver-range-group [group: string] {
+  let g = ($group | str replace --all --regex '\s+' ' ' | str trim)
+  if ($g | is-empty) {
+    true
+  } else if ($g | str contains ' - ') {
+    is-hyphen-range $g
+  } else {
+    let raw_tokens = ($g | split row ' ' | where {|t| ($t | str trim | is-not-empty) })
+    let tokens = (merge-operator-tokens $raw_tokens)
+    ($tokens | all {|t| is-comparator-token $t })
+  }
+}
+
+# Full range: one or more AND-groups joined by "||" (OR), per node-semver. An
+# entirely empty/whitespace constraint delegates to is-semver-range-group's
+# own empty-group handling (equivalent to `*`) rather than special-casing it
+# here — `split row '||'` on an empty string yields a single empty group.
+def is-semver-range [constraint: string] {
+  let groups = ($constraint | split row '||')
+  ($groups | all {|g| is-semver-range-group $g })
 }
 
 # Fixture-based self-test suite for claude-skills-218 / claude-skills-219.
@@ -766,6 +997,158 @@ def self-test [] {
       expect_errors: 1
       expect_warnings: 1  # "Missing recommended field: version" etc. are warnings; name is the only error case here besides those — see assertion below which checks error substring instead of exact count
     }
+    {
+      name: "strict_mode_unknown_field_fails"
+      why: "claude-skills-234 — upstream's --strict treats warnings as errors; an unknown field must flip success to false under --strict even though the warning count itself is unchanged"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", notARealField: "garbage" }
+      strict: true
+      expect_errors: 0
+      expect_warnings: 1
+      expect_success: false
+    }
+    {
+      name: "default_mode_unknown_field_still_passes"
+      why: "claude-skills-234 — default (non-strict) mode must be unaffected: a manifest with only warnings still exits success"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", notARealField: "garbage" }
+      expect_errors: 0
+      expect_warnings: 1
+      expect_success: true
+    }
+    {
+      name: "strict_mode_clean_manifest_passes"
+      why: "claude-skills-234 — --strict must not fail a manifest with zero warnings; it only promotes existing warnings, it never invents new ones"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT" }
+      strict: true
+      expect_errors: 0
+      expect_warnings: 0
+      expect_success: true
+    }
+    {
+      name: "dependencies_version_caret_partial_accepted"
+      why: "claude-skills-235 — upstream's own table row documents ^2.0 as a valid caret partial-version range"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "^2.0" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_gte_partial_accepted"
+      why: "claude-skills-235 — upstream's own table row documents >=1.4 as a valid comparator range"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: ">=1.4" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_exact_accepted"
+      why: "claude-skills-235 — upstream's own table row documents =2.1.0 as a valid exact-pin range"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "=2.1.0" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_hyphen_range_accepted"
+      why: "claude-skills-235 — node-semver hyphen ranges (upstream: 'the version field accepts any expression supported by Node's semver package, including caret, tilde, hyphen, and comparator ranges')"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.3 - 2.3.4" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_or_range_accepted"
+      why: "claude-skills-235 — node-semver OR-chains ('||'), referenced by upstream's range-conflict error guidance ('simplify long || chains')"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.7 || >=1.2.9 <2.0.0" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_malformed_rejected"
+      why: "claude-skills-235 — {name: x, version: not-a-semver!!!} must be rejected; this is the exact case verified accepted-with-zero-errors before the fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "x", version: "not-a-semver!!!" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_space_after_operator_accepted"
+      why: "claude-skills-234 Gate 3 review — node's semver.validRange(\">= 1.2.3\") accepts whitespace between a comparator operator and its version; the pre-review grammar falsely rejected this"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: ">= 1.2.3" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_v_prefix_accepted"
+      why: "claude-skills-234 Gate 3 review — node accepts a LOWERCASE v version prefix (v1.2.3); the pre-review grammar falsely rejected it"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "v1.2.3" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_empty_string_accepted"
+      why: "claude-skills-234 Gate 3 review — node's semver.validRange(\"\") returns '*' (any version); an empty constraint is a documented accept, not an accidental one"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_tilde_wakka_accepted"
+      why: "claude-skills-234 Gate 3 review — node accepts ~> (Ruby/Bundler-style twiddle-wakka) as a tilde-range alias; the pre-review grammar falsely rejected it"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "~>1.2.3" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_tab_separated_and_accepted"
+      why: "claude-skills-234 Gate 3 review — node's tokenizer is whitespace-insensitive between AND-group comparators, including tabs (>=1.2.3<TAB><2.0.0); the pre-review grammar only collapsed literal single spaces"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: ">=1.2.3\t<2.0.0" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_bare_operator_rejected"
+      why: "claude-skills-234 Gate 3 review — a comparator operator with nothing attached (>= alone) has no version to constrain and must be rejected, not silently merged into an adjacent unrelated token"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: ">=" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_incomplete_hyphen_rejected"
+      why: "claude-skills-234 Gate 3 review — a hyphen range missing its right-hand side (1.2.3 -) is malformed, not a valid range with an implicit *"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.3 -" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_embedded_newline_rejected"
+      why: "claude-skills-234 Gate 3 review — accepting any whitespace as an AND-group separator (including newlines) must not let an embedded newline smuggle garbage past validation"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.3\ngarbage" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_uppercase_v_prefix_rejected"
+      why: "claude-skills-234 Gate 3 nit — semver.validRange(\"V1.2.3\") returns null on real node-semver 7.8.5; node does not case-fold the v prefix, so accepting uppercase V (as an earlier grammar iteration did) was a false accept"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "V1.2.3" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_trailing_wildcard_accepted"
+      why: "claude-skills-234 Gate 3 nit — a trailing x-range wildcard (1.2.x) is the documented, common case and must stay accepted after the trailing-only-wildcard fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.x" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_leading_wildcard_rejected"
+      why: "claude-skills-234 Gate 3 nit — semver.validRange(\"x.1.2\") returns null on real node-semver 7.8.5 (wildcard only valid in trailing position); an earlier grammar iteration accepted a wildcard in any position, a false accept"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "x.1.2" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_mid_wildcard_rejected"
+      why: "claude-skills-234 Gate 3 nit — semver.validRange(\"1.x.3\") returns null on real node-semver 7.8.5; a wildcard followed by a concrete number is malformed, not just a leading-wildcard special case"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.x.3" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
   ]
 
   let temp_dir = (mktemp -d)
@@ -774,7 +1157,8 @@ def self-test [] {
     let plugin_path = ($temp_dir | path join $"($c.name).json")
     $c.plugin | save --force $plugin_path
 
-    let result = (validate-plugin-content $plugin_path $temp_dir "my-plugin" "my-plugin" false false)
+    let strict = ($c | get -o strict | default false)
+    let result = (validate-plugin-content $plugin_path $temp_dir "my-plugin" "my-plugin" false false $strict)
 
     if $c.name == "missing_required_name_still_errors" {
       if not ($result.errors | any {|e| $e | str contains "Missing required field: 'name'" }) {
@@ -787,8 +1171,39 @@ def self-test [] {
       if ($result.warnings | length) != $c.expect_warnings {
         $failures = ($failures | append $"($c.name): expected ($c.expect_warnings) warnings, got (($result.warnings | length)): ($result.warnings | to nuon) -- ($c.why)")
       }
+      let expect_success = ($c | get -o expect_success)
+      if ($expect_success != null) and ($result.success != $expect_success) {
+        $failures = ($failures | append $"($c.name): expected success=($expect_success), got ($result.success) -- ($c.why)")
+      }
     }
   }
+
+  # Fixture-based coverage for validate-agent-md's `model` field
+  # (claude-skills-234 Gate 3 review): the plugin.json fixtures above never
+  # exercise validate-agent-md at all, so the pre-review narrow allowlist
+  # (["haiku","sonnet","opus"]) had zero test coverage — a mutation that
+  # reverted the widened list back to the narrow one passed the self-test
+  # suite unchanged. These cases close that gap directly.
+  let agent_model_cases = [
+    { model: "opus", expect_warnings: 0, why: "pre-existing short name — must still pass after widening" }
+    { model: "fable", expect_warnings: 0, why: "documented in claude-agents SKILL.md but was missing from the pre-review allowlist" }
+    { model: "inherit", expect_warnings: 0, why: "documented default value; was missing from the pre-review allowlist" }
+    { model: "claude-opus-4-8", expect_warnings: 0, why: "documented full-model-ID example from claude-agents SKILL.md" }
+    { model: "gpt-4", expect_warnings: 1, why: "not a documented value in any form — must still warn" }
+  ]
+  let agent_temp_dir = (mktemp -d)
+  for c in $agent_model_cases {
+    let agent_path = ($agent_temp_dir | path join $"model-($c.model | str replace -a '.' '-').md")
+    $"---\nname: fixture-agent\ndescription: test fixture\nmodel: ($c.model)\n---\n\nbody\n" | save --force $agent_path
+    let result = (validate-agent-md $agent_path "fixture-agent" false)
+    if ($result.errors | length) != 0 {
+      $failures = ($failures | append $"agent_model_($c.model): expected 0 errors, got (($result.errors | length)): ($result.errors | to nuon) -- ($c.why)")
+    }
+    if ($result.warnings | length) != $c.expect_warnings {
+      $failures = ($failures | append $"agent_model_($c.model): expected ($c.expect_warnings) warnings, got (($result.warnings | length)): ($result.warnings | to nuon) -- ($c.why)")
+    }
+  }
+  rm -rf $agent_temp_dir
 
   rm -rf $temp_dir
 
@@ -800,5 +1215,5 @@ def self-test [] {
     exit 1
   }
 
-  print $"(ansi green_bold)✅ validate-plugin.nu self-test passed \((($cases | length)) cases\)(ansi reset)"
+  print $"(ansi green_bold)✅ validate-plugin.nu self-test passed \((($cases | length) + ($agent_model_cases | length)) cases\)(ansi reset)"
 }

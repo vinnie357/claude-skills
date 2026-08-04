@@ -220,7 +220,12 @@ for plugin in $marketplace.plugins {
         }
     } else {
         $local_count = $local_count + 1
-        let result = (do { nu ($repo_root | path join "test" "validate-plugin.nu") $plugin.name } | complete)
+        # --strict (claude-skills-234): all 30 local plugins are warning-free
+        # as of this change (verified by running the validator directly,
+        # outside this do{}|complete capture, against every local plugin).
+        # CI treats new warnings as failures rather than letting them
+        # accumulate silently the way claude-skills-219/234 found.
+        let result = (do { nu ($repo_root | path join "test" "validate-plugin.nu") $plugin.name --strict } | complete)
         if $result.exit_code == 0 {
             print $"✅ plugin: ($plugin.name)"
         } else {
