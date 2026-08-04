@@ -54,7 +54,7 @@ Authoring WIT interface files continues in `/wasm:wit`.
 |---------|--------|-----------------|
 | WASIp1 (Preview 1) | Stable, widely supported | POSIX-like, `fd_*` functions, linear memory I/O |
 | WASIp2 (Preview 2) | Stable, Component Model baseline | Typed interfaces, synchronous streams |
-| WASIp3 (0.3) | Stable since 2026-06-11 (verified against wasi.dev, 2026-08-04) | Native async — `stream<T>`/`future<T>` built into the Component Model; requires Wasmtime 46+ |
+| WASIp3 (0.3) | Announced stable 2026-06-11 (bytecodealliance.org/articles/WASI-0.3, read 2026-08-04) | Native async — `stream<T>`/`future<T>`/`async` as first-class canonical-ABI constructs; Wasmtime 46 ships it with Component Model Async on by default |
 
 Use WASIp2 for broad compatibility, WASIp3 for new components that need native async and target Wasmtime 46+. WASIp1 remains supported for existing code. See [overview.md](references/overview.md) for migration details.
 

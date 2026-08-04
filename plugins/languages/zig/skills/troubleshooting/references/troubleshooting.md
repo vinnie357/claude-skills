@@ -114,7 +114,10 @@ test "no leaks" {
 Use `DebugAllocator` to detect at runtime:
 
 ```zig
-var debug_alloc = std.heap.DebugAllocator(.{}).init(std.heap.page_allocator);
+// `init` is a constant, not a function — `pub const init: Self = .{};`
+// (lib/std/heap/debug_allocator.zig:175, Zig 0.16.0). The backing allocator
+// defaults to std.heap.page_allocator; override the field to change it.
+var debug_alloc: std.heap.DebugAllocator(.{}) = .init;
 defer _ = debug_alloc.deinit();
 ```
 
@@ -164,8 +167,8 @@ Check paths are relative to build root (inside `b.createModule(...)`):
 | Error | Cause | Fix |
 |---|---|---|
 | `@Type` not found | Builtin removed in 0.16 | Use the dedicated builtins: `@Int()`, `@Struct()`, `@Enum()`, `@Union()`, `@Pointer()`, `@Fn()`, `@Tuple()`, `@EnumLiteral()` |
-| `@cImport` deprecation warnings | Moving to the build system in 0.16 | `b.addTranslateC(.{...})` in build.zig + `@import("c")` in source |
-| Filesystem/network/process calls fail to compile, missing `io` argument | 0.16 `std.Io` interface: blocking operations take an `io: Io` parameter | Thread an `Io` instance through (e.g. `var threaded: Io.Threaded = .init_single_threaded; const io = threaded.io();`); `fs.cwd()` → `std.Io.Dir.cwd()`, `std.process.Child` → `std.process.spawn(io, ...)` |
+| *(no diagnostic)* — `@cImport` still compiles silently at 0.16.0; it is deprecated in the release notes only, so nothing forces the migration | C translation is moving to the build system | `b.addTranslateC(.{...})` in build.zig + `@import("c")` in source |
+| Filesystem/network/process calls fail to compile, missing `io` argument | 0.16 `std.Io` interface: blocking operations take an `io: Io` parameter | Thread an `Io` instance through (e.g. `var threaded: Io.Threaded = .init_single_threaded; const io = threaded.io();`); `fs.cwd()` → `std.Io.Dir.cwd()`; `std.process.Child.run(...)` → `std.process.run(gpa, io, ...)` and `Child.init(...).spawn()` → `std.process.spawn(io, ...)`. The `Child` *type* still exists in 0.16 — it is what `spawn` returns; only its constructors moved to free functions |
 | `std.Thread.Mutex` / `Condition` / `RwLock` / `Pool` not found | Sync primitives moved under `std.Io` in 0.16 | `std.Io.Mutex`, `std.Io.Condition`, `std.Io.RwLock` (require an `Io`); `std.Thread.Pool` removed — use `io.async`/`Io.Group` |
 | `returning address of expired local variable` | New 0.16 compile error | Return by value or allocate; do not return pointers to locals |
 | `@intFromFloat` deprecation | 0.16 lets `@floor`/`@ceil`/`@round`/`@trunc` produce integers directly | `const n: u8 = @round(value);` |

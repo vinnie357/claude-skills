@@ -151,8 +151,11 @@ fn main() -> anyhow::Result<()> {
 <!-- verified against wasmtime-wasi 47.0.3 (docs.rs, 2026-08-04): WasiView::ctx() now returns a single WasiCtxView<'_> { ctx, table } instead of two separate ctx()/table() methods -->
 
 ```rust
-use wasmtime::*;
-use wasmtime::component::*;
+// Explicit imports, not globs: `Linker` exists in BOTH `wasmtime` and
+// `wasmtime::component`, so glob-importing both makes a bare `Linker`
+// ambiguous (E0659). Everything below is the component-model `Linker`.
+use wasmtime::component::{Component, Linker, ResourceTable};
+use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 struct ServerState {
@@ -228,8 +231,9 @@ let wasi = WasiCtxBuilder::new()
 Generate Rust host bindings from WIT:
 
 ```rust
+// Only the component glob — adding `use wasmtime::*;` alongside it would make
+// the bare `Linker`/`Instance` names ambiguous (E0659) in any block that uses them.
 use wasmtime::component::*;
-use wasmtime::*;
 
 // Generate host-side bindings from WIT
 bindgen!({

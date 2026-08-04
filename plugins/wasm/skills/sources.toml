@@ -146,7 +146,7 @@ version_constraint = "semver"
 last_checked = "2026-08-04"
 update_priority = "medium"
 breaking_changes_likely = false
-notes = "Re-checked 2026-08-04 via hex.pm: still 0.14.0, no change since 2026-07-30. host-elixir.md was pinning the stale example constraint \"~> 0.9\" (which excludes 0.14.x under hex's pessimistic-operator semantics) — corrected to \"~> 0.14\" in claude-skills-204 (2026-08-04)."
+notes = "Re-checked 2026-08-04 via hex.pm: still 0.14.0, no change since 2026-07-30. host-elixir.md was pinning the stale example constraint \"~> 0.9\" — corrected to \"~> 0.14\" in claude-skills-204 (2026-08-04) so the example matches the version actually verified. Note \"~> 0.9\" was loose, not broken: per elixir.hexdocs.pm/Version.html \"~> 2.0\" == \">= 2.0.0 and < 3.0.0\", so \"~> 0.9\" == \">= 0.9.0 and < 1.0.0\" and 0.14.0 satisfies it."
 
 # ----------------------------------------------------------------------------
 # Zig Wasm/WASI documentation. Merges sources.md's two mentions of the same
