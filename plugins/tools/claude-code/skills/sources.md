@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the claude-code plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `agent-skills-concept`, `example-skills-repository`, `skill-creator-guide`, `skills-cookbook`, `agent-skills-specification`, `agent-skills-overview`, `agent-skills-best-practices` (the Agent Skills Documentation section below), `claude-code-plugins-docs`, `claude-code-commands-docs`, `claude-code-agents-docs`, `claude-code-hooks-docs`, `claude-code-output-styles-docs` (the Claude Code Plugin Development section below), `claude-code-plugin-marketplaces-docs` (the Plugin Marketplace Skill section below), `agent-teams-docs`, `subagents-docs`, `agent-sdk-docs`, `agent-sdk-subagents-docs`, `building-c-compiler-blog`, `addyosmani-agent-teams-blog`, `tasks-to-swarms-blog`, `agent-teams-switch-flipped-blog` (the Claude Teams Skill section below), `claude-code-statusline-docs`, `ccstatusline` (the Claude Statusline Skill section below), `claude-code-workflows-docs`, `dynamic-workflows-blog`, `claude-code-workflow-tool-contract` (the Claude Workflows Skill section below), `skills-building-guide-pdf`, `improving-skill-creator-blog` (the Skill Building Guide (PDF) section below), `github-rest-api-releases`, `hexpm-api`, `cratesio-api`, `toml-spec` (the Skill Update Skill section below), `context-engineering-claude-5-blog`, `claude-code-changelog` (the Context Engineering for Claude 5 Models section below).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `agent-skills-concept`, `example-skills-repository`, `skill-creator-guide`, `skills-cookbook`, `agent-skills-specification`, `agent-skills-overview`, `agent-skills-best-practices` (the Agent Skills Documentation section below), `claude-code-plugins-docs`, `claude-code-plugins-reference-docs`, `claude-code-commands-docs`, `claude-code-agents-docs`, `claude-code-hooks-docs`, `claude-code-output-styles-docs` (the Claude Code Plugin Development section below), `claude-code-plugin-marketplaces-docs` (the Plugin Marketplace Skill section below), `agent-teams-docs`, `subagents-docs`, `agent-sdk-docs`, `agent-sdk-subagents-docs`, `building-c-compiler-blog`, `addyosmani-agent-teams-blog`, `tasks-to-swarms-blog`, `agent-teams-switch-flipped-blog` (the Claude Teams Skill section below), `claude-code-statusline-docs`, `ccstatusline` (the Claude Statusline Skill section below), `claude-code-workflows-docs`, `dynamic-workflows-blog`, `claude-code-workflow-tool-contract` (the Claude Workflows Skill section below), `skills-building-guide-pdf`, `improving-skill-creator-blog` (the Skill Building Guide (PDF) section below), `github-rest-api-releases`, `hexpm-api`, `cratesio-api`, `toml-spec` (the Skill Update Skill section below), `context-engineering-claude-5-blog`, `claude-code-changelog` (the Context Engineering for Claude 5 Models section below).
 
 ## Agent Skills Documentation
 
@@ -77,6 +77,17 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - Commands, agents, skills, hooks structure
   - Plugin manifest (plugin.json) format
   - Installation and distribution
+- **Used In**: skills/claude-plugins/SKILL.md
+
+### Claude Code Plugins Reference Documentation
+- **URL**: https://code.claude.com/docs/en/plugins-reference
+- **Purpose**: Complete technical specification of the plugin.json manifest schema
+- **Date Accessed**: 2026-08-04
+- **Key Findings**:
+  - `outputStyles` (string\|array) — custom output style files/directories, replaces the default `output-styles/` scan
+  - `lspServers` (string\|array\|object) — LSP configs for code intelligence; defaults to a `.lsp.json` file at the plugin root when unset
+  - `experimental.themes` and `experimental.monitors` (both string\|array) — components whose schema may still change; both also work unnested at the top level for backward compatibility
+  - `dependencies` is documented as a valid plugin.json field (array), contradicting this skill's current invalid-fields list — tracked in claude-skills-218, not fixed under this AC. The validator's denylist-only unknown-field handling (no allowlist) is tracked separately in claude-skills-219
 - **Used In**: skills/claude-plugins/SKILL.md
 
 ### Claude Code Commands Documentation
