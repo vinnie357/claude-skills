@@ -1,0 +1,178 @@
+# fenced-literals.toml — registry of version literals pinned INSIDE markdown
+# code fences and non-markdown templates (claude-skills-176).
+#
+# Distinct from sources.toml: sources.toml tracks "is there a newer version
+# of this upstream overall" for a skill's documented content; this registry
+# tracks "does this EXACT pinned literal still resolve, and is it EOL" for
+# specific fenced examples that version_pin's prose-only agreement check
+# (test/validate-skills-quality.nu check 17) never sees.
+#
+# Run `mise sources:fence-check` to query upstream live and get a report.
+# Run `mise test:fenced-literals` (network-free) to check this file's own
+# schema and that each `literal` string still appears in its named `file` —
+# catches registry drift when a doc changes without updating this file.
+#
+# Inventory as of 2026-08-04 (claude-skills-176): a fresh sweep of the
+# corpus for version-shaped tokens inside fences found 14 literals across
+# 12 files. This does not match the bee's original "13 across 7 files" from
+# 2026-07-29 — content has moved since (new skills, and claude-skills-210/
+# 211/212 added prose in skill-update/SKILL.md that DISCUSSES several of
+# these same literals as commentary, correctly excluded here since that
+# text is analysis, not a pin). Excluded as non-pins (illustrate command
+# syntax, not a real version claim): `mise install node@20.10.0` and
+# `git tag v1.0.0` (core/mise/SKILL.md), `ansible-galaxy collection install
+# community.general:==6.0.0` (ansible-roles/SKILL.md), and `@v4.1.0` →
+# `@v4.2.2` (github/dependabot-consolidator — a hypothetical bump example).
+#
+# Deliberately excluded as a CATEGORY, not just individually: GitHub Actions
+# `uses: owner/action@vN` floating-major-version pins (~30 occurrences
+# across ~15 files, e.g. `actions/checkout@v7`, `jdx/mise-action@v4`). These
+# are a different pattern from everything above — a floating major tag the
+# action's maintainer re-points at their newest v7.x.x on every release, by
+# GitHub's own recommended convention, not a discrete version a doc author
+# chose and that can go stale the way `rev: v8.30.1` can. Whether a doc
+# should upgrade from `@v7` to a newer major is a real, different question
+# (major-version currency, not tag-existence/EOL) that this registry's
+# schema does not answer today. Flagged here as a scope decision, not a
+# silent omission — the bee's own worked examples (Docker image tags, CLI
+# install examples, package pins) never named this pattern.
+
+[[literals]]
+file = "plugins/core/skills/security/SKILL.md"
+literal = "v8.30.1"
+context = "gitleaks pre-commit hook rev pin"
+check_method = "github-releases"
+github_repo = "gitleaks/gitleaks"
+pinned_tag = "v8.30.1"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/core/skills/twelve-factor/references/factor-examples.md"
+literal = "node:24-alpine"
+context = "multi-stage Dockerfile example (Factor II: Dependencies)"
+check_method = "docker-hub"
+docker_image = "library/node"
+pinned_tag = "24-alpine"
+eol_product = "nodejs"
+eol_cycle = "24"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/tools/agent-sandboxing/skills/claude-code-on-sandbox/SKILL.md"
+literal = "debian:13-slim"
+context = "base image, mirrors templates/Dockerfile.claude-code"
+check_method = "docker-hub"
+docker_image = "library/debian"
+pinned_tag = "13-slim"
+eol_product = "debian"
+eol_cycle = "13"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/tools/agent-sandboxing/skills/claude-code-on-sandbox/SKILL.md"
+literal = "MISE_VERSION=2026.5.0"
+context = "ARG in the embedded Dockerfile copy, mirrors templates/Dockerfile.claude-code"
+check_method = "github-releases"
+github_repo = "jdx/mise"
+pinned_tag = "v2026.5.0"
+policy = "track"
+notes = "Discovered defect, out of scope to fix here: this ARG is declared but never consumed — the Dockerfile installs mise via `curl -fsSL https://mise.run | sh` (always latest at build time), not via $MISE_VERSION. The 'pin' is decorative. Flag as a follow-up; freshness of the literal itself is still meaningful to report."
+
+[[literals]]
+file = "plugins/tools/agent-sandboxing/templates/Dockerfile.claude-code"
+literal = "debian:13-slim"
+context = "base image (source of truth; SKILL.md above is a copy)"
+check_method = "docker-hub"
+docker_image = "library/debian"
+pinned_tag = "13-slim"
+eol_product = "debian"
+eol_cycle = "13"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/tools/agent-sandboxing/templates/Dockerfile.claude-code"
+literal = "MISE_VERSION=2026.5.0"
+context = "ARG (source of truth; SKILL.md above is a copy)"
+check_method = "github-releases"
+github_repo = "jdx/mise"
+pinned_tag = "v2026.5.0"
+policy = "track"
+notes = "Same unused-ARG defect as the SKILL.md copy of this literal — see that entry's notes. Not fixed here; out of scope for a freshness-detection tool."
+
+[[literals]]
+file = "plugins/tools/github/skills/actions/SKILL.md"
+literal = "alpine:3.24"
+context = "example Dockerfile for a Docker-based GitHub Action"
+check_method = "docker-hub"
+docker_image = "library/alpine"
+pinned_tag = "3.24"
+eol_product = "alpine-linux"
+eol_cycle = "3.24"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/tools/github/skills/act/references/setup-and-config.md"
+literal = "node:16-buster-slim"
+context = "act -P micro-image example (act's OWN current docs still present this exact image)"
+check_method = "docker-hub"
+docker_image = "library/node"
+pinned_tag = "16-buster-slim"
+eol_product = "nodejs"
+eol_cycle = "16"
+policy = "intentional-pin"
+notes = "claude-skills-176's own named exception. act's current upstream docs (see Recommended Images section referenced here) still present node:16-buster-slim as THE micro-image example, so it stays pinned regardless of Node 16 being EOL (2023-09-11, confirmed live) — fixing it would contradict what act itself documents. Also the flagship case named in claude-skills-225: docker-hub's 'newest tag' signal is a degenerate staleness comparator for a deliberately-pinned tag (schema-compliant current_version=unknown/rolling usage reads no-pin forever; a version-shaped pin reads stale forever against a high-churn alias), so even setting policy aside, there is no meaningful DRIFT signal to report here today — only tag-still-exists (verified live: yes, last_updated 2023-09-07, frozen since Node 16's own EOL) and EOL-status context. Revisit once claude-skills-225 lands a real per-tag comparator."
+
+[[literals]]
+file = "plugins/wasm/skills/wasmtime/references/guest-rust.md"
+literal = "wasi:cli/imports@0.2.0"
+context = "WIT world include example"
+check_method = "manual"
+policy = "intentional-pin"
+notes = "WASI 0.2.0 is deliberately taught as the first stable WASI Preview 2 target (see wit/SKILL.md: 'Pin to WASI 0.2.0 ... this is the first stable WASI release and the recommended target for new components'), not a moving pin to compare against 'latest'. Mirrors the existing wasm sources.toml 'wasi' entry, which already declines to pin for the same reason ('no single pinned spec version to track'). One registered instance stands in for the WASI @0.2.0 pattern that recurs dozens of times across this file and its three siblings below — see those entries."
+
+[[literals]]
+file = "plugins/wasm/skills/wasmtime/references/overview.md"
+literal = "wasi:filesystem/types@0.2.0"
+context = "WIT import example"
+check_method = "manual"
+policy = "intentional-pin"
+notes = "Same WASI 0.2.0 intentional-pin rationale as wasmtime/references/guest-rust.md — see that entry."
+
+[[literals]]
+file = "plugins/wasm/skills/wit/SKILL.md"
+literal = "wasi:io/streams@0.2.0"
+context = "WIT import/use examples (recurs ~8 times in this file alone)"
+check_method = "manual"
+policy = "intentional-pin"
+notes = "Same WASI 0.2.0 intentional-pin rationale as wasmtime/references/guest-rust.md — see that entry. This file also states the rationale explicitly in prose: 'Pin to WASI 0.2.0 ... this is the first stable WASI release and the recommended target for new components.'"
+
+[[literals]]
+file = "plugins/wasm/skills/wit/references/syntax-reference.md"
+literal = "wasi:io/streams@0.2.0"
+context = "WIT syntax reference examples (recurs ~9 times in this file)"
+check_method = "manual"
+policy = "intentional-pin"
+notes = "Same WASI 0.2.0 intentional-pin rationale as wasmtime/references/guest-rust.md — see that entry."
+
+[[literals]]
+file = "plugins/tools/awman/skills/awman/SKILL.md"
+literal = "awman@0.11.0"
+context = "mise pin examples (global pin command + mise.toml snippet)"
+check_method = "github-releases"
+github_repo = "prettysmartdev/awman"
+pinned_tag = "v0.11.0"
+policy = "track"
+notes = "Matches sources.toml current_version exactly (0.11.0, last_checked 2026-07-13)."
+
+[[literals]]
+file = "plugins/languages/zig/skills/zig/SKILL.md"
+literal = "zig@0.16.0"
+context = "mise install quick-start example"
+check_method = "manual"
+policy = "track"
+notes = "Matches sources.toml current_version exactly (0.16.0). check_method=manual mirrors sources.toml's own decision: ziglang stopped tagging GitHub releases after 0.15.2 (confirmed live 2026-08-04: GET /repos/ziglang/zig/releases/tags/0.16.0 → 404). Authoritative source is https://ziglang.org/download/index.json per that sources.toml entry's notes."

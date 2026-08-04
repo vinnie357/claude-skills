@@ -33,7 +33,7 @@ depends = ["test"]
 # "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
 # Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -288,6 +288,23 @@ let scripts_dir = ($repo_root | path join "plugins" "tools" "claude-code" "skill
 nu ($scripts_dir | path join "sources-check.nu") --self-test
 nu ($scripts_dir | path join "sources-report.nu") --self-test
 nu ($scripts_dir | path join "sources-stale.nu") --self-test
+"""
+
+[tasks."test:fenced-literals"]
+description = "Validate fenced-literals.toml schema and doc-content agreement (network-free)"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "validate-fenced-literals.nu") --self-test
+nu ($repo_root | path join "test" "validate-fenced-literals.nu")
+
+# claude-skills-176: fence-freshness.nu's own pure classify-fence-status
+# self-test — no network, exercises the EOL/broken/intentional-pin policy
+# logic. The live-querying report itself (mise sources:fence-check) stays
+# unwired here, same reasoning as sources:check/stale/report above.
+let scripts_dir = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "skill-update" "scripts")
+nu ($scripts_dir | path join "fence-freshness.nu") --self-test
 """
 
 [tasks."test:plugin"]
@@ -966,4 +983,11 @@ if [ -z "$1" ]; then
     exit 1
 fi
 nu "plugins/tools/claude-code/skills/skill-update/scripts/sources-init.nu" "$@"
+'''
+
+[tasks."sources:fence-check"]
+description = "Freshness report for version literals pinned inside code fences (claude-skills-176)"
+run = '''
+#!/usr/bin/env bash
+nu "plugins/tools/claude-code/skills/skill-update/scripts/fence-freshness.nu"
 '''
