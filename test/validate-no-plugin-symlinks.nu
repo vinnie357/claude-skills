@@ -39,6 +39,19 @@
 # and sidesteps any cross-platform difference in how a live filesystem walk
 # reports symlink type.
 #
+# Residual, not closed by this lint (flagged per Gate 3 on claude-skills-236's
+# PR): a LOCAL, UNTRACKED symlink under plugins/ resolving to a path inside
+# the repo is invisible here — `git ls-files` only sees tracked entries, so
+# a local quality run against the working tree reads the symlink's target
+# content as if it were real, and nothing in this script (or the sibling
+# canonicalization fix in validate-skills-quality.nu, which handles ANCESTOR
+# symlinks in already-tracked reference paths, not this case) flags it. This
+# is genuinely minor: `git add` stages it as mode 120000, which this lint
+# then catches before anything ships — an untracked symlink cannot reach a
+# commit, a PR, or CI undetected. Noted so a reader doesn't take "closes the
+# write side" above to mean the class is closed at every stage; it closes
+# the write side at the only stage that matters for what ships.
+#
 # Usage:
 #   nu test/validate-no-plugin-symlinks.nu              # scan the real tree
 #   nu test/validate-no-plugin-symlinks.nu --self-test   # verify the rule itself
