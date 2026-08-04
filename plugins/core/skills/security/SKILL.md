@@ -86,6 +86,39 @@ When agents interact with secrets (1Password, environment variables, keychains):
 
 This applies to all agent tiers. A leaked secret in agent output forces credential rotation.
 
+### Commands that leak environments
+
+"Never print secret values" is not enough on its own — some commands leak the full environment as a *side effect* of an unrelated-looking diagnostic. The command reads as "get a bit more context on this process," not "dump every credential this process can see," so the guidance above does not visibly apply and the leak happens anyway.
+
+**Incident (2026-08-04):** an agent confirming one environment variable on a running process followed up with `ps -E -p <pid>` as a diagnostic. On macOS, `-E` appends the process's entire environment after the command line, undifferentiated from the command-line arguments — four live credentials landed in the transcript in plaintext, requiring rotation of all four. A prior incident (2026-07-30) came from `printenv | grep -i database` on a pod — same shape, different command.
+
+Banned outright — never run any of these unfiltered, on any platform:
+
+| Command | Platform | Why it leaks |
+|---|---|---|
+| `ps -E` | macOS/BSD | Documented flag: "Display the environment as well" (`man ps`). Appends the target process's full environment to its command-line output. |
+| `ps eww` (or any BSD keyletter set with `e` appended, e.g. `auxe`) | macOS/BSD | The no-dash keyletter form of the same append-environment behavior as `-E`. |
+| `ps e` (bare `e` appended to a keyletter set, e.g. `psaux` → `auxe`, or `lwwe`) | Linux (GNU ps / procps) | Documented: "Show the environment after the command." GNU ps has no `-E` flag — `-e` there means "select all processes" (same as `-A`), not environment; do not confuse the two. |
+| `cat /proc/<pid>/environ` or any read of it | Linux | "This file contains the initial environment that was set when the currently executing program was started" (`proc_pid_environ(5)`), NUL-separated. Readable for any process you can `ptrace` — typically your own processes or, as root, any process. |
+| Unfiltered `printenv` / `env` (no args) | All | Prints the calling shell's entire environment, not one variable. |
+
+**Filtering rule.** When you need one variable, filter to it in the same command that produces it — never produce the full set and filter afterward, because the full set already reached the transcript by the time a second command filters it:
+
+```bash
+# WRONG — the full environment already printed once this returns
+ps eww -p <pid>
+
+# RIGHT — filter inside the same command
+ps eww -p <pid> | tr ' ' '\n' | grep '^VARNAME='
+```
+
+**Inspection discipline.**
+- Never inspect an environment "for context" or "to see what's there." Name the specific variable you need before running anything.
+- Never place a secret on a command line (`env VAR=value cmd`, `curl -H "Authorization: Bearer $TOKEN"` with `$TOKEN` interpolated visibly) — command lines land in shell history and process listings same as the commands above.
+- Treat `-e`/`-E`-shaped flags on any unfamiliar tool as suspect until you've checked what they do; the macOS/Linux split above (`-E` vs bare `e` vs `-e`-means-"all") is exactly the kind of one-letter, cross-platform inconsistency that causes an agent to reach for the wrong flag under the impression it is the safe one.
+
+**Recovery.** If an environment dump reaches the transcript despite the above, self-report the exposure immediately and ask the operator to rotate every credential that appeared — do not wait to be asked, and do not attempt to redact it after the fact (the value is already in context/logs).
+
 ## When to Use security-review Instead
 
 Use the `security-review` skill for:
