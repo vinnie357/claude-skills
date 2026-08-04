@@ -4,7 +4,10 @@
 # This is a thin wrapper around the skill's validate-plugin.nu script.
 # The comprehensive validation logic lives in claude-code/skills/claude-plugins/scripts/validate-plugin.nu
 
-def main [plugin_name: string] {
+def main [
+    plugin_name: string
+    --strict   # Treat warnings as errors — see claude-plugins skill's validate-plugin.nu --strict
+] {
     print $"🔍 Validating plugin: ($plugin_name)...\n"
 
     # Get repo root (parent of test/ directory)
@@ -15,5 +18,9 @@ def main [plugin_name: string] {
     let skill_script = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "claude-plugins" "scripts" "validate-plugin.nu")
 
     # Use the skill's validate-plugin.nu with marketplace mode
-    nu $skill_script $plugin_name --marketplace $marketplace_path
+    if $strict {
+        nu $skill_script $plugin_name --marketplace $marketplace_path --strict
+    } else {
+        nu $skill_script $plugin_name --marketplace $marketplace_path
+    }
 }

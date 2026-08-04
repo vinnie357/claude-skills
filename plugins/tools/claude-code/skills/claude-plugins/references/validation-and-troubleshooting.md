@@ -12,7 +12,8 @@
 ## What the validator reports
 
 `nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu .claude-plugin/plugin.json` emits these. Errors
-fail validation; warnings do not.
+fail validation; warnings do not — unless `--strict` is passed (claude-skills-234), which promotes
+any warnings into a failing result. `mise run test:plugins` runs every local plugin with `--strict`.
 
 ### Error — `Invalid name format: '<name>' (must be kebab-case)`
 
@@ -45,6 +46,25 @@ Treat it as a nudge to check for a typo, not proof the field is wrong.
 ```json
 // Warns: "Unrecognized field 'dependancies' - not a known plugin.json field ..."
 { "name": "my-plugin", "dependancies": ["other-plugin"] }
+```
+
+### Error — `dependencies entry '<name>' has a malformed version constraint: '<value>'`
+
+The `version` field on a `dependencies` object entry (claude-skills-235) is validated as a
+[node-semver range](https://code.claude.com/docs/en/plugin-dependencies), not an exact version —
+upstream: "The version field accepts any expression supported by Node's semver package, including
+caret, tilde, hyphen, and comparator ranges." Accepted forms: bare version (`2.1.0`), tilde
+(`~2.1.0`), caret (`^2.0`), comparator (`>=1.4`, `>1.4`, `<2.0`, `<=2.0`, `=2.1.0`), x-range
+wildcards (`1.2.x`, `1.x`, `*`), hyphen ranges (`1.2.3 - 2.3.4`), and `||`-joined alternatives
+(`1.2.7 || >=1.2.9 <2.0.0`). A string outside this grammar — `not-a-semver!!!`, for example — is
+rejected.
+
+```json
+// Invalid
+{ "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "not-a-semver!!!" }] }
+
+// Valid — upstream's own documented example
+{ "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "~2.1.0" }] }
 ```
 
 ### Error — skill path missing or has no SKILL.md

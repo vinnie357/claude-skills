@@ -77,6 +77,8 @@ Relative to the plugin root, `./`-prefixed. Each has a dedicated skill for its o
 
 This is a **plugin.json field**, not a marketplace-only one — do not confuse it with `category`/`strict`/`source`/`tags` below, which upstream documents as marketplace-entry-specific and which this manifest schema does not include. (`dependencies` may also be echoed inside a marketplace entry, since a marketplace entry can carry any field from the plugin manifest schema — but its home is plugin.json.)
 
+The `version` field is a **range**, not an exact version — upstream (see [Constrain plugin dependency versions](https://code.claude.com/docs/en/plugin-dependencies)): "The version field accepts any expression supported by Node's semver package, including caret, tilde, hyphen, and comparator ranges." Documented examples: `~2.1.0` (tilde), `^2.0` (caret, partial), `>=1.4` (comparator, partial), `=2.1.0` (exact pin), `1.2.3 - 2.3.4` (hyphen range), and `||`-joined alternatives (e.g. `1.2.7 || >=1.2.9 <2.0.0`). `validate-plugin.nu` validates `version` against this range grammar, not the exact-version grammar used elsewhere in this manifest (`plugin.json`'s own top-level `version` field) — a range string like `~2.1.0` is correctly REJECTED by an exact-version check and correctly ACCEPTED by the range check the validator applies here.
+
 ### `experimental` field
 
 `experimental` is an object holding components whose manifest schema may still change between releases: `experimental.themes` (string or array — color theme files/directories, replacing the default `themes/` scan) and `experimental.monitors` (string or array — background monitor configs that start automatically while the plugin is active, replacing the default `monitors/monitors.json`). Both keys also work unnested at the top level (`"themes": ...`, `"monitors": ...`) today, but `claude plugin validate` already warns on the unnested form, and a future release will require nesting under `experimental` — use the nested form for new plugins rather than relying on the still-working top-level fallback.
@@ -124,17 +126,20 @@ The validator rejects these with `Invalid field '<field>' - this belongs in mark
 
 Any other top-level field the validator doesn't recognize produces a **warning** (`Unrecognized field '<field>' - not a known plugin.json field`), never a hard failure — matching upstream's own `claude plugin validate`, which treats unrecognized fields as warnings so a manifest can double as another tool's config (an npm `package.json`, a VS Code extension manifest) without breaking. A typo'd field name is now visible instead of silently passing.
 
+Pass `--strict` to promote those warnings to a failing result, mirroring upstream's own `claude plugin validate --strict` ("Pass `--strict` to treat warnings as errors. Use it in CI to catch a misspelled field name or a field left over from another tool's manifest before publishing, even though the plugin would load at runtime."). `mise run test:plugins` runs every local plugin with `--strict` — all 30 are warning-free as of this change, so a new warning now fails CI instead of only logging. `--strict` never invents new warnings; a manifest with zero warnings passes identically with or without the flag.
+
 ## Validation
 
 Scripts are bundled with this skill, under its own directory:
 
 ```bash
 nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu .claude-plugin/plugin.json
+nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu .claude-plugin/plugin.json --strict
 nu <CLAUDE_SKILL_DIR>/scripts/init-plugin.nu
 nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu --self-test   # fixture suite for the validator itself
 ```
 
-`validate-plugin.nu` checks JSON syntax, `name` presence and casing, field types, path accessibility, `dependencies` shape, and invalid-field detection, plus a warn-on-unrecognized-field pass. Add `--verbose` for per-field output.
+`validate-plugin.nu` checks JSON syntax, `name` presence and casing, field types, path accessibility, `dependencies` shape and version-range syntax, and invalid-field detection, plus a warn-on-unrecognized-field pass (promoted to a failure under `--strict`). Add `--verbose` for per-field output.
 
 With `--marketplace`, it also checks that `description` and `keywords` agree with the plugin's marketplace entry, when that entry's `source` is a local path. **`plugin.json` is authoritative.** Entries whose `source` is a GitHub object are skipped — there is no local manifest to compare. When plugin.json defines a field, the marketplace entry must carry it too: an entry that omits `description` or `keywords` while plugin.json defines them is flagged as missing, not treated as agreement (`marketplace.json entry is missing '<field>' that plugin.json defines`). A field plugin.json itself omits is not compared at all. `keywords` compares as a sorted list, so reordering the array alone is not a mismatch — only a genuine difference in members is.
 

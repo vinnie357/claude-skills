@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the claude-code plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `agent-skills-concept`, `example-skills-repository`, `skill-creator-guide`, `skills-cookbook`, `agent-skills-specification`, `agent-skills-overview`, `agent-skills-best-practices` (the Agent Skills Documentation section below), `claude-code-plugins-docs`, `claude-code-plugins-reference-docs`, `claude-code-commands-docs`, `claude-code-agents-docs`, `claude-code-hooks-docs`, `claude-code-output-styles-docs` (the Claude Code Plugin Development section below), `claude-code-plugin-marketplaces-docs` (the Plugin Marketplace Skill section below), `agent-teams-docs`, `subagents-docs`, `agent-sdk-docs`, `agent-sdk-subagents-docs`, `building-c-compiler-blog`, `addyosmani-agent-teams-blog`, `tasks-to-swarms-blog`, `agent-teams-switch-flipped-blog` (the Claude Teams Skill section below), `claude-code-statusline-docs`, `ccstatusline` (the Claude Statusline Skill section below), `claude-code-workflows-docs`, `dynamic-workflows-blog`, `claude-code-workflow-tool-contract` (the Claude Workflows Skill section below), `skills-building-guide-pdf`, `improving-skill-creator-blog` (the Skill Building Guide (PDF) section below), `github-rest-api-releases`, `hexpm-api`, `cratesio-api`, `toml-spec` (the Skill Update Skill section below), `context-engineering-claude-5-blog`, `claude-code-changelog` (the Context Engineering for Claude 5 Models section below).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `agent-skills-concept`, `example-skills-repository`, `skill-creator-guide`, `skills-cookbook`, `agent-skills-specification`, `agent-skills-overview`, `agent-skills-best-practices` (the Agent Skills Documentation section below), `claude-code-plugins-docs`, `claude-code-plugins-reference-docs`, `claude-code-plugin-dependencies-docs`, `claude-code-commands-docs`, `claude-code-agents-docs`, `claude-code-hooks-docs`, `claude-code-output-styles-docs` (the Claude Code Plugin Development section below), `claude-code-plugin-marketplaces-docs` (the Plugin Marketplace Skill section below), `agent-teams-docs`, `subagents-docs`, `agent-sdk-docs`, `agent-sdk-subagents-docs`, `building-c-compiler-blog`, `addyosmani-agent-teams-blog`, `tasks-to-swarms-blog`, `agent-teams-switch-flipped-blog` (the Claude Teams Skill section below), `claude-code-statusline-docs`, `ccstatusline` (the Claude Statusline Skill section below), `claude-code-workflows-docs`, `dynamic-workflows-blog`, `claude-code-workflow-tool-contract` (the Claude Workflows Skill section below), `skills-building-guide-pdf`, `improving-skill-creator-blog` (the Skill Building Guide (PDF) section below), `github-rest-api-releases`, `hexpm-api`, `cratesio-api`, `toml-spec` (the Skill Update Skill section below), `context-engineering-claude-5-blog`, `claude-code-changelog` (the Context Engineering for Claude 5 Models section below).
 
 ## Agent Skills Documentation
 
@@ -90,7 +90,19 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - `dependencies` (array) IS a documented, valid plugin.json field — shape is bare plugin-name strings and/or `{name, version}` objects with a semver constraint. This contradicted the skill's prior invalid-fields list and `validate-plugin.nu`'s denylist; both fixed under claude-skills-218
   - Five previously-unmodeled plugin.json fields confirmed real and documented: `displayName` (string, v2.1.143+), `defaultEnabled` (boolean, v2.1.154+), `workflows` (string\|array), `userConfig` (object), `channels` (array) — all now documented in SKILL.md and recognized by the validator (claude-skills-218)
   - Upstream's own `claude plugin validate` treats an unrecognized top-level field as a WARNING, not an error, so a manifest can double as another tool's config file — directly informed the warn-not-fail fix for claude-skills-219
+  - `--strict` treats warnings as errors and is upstream's own recommended CI usage: "Pass --strict to treat warnings as errors. Use it in CI to catch a misspelled field name..." — re-fetched same day for claude-skills-234, directly informed the `--strict` flag added to `validate-plugin.nu`
 - **Used In**: skills/claude-plugins/SKILL.md, skills/claude-plugins/references/plugin-schema.md, skills/claude-plugins/references/validation-and-troubleshooting.md, skills/claude-plugins/scripts/validate-plugin.nu
+
+### Claude Code Plugin Dependencies Documentation
+- **URL**: https://code.claude.com/docs/en/plugin-dependencies
+- **Purpose**: Version-constraint syntax for the plugin.json `dependencies[].version` field
+- **Date Accessed**: 2026-08-04 (claude-skills-235)
+- **Key Findings**:
+  - `version` is a **range**, not an exact version: "A semver range such as ~2.1.0, ^2.0, >=1.4, or =2.1.0."
+  - "The version field accepts any expression supported by Node's semver package, including caret, tilde, hyphen, and comparator ranges." Pre-release versions need an opt-in suffix (`^2.0.0-0`)
+  - The `range-conflict` error table references `||`-joined OR-chains ("simplify long \|\| chains") as valid syntax
+  - This is a different grammar from `is-semver` (exact version) — confirms `is-semver` must not be reused unchanged for this field, per claude-skills-235's AC
+- **Used In**: skills/claude-plugins/SKILL.md, skills/claude-plugins/references/validation-and-troubleshooting.md, skills/claude-plugins/scripts/validate-plugin.nu
 
 ### Claude Code Commands Documentation
 - **URL**: https://code.claude.com/docs/en/commands
