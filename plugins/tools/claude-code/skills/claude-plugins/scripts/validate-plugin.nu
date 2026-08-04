@@ -11,10 +11,21 @@
 #   Marketplace: Validate a plugin by name from marketplace (supports external plugins)
 
 def main [
-  target: string              # Path to plugin.json OR plugin name (when using --marketplace)
+  target?: string              # Path to plugin.json OR plugin name (when using --marketplace)
   --marketplace: string       # Path to marketplace.json (enables name-based lookup)
   --verbose                   # Show detailed validation output
+  --self-test                 # Run the fixture-based self-test suite and exit
 ] {
+  if $self_test {
+    self-test
+    return
+  }
+
+  if ($target | is-empty) {
+    print $"(ansi red_bold)Error:(ansi reset) target is required unless --self-test is passed"
+    exit 1
+  }
+
   # Determine mode based on --marketplace flag
   if ($marketplace | is-not-empty) {
     validate-from-marketplace $target $marketplace $verbose
@@ -205,7 +216,7 @@ def validate-plugin-content [
     open $plugin_path
   } catch {
     print $"(ansi red_bold)Error:(ansi reset) Failed to parse plugin.json"
-    return { success: false }
+    return { success: false, errors: ["Failed to parse plugin.json"], warnings: [] }
   }
 
   mut errors = []
@@ -232,9 +243,15 @@ def validate-plugin-content [
     }
   }
 
-  # Check for invalid fields (marketplace-only)
+  # Check for invalid fields (marketplace-entry-only — confirmed against
+  # upstream's marketplace-entries schema, which lists these as
+  # "marketplace-specific fields" distinct from the plugin manifest schema:
+  # https://code.claude.com/docs/en/plugin-marketplaces#plugin-entries).
+  # `dependencies` was removed from this list (claude-skills-218) — upstream
+  # documents it as a valid plugin.json field (array of plugin names and/or
+  # {name, version} objects): https://code.claude.com/docs/en/plugins-reference#plugin-manifest-schema
   print $"\n(ansi cyan)Checking for invalid fields...(ansi reset)"
-  let invalid_fields = ["dependencies", "category", "strict", "source", "tags"]
+  let invalid_fields = ["category", "strict", "source", "tags"]
   for field in $invalid_fields {
     if ($plugin | get -o $field) != null {
       $errors = ($errors | append $"Invalid field '($field)' - this belongs in marketplace.json, not plugin.json")
@@ -243,6 +260,55 @@ def validate-plugin-content [
 
   if $verbose {
     print "  ✓ No invalid fields found"
+  }
+
+  # Warn (never hard-fail) on any top-level field this validator doesn't
+  # recognize (claude-skills-219). Upstream's own `claude plugin validate`
+  # treats unrecognized fields as warnings, not errors, specifically so a
+  # manifest can double as another tool's manifest (npm package.json, a VS
+  # Code extension manifest) without failing:
+  # https://code.claude.com/docs/en/plugins-reference#unrecognized-fields
+  # This list is every field currently documented for plugin.json — keep it
+  # in sync with the field tables in SKILL.md when upstream adds one.
+  let known_fields = [
+    "name", "$schema", "displayName", "version", "description", "author",
+    "homepage", "repository", "license", "keywords", "defaultEnabled",
+    "skills", "commands", "agents", "workflows", "hooks", "mcpServers",
+    "outputStyles", "lspServers", "experimental", "userConfig", "channels",
+    "dependencies"
+  ]
+  for field in ($plugin | columns) {
+    if ($field not-in $known_fields) and ($field not-in $invalid_fields) {
+      $warnings = ($warnings | append $"Unrecognized field '($field)' - not a known plugin.json field \(see the claude-plugins skill for the current schema; may be intentional metadata for another tool\)")
+    }
+  }
+
+  # Validate `dependencies` shape: an array of plugin names (string) and/or
+  # {name, version} objects, per upstream's example
+  # `["helper-lib", { "name": "secrets-vault", "version": "~2.1.0" }]`.
+  if ($plugin | get -o dependencies) != null {
+    let deps_type = ($plugin.dependencies | describe)
+    # A homogeneous array of records/objects (e.g. every dependency entry
+    # using the {name, version} shape) describes as "table<...>" in
+    # nushell, not "list<...>" — a plain array of strings describes as
+    # "list<string>". Accept both; a genuinely non-array value (string,
+    # record, etc.) matches neither prefix.
+    if not (($deps_type | str starts-with "list") or ($deps_type | str starts-with "table")) {
+      $errors = ($errors | append $"'dependencies' must be an array, got ($deps_type)")
+    } else {
+      for dep in $plugin.dependencies {
+        let dep_type = ($dep | describe)
+        if $dep_type == "string" {
+          # valid: bare plugin name
+        } else if ($dep_type | str starts-with "record") {
+          if ($dep | get -o name) == null {
+            $errors = ($errors | append $"dependencies entry missing required 'name' field: ($dep | to nuon)")
+          }
+        } else {
+          $errors = ($errors | append $"dependencies entry must be a string or object, got ($dep_type)")
+        }
+      }
+    }
   }
 
   # Check recommended fields
@@ -477,12 +543,12 @@ def validate-plugin-content [
 
   if ($errors | length) > 0 {
     print $"\n(ansi red_bold)✗ Validation failed with (($errors | length)) errors(ansi reset)"
-    { success: false }
+    { success: false, errors: $errors, warnings: $warnings }
   } else if ($warnings | length) > 0 {
     print $"\n(ansi yellow_bold)⚠ Validation passed with (($warnings | length)) warnings(ansi reset)"
-    { success: true }
+    { success: true, errors: $errors, warnings: $warnings }
   } else {
-    { success: true }
+    { success: true, errors: $errors, warnings: $warnings }
   }
 }
 
@@ -631,4 +697,108 @@ def is-kebab-case [name: string] {
 # Check if string is semantic version
 def is-semver [version: string] {
   $version =~ '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'
+}
+
+# Fixture-based self-test suite for claude-skills-218 / claude-skills-219.
+# Builds a temp plugin.json per case and calls validate-plugin-content
+# directly (no --marketplace context) so the assertions run against the
+# same logic the real CLI path uses. Each case names what would have
+# regressed silently before this fix: dependencies wrongly rejected,
+# unknown fields silently accepted, marketplace-only fields no longer
+# caught, the 5 newly-documented fields not recognized.
+def self-test [] {
+  mut failures = []
+
+  let cases = [
+    {
+      name: "dependencies_array_of_bare_names_accepted"
+      why: "claude-skills-218 — upstream documents plain plugin-name strings as a valid dependencies entry"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: ["helper-lib"] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_array_of_version_objects_accepted"
+      why: "claude-skills-218 — upstream's own example: [{ name: secrets-vault, version: ~2.1.0 }]"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "secrets-vault", version: "~2.1.0" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_entry_missing_name_errors"
+      why: "a dependency object without 'name' is malformed regardless of the upstream shape fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ version: "~2.1.0" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_not_an_array_errors"
+      why: "a lone string instead of an array is a type error, not a shape variant"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: "helper-lib" }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "marketplace_only_fields_still_rejected"
+      why: "category/strict/source/tags stay marketplace-entry-only per upstream's plugin-entries schema — the fix must not weaken this"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", category: "productivity", strict: true, source: "./plugins/my-plugin", tags: ["a"] }
+      expect_errors: 4
+      expect_warnings: 0
+    }
+    {
+      name: "unknown_field_warns_not_errors"
+      why: "claude-skills-219 — an invented field must not pass silently, but must WARN not hard-fail (matches upstream's own claude plugin validate behavior)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", notARealField: "garbage" }
+      expect_errors: 0
+      expect_warnings: 1
+    }
+    {
+      name: "five_newly_documented_fields_recognized"
+      why: "claude-skills-218 — displayName, defaultEnabled, workflows, userConfig, channels are real plugin.json fields and must not warn as unrecognized"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", displayName: "My Plugin", defaultEnabled: false, workflows: "./workflows/", userConfig: {}, channels: [] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "missing_required_name_still_errors"
+      why: "the allowlist/warn changes must not weaken the pre-existing required-field check"
+      plugin: {}
+      expect_errors: 1
+      expect_warnings: 1  # "Missing recommended field: version" etc. are warnings; name is the only error case here besides those — see assertion below which checks error substring instead of exact count
+    }
+  ]
+
+  let temp_dir = (mktemp -d)
+
+  for c in $cases {
+    let plugin_path = ($temp_dir | path join $"($c.name).json")
+    $c.plugin | save --force $plugin_path
+
+    let result = (validate-plugin-content $plugin_path $temp_dir "my-plugin" "my-plugin" false false)
+
+    if $c.name == "missing_required_name_still_errors" {
+      if not ($result.errors | any {|e| $e | str contains "Missing required field: 'name'" }) {
+        $failures = ($failures | append $"($c.name): expected a missing-name error, got errors=($result.errors | to nuon)")
+      }
+    } else {
+      if ($result.errors | length) != $c.expect_errors {
+        $failures = ($failures | append $"($c.name): expected ($c.expect_errors) errors, got (($result.errors | length)): ($result.errors | to nuon) -- ($c.why)")
+      }
+      if ($result.warnings | length) != $c.expect_warnings {
+        $failures = ($failures | append $"($c.name): expected ($c.expect_warnings) warnings, got (($result.warnings | length)): ($result.warnings | to nuon) -- ($c.why)")
+      }
+    }
+  }
+
+  rm -rf $temp_dir
+
+  if ($failures | length) > 0 {
+    print $"(ansi red_bold)❌ validate-plugin.nu self-test failed:(ansi reset)"
+    for f in $failures {
+      print $"  - ($f)"
+    }
+    exit 1
+  }
+
+  print $"(ansi green_bold)✅ validate-plugin.nu self-test passed \((($cases | length)) cases\)(ansi reset)"
 }

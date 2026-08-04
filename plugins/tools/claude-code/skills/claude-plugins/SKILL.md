@@ -50,12 +50,32 @@ Relative to the plugin root, `./`-prefixed. Each has a dedicated skill for its o
 - `skills` — array of directories, each containing a `SKILL.md` (see `claude-skills`)
 - `commands` — string or array of `.md` files or directories (see `claude-commands`)
 - `agents` — string directory or array of files (see `claude-agents`)
+- `workflows` — string or array of workflow script files or directories, replacing the default `workflows/` scan
 - `hooks` — string path to a hooks.json, or an inline hooks object (see `claude-hooks`)
 - `mcpServers` — string path to an MCP config, or an inline object
 - `outputStyles` — string or array of output-style files/directories, replacing the default `output-styles/` scan (see `claude-output-styles`)
 - `lspServers` — string, array, or inline object of LSP (Language Server Protocol) configs for code intelligence (go-to-definition, find-references). Defaults to a `.lsp.json` file at the plugin root when the field is absent.
 
 `output-styles/` is discovered by convention when `outputStyles` is unset; setting the field replaces that default scan rather than adding to it (see `claude-output-styles`).
+
+### Metadata and dependency fields
+
+- `displayName` — human-readable name shown in the `/plugin` picker and other UI surfaces. Falls back to `name` when omitted. Unlike `name`, may contain spaces and any casing; not used for namespacing or lookup.
+- `defaultEnabled` — boolean, whether the plugin starts enabled when the user has not set a preference. Defaults to `true`. Set `false` to ship a plugin that installs disabled (e.g. one that adds cost or connects to an external service) until the user opts in with `claude plugin enable <plugin>`.
+- `userConfig` — object declaring values Claude Code prompts the user for at enable time (`type`, `title`, `description` required per key; `sensitive`, `required`, `default`, `multiple`, `min`/`max` optional). Substituted as `${user_config.KEY}` in MCP/LSP configs and hook commands.
+- `channels` — array of message-channel declarations (Telegram/Slack/Discord-style injection). Each entry's `server` field must match a key in the plugin's `mcpServers`.
+- `dependencies` — array of other plugins this plugin requires. Each entry is either a bare plugin-name string, or an object with a required `name` and optional semver `version` constraint:
+
+```json
+{
+  "dependencies": [
+    "helper-lib",
+    { "name": "secrets-vault", "version": "~2.1.0" }
+  ]
+}
+```
+
+This is a **plugin.json field**, not a marketplace-only one — do not confuse it with `category`/`strict`/`source`/`tags` below, which upstream documents as marketplace-entry-specific and which this manifest schema does not include. (`dependencies` may also be echoed inside a marketplace entry, since a marketplace entry can carry any field from the plugin manifest schema — but its home is plugin.json.)
 
 ### `experimental` field
 
@@ -72,7 +92,7 @@ Relative to the plugin root, `./`-prefixed. Each has a dedicated skill for its o
 }
 ```
 
-Verified against `validate-plugin.nu`'s fixed `invalid_fields` denylist (`dependencies`, `category`, `strict`, `source`, `tags`): none of these three fields are on it, and a fixture plugin.json carrying all three passes validation with zero errors and zero warnings.
+Verified against `validate-plugin.nu`'s `invalid_fields` denylist (`category`, `strict`, `source`, `tags`): none of these three fields, nor `dependencies`/`displayName`/`defaultEnabled`/`workflows`/`userConfig`/`channels`, are on it, and a fixture plugin.json carrying all of them passes validation with zero errors and zero warnings (`nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu --self-test`).
 
 Both `hooks` and `mcpServers` accept either a path or an inline object. Inline, they use each component's own schema — hooks are **event-keyed**, not lifecycle-keyed:
 
@@ -91,13 +111,18 @@ Both `hooks` and `mcpServers` accept either a path or an inline object. Inline, 
 
 ## Fields that must NOT appear in plugin.json
 
-The validator rejects these with `Invalid field '<field>' - this belongs in marketplace.json, not plugin.json`:
+The validator rejects these with `Invalid field '<field>' - this belongs in marketplace.json, not plugin.json`. Upstream's marketplace-entries schema documents them as marketplace-specific fields, distinct from the plugin manifest schema (see `plugin-marketplace`):
 
-- `dependencies` — dependencies belong to marketplace entries, not manifests
 - `category` — marketplace-level metadata
 - `strict` — controls marketplace behavior, not the plugin definition
 - `source` — a plugin's location is declared by the marketplace, not by itself
 - `tags` — use `keywords`
+
+`dependencies` is NOT on this list — see "Metadata and dependency fields" above. It is a documented plugin.json field, not marketplace-only.
+
+### Unrecognized fields warn, not fail
+
+Any other top-level field the validator doesn't recognize produces a **warning** (`Unrecognized field '<field>' - not a known plugin.json field`), never a hard failure — matching upstream's own `claude plugin validate`, which treats unrecognized fields as warnings so a manifest can double as another tool's config (an npm `package.json`, a VS Code extension manifest) without breaking. A typo'd field name is now visible instead of silently passing.
 
 ## Validation
 
@@ -106,9 +131,10 @@ Scripts are bundled with this skill, under its own directory:
 ```bash
 nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu .claude-plugin/plugin.json
 nu <CLAUDE_SKILL_DIR>/scripts/init-plugin.nu
+nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu --self-test   # fixture suite for the validator itself
 ```
 
-`validate-plugin.nu` checks JSON syntax, `name` presence and casing, field types, path accessibility, and invalid-field detection. Add `--verbose` for per-field output.
+`validate-plugin.nu` checks JSON syntax, `name` presence and casing, field types, path accessibility, `dependencies` shape, and invalid-field detection, plus a warn-on-unrecognized-field pass. Add `--verbose` for per-field output.
 
 With `--marketplace`, it also checks that `description` and `keywords` agree with the plugin's marketplace entry, when that entry's `source` is a local path. **`plugin.json` is authoritative.** Entries whose `source` is a GitHub object are skipped — there is no local manifest to compare. When plugin.json defines a field, the marketplace entry must carry it too: an entry that omits `description` or `keywords` while plugin.json defines them is flagged as missing, not treated as agreement (`marketplace.json entry is missing '<field>' that plugin.json defines`). A field plugin.json itself omits is not compared at all. `keywords` compares as a sorted list, so reordering the array alone is not a mismatch — only a genuine difference in members is.
 
