@@ -47,6 +47,10 @@ check_method = "manual"
 # crate_name = "crate"          # REQUIRED iff check_method = "crates-io"
 # npm_package = "package"       # REQUIRED iff check_method = "npm" ("@scope/name" ok)
 # docker_image = "ns/repo"      # REQUIRED iff check_method = "docker-hub" (e.g. "library/node")
+# docker_tag = "tag"            # OPTIONAL, check_method = "docker-hub" only. When set, compares
+#                                # a specific pinned tag's content digest instead of the newest
+#                                # tag's name (claude-skills-225) — see the docker-hub examples
+#                                # below for when to use each.
 # eol_product = "product"       # REQUIRED iff check_method = "endoflife-date" (e.g. "nodejs")
 
 # The upstream version this skill's content was last verified or documented
@@ -148,6 +152,9 @@ notes = ""
 # "rolling" is the schema-compliant way to track it. check-docker-hub
 # reports "is a newer tag available" (equality against the most-recently-
 # updated tag name), not "is there a newer semver release."
+#
+# claude-skills-225: this usage never transitions (see docker_tag example
+# below for a source that actually reports drift for a specific pin).
 # ----------------------------------------------------------------------------
 # [[sources]]
 # skills = ["act"]
@@ -160,6 +167,27 @@ notes = ""
 # last_checked = "2026-08-04"
 # update_priority = "low"
 # notes = "skill content pins node:16-buster-slim; check for a newer tag manually against the pinned major"
+
+# ----------------------------------------------------------------------------
+# Example: Docker Hub image tag with drift detection (claude-skills-225).
+# Setting docker_tag switches the check to the per-tag endpoint, comparing
+# the pinned tag's content DIGEST instead of the newest tag's name — this
+# actually transitions when the pinned tag is re-pushed (patched base
+# image, rebuilt binary). current_version stores the last-observed digest,
+# not a version string.
+# ----------------------------------------------------------------------------
+# [[sources]]
+# skills = ["act"]
+# name = "node-docker-image-pinned"
+# url = "https://hub.docker.com/_/node"
+# check_method = "docker-hub"
+# docker_image = "library/node"
+# docker_tag = "24-alpine"
+# current_version = "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
+# version_constraint = "rolling"
+# last_checked = "2026-08-04"
+# update_priority = "low"
+# notes = "skill content pins node:24-alpine; drift means the tag was re-pushed since last_checked"
 
 # ----------------------------------------------------------------------------
 # Example: endoflife.date product (claude-skills-210). Reports the newest

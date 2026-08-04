@@ -39,6 +39,7 @@ Each plugin's `skills/sources.toml` tracks upstream dependencies. See `templates
 | `crate_name` | string | conditional | Required for `crates-io` |
 | `npm_package` | string | conditional | Required for `npm` (registry package name, `@scope/name` included) |
 | `docker_image` | `namespace/repository` | conditional | Required for `docker-hub` (e.g. `library/node`) |
+| `docker_tag` | string | conditional | Optional for `docker-hub` (e.g. `13-slim`) — when set, switches the check to the per-tag content digest of that exact pin instead of the newest tag's name (claude-skills-225); `current_version` then holds a `sha256:<64 hex>` digest, accepted by `b3_version_shape` only for entries that set this field |
 | `eol_product` | string | conditional | Required for `endoflife-date` (the endoflife.date product slug, e.g. `nodejs`) |
 | `current_version` | QUOTED shape-checked version string \| `unknown` | yes unless `none` | The upstream version this skill content was last verified/documented against |
 | `version_constraint` | `pre-1.0` \| `semver` \| `rolling` \| `stable` | yes unless `none` | Version stability model — NOT valid values for `current_version` itself; a rolling/stable source with no discrete version records `current_version = "unknown"` (the convention 117 of 119 `rolling` entries and 8 of 12 `stable` entries already follow) |
@@ -82,6 +83,10 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 | `none` | N/A | N/A | N/A — no external upstream exists |
 
 Docker Hub tags are not semver in general — `check-docker-hub` reports "is a newer tag available" (string equality against the most-recently-updated tag name), not "is there a newer semver release." A specific pinned tag that isn't itself version-shaped (e.g. `16-buster-slim`) belongs in `notes`, not `current_version` — `current_version = "unknown"` with `version_constraint = "rolling"` is the schema-compliant way to track it (see `templates/sources.toml`).
+
+Setting `docker_tag` switches the check to `check-docker-hub-tag`, which queries the per-tag endpoint (`https://hub.docker.com/v2/repositories/{namespace}/{repository}/tags/{tag}/` — reads that tag's own `digest` field) instead of the newest-tag-name endpoint above. This answers a narrower, genuinely answerable question for a realistically pinned image: has THIS exact tag been re-pushed since I last checked, not merely does a differently-named tag exist. `current_version` stores the last-observed digest; drift means the base image was rebuilt (security patch, layer update) under the same tag name. See `plugins/tools/agent-sandboxing/skills/sources.toml`'s `debian-13-slim-base-image` entry for a worked, live example (claude-skills-225).
+
+`check-endoflife-status` (in `scripts/sources-lib.nu`) is the EOL-aware counterpart to the `endoflife-date` check_method above: one call to the same `https://endoflife.date/api/{product}.json` endpoint returns the newest cycle's `latest` patch, that cycle's own `eol` state, and its `cycle` identifier, rather than only the string `fetch-latest`/`classify-staleness` consume. `check-endoflife-date` (the schema-facing function) calls it and returns just `.latest`, preserving `current_version`/`stale` semantics unchanged — call `check-endoflife-status` directly when the EOL sentinel itself is needed (claude-skills-226).
 
 See `references/version-check-methods.md` for Nushell parsing examples.
 

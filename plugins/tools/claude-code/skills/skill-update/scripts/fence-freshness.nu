@@ -32,8 +32,18 @@
 # target has been deleted upstream still produces code that cannot run,
 # which is exactly the failure mode this tool exists to catch regardless of
 # intent.
+#
+# claude-skills-229: the report above answers "does this exist" and "is it
+# EOL" but never "how far behind is it" — a reader had no way to see
+# currency at all, even as context. Each row now also prints an
+# INFORMATIONAL `latest=` line (github-releases and docker-hub only; other
+# check_methods have nothing automated to fetch) sourced from
+# sources-lib.nu's already-self-tested check-github-releases/check-docker-hub.
+# This is deliberately NOT a policy reversal — "in-support-but-not-latest"
+# still never joins needs_fix — only a presentational gap being closed. The
+# `ok` badge is also renamed to `exists`, which is what it actually asserts.
 
-use sources-lib.nu [catch-http-error]
+use sources-lib.nu [catch-http-error, check-github-releases, check-docker-hub]
 
 const USER_AGENT = "claude-skills-fence-freshness/1.0 (github.com/vinnie357/claude-skills)"
 
@@ -152,6 +162,28 @@ export def check-eol-status [product: string, cycle: string]: nothing -> record 
     }
 }
 
+# ---- latest-vs-pinned (informational only; claude-skills-229) --------------
+
+# What's newest available upstream for this literal's check_method, reusing
+# sources-lib.nu's own already-self-tested check-* functions rather than
+# re-implementing the lookup. "manual" for check_method=manual (nothing
+# automated to fetch), matching the existing convention for `exists`/`eol`
+# on manual entries.
+#
+# claude-skills-229: this is INFORMATIONAL, not a finding — it answers "how
+# far behind is this pin", the question classify-fence-status deliberately
+# does NOT answer (an in-support-but-not-latest pin is not flagged; see the
+# module docstring above). Never fed into classify-fence-status or the
+# needs_fix list.
+def get-latest-for-literal [entry: record]: nothing -> string {
+    let check_method = ($entry.check_method? | default "manual")
+    match $check_method {
+        "github-releases" => (check-github-releases ($entry.github_repo? | default ""))
+        "docker-hub" => (check-docker-hub ($entry.docker_image? | default ""))
+        _ => "manual"
+    }
+}
+
 # ---- report row assembly ----------------------------------------------------
 
 def check-one-literal [entry: record] {
@@ -171,6 +203,7 @@ def check-one-literal [entry: record] {
 
     let policy = ($entry.policy? | default "track")
     let status = classify-fence-status $policy $existence.exists $eol.is_eol
+    let latest = get-latest-for-literal $entry
 
     {
         file: $entry.file
@@ -182,6 +215,7 @@ def check-one-literal [entry: record] {
         eol_detail: $eol.detail
         policy: $policy
         status: $status
+        latest: $latest
         notes: ($entry.notes? | default "")
     }
 }
@@ -275,8 +309,13 @@ def main [--self-test] {
     # terminal. One line per literal keeps every field visible.
     print ""
     for r in $rows {
+        # claude-skills-229: "ok" renamed to "exists" — that is what this
+        # badge actually asserts (the pin resolves and isn't EOL), not that
+        # it is the newest available. The `latest=` line below is the
+        # informational answer to "how far behind", printed separately so
+        # it can never be mistaken for a finding.
         let badge = match $r.status {
-            "ok" => "🟢 ok"
+            "ok" => "🟢 exists"
             "eol" => "🔴 EOL"
             "broken" => "⚫ broken"
             "intentional-pin" => "🔵 intentional-pin"
@@ -285,6 +324,9 @@ def main [--self-test] {
         }
         print $"($badge)  ($r.file) :: ($r.literal)"
         print $"       exists=($r.exists) \(($r.exists_detail)\)  eol=($r.eol) \(($r.eol_detail)\)"
+        if $r.latest != "manual" {
+            print $"       latest=($r.latest)  \(informational — not a finding\)"
+        }
     }
 
     let needs_fix = ($rows | where {|r| $r.status in ["broken" "eol"]})

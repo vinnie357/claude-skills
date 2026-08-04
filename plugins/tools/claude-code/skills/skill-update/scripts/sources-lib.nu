@@ -269,14 +269,113 @@ export def check-docker-hub [image: string] {
     }
 }
 
+# Parse a Docker Hub per-tag response (the /tags/{tag}/ endpoint, not the
+# tags-list endpoint) into that tag's content digest. Pure, self-tested
+# below against a captured response fixture.
+export def parse-docker-hub-tag-digest [response: record]: nothing -> string {
+    $response | get -o digest | default "unknown"
+}
+
+# Check whether a SPECIFIC pinned Docker Hub tag's content has changed,
+# via the per-tag endpoint (claude-skills-225). `image` is
+# "namespace/repository" (e.g. "library/node"), `tag` is the exact pinned
+# tag (e.g. "16-buster-slim").
+#
+# claude-skills-225: check-docker-hub above compares the NEWEST tag's NAME
+# against current_version, which is degenerate for a realistically pinned
+# image — current_version="unknown"/rolling (the schema's own prescribed
+# usage) never transitions because "unknown" is never compared, and a
+# version-shaped pin never transitions either because the newest tag on a
+# high-churn alias (e.g. "lts-trixie-slim") never equals a stable pin like
+# "16-buster-slim". Neither state can report drift.
+#
+# This function answers a different, narrower, but genuinely answerable
+# question instead: has THIS exact tag been re-pushed since I last checked?
+# Docker Hub's per-tag `digest` is a content hash of the tag's current
+# manifest — verified live (2026-08-04) that /tags/{tag}/ returns a `digest`
+# field distinct from `name`. Comparing the last-observed digest
+# (current_version) against a freshly-fetched digest (latest) via the
+# existing classify-staleness equality check transitions correctly in both
+# directions: unchanged tag -> same digest -> "no"; re-pushed tag (patched
+# base image, rebuilt binary, etc.) -> different digest -> "yes". A deleted
+# tag 404s and is classified "no-releases" by the existing
+# catch-http-error path, same as every other check_method.
+#
+# Used by fetch-latest when a source sets the optional `docker_tag` field
+# (see templates/sources.toml); check-docker-hub above remains the
+# behavior when `docker_tag` is absent, unchanged for backward
+# compatibility.
+export def check-docker-hub-tag [image: string, tag: string]: nothing -> string {
+    let url = $"https://hub.docker.com/v2/repositories/($image)/tags/($tag)/"
+    try {
+        let response = http get $url
+        parse-docker-hub-tag-digest $response
+    } catch {|err|
+        catch-http-error $err
+    }
+}
+
+# Parse one endoflife.date release-cycle record's own `eol` field into a
+# tri-state: true (past EOL), false (not EOL / no EOL date set), or
+# "unknown" (an eol date string that fails to parse). Pure, self-tested
+# below against captured cycle fixtures (centos "8" — a past ISO date — and
+# nodejs "26" — a future ISO date).
+#
+# endoflife.date renders `eol` as either a boolean `false` (no EOL date
+# scheduled) or an ISO date string (past or future) — verified against both
+# the centos and nodejs feeds (2026-08-04). A boolean `true` would be
+# unusual but is handled the same way fence-freshness.nu's check-eol-status
+# already handles it, for consistency between the two EOL-parsing call
+# sites.
+export def parse-endoflife-cycle-eol [cycle: record]: nothing -> any {
+    let eol_val = ($cycle.eol? | default false)
+    if ($eol_val | describe) == "bool" {
+        $eol_val
+    } else if ($eol_val | describe) == "string" and ($eol_val | is-not-empty) {
+        try { ($eol_val | into datetime) < (date now) } catch { "unknown" }
+    } else {
+        false
+    }
+}
+
+# Parse an endoflife.date product-cycles response into the newest cycle's
+# latest-version string, its own eol state, and its cycle identifier. Pure,
+# self-tested below against captured response fixtures.
+export def parse-endoflife-status [cycles: list]: nothing -> record<latest: string, eol: any, cycle: string> {
+    let c = ($cycles | default [])
+    if ($c | is-empty) {
+        {latest: "unknown", eol: "unknown", cycle: "unknown"}
+    } else {
+        let newest = ($c | first)
+        {
+            latest: ($newest | get -o latest | default "unknown"),
+            eol: (parse-endoflife-cycle-eol $newest),
+            cycle: ($newest | get -o cycle | default "unknown" | into string)
+        }
+    }
+}
+
 # Parse an endoflife.date product-cycles response into a latest-version
 # string. Pure, self-tested below against a captured response fixture.
 export def parse-endoflife-latest [cycles: list]: nothing -> string {
-    let c = ($cycles | default [])
-    if ($c | is-empty) {
-        "unknown"
-    } else {
-        $c | first | get -o latest | default "unknown"
+    (parse-endoflife-status $cycles).latest
+}
+
+# Check the newest release cycle's latest patch version AND whether that
+# cycle is itself past its own end-of-life date (claude-skills-226).
+# `product` is the endoflife.date product slug (e.g. "nodejs"). One network
+# call serves both check-endoflife-date (below, unchanged string contract)
+# and any caller that wants the EOL sentinel — verified empirically against
+# the real nodejs.json (not EOL) and centos.json (EOL, confirming the exact
+# behavior claude-skills-226 reported: "8 (2111)" with eol=true) feeds
+# (2026-08-04).
+export def check-endoflife-status [product: string]: nothing -> record<latest: string, eol: any, cycle: string> {
+    let url = $"https://endoflife.date/api/($product).json"
+    try {
+        let response = http get $url
+        parse-endoflife-status $response
+    } catch {|err|
+        {latest: (catch-http-error $err), eol: "unknown", cycle: "unknown"}
     }
 }
 
@@ -286,25 +385,22 @@ export def parse-endoflife-latest [cycles: list]: nothing -> string {
 # that cycle's newest patch version — verified empirically against the real
 # nodejs.json feed (2026-08-04).
 #
-# Deliberate scope decision (Gate 3): this reports the newest cycle's latest
-# patch UNCONDITIONALLY, even when that cycle is itself past its own `eol`
-# date (e.g. a fully-EOL product like centos still returns its last cycle's
-# last patch as "latest"). Every other check_method in this file has the
-# same shape — github-releases reports the newest tag whether or not the
-# repo is archived, hex-pm/crates-io report the newest publish whether or
-# not the maintainer still supports it. This check_method answers "is a
-# newer version available to pin", the same question the others answer, not
-# "is this product line still supported" — endoflife.date's `eol` field
-# would let a future caller build the latter as a separate, explicit check,
-# but that is a different question from staleness and out of scope here.
+# Deliberate scope decision (Gate 3, carried forward by claude-skills-226):
+# this reports the newest cycle's latest patch UNCONDITIONALLY, even when
+# that cycle is itself past its own `eol` date (e.g. a fully-EOL product
+# like centos still returns its last cycle's last patch as "latest"). Every
+# other check_method in this file has the same shape — github-releases
+# reports the newest tag whether or not the repo is archived, hex-pm/
+# crates-io report the newest publish whether or not the maintainer still
+# supports it. This check_method answers "is a newer version available to
+# pin", the same question the others answer, not "is this product line
+# still supported". claude-skills-226 added check-endoflife-status above as
+# the separate, explicit EOL check this comment used to say was future
+# work — call that function instead when the EOL sentinel is needed; this
+# function's string-only contract stays unchanged for fetch-latest/
+# classify-staleness callers.
 export def check-endoflife-date [product: string] {
-    let url = $"https://endoflife.date/api/($product).json"
-    try {
-        let response = http get $url
-        parse-endoflife-latest $response
-    } catch {|err|
-        catch-http-error $err
-    }
+    (check-endoflife-status $product).latest
 }
 
 # Dispatch version check by method
@@ -329,7 +425,14 @@ export def fetch-latest [source: record] {
         }
         "docker-hub" => {
             let image = $source.docker_image? | default ""
-            if ($image | is-empty) { "error" } else { check-docker-hub $image }
+            let tag = $source.docker_tag? | default ""
+            if ($image | is-empty) {
+                "error"
+            } else if ($tag | is-not-empty) {
+                check-docker-hub-tag $image $tag
+            } else {
+                check-docker-hub $image
+            }
         }
         "endoflife-date" => {
             let product = $source.eol_product? | default ""
@@ -448,6 +551,11 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
         {label: "docker-hub: empty results falls through to unknown" fn: "docker-hub" input: {count: 0 results: []} want: "unknown"}
         {label: "endoflife-date: newest cycle's latest extracted from a real-shaped response" fn: "endoflife-date" input: [{cycle: "26" latest: "26.6.0" eol: "2029-04-30"} {cycle: "25" latest: "25.9.0" eol: "2026-06-01"}] want: "26.6.0"}
         {label: "endoflife-date: empty cycles list falls through to unknown" fn: "endoflife-date" input: [] want: "unknown"}
+        # claude-skills-225: fixture shaped from the real per-tag response
+        # captured live against hub.docker.com/v2/repositories/library/node/
+        # tags/24-alpine/ (2026-08-04).
+        {label: "docker-hub-tag-digest: digest extracted from a real per-tag response" fn: "docker-hub-tag-digest" input: {name: "24-alpine" last_updated: "2026-08-03T23:38:54.128466Z" digest: "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"} want: "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"}
+        {label: "docker-hub-tag-digest: missing digest field falls through to unknown" fn: "docker-hub-tag-digest" input: {name: "24-alpine"} want: "unknown"}
     ]
     for c in $parse_cases {
         $count += 1
@@ -455,9 +563,46 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
             "npm" => (parse-npm-latest $c.input)
             "docker-hub" => (parse-docker-hub-latest $c.input)
             "endoflife-date" => (parse-endoflife-latest $c.input)
+            "docker-hub-tag-digest" => (parse-docker-hub-tag-digest $c.input)
         }
         if $got != $c.want {
             print $"(ansi red_bold)❌ ($c.fn) parse: ($c.label): want ($c.want), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    # claude-skills-226: parse-endoflife-cycle-eol / parse-endoflife-status
+    # fixtures shaped from CAPTURED real responses (endoflife.date/api/
+    # centos.json's cycle "8" — a fully-EOL product, matching the exact bug
+    # report: "8 (2111)" reported with no EOL sentinel — and
+    # endoflife.date/api/nodejs.json's cycle "26" — not EOL — both captured
+    # 2026-08-04), not invented shapes.
+    let eol_cycle_cases = [
+        {label: "centos cycle 8: past ISO eol date classifies as EOL" cycle: {cycle: "8" eol: "2021-12-31" latest: "8 (2111)"} want: true}
+        {label: "nodejs cycle 26: future ISO eol date classifies as not EOL" cycle: {cycle: "26" eol: "2029-04-30" latest: "26.6.0"} want: false}
+        {label: "boolean eol=false classifies as not EOL" cycle: {cycle: "x" eol: false latest: "1.0.0"} want: false}
+        {label: "boolean eol=true classifies as EOL" cycle: {cycle: "x" eol: true latest: "1.0.0"} want: true}
+        {label: "unparseable eol string classifies as unknown, not a crash" cycle: {cycle: "x" eol: "not-a-date" latest: "1.0.0"} want: "unknown"}
+    ]
+    for c in $eol_cycle_cases {
+        $count += 1
+        let got = parse-endoflife-cycle-eol $c.cycle
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ parse-endoflife-cycle-eol: ($c.label): want ($c.want), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    let eol_status_cases = [
+        {label: "centos: fully-EOL product surfaces eol=true alongside latest (the exact claude-skills-226 report)" cycles: [{cycle: "8" eol: "2021-12-31" latest: "8 (2111)"} {cycle: "7" eol: "2024-06-30" latest: "7 (2009)"}] want: {latest: "8 (2111)" eol: true cycle: "8"}}
+        {label: "nodejs: supported product surfaces eol=false" cycles: [{cycle: "26" eol: "2029-04-30" latest: "26.6.0"}] want: {latest: "26.6.0" eol: false cycle: "26"}}
+        {label: "empty cycles list is unknown across all three fields" cycles: [] want: {latest: "unknown" eol: "unknown" cycle: "unknown"}}
+    ]
+    for c in $eol_status_cases {
+        $count += 1
+        let got = parse-endoflife-status $c.cycles
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ parse-endoflife-status: ($c.label): want ($c.want), got ($got)(ansi reset)"
             $failed = true
         }
     }
@@ -472,6 +617,7 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
         {label: "crates-io with empty crate_name returns error" source: {check_method: "crates-io"} want: "error"}
         {label: "npm with empty npm_package returns error" source: {check_method: "npm"} want: "error"}
         {label: "docker-hub with empty docker_image returns error" source: {check_method: "docker-hub"} want: "error"}
+        {label: "docker-hub with docker_tag set but docker_image empty still returns error before touching the network" source: {check_method: "docker-hub" docker_image: "" docker_tag: "16-buster-slim"} want: "error"}
         {label: "endoflife-date with empty eol_product returns error" source: {check_method: "endoflife-date"} want: "error"}
         {label: "manual never calls the network" source: {check_method: "manual"} want: "manual"}
         {label: "none is always internal" source: {check_method: "none"} want: "internal"}

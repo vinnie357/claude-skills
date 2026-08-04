@@ -20,7 +20,7 @@ Queries the GitHub Releases API for the latest published release.
 
 ```nushell
 # Query latest release for a GitHub repo
-def get-github-latest [repo: string] -> string {
+def get-github-latest [repo: string]: nothing -> string {
     let url = $"https://api.github.com/repos/($repo)/releases/latest"
     let headers = if ("GITHUB_TOKEN" in $env) {
         {Authorization: $"Bearer ($env.GITHUB_TOKEN)", "X-GitHub-Api-Version": "2022-11-28"}
@@ -58,7 +58,7 @@ Queries the Hex.pm package registry for Elixir/Erlang packages.
 
 ```nushell
 # Query latest stable version for a Hex.pm package
-def get-hex-latest [package: string] -> string {
+def get-hex-latest [package: string]: nothing -> string {
     let url = $"https://hex.pm/api/packages/($package)"
     let response = http get $url
     $response.latest_stable_version
@@ -92,7 +92,7 @@ Queries the crates.io registry for Rust packages.
 
 ```nushell
 # Query latest stable version for a crates.io package
-def get-crates-latest [crate_name: string] -> string {
+def get-crates-latest [crate_name: string]: nothing -> string {
     let url = $"https://crates.io/api/v1/crates/($crate_name)"
     # User-Agent is REQUIRED by crates.io policy
     let headers = {"User-Agent": "claude-skills/mise-sources-check (github.com/vinnie357/claude-skills)"}
@@ -128,7 +128,7 @@ Queries the npm registry for a package's `dist-tags.latest` version.
 
 ```nushell
 # Query latest dist-tag for an npm package
-def get-npm-latest [package: string] -> string {
+def get-npm-latest [package: string]: nothing -> string {
     let url = $"https://registry.npmjs.org/($package)"
     let response = http get $url
     $response | get -o dist-tags.latest | default "unknown"
@@ -147,7 +147,7 @@ let latest = get-npm-latest "express"
 
 ## docker-hub
 
-Queries the Docker Hub Hub API v2 tags list for an image, sorted by most-recently-updated.
+Queries the Docker Hub Hub API v2 tags list for an image, sorted by most-recently-updated. An optional `docker_tag` field switches to a per-tag digest comparison instead — see "Tracking a specific pinned tag" below.
 
 | Property | Value |
 |---|---|
@@ -155,12 +155,13 @@ Queries the Docker Hub Hub API v2 tags list for an image, sorted by most-recentl
 | Auth | None required (public repos) |
 | Rate limit | Not documented for Hub API reads (distinct from the image-pull rate limit) |
 | Required field | `docker_image = "namespace/repository"` (e.g. `library/node`) |
+| Optional field | `docker_tag = "tag"` — see below |
 
 **Response parsing**: Extract `.results[0].name`. **`ordering=last_updated` (no leading `-`) is NEWEST-first** — verified live; do not "correct" this to `-last_updated`, which is oldest-first and the opposite of what this check needs.
 
 ```nushell
 # Query the most-recently-updated tag for a Docker Hub image
-def get-docker-hub-latest [image: string] -> string {
+def get-docker-hub-latest [image: string]: nothing -> string {
     let url = $"https://hub.docker.com/v2/repositories/($image)/tags?page_size=1&ordering=last_updated"
     let response = http get $url
     let results = ($response.results? | default [])
@@ -175,6 +176,34 @@ let latest = get-docker-hub-latest "library/node"
 **Notes**:
 - Docker Hub tags are not semver in general — this answers "is a newer tag available" (string equality against the most-recently-updated tag name), not "is there a newer semver release"
 - A specific pinned tag that isn't itself version-shaped (e.g. `16-buster-slim`) belongs in `notes`, not `current_version` — `current_version = "unknown"` with `version_constraint = "rolling"` is the schema-compliant way to track it (see `templates/sources.toml`)
+- **claude-skills-225**: the two schema-compliant usages above never produce a transitioning staleness signal for a realistically pinned image. `current_version = "unknown"`/rolling is never compared, so it reports no-pin forever. A version-shaped `current_version` set to the pinned tag (e.g. `"16-buster-slim"`) is compared against the newest tag OVERALL (e.g. `"lts-trixie-slim"`), which never equals a stable pin, so it reports stale forever. Neither state ever changes. Set `docker_tag` (below) when a real drift signal is needed for a specific pin.
+
+### Tracking a specific pinned tag (`docker_tag`)
+
+When `docker_tag` is set, `check-docker-hub-tag` queries the per-tag endpoint for that exact tag and returns its content **digest** instead of the newest tag's name. `current_version` then stores the last-observed digest; a re-push of that tag (a patched base image, a rebuilt binary) changes the digest and correctly reports drift on the next check. An exact-match, unchanged tag correctly reports current. A deleted tag 404s and classifies as `no-releases`, same as every other check_method's dead-feed handling.
+
+| Property | Value |
+|---|---|
+| Endpoint | `https://hub.docker.com/v2/repositories/{namespace}/{repository}/tags/{tag}/` |
+| Auth | None required (public repos) |
+| Required field | `docker_image` (as above) plus `docker_tag = "tag"` (e.g. `16-buster-slim`) |
+
+```nushell
+# Query a specific pinned tag's content digest
+def get-docker-hub-tag-digest [image: string, tag: string]: nothing -> string {
+    let url = $"https://hub.docker.com/v2/repositories/($image)/tags/($tag)/"
+    let response = http get $url
+    $response | get -o digest | default "unknown"
+}
+
+# Example
+let latest = get-docker-hub-tag-digest "library/node" "24-alpine"
+# Returns: "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43" (verified live 2026-08-04)
+```
+
+**Notes**:
+- `current_version` for a `docker_tag`-tracked source stores a digest string (e.g. `"sha256:..."`), not a semver-shaped version — `version_constraint = "rolling"` still applies, since the tag itself has no discrete version progression, only content churn
+- This answers "has this exact tag's content changed since I last checked", a narrower and different question from "is a newer version available" — appropriate for a deliberately pinned, non-version-shaped tag where that is the only meaningful drift signal available
 
 ---
 
@@ -193,7 +222,7 @@ Queries endoflife.date's per-product release-cycle feed for the newest cycle's l
 
 ```nushell
 # Query the newest release cycle's latest patch version
-def get-endoflife-latest [product: string] -> string {
+def get-endoflife-latest [product: string]: nothing -> string {
     let url = $"https://endoflife.date/api/($product).json"
     let cycles = (http get $url | default [])
     if ($cycles | is-empty) { "unknown" } else { $cycles | first | get -o latest | default "unknown" }
@@ -205,8 +234,44 @@ let latest = get-endoflife-latest "nodejs"
 ```
 
 **Notes**:
-- Reports the newest cycle's latest patch UNCONDITIONALLY, even when that cycle is itself past its own `eol` date (a fully-EOL product like `centos` still returns its last cycle's last patch). This matches every other check_method here — none of them filter by "is this still supported", only "is a newer version available to pin". A future caller wanting "is this product line still supported" would build that as a separate check against each cycle's `eol` field, not fold it into this one
+- Reports the newest cycle's latest patch UNCONDITIONALLY, even when that cycle is itself past its own `eol` date (a fully-EOL product like `centos` still returns its last cycle's last patch). This matches every other check_method here — none of them filter by "is this still supported", only "is a newer version available to pin"
 - The product slug must match endoflife.date's URL scheme exactly (check the product's page URL, e.g. `endoflife.date/nodejs` → `nodejs`)
+
+### EOL sentinel (`check-endoflife-status`)
+
+**claude-skills-226**: the plain `get-endoflife-latest` above confidently reports an EOL version as "latest" — verified live: `centos` returns `"8 (2111)"` with no signal that cycle 8 has been end-of-life since 2021-12-31. `check-endoflife-status` (in `sources-lib.nu`) is the separate, explicit check named as future work above: it makes the SAME network call and additionally surfaces the newest cycle's own `eol` field as a tri-state (`true` / `false` / `"unknown"` when the date string fails to parse), plus the cycle identifier.
+
+```nushell
+# Query the newest cycle's latest patch AND whether that cycle is EOL
+def get-endoflife-status [product: string]: nothing -> record<latest: string, eol: any, cycle: string> {
+    let url = $"https://endoflife.date/api/($product).json"
+    let cycles = (http get $url | default [])
+    if ($cycles | is-empty) {
+        {latest: "unknown", eol: "unknown", cycle: "unknown"}
+    } else {
+        let newest = ($cycles | first)
+        let eol_val = ($newest.eol? | default false)
+        let is_eol = if ($eol_val | describe) == "bool" {
+            $eol_val
+        } else if ($eol_val | describe) == "string" and ($eol_val | is-not-empty) {
+            try { ($eol_val | into datetime) < (date now) } catch { "unknown" }
+        } else {
+            false
+        }
+        {latest: ($newest | get -o latest | default "unknown"), eol: $is_eol, cycle: ($newest | get -o cycle | default "unknown" | into string)}
+    }
+}
+
+# Example
+get-endoflife-status "centos"
+# Returns: {latest: "8 (2111)", eol: true, cycle: "8"} (verified live 2026-08-04)
+get-endoflife-status "nodejs"
+# Returns: {latest: "26.6.0", eol: false, cycle: "26"} (verified live 2026-08-04)
+```
+
+**Notes**:
+- `check-endoflife-date` (the plain string-returning check used by `fetch-latest`/`classify-staleness`) is unchanged and delegates to `check-endoflife-status` internally — one network call serves both
+- Use `check-endoflife-status` directly when the EOL sentinel is needed; it is not wired into `mise sources:check`/`sources-report`/`sources-stale`'s output columns — those scripts still report only the plain staleness signal. Surfacing EOL status in the report output is a separate change to those three scripts, out of scope here
 
 ---
 

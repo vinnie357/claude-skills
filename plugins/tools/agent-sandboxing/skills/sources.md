@@ -2,7 +2,7 @@
 
 Citations for the `agent-sandboxing` plugin skills. Each entry lists the upstream source, what was extracted from it, and the date of last verification.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `kubernetes-sigs/agent-sandbox` (this section), `gke-agent-sandbox-docs` (the Google Cloud — GKE Agent Sandbox docs section), `kata-containers` (the Kata Containers section), `agent-substrate` (the agent-substrate/substrate section), `claude-code-devcontainer-docs` (the Claude Code section), `kina` (the kina section), `claude-code-devcontainer-reference` (the Anthropic devcontainer reference image section), `gcp-agent-sandbox-substrate-blog` (the Google Cloud blog section), `sandbox-index-skill` (the `sandbox` routing/index skill, which has no external upstream).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `kubernetes-sigs/agent-sandbox` (this section), `gke-agent-sandbox-docs` (the Google Cloud — GKE Agent Sandbox docs section), `kata-containers` (the Kata Containers section), `agent-substrate` (the agent-substrate/substrate section), `claude-code-devcontainer-docs` (the Claude Code section), `kina` (the kina section), `claude-code-devcontainer-reference` (the Anthropic devcontainer reference image section), `debian-13-slim-base-image` (the Docker Hub debian:13-slim base image section), `gcp-agent-sandbox-substrate-blog` (the Google Cloud blog section), `sandbox-index-skill` (the `sandbox` routing/index skill, which has no external upstream).
 
 ## kubernetes-sigs/agent-sandbox
 
@@ -66,6 +66,13 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Used in**: `claude-code-on-sandbox`, `templates/Dockerfile.claude-code`
 - **Extracted**: Dockerfile structure, non-root user pattern (UID 1000), `~/.claude` named volume, `init-firewall.sh` NET_ADMIN/NET_RAW egress allowlist. The Dockerfile in this plugin's `templates/` is mise-driven rather than copying Anthropic's npm-driven setup, per [[feedback-mise-first]] + [[feedback-mise-registry-short-names]].
 - **Date accessed**: 2026-05-23
+
+## Docker Hub debian:13-slim base image
+
+- **URL**: https://hub.docker.com/_/debian
+- **Used in**: `claude-code-on-sandbox`, `templates/Dockerfile.claude-code`
+- **Extracted**: `templates/Dockerfile.claude-code:7` pins `FROM debian:13-slim AS base`. Tracked via `check_method = "docker-hub"` with `docker_tag = "13-slim"` (claude-skills-225 F1) — `current_version` stores the tag's content digest rather than a version string, so `mise sources:check` reports drift when the base image is re-pushed (security patch, layer rebuild), not merely when a new tag name appears.
+- **Date accessed**: 2026-08-04
 
 ## Google Cloud blog — Agent Sandbox + Agent Substrate
 
