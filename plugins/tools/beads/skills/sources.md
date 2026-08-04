@@ -7,14 +7,14 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 ## Beads Skill
 
 ### Beads Documentation
-- **URL**: https://steveyegge.github.io/beads/
-- **Purpose**: Official Beads documentation for the distributed git-backed graph issue tracker
-- **Date Accessed**: 2026-01-24
+- **URL**: https://beads.gascity.com/
+- **Purpose**: Official Beads documentation for the distributed git-backed graph issue tracker. Repo and docs relocated from steveyegge/beads; the old https://steveyegge.github.io/beads/ URL 404s. This URL is also the GitHub-declared repo homepage.
+- **Date Accessed**: 2026-08-04
 - **Key Topics**: Task creation, dependency management, JSON output, sync modes, AI agent integration
 
 ### Beads GitHub Repository
-- **URL**: https://github.com/steveyegge/beads
-- **Purpose**: Source code and installation instructions
+- **URL**: https://github.com/gastownhall/beads
+- **Purpose**: Source code and installation instructions. `github.com/steveyegge/beads` now 301-redirects here; released Go modules still declare the steveyegge path for compatibility.
 - **Key Topics**: Installation methods (npm, brew, go), CLI commands, storage format
 
 ### VS Code Extensions
