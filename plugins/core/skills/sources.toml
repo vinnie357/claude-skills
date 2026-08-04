@@ -256,14 +256,14 @@ notes = "Steve Freeman & Nat Pryce, 'Growing Object-Oriented Software, Guided by
 [[sources]]
 skills = ["tdd"]
 name = "three-laws-of-tdd"
-url = "https://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd"
+url = "http://web.archive.org/web/20260719201717/http://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "unknown"
+last_checked = "2026-08-04"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "Robert C. Martin's concise formalization of Beck's TDD constraints into three strict laws. No access date recorded in sources.md."
+notes = "claude-skills-220: butunclebob.com is dead (confirmed 2026-08-04: TCP connection refused, not a transient timeout) — the original wiki host appears to be gone entirely, not just this one page. Repointed to a Wayback Machine snapshot (confirmed 200, 2026-08-04, captured 2026-07-19 while the site was still live) as a durable substitute; no live canonical replacement was found. Robert C. Martin's concise formalization of Beck's TDD constraints into three strict laws."
 
 [[sources]]
 skills = ["tdd"]

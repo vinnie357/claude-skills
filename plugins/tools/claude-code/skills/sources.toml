@@ -41,14 +41,14 @@ notes = "No Date Accessed in sources.md for this entry. Live GitHub API check 20
 [[sources]]
 skills = ["claude-skills"]
 name = "skill-creator-guide"
-url = "https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md"
+url = "https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "unknown"
+last_checked = "2026-08-04"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "No Date Accessed in sources.md. Same repo as example-skills-repository (confirmed reachable 2026-07-30), but this entry cites one specific file path not independently re-fetched, so last_checked is honestly 'unknown' rather than borrowed from the sibling entry."
+notes = "claude-skills-220: the old path skill-creator/SKILL.md now 404s (confirmed 2026-08-04 via sources:validate) — anthropics/skills restructured its top-level skill directories under a skills/ prefix (verified via `gh api repos/anthropics/skills/git/trees/main?recursive=1`: skills/skill-creator/SKILL.md exists, skill-creator/SKILL.md does not). URL repointed to the live path; content itself (the skill-creator guide) is unchanged, only its location moved."
 
 [[sources]]
 skills = ["claude-skills"]
@@ -65,14 +65,14 @@ notes = "No Date Accessed in sources.md. Live GitHub API check 2026-07-30 confir
 [[sources]]
 skills = ["claude-skills"]
 name = "agent-skills-specification"
-url = "https://github.com/anthropics/skills/blob/main/agent_skills_spec.md"
+url = "https://agentskills.io/specification"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2025-11-15"
+last_checked = "2026-08-04"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2025-11-15. Official specification for the Agent Skills format and structure; same repo as example-skills-repository (confirmed reachable 2026-07-30)."
+notes = "claude-skills-220 Gate 3 (F3): the old path agent_skills_spec.md 404s (confirmed 2026-08-04 via sources:validate). The first repoint, to anthropics/skills' spec/agent-skills-spec.md, was itself wrong — that file is now an 87-byte stub reading 'The spec is now located at https://agentskills.io/specification', so the citation pointed at a breadcrumb, not content. Repointed to agentskills.io/specification directly (confirmed 200 and the actual spec content — Directory structure, SKILL.md format, frontmatter field table, Progressive disclosure sections — via live fetch 2026-08-04), the real upstream home for the Agent Skills specification going forward."
 
 [[sources]]
 skills = ["claude-skills"]
@@ -413,14 +413,14 @@ notes = "sources.md Date Accessed 2026-03-25. API reference for querying GitHub 
 [[sources]]
 skills = ["skill-update"]
 name = "hexpm-api"
-url = "https://github.com/hexpm/hexpm/blob/main/guides/API.md"
+url = "https://hex.pm/api"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-03-25"
+last_checked = "2026-08-04"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-03-25. API reference for querying Hex package versions — describes the hex-pm check_method."
+notes = "claude-skills-220: the old URL github.com/hexpm/hexpm/blob/main/guides/API.md now 404s (confirmed 2026-08-04 via sources:validate) — the guides/ directory no longer exists in the hexpm/hexpm repo tree. Repointed to hex.pm/api (confirmed 200, 2026-08-04, content-type application/json) — hex.pm's own JSON hypermedia API index, listing the live endpoint URLs (package_owners_url, package_release_url, etc.), a more canonical source for the same content (API reference for querying Hex package versions — describes the hex-pm check_method) than a repo doc path."
 
 [[sources]]
 skills = ["skill-update"]

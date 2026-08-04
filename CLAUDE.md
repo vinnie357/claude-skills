@@ -707,7 +707,7 @@ Install the plugin to build your own plugins:
 - **Agent Skills Blog Post**: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
 - **Building Skills Guide (PDF)**: https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
 - **Improving Skill Creator Blog**: https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills
-- **Agent Skills Specification**: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
+- **Agent Skills Specification**: https://agentskills.io/specification
 - **Claude Code Plugins**: https://code.claude.com/docs/en/plugins
 - **Plugin Marketplaces**: https://code.claude.com/docs/en/plugin-marketplaces
 

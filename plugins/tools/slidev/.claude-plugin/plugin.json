@@ -1,13 +1,22 @@
 {
   "name": "slidev",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["slidev", "presentation", "slides", "markdown", "vite", "branding", "interactive", "strategy"],
+  "keywords": [
+    "slidev",
+    "presentation",
+    "slides",
+    "markdown",
+    "vite",
+    "branding",
+    "interactive",
+    "strategy"
+  ],
   "skills": [
     "./skills/slidev",
     "./skills/syntax",
