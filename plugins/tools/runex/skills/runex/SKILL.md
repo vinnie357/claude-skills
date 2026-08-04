@@ -6,7 +6,14 @@ license: MIT
 
 # Runex Workflow Engine
 
-Runex is a single-binary Elixir workflow orchestrator. It parses TOML (primary) and YAML workflow definitions, builds a DAG of steps, and executes them via pluggable drivers (`shell, mise, nushell, runex, wasm, container, flame, workflow`). It runs in standalone mode (SQLite, default — no configuration required) or federated mode (Postgres + libcluster) for multi-node deployments.
+Runex is a single-binary Elixir workflow orchestrator. It parses TOML (primary) and YAML workflow definitions, builds a DAG of steps, and executes them via pluggable drivers. It runs in standalone mode (SQLite, default — no configuration required) or federated mode (Postgres + libcluster) for multi-node deployments.
+
+Verified against `lib/runex/driver.ex`'s `@drivers` map (single source of truth for valid `driver =` values, `Runex.Driver.names/0`) — 14 registered drivers, grouped by `Runex.Driver.execution_class/1`:
+- **command**: `shell, mise, nushell`
+- **agent**: `agent, altana, awman, codex, antigravity, claude`
+- **workflow**: `workflow, runex` (module `Runex.Drivers.RunexSub`)
+- **container**: `container, flame`
+- **wasm**: `wasm`
 
 Current documented version: **0.0.7** (`mix.exs @version`). Legacy templates for older deployments remain under `templates/0.1.0/` and `scripts/0.1.0/`.
 
@@ -129,6 +136,7 @@ Runex resolves `workflow_path` values through an ordered search (`lib/runex/path
 1. **Custom dirs**: `RUNEX_WORKFLOW_PATH` env var (colon-separated)
 2. **Project dir**: `RUNEX_WORKFLOWS_DIR` env var (default `./workflows`, relative to Runex cwd)
 3. **Core priv**: `priv/workflows/` shipped with the Runex release
+4. **User data dir**: `<data_dir>/workflows` (a 4th, lowest-priority search root appended by `Paths.workflows_dirs/0` — not reachable via an env var, and easy to miss when reading only the first three)
 
 Accepts absolute paths, filenames with extension, or bare names (tries `.toml`, `.yaml`, `.yml` in order).
 

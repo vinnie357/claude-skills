@@ -3,8 +3,8 @@
 
 [meta]
 plugin = "core"
-reviewed_at_plugin_version = "0.2.34"
-last_full_check = "2026-07-30"
+reviewed_at_plugin_version = "0.2.53"
+last_full_check = "2026-08-04"
 
 # ----------------------------------------------------------------------------
 # Git Documentation — official docs, no version pinned by the skill content.
@@ -191,10 +191,10 @@ check_method = "github-releases"
 github_repo = "ctxshift/bees"
 current_version = "0.4.0"
 version_constraint = "pre-1.0"
-last_checked = "2026-07-30"
+last_checked = "2026-08-04"
 update_priority = "medium"
 breaking_changes_likely = true
-notes = "current_version taken directly from the skill body's own 'bees 0.4.0 has 19 top-level commands' line (references/commands.md context), and confirmed via GitHub API 2026-07-30 — latest release tag is v0.4.0, an exact match, no drift. PR #151 ('correct twelve documented behaviours against bees 0.4.0') shows this pre-1.0 tool has recently required doc corrections against its own pinned version, hence breaking_changes_likely = true."
+notes = "current_version taken directly from the skill body's own 'bees 0.4.0 has 19 top-level commands' line (references/commands.md context), and confirmed via GitHub API 2026-07-30 — latest release tag is v0.4.0, an exact match, no drift. PR #151 ('correct twelve documented behaviours against bees 0.4.0') shows this pre-1.0 tool has recently required doc corrections against its own pinned version, hence breaking_changes_likely = true. Re-verified live 2026-08-04 (claude-skills-223) against the installed bees 0.4.0 binary in a throwaway `.bees/`: `bees --help` command count/list, dep/update/create/label/config/sync/import/comment flag surfaces, WAL journal_mode, file structure + .gitignore contents, the enum-non-validation claims (status='bogus', type='garbage', both stored verbatim and silently drop the issue from `bees ready`), the two-way cycle non-detection, and the directory walk-up behavior all reproduced exactly as documented. No corrections required — every checked claim held."
 
 # ----------------------------------------------------------------------------
 # Apple Container — macOS-native Linux-container runtime.

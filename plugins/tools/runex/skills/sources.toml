@@ -4,7 +4,7 @@
 [meta]
 plugin = "runex"
 reviewed_at_plugin_version = "0.1.3"
-last_full_check = "2026-07-30"
+last_full_check = "2026-08-04"
 
 # ----------------------------------------------------------------------------
 # Runex — the private first-party workflow-engine repo this skill documents.
@@ -24,7 +24,7 @@ check_method = "manual"
 github_repo = "vinnie357/runex"
 current_version = "0.0.7"
 version_constraint = "pre-1.0"
-last_checked = "2026-05-17"
+last_checked = "2026-08-04"
 update_priority = "high"
 breaking_changes_likely = true
-notes = "Private repo (vinnie357/runex) — confirmed 2026-07-30 via unauthenticated `curl api.github.com/repos/vinnie357/runex` returning 404. An unauthenticated `git ls-remote` against the same repo DID succeed in this environment (likely a cached local credential helper), which is not proof that an unauthenticated CI check would work — github-releases stays manual. Content is sourced by reading the actual runex source tree directly (mix.exs, lib/runex_web/**, lib/runex/**, config/runtime.exs, docs/*.md, CLAUDE.md) rather than release notes — see sources.md for the full file list. current_version 0.0.7 matches mix.exs @version per SKILL.md's 'Current documented version' line and the 2026-05-17 Update History entry (bumped from 0.0.6, which deleted the agent_runs subsystem — a real breaking change, hence breaking_changes_likely=true). Auxiliary local docs also consulted while authoring, not separately version-tracked: ~/github/vantage_ex/AUTONOMOUS-LOOP.md (usage patterns) and ~/github/runex-workflows/bundles/ (bundle structure examples)."
+notes = "Private repo (vinnie357/runex) — confirmed 2026-07-30 via unauthenticated `curl api.github.com/repos/vinnie357/runex` returning 404. An unauthenticated `git ls-remote` against the same repo DID succeed in this environment (likely a cached local credential helper), which is not proof that an unauthenticated CI check would work — github-releases stays manual. Content is sourced by reading the actual runex source tree directly (mix.exs, lib/runex_web/**, lib/runex/**, config/runtime.exs, docs/*.md, CLAUDE.md) rather than release notes — see sources.md for the full file list. current_version 0.0.7 matches mix.exs @version per SKILL.md's 'Current documented version' line and the 2026-05-17 Update History entry (bumped from 0.0.6, which deleted the agent_runs subsystem — a real breaking change, hence breaking_changes_likely=true). Auxiliary local docs also consulted while authoring, not separately version-tracked: ~/github/vantage_ex/AUTONOMOUS-LOOP.md (usage patterns) and ~/github/runex-workflows/bundles/ (bundle structure examples). Re-verified 2026-08-04 (claude-skills-223): mix.exs @version still 0.0.7 (no drift); `RUNEX_MASKED_VARS`/`PORT`/`RUNEX_PORT`/`BIND_ADDRESS` defaults in config/runtime.exs match the SKILL.md table exactly. Two corrections applied to SKILL.md: (1) the driver list undercounted the real surface — `Runex.Driver.@drivers` (lib/runex/driver.ex) registers 14 names, not the 8 previously listed; six agent-class drivers (agent, altana, awman, codex, antigravity, claude) were missing entirely — now enumerated by `execution_class/1`'s five classes. (2) Workflow path resolution documented only 3 of the 4 real search roots in `Paths.workflows_dirs/0` — a 4th, lowest-priority `<data_dir>/workflows` root (no env var, easy to miss) is now called out."
