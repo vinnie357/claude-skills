@@ -25,7 +25,7 @@ const META_KEYS = ["plugin" "reviewed_at_plugin_version" "last_full_check"]
 const ENTRY_KEYS = [
     "skills" "name" "url" "releases_url" "check_method"
     "github_repo" "hex_package" "crate_name"
-    "npm_package" "docker_image" "eol_product"
+    "npm_package" "docker_image" "docker_tag" "eol_product"
     "current_version" "version_constraint" "last_checked"
     "update_priority" "breaking_changes_likely" "notes"
 ]
@@ -1462,6 +1462,39 @@ version_constraint = "rolling"
 last_checked = "2026-01-01"
 update_priority = "medium"
 notes = "pinned tag tracked in skill content is node:16-buster-slim; Docker Hub tags are not semver-shaped so no discrete current_version is recorded here"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            # claude-skills-225: docker_tag is an OPTIONAL key (not in
+            # ENTRY_REQUIRED_ALWAYS, not in ENTRY_NETWORK_KEYS, no
+            # conditional-required rule) — only needs to be a known key so
+            # b1_entry_unknown doesn't reject it. current_version here is a
+            # digest, not a version string, which is why version_constraint
+            # stays "rolling" (VERSION_SHAPE_RE never applies to docker-hub's
+            # digest-comparator usage, same as the plain-tag usage above).
+            label: "docker-hub entry with docker_tag is a known key, not an error"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://hub.docker.com/_/node"
+check_method = "docker-hub"
+docker_image = "library/node"
+docker_tag = "24-alpine"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-01-01"
+update_priority = "medium"
+notes = "digest-tracked pin"
 '
             dirs: ["a"]
             plugin: "demo"
