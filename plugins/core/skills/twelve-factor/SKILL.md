@@ -260,7 +260,7 @@ const db = connect(process.env.DATABASE_URL);
 
 > "The twelve-factor methodology can be applied to apps written in any programming language, and which use any combination of backing services (database, queue, memory cache, etc)."
 
-> "The twelve-factor app never assumes that anything cached in memory or on disk will be available on a future request or job." — [Factor VI, Processes](https://12factor.net/processes)
+> "The twelve-factor app never assumes that anything cached in memory or on disk will be available on a future request or job – with many processes of each type running, chances are high that a future request will be served by a different process." — [Factor VI, Processes](https://12factor.net/processes)
 
 Design applications from day one to be cloud-native, scalable, and maintainable.
 

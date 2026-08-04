@@ -92,6 +92,8 @@ This applies to all agent tiers. A leaked secret in agent output forces credenti
 
 **Incident (2026-08-04):** an agent confirming one environment variable on a running process followed up with `ps -E -p <pid>` as a diagnostic. On macOS, `-E` appends the process's entire environment after the command line, undifferentiated from the command-line arguments — four live credentials landed in the transcript in plaintext, requiring rotation of all four. A prior incident (2026-07-30) came from `printenv | grep -i database` on a pod — same shape, different command.
 
+**Reproduction scope — don't undertest this.** On macOS, Apple's platform binaries (`/bin/sleep`, `/bin/cat`, etc.) ship codesigned with the hardened runtime, and `ps -E`/`-e` against them returns nothing extra — testing the leak against a platform binary produces a false negative and can read as "this doesn't actually happen." The hardened runtime does not shield anything an agent typically spawns: mise-installed binaries and language runtimes (`nu`, `node`, `python`, `elixir`, project-local tool installs) are not hardened-runtime-signed, and `ps -E`/`-e` against *those* processes appends the full environment reliably. Verified: a mise-installed `nu` process run with a sanitized, secret-free canary environment showed the canary absent from `ps -E` output against `/bin/sleep` and present against the `nu` process (word count roughly tripled once the environment was appended). Treat every command in the table below as a live risk against anything an agent launches — mise tools, project binaries, language runtimes — not just against arbitrary system processes.
+
 Banned outright — never run any of these unfiltered, on any platform:
 
 | Command | Platform | Why it leaks |
@@ -99,6 +101,7 @@ Banned outright — never run any of these unfiltered, on any platform:
 | `ps -E` | macOS/BSD | Documented flag: "Display the environment as well" (`man ps`). Appends the target process's full environment to its command-line output. |
 | `ps eww` (or any BSD keyletter set with `e` appended, e.g. `auxe`) | macOS/BSD | The no-dash keyletter form of the same append-environment behavior as `-E`. |
 | `ps e` (bare `e` appended to a keyletter set, e.g. `psaux` → `auxe`, or `lwwe`) | Linux (GNU ps / procps) | Documented: "Show the environment after the command." GNU ps has no `-E` flag — `-e` there means "select all processes" (same as `-A`), not environment; do not confuse the two. |
+| `COMMAND_MODE=legacy ps -e` | macOS/BSD | `man ps` LEGACY DESCRIPTION: "`-e`  Display the environment as well. Same as `-E`." Under the default `unix2003` `COMMAND_MODE` (or with the variable unset), macOS `-e` means "select all processes" like Linux — no environment appended. Setting `COMMAND_MODE=legacy` flips `-e` to behave exactly like `-E`. Verified: `COMMAND_MODE=legacy ps -e -ww -p <pid>` returns the process's full environment appended to its command line; the same invocation with `COMMAND_MODE` unset returns only the command line. |
 | `cat /proc/<pid>/environ` or any read of it | Linux | "This file contains the initial environment that was set when the currently executing program was started" (`proc_pid_environ(5)`), NUL-separated. Readable for any process you can `ptrace` — typically your own processes or, as root, any process. |
 | Unfiltered `printenv` / `env` (no args) | All | Prints the calling shell's entire environment, not one variable. |
 
@@ -111,6 +114,8 @@ ps eww -p <pid>
 # RIGHT — filter inside the same command
 ps eww -p <pid> | tr ' ' '\n' | grep '^VARNAME='
 ```
+
+**Limitation of the filter above.** `tr ' ' '\n'` splits on every space, including spaces inside the value itself — a value containing a space (e.g. `VARNAME=two words`) prints only its first token (`VARNAME=two`), silently truncating what you read. That's a correctness gap, not a leak: the untruncated remainder still isn't shown. Don't treat the truncated output as "I've seen the complete value." For a presence/absence check this filter is sufficient; if you need the exact value and it might contain spaces, confirm existence only (`test -n "$VAR"`) rather than trying to read it through `ps`.
 
 **Inspection discipline.**
 - Never inspect an environment "for context" or "to see what's there." Name the specific variable you need before running anything.
