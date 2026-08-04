@@ -25,7 +25,7 @@ The plugin ships `templates/Dockerfile.claude-code` and `templates/mise.toml.cla
 # syntax=docker/dockerfile:1.7
 FROM debian:13-slim AS base
 
-ARG MISE_VERSION=2026.5.0
+ARG MISE_VERSION=v2026.5.0
 ENV MISE_DATA_DIR=/opt/mise \
     CLAUDE_CONFIG_DIR=/home/agent/.claude \
     PATH=/opt/mise/shims:/home/agent/.local/bin:$PATH
@@ -39,7 +39,7 @@ RUN useradd -m -u 1000 -s /bin/bash agent
 USER agent
 WORKDIR /home/agent
 
-RUN curl -fsSL https://mise.run | sh
+RUN curl -fsSL https://mise.run | MISE_VERSION=${MISE_VERSION} sh
 
 COPY --chown=agent:agent mise.toml /home/agent/mise.toml
 

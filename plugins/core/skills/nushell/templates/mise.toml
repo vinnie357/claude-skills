@@ -6,4 +6,4 @@
 "github:nushell/nushell" = "latest"
 
 # Pin to a specific version
-# "github:nushell/nushell" = "0.111.0"
+# "github:nushell/nushell" = "0.113.1"
