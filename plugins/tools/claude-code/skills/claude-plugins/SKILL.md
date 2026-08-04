@@ -92,7 +92,7 @@ This is a **plugin.json field**, not a marketplace-only one — do not confuse i
 }
 ```
 
-Verified against `validate-plugin.nu`'s `invalid_fields` denylist (`category`, `strict`, `source`, `tags`): none of these three fields, nor `dependencies`/`displayName`/`defaultEnabled`/`workflows`/`userConfig`/`channels`, are on it, and a fixture plugin.json carrying all of them passes validation with zero errors and zero warnings (`nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu --self-test`).
+Verified against `validate-plugin.nu`'s `invalid_fields` denylist (`category`, `strict`, `source`, `tags`): none of `outputStyles`/`lspServers`/`experimental`, nor `dependencies`/`displayName`/`defaultEnabled`/`workflows`/`userConfig`/`channels`, are on it. The `complete_manifest_all_documented_fields_recognized` case in `scripts/validate-plugin.nu`'s `--self-test` suite carries all nine fields in one fixture manifest and asserts it passes with zero errors and zero warnings (`nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu --self-test`).
 
 Both `hooks` and `mcpServers` accept either a path or an inline object. Inline, they use each component's own schema — hooks are **event-keyed**, not lifecycle-keyed:
 

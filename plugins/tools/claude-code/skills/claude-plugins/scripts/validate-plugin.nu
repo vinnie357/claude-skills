@@ -753,9 +753,9 @@ def self-test [] {
       expect_warnings: 1
     }
     {
-      name: "five_newly_documented_fields_recognized"
-      why: "claude-skills-218 — displayName, defaultEnabled, workflows, userConfig, channels are real plugin.json fields and must not warn as unrecognized"
-      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", displayName: "My Plugin", defaultEnabled: false, workflows: "./workflows/", userConfig: {}, channels: [] }
+      name: "complete_manifest_all_documented_fields_recognized"
+      why: "claude-skills-218 — every field this skill documents as valid (the pre-existing outputStyles/lspServers/experimental trio from PR 205, plus dependencies and the 5 newly-documented fields) must coexist in one manifest with zero errors and zero warnings. This is the fixture the SKILL.md 'Verified against...' sentence cites — keep the two in sync"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", outputStyles: "./styles/", lspServers: "./.lsp.json", experimental: { themes: "./themes/", monitors: "./monitors.json" }, dependencies: ["helper-lib"], displayName: "My Plugin", defaultEnabled: false, workflows: "./workflows/", userConfig: {}, channels: [] }
       expect_errors: 0
       expect_warnings: 0
     }
