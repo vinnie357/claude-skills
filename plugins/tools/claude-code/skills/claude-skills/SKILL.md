@@ -118,8 +118,15 @@ Fencing does not protect this example — nesting it inside a five-backtick oute
 - `CLAUDE_SESSION_ID` — current session ID
 - `CLAUDE_EFFORT` — current effort level
 - `CLAUDE_SKILL_DIR` — absolute path to this skill's directory (use for bundled scripts: `bash <CLAUDE_SKILL_DIR>/scripts/foo.sh`)
+- `CLAUDE_PLUGIN_ROOT` — absolute path to the enclosing plugin's root directory (use for scripts shared across a plugin's skills: `bash <CLAUDE_PLUGIN_ROOT>/scripts/foo.sh`)
 
-The three `CLAUDE_*` names are written bare because they are used as brace expansions in real files and **the leading-backslash escape does not work on the braced form** — verified by loading: the backslash survives and the token still expands, printing the live session ID and paths. See `/claude-code:claude-commands` "Argument Substitution" for the full rule.
+The four `CLAUDE_*` names are written bare because they are used as brace expansions in real files and **the leading-backslash escape does not work on the braced form** — verified by loading: the backslash survives and the token still expands, printing the live session ID and paths. See `/claude-code:claude-commands` "Argument Substitution" for the full rule.
+
+**Settled notation for `CLAUDE_SKILL_DIR` and `CLAUDE_PLUGIN_ROOT` in bodies (claude-skills-206):** three distinct forms, three distinct roles — never interchange them within a SKILL.md or commands/*.md body.
+
+- **Bare name** (`CLAUDE_SKILL_DIR`, `CLAUDE_PLUGIN_ROOT`) — naming or defining the variable itself in prose, e.g. a definition-list entry ("`CLAUDE_SKILL_DIR` — absolute path to..."). Never expands; safe anywhere.
+- **Angle brackets** (`<CLAUDE_SKILL_DIR>`, `<CLAUDE_PLUGIN_ROOT>`) — showing the variable embedded in a literal, copyable command or path, e.g. `` nu <CLAUDE_SKILL_DIR>/scripts/foo.nu ``. This is the form to use whenever the variable appears as part of runnable syntax rather than as its own subject.
+- **Braced** — a dollar sign, opening curly brace, the variable name, and a closing curly brace: the real, functioning expansion syntax. Safe in YAML frontmatter, `references/`, `templates/`, and standalone `hooks.json`/`.mcp.json` files — anywhere that is not the live-loading body itself. Deliberately not shown literally in this paragraph, for the same reason: writing it here would expand it before any reader sees it. That is also why the braced form is never written directly in a SKILL.md or commands/*.md body — it would substitute one machine's absolute path at load time.
 
 Disable shell injection across user/project/plugin skills via `"disableSkillShellExecution": true` in settings — useful for managed environments.
 
