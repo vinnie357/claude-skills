@@ -490,7 +490,7 @@ interface service {
 - **No dot in identifiers**: use `wasi:io/streams`, not `wasi.io.streams`; dots are not valid in names
 - **Result without payloads**: `result<_, E>` for ok-unit, `result<T, _>` for err-unit, `result` for both unit
 - **borrow vs owned resource**: pass `borrow<resource-type>` when not transferring ownership; plain `resource-type` transfers ownership
-- **Pin to WASI 0.2.0**: use `@0.2.0` for all WASI imports — this is the first stable WASI release and the recommended target for new components
+- **Pin an explicit WASI version**: `@0.2.0` was the first stable WASI release (still valid, synchronous-only); `@0.3.0` is also stable (shipped 2026-06-11, verified against wasi.dev 2026-08-04) and adds native async (`stream<T>`/`future<T>`) — pick `@0.3.0` for new components on a runtime that supports it (Wasmtime 46+), `@0.2.0` for maximum compatibility
 - **Version in use paths**: always include `@version` when referencing external packages to ensure deterministic resolution
 - **Package path in worlds**: `import wasi:io/streams@0.2.0` imports the `streams` interface from the `wasi:io` package
 - **Missing semicolons**: type alias definitions require a trailing semicolon: `type bytes = list<u8>;`

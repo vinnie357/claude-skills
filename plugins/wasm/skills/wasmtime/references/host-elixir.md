@@ -10,10 +10,12 @@ Embed WebAssembly in Elixir applications using Wasmex, which wraps the Wasmtime 
 # mix.exs
 defp deps do
   [
-    {:wasmex, "~> 0.9"}
+    {:wasmex, "~> 0.14"}
   ]
 end
 ```
+
+<!-- verified against wasmex 0.14.0 (hex.pm, 2026-08-04) -->
 
 Wasmex ships pre-compiled Wasmtime NIFs for major platforms (macOS, Linux). Rust toolchain is not required for installation.
 

@@ -6,6 +6,10 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 ## Update History
 
+### 2026-08-04 — claude-skills-204 content-verification pass
+
+Re-verified `current_version` against https://ziglang.org/download/index.json: 0.16.0 (released 2026-04-13) remains the newest non-master release — no newer version has shipped since the 2026-06-12 check. Spot-checked the priority items named in claude-skills-204 (`build/references/build.md`'s `root_source_file` removal and `build.zig.zon` `.fingerprint` claims, and `zig/references/migration-0.16.md` / `version-history.md`'s version-gated API claims) against this pass; all remain consistent with the source-line citations already recorded in those files from the 2026-06-14 pass below. No content corrections were needed — this entry only advances the freshness date in `sources.toml`.
+
 ### 2026-06-14 — 0.15→0.16 migration reference
 
 - **Added**: `skills/zig/references/migration-0.16.md` — field-observed 0.15→0.16 breakages with BEFORE/AFTER snippets for 7 areas: sync primitives, Reader API, ArrayList, ordered maps, C interop, process API, macOS 26 build gotcha.

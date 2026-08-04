@@ -98,8 +98,8 @@ linker.func_wrap("env", "log", |caller: Caller<'_, HostState>, ptr: i32, len: i3
     // read string from caller memory
 })?;
 
-// Add WASI
-wasmtime_wasi::add_to_linker_sync(&mut linker)?;
+// Add WASI (WASIp2; wasmtime-wasi 47.0.3 — verified 2026-08-04)
+wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
 
 // Instantiate
 let instance = linker.instantiate(&mut store, &module)?;
@@ -217,18 +217,21 @@ wasm-tools compose -d b.wasm a.wasm -o composed.wasm
 
 POSIX-inspired system interface using core wasm imports.
 
+<!-- verified against wasmtime-wasi 47.0.3 (docs.rs, 2026-08-04): module renamed preview1 -> p1; the builder stays at the crate root with a .build_p1() finisher -->
+
 ```rust
 // Host setup for WASIp1
-use wasmtime_wasi::preview1;
+use wasmtime_wasi::p1;
+use wasmtime_wasi::WasiCtxBuilder;
 
-let wasi = preview1::WasiCtxBuilder::new()
+let wasi = WasiCtxBuilder::new()
     .inherit_stdio()
     .preopened_dir("/sandbox", ".", DirPerms::all(), FilePerms::all())?
-    .build();
+    .build_p1();
 ```
 
 Key WASIp1 modules:
-- `wasi_snapshot_preview1`: filesystem, clock, random, args, environ
+- `p1::wasi_snapshot_preview1`: filesystem, clock, random, args, environ
 
 ### WASIp2 (Preview 2)
 

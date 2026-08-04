@@ -501,7 +501,7 @@
       "source": "./plugins/wasm",
       "strict": true,
       "description": "WebAssembly skills: wasmtime runtime, component model, guest compilation, and host embedding",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "category": "language",
       "keywords": [
         "wasm",
@@ -537,7 +537,7 @@
       "source": "./plugins/languages/zig",
       "strict": true,
       "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, testing, and troubleshooting",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "category": "language",
       "keywords": [
         "zig",
