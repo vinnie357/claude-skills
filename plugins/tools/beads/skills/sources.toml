@@ -3,8 +3,8 @@
 
 [meta]
 plugin = "beads"
-reviewed_at_plugin_version = "0.1.0"
-last_full_check = "2026-07-30"
+reviewed_at_plugin_version = "0.1.4"
+last_full_check = "2026-08-04"
 
 # ----------------------------------------------------------------------------
 # Beads (bd) — distributed git-backed graph issue tracker (Steve Yegge).
@@ -12,13 +12,13 @@ last_full_check = "2026-07-30"
 [[sources]]
 skills = ["beads"]
 name = "beads"
-url = "https://steveyegge.github.io/beads/"
+url = "https://beads.gascity.com/"
 releases_url = "https://github.com/gastownhall/beads/releases"
 check_method = "github-releases"
 github_repo = "gastownhall/beads"
 current_version = "unknown"
 version_constraint = "semver"
-last_checked = "2026-07-30"
+last_checked = "2026-08-04"
 update_priority = "medium"
 breaking_changes_likely = false
-notes = "Repo relocated from steveyegge/beads to gastownhall/beads (HTTP redirect confirmed via GitHub API 2026-07-30, latest tag v1.1.2); sources.md (dated 2026-01-24) predates the move and still cites the old org/URL. Covers CLI commands, storage format (JSONL + SQLite cache), sync modes (full/stealth/contributor), and two VS Code marketplace extensions (planet57.vscode-beads, DavidCForbes.beads-kanban) documented as supplementary context, not tracked as separate sources."
+notes = "Repo relocated from steveyegge/beads to gastownhall/beads (HTTP redirect confirmed via GitHub API 2026-07-30, latest tag v1.1.2 as of 2026-08-04). The old docs URL steveyegge.github.io/beads/ 404s (confirmed 2026-08-04); beads.gascity.com is the live successor AND the GitHub-declared repo homepage (both fields identical per `gh api repos/gastownhall/beads`). Go module path stays github.com/steveyegge/beads per upstream docs/getting-started/installation.md — released Go modules still declare it for compatibility even though the repo lives under gastownhall/beads. Covers CLI commands, storage format (JSONL + SQLite cache), sync modes (full/stealth/contributor), and two VS Code marketplace extensions (planet57.vscode-beads, DavidCForbes.beads-kanban) documented as supplementary context, not tracked as separate sources."
