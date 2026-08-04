@@ -3,7 +3,7 @@
 
 [meta]
 plugin = "zig"
-reviewed_at_plugin_version = "0.1.3"
+reviewed_at_plugin_version = "0.1.7"
 last_full_check = "2026-08-04"
 
 # ----------------------------------------------------------------------------
