@@ -357,7 +357,7 @@ bd dolt pull
 
 # Inspect Dolt-level state/diffs directly if a pull reports conflicts
 bd dolt status
-bd diff HEAD~1 HEAD   # bd diff takes two required refs (commits, branches, or HEAD~N)
+bd diff main HEAD      # two required refs; despite --help advertising HEAD~N, that form errors live in bd 1.1.0 (claude-skills-240)
 ```
 
 ## Workflow Examples

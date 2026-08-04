@@ -15,8 +15,9 @@ Verified against `lib/runex/driver.ex`'s `@drivers` map (single source of truth 
 - **container**: `container, flame`
 - **wasm**: `wasm`
 
-The class labels above come from the `@drivers` map's own module groupings, not from
-`Runex.Driver.execution_class/1` — that function's `"workflow"` guard clause matches
+The 14 names are the flat `@drivers` map; the class labels above come from
+`execution_class/1`'s module doc comment, not from the function's actual runtime
+behavior — that function's `"workflow"` guard clause matches
 the literal string `"runex_sub"`, not the registered driver name `"runex"`, so
 `execution_class("runex")` actually falls through to `"other"`. This looks like an
 upstream naming-drift bug (the guard clause not being updated when the driver was
