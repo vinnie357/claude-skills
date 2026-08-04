@@ -638,6 +638,7 @@ cd "$(git rev-parse --show-toplevel)"
 BASE="${1:-origin/main}"
 
 nu test/check-version-bumps.nu --self-test
+nu test/check-version-bumps.nu --integration-self-test
 nu test/check-version-bumps.nu --base "$BASE"
 """
 
