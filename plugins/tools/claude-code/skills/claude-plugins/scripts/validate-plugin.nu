@@ -237,7 +237,7 @@ def validate-plugin-content [
     let name = $plugin.name
 
     # Validate kebab-case
-    if not ($name =~ '^[a-z0-9]+(-[a-z0-9]+)*$') {
+    if not (is-kebab-case $name) {
       $errors = ($errors | append $"Invalid name format: '($name)' \(must be kebab-case\)")
     }
 
@@ -611,7 +611,7 @@ def validate-skill-md [skill_md_path: string, skill_name: string, verbose: bool]
     if $name_len > 64 {
       $errors = ($errors | append $"SKILL.md 'name' exceeds 64 characters: ($skill_name) - ($name_len) chars")
     }
-    if not ($name =~ '^[a-z0-9]+(-[a-z0-9]+)*$') {
+    if not (is-kebab-case $name) {
       $errors = ($errors | append $"SKILL.md 'name' must be kebab-case: ($skill_name)")
     }
   }
@@ -677,7 +677,7 @@ def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
   if $name == null {
     $errors = ($errors | append $"Agent missing 'name' field: ($agent_name)")
   } else {
-    if not ($name =~ '^[a-z0-9]+(-[a-z0-9]+)*$') {
+    if not (is-kebab-case $name) {
       $errors = ($errors | append $"Agent 'name' must be kebab-case: ($agent_name)")
     }
   }
@@ -1149,6 +1149,27 @@ def self-test [] {
       expect_errors: 1
       expect_warnings: 0
     }
+    {
+      name: "top_level_version_malformed_warns"
+      why: "claude-skills-238 — is-semver (the plugin.json top-level 'version' field, distinct from the dependency RANGE check above) had zero fixture coverage; mutating it to always-true passed the pre-fix 30-case suite unchanged"
+      plugin: { name: "my-plugin", version: "not-a-version", description: "test fixture", license: "MIT" }
+      expect_errors: 0
+      expect_warnings: 1
+    }
+    {
+      name: "top_level_version_v_prefixed_warns"
+      why: "claude-skills-238 — is-semver is the EXACT-version grammar, not the dependency range grammar; a v-prefixed string like 'v1.0.0' is valid as a RANGE but not as this exact top-level field, so it must still warn here — this is also the SKILL.md-documented example ('version': 'v1.0.0' // warned)"
+      plugin: { name: "my-plugin", version: "v1.0.0", description: "test fixture", license: "MIT" }
+      expect_errors: 0
+      expect_warnings: 1
+    }
+    {
+      name: "plugin_name_bad_kebab_case_errors"
+      why: "claude-skills-238 — is-kebab-case (the plugin.json top-level 'name' field) had zero fixture coverage of the reject direction; every existing case uses a valid kebab-case name. Also exercises the is-kebab-case helper now that it's wired into this call site instead of a duplicated inline regex"
+      plugin: { name: "My_Plugin", version: "1.0.0", description: "test fixture", license: "MIT" }
+      expect_errors: 2  # invalid name format, AND name mismatch (fixture always passes plugin_name="my-plugin" as expected — see the loop below)
+      expect_warnings: 0
+    }
   ]
 
   let temp_dir = (mktemp -d)
@@ -1205,6 +1226,306 @@ def self-test [] {
   }
   rm -rf $agent_temp_dir
 
+  # claude-skills-238: validate-skill-md had ZERO fixture coverage before this
+  # — no case in $cases above carries a `skills` entry, so a mutation
+  # replacing the whole function body with an unconditional error (or with
+  # `{ errors: [], warnings: [] }`, the always-pass direction the bee is
+  # actually about) passed the pre-fix 30-case suite unchanged. Called
+  # directly against real temp SKILL.md files, the same pattern as
+  # agent_model_cases above, rather than threaded through a full plugin.json
+  # + skills-array + on-disk-directory round trip — that indirection buys
+  # nothing extra here since validate-skill-md takes a file path directly.
+  let skill_md_cases = [
+    {
+      name: "valid"
+      content: "---\nname: my-skill\ndescription: Use when testing skill validation.\n---\n\nbody\n"
+      expect_errors: 0
+      expect_warnings: 0
+      why: "baseline: a correct SKILL.md must pass cleanly — this is also the regression guard for the reject-direction cases below"
+    }
+    {
+      name: "missing_frontmatter"
+      content: "no frontmatter here\njust plain text\n"
+      expect_errors: 1
+      expect_warnings: 0
+      why: "no opening '---' — must be rejected, not silently treated as a bodiless skill"
+    }
+    {
+      name: "missing_closing_delimiter"
+      content: "---\nname: my-skill\ndescription: Use when testing.\n"
+      expect_errors: 1
+      expect_warnings: 0
+      why: "opens '---' but never closes it — the frontmatter parser must not run off the end of the file"
+    }
+    {
+      name: "missing_name_field"
+      content: "---\ndescription: Use when testing.\n---\n\nbody\n"
+      expect_errors: 1
+      expect_warnings: 0
+      why: "SKILL.md missing 'name' field must error"
+    }
+    {
+      name: "name_bad_kebab_case"
+      content: "---\nname: My_Skill\ndescription: Use when testing.\n---\n\nbody\n"
+      expect_errors: 1
+      expect_warnings: 0
+      why: "SKILL.md 'name' must be kebab-case — also exercises is-kebab-case's reject direction from this call site"
+    }
+    {
+      name: "name_too_long"
+      content: $"---\nname: (('a' | fill -c 'a' -w 65))\ndescription: Use when testing.\n---\n\nbody\n"
+      expect_errors: 1
+      expect_warnings: 0
+      why: "SKILL.md 'name' exceeds 64 characters — a single 65-char run of 'a' is still valid kebab-case, so only the length check fires, isolating this specific error"
+    }
+    {
+      name: "missing_description_field"
+      content: "---\nname: my-skill\n---\n\nbody\n"
+      expect_errors: 1
+      expect_warnings: 0
+      why: "SKILL.md missing 'description' field must error"
+    }
+    {
+      name: "description_missing_trigger_phrase"
+      content: "---\nname: my-skill\ndescription: does something without the required trigger phrase.\n---\n\nbody\n"
+      expect_errors: 0
+      expect_warnings: 1
+      why: "missing 'Use when'/'Activate when' is a warning, not an error"
+    }
+    {
+      name: "allowed_tools_present"
+      content: "---\nname: my-skill\ndescription: Use when testing.\nallowed-tools: Bash, Read\n---\n\nbody\n"
+      expect_errors: 1
+      expect_warnings: 0
+      why: "skills must not set allowed-tools — tool allowlists belong on the invoking agent, not the skill"
+    }
+  ]
+  let skill_md_temp_dir = (mktemp -d)
+  for c in $skill_md_cases {
+    let skill_md_path = ($skill_md_temp_dir | path join $"($c.name).md")
+    $c.content | save --force $skill_md_path
+    let result = (validate-skill-md $skill_md_path "fixture-skill" false)
+    if ($result.errors | length) != $c.expect_errors {
+      $failures = ($failures | append $"skill_md_($c.name): expected ($c.expect_errors) errors, got (($result.errors | length)): ($result.errors | to nuon) -- ($c.why)")
+    }
+    if ($result.warnings | length) != $c.expect_warnings {
+      $failures = ($failures | append $"skill_md_($c.name): expected ($c.expect_warnings) warnings, got (($result.warnings | length)): ($result.warnings | to nuon) -- ($c.why)")
+    }
+  }
+  rm -rf $skill_md_temp_dir
+
+  # claude-skills-238: validate-agent-md's NON-MODEL checks had zero
+  # reject-direction fixture coverage — the agent_model_cases block above
+  # only varies `model`, on manifests that are otherwise always valid.
+  let agent_md_cases = [
+    {
+      name: "valid"
+      content: "---\nname: my-agent\ndescription: test fixture\ntools: Bash, Read\nmodel: opus\n---\n\nbody\n"
+      expect_errors: 0
+      why: "baseline: a correct agent frontmatter must pass cleanly"
+    }
+    {
+      name: "missing_frontmatter"
+      content: "no frontmatter here\n"
+      expect_errors: 1
+      why: "no opening '---' — must be rejected"
+    }
+    {
+      name: "missing_closing_delimiter"
+      content: "---\nname: my-agent\ndescription: test fixture\n"
+      expect_errors: 1
+      why: "opens '---' but never closes it"
+    }
+    {
+      name: "missing_name_field"
+      content: "---\ndescription: test fixture\n---\n\nbody\n"
+      expect_errors: 1
+      why: "Agent missing 'name' field must error"
+    }
+    {
+      name: "name_bad_kebab_case"
+      content: "---\nname: My_Agent\ndescription: test fixture\n---\n\nbody\n"
+      expect_errors: 1
+      why: "Agent 'name' must be kebab-case — also exercises is-kebab-case's reject direction from this call site"
+    }
+    {
+      name: "missing_description_field"
+      content: "---\nname: my-agent\n---\n\nbody\n"
+      expect_errors: 1
+      why: "Agent missing 'description' field must error"
+    }
+    {
+      name: "tools_as_yaml_list"
+      content: "---\nname: my-agent\ndescription: test fixture\ntools:\n  - Bash\n  - Read\n---\n\nbody\n"
+      expect_errors: 1
+      why: "tools must be a comma-separated string, not a YAML array — the bee's own 'tools given as a YAML list' example"
+    }
+    {
+      name: "tools_wrong_type"
+      content: "---\nname: my-agent\ndescription: test fixture\ntools: 42\n---\n\nbody\n"
+      expect_errors: 1
+      why: "tools must be a string; a bare number is neither the list-shape nor the string-shape branch"
+    }
+  ]
+  let agent_md_temp_dir = (mktemp -d)
+  for c in $agent_md_cases {
+    let agent_md_path = ($agent_md_temp_dir | path join $"($c.name).md")
+    $c.content | save --force $agent_md_path
+    let result = (validate-agent-md $agent_md_path "fixture-agent" false)
+    if ($result.errors | length) != $c.expect_errors {
+      $failures = ($failures | append $"agent_md_($c.name): expected ($c.expect_errors) errors, got (($result.errors | length)): ($result.errors | to nuon) -- ($c.why)")
+    }
+  }
+  rm -rf $agent_md_temp_dir
+
+  # claude-skills-238: cleanup-temp is a pure filesystem helper with zero
+  # fixture coverage — a mutation that always removes (or never removes)
+  # would pass every existing case silently, since none of them call it
+  # with an assertion on the resulting directory state.
+  let cleanup_temp_cases = [
+    { is_ext: true, expect_removed: true, why: "external plugin's temp clone dir must be removed after use" }
+    { is_ext: false, expect_removed: false, why: "a non-external validation never allocated a temp dir — cleanup must be a no-op, not delete an unrelated path" }
+  ]
+  for c in $cleanup_temp_cases {
+    let probe_dir = (mktemp -d)
+    cleanup-temp $probe_dir $c.is_ext
+    let still_exists = ($probe_dir | path exists)
+    let was_removed = not $still_exists
+    if $was_removed != $c.expect_removed {
+      $failures = ($failures | append $"cleanup_temp_is_ext_($c.is_ext): expected removed=($c.expect_removed), got removed=($was_removed) -- ($c.why)")
+    }
+    if not $was_removed {
+      rm -rf $probe_dir
+    }
+  }
+
+  # claude-skills-238: main, validate-plugin-file, validate-from-marketplace,
+  # and setup-external-plugin's non-network branch are entirely unreached by
+  # every case above, because all of them call `exit` on at least one path —
+  # invoking them in-process would kill the self-test run itself on the
+  # first hit. The only safe way to exercise them is a subprocess: spawn
+  # `nu <this-script> <args>` and assert on its exit code (`^nu ... | complete`
+  # captures the exit code instead of propagating it into this process).
+  # Scope boundary, stated explicitly per claude-skills-238's own request
+  # rather than left implicit: setup-external-plugin's actual `git clone`
+  # success and failure paths are NOT covered here. Reaching them needs a
+  # live network call, and self-test must stay network-free — every other
+  # network-touching script in this repo (sources-check.nu, sources-report.nu,
+  # sources-stale.nu, fence-freshness.nu) keeps live calls out of --self-test
+  # for the same reason. The one setup-external-plugin branch that requires
+  # no network — "source is an object but not github, or a github source with
+  # an empty repo path" — IS covered below (cli_marketplace_unsupported_external_source_exit_1).
+  let self_path = $env.CURRENT_FILE
+  let cli_temp_dir = (mktemp -d)
+
+  # A minimal valid plugin.json for the direct-file and marketplace-local
+  # success cases below.
+  let cli_plugin_dir = ($cli_temp_dir | path join "my-plugin")
+  mkdir ($cli_plugin_dir | path join ".claude-plugin")
+  { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_plugin_dir | path join ".claude-plugin" "plugin.json")
+
+  let cli_invalid_json_path = ($cli_temp_dir | path join "invalid.json")
+  # "not valid json {{{" is NOT actually invalid per nu's own `from json`,
+  # which accepts a JSON5-style bare "quoteless string" and returns it
+  # unchanged (`"not valid json {{{" | from json | describe` => "string") —
+  # verified directly, this made the try/catch in validate-plugin-file a
+  # silent no-op and the case failed on the wrong assertion. A truncated
+  # object is genuinely unparseable to nu's JSON parser (verified: raises
+  # `nu::shell::error` / "EOF while parsing an object").
+  "{\"name\": \"broken\"" | save --force $cli_invalid_json_path
+
+  let cli_marketplace_dir = ($cli_temp_dir | path join ".claude-plugin")
+  mkdir $cli_marketplace_dir
+  let cli_marketplace_path = ($cli_marketplace_dir | path join "marketplace.json")
+  {
+    name: "fixture-marketplace"
+    owner: { name: "fixture" }
+    plugins: [
+      # description here must match the plugin.json fixture's description
+      # above ("test fixture") — validate-plugin-content's marketplace-context
+      # check treats plugin.json as authoritative and errors when the
+      # marketplace entry omits a description plugin.json defines
+      # (claude-skills-170's deletion-is-a-failure rule). Omitting it here
+      # was the actual cause of this case's exit-1 failure, not a defect in
+      # validate-from-marketplace's local-source success path.
+      { name: "my-plugin", source: "./my-plugin", description: "test fixture" }
+      { name: "external-plugin", source: { source: "npm", package: "not-github" } }
+    ]
+  } | save --force $cli_marketplace_path
+
+  let cli_empty_marketplace_path = ($cli_temp_dir | path join "empty-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [] } | save --force $cli_empty_marketplace_path
+
+  let cli_cases = [
+    {
+      name: "cli_valid_plugin_file_exit_0"
+      args: [($cli_plugin_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 0
+      why: "validate-plugin-file's success path — main + validate-plugin-file together"
+    }
+    {
+      name: "cli_missing_file_exit_1"
+      args: [($cli_temp_dir | path join "does-not-exist.json")]
+      expect_exit: 1
+      expect_output_contains: "File not found"
+      why: "validate-plugin-file's file-not-found branch"
+    }
+    {
+      name: "cli_invalid_json_exit_1"
+      args: [$cli_invalid_json_path]
+      expect_exit: 1
+      expect_output_contains: "Invalid JSON syntax"
+      why: "validate-plugin-file's JSON-parse-failure branch"
+    }
+    {
+      name: "cli_no_target_exit_1"
+      args: []
+      expect_exit: 1
+      expect_output_contains: "target is required"
+      why: "main's missing-target branch, with neither a target nor --self-test"
+    }
+    {
+      name: "cli_marketplace_missing_exit_1"
+      args: ["somename", "--marketplace", ($cli_temp_dir | path join "does-not-exist-marketplace.json")]
+      expect_exit: 1
+      expect_output_contains: "Marketplace not found"
+      why: "validate-from-marketplace's marketplace-file-missing branch"
+    }
+    {
+      name: "cli_marketplace_plugin_not_found_exit_1"
+      args: ["missing-plugin", "--marketplace", $cli_empty_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "not found in marketplace"
+      why: "validate-from-marketplace's plugin-not-in-marketplace branch"
+    }
+    {
+      name: "cli_marketplace_valid_local_plugin_exit_0"
+      args: ["my-plugin", "--marketplace", $cli_marketplace_path]
+      expect_exit: 0
+      why: "validate-from-marketplace's local-source success path, end to end through main"
+    }
+    {
+      name: "cli_marketplace_unsupported_external_source_exit_1"
+      args: ["external-plugin", "--marketplace", $cli_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "Unsupported external source format"
+      why: "setup-external-plugin's non-github-object branch — the one setup-external-plugin path reachable without a live git clone"
+    }
+  ]
+
+  for c in $cli_cases {
+    let result = (do { ^nu $self_path ...$c.args } | complete)
+    if $result.exit_code != $c.expect_exit {
+      $failures = ($failures | append $"($c.name): expected exit ($c.expect_exit), got ($result.exit_code) -- ($c.why)")
+    }
+    let expect_contains = ($c | get -o expect_output_contains)
+    if ($expect_contains != null) and not ($result.stdout | str contains $expect_contains) {
+      $failures = ($failures | append $"($c.name): expected stdout to contain '($expect_contains)', got: ($result.stdout) -- ($c.why)")
+    }
+  }
+
+  rm -rf $cli_temp_dir
+
   rm -rf $temp_dir
 
   if ($failures | length) > 0 {
@@ -1215,5 +1536,6 @@ def self-test [] {
     exit 1
   }
 
-  print $"(ansi green_bold)✅ validate-plugin.nu self-test passed \((($cases | length) + ($agent_model_cases | length)) cases\)(ansi reset)"
+  let total_cases = ($cases | length) + ($agent_model_cases | length) + ($skill_md_cases | length) + ($agent_md_cases | length) + ($cleanup_temp_cases | length) + ($cli_cases | length)
+  print $"(ansi green_bold)✅ validate-plugin.nu self-test passed \(($total_cases) cases\)(ansi reset)"
 }
