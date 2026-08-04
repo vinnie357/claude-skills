@@ -434,6 +434,14 @@ def has-anti-fab-evidence [content: string]: nothing -> bool {
 # braced-CLAUDE_* check (claude-skills-205) so a harness-expanded value in
 # frontmatter (e.g. a hooks: command field) is never mistaken for the
 # disallowed body form.
+#
+# Known gap, not engineered around: this treats ANY first-line "---" as a
+# frontmatter opener, so a file whose first line is a genuine Markdown
+# horizontal rule (rather than real frontmatter) has everything up to the
+# next "---" silently swallowed, exempting a braced var in that span. Zero
+# corpus impact today — every real SKILL.md and commands/*.md carries valid
+# frontmatter starting at byte 0 — but a hand-written fixture could trigger
+# it. Not worth a stricter YAML-shape check for a gap the corpus never hits.
 def strip-frontmatter [content: string]: nothing -> string {
     let all_lines = ($content | lines)
     if ($all_lines | first | default "" | str trim) != "---" {
@@ -454,9 +462,13 @@ def strip-frontmatter [content: string]: nothing -> string {
 # frontmatter and manifests, a bug in prose/example bodies, where it bakes
 # one machine's absolute cache path into the text. The documented body-safe
 # form is bare or angle-bracketed (see claude-plugins's `CLAUDE_SKILL_DIR`
-# usage note): `<CLAUDE_SKILL_DIR>/scripts/foo.sh`.
+# usage note): `<CLAUDE_SKILL_DIR>/scripts/foo.sh`. The trailing `[^}]*`
+# also matches shell-default-value forms like
+# `${CLAUDE_PLUGIN_ROOT:-/some/default}` — whether the harness actually
+# expands that form is unverified, but it is still the same var name inside
+# braces, so flagging it errs toward catching the bug rather than missing it.
 def has-braced-claude-var [body: string]: nothing -> bool {
-    ($body | parse --regex '\$\{CLAUDE_[A-Z_]+\}' | is-not-empty)
+    ($body | parse --regex '\$\{CLAUDE_[A-Z_]+[^}]*\}' | is-not-empty)
 }
 
 # Embedded self-test for the skills: frontmatter checks (claude-skills-119):
@@ -547,26 +559,8 @@ def run-anti-fab-self-test [] {
         $failed = true
     }
 
-    # Case 5 (claude-skills-202): a thin SKILL.md with no marker, combined
-    # with a reference file that DOES carry a "verified against" citation —
-    # the shape the Pass-1 loop builds ($refs content joined with $content)
-    # — must satisfy the check once both are scanned together. A SKILL.md
-    # scanned ALONE would still fail here; this proves the combined-content
-    # call site (not tested in isolation by this function) is what closes
-    # claude-skills-202's gap.
-    let skill_only = "# Pointer skill\n\nSee references/details.md."
-    let combined = ($skill_only + "\n" + "Verified against zig 0.15.0: root_source_file removed from ExecutableOptions.")
-    if (has-anti-fab-evidence $skill_only) {
-        print $"(ansi red_bold)❌ anti-fab self-test: fixture assumption broke — thin SKILL.md alone should NOT satisfy the check(ansi reset)"
-        $failed = true
-    }
-    if not (has-anti-fab-evidence $combined) {
-        print $"(ansi red_bold)❌ anti-fab self-test: SKILL.md + reference content combined did not satisfy the check(ansi reset)"
-        $failed = true
-    }
-
     if not $failed {
-        print $"(ansi green_bold)✅ anti-fab self-test passed \(5 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ anti-fab self-test passed \(4 cases\)(ansi reset)"
     }
     $failed
 }
@@ -589,6 +583,14 @@ def run-braced-claude-self-test [] {
     # reference the var without triggering harness expansion.
     if (has-braced-claude-var "Run `bash <CLAUDE_SKILL_DIR>/scripts/foo.sh` from the body.") {
         print $"(ansi red_bold)❌ braced-claude self-test: bare angle-bracket form wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2b (Gate 3): the shell-default-value form is flagged too — the
+    # var name is still braced-CLAUDE_*, just with a `:-default` suffix
+    # before the closing brace.
+    if not (has-braced-claude-var "Run `${CLAUDE_PLUGIN_ROOT:-/some/default}/scripts/foo.sh` from the body.") {
+        print $"(ansi red_bold)❌ braced-claude self-test: shell-default-value form not flagged(ansi reset)"
         $failed = true
     }
 
@@ -623,7 +625,7 @@ def run-braced-claude-self-test [] {
     }
 
     if not $failed {
-        print $"(ansi green_bold)✅ braced-claude self-test passed \(5 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ braced-claude self-test passed \(6 cases\)(ansi reset)"
     }
     $failed
 }
@@ -2939,19 +2941,24 @@ def main [--update-baseline, --self-test] {
             })
             if ($nested | length) > 0 { $failed = ($failed | append "ref_depth") }
 
-            # 10. Anti-fabrication present — checked across SKILL.md AND its
-            # reference files (claude-skills-202): a thin pointer SKILL.md
-            # that routes real, version-gated claims through references/
-            # must not pass on the strength of a bare header while those
-            # claims go unscanned. Extending the scanned text can only make
-            # a previously-failing skill pass (it's an OR across more
-            # content, never a stricter AND), so this cannot introduce a new
-            # baseline failure — verified by running the check before and
-            # after this change and confirming the ratchet only shrinks.
-            # See has-anti-fab-evidence for what "present" means and its
-            # limits.
-            let anti_fab_content = ($refs | each {|r| $r.content} | prepend $content | str join "\n")
-            if not (has-anti-fab-evidence $anti_fab_content) {
+            # 10. Anti-fabrication present — SKILL.md ONLY, deliberately
+            # (claude-skills-202, option b of its AC). A prior version of
+            # this check scanned SKILL.md's reference files too, reasoning
+            # that widening an OR-across-content match could only make a
+            # previously-failing skill pass, never fail a passing one — true
+            # by construction, but it missed the check's actual job. A Gate
+            # 3 fixture proved it: a SKILL.md with ZERO anti-fabrication
+            # content, plus a mentioned reference file containing nothing
+            # but the bare word "fabrication", scored full marks under the
+            # wider scan. References became a way to SATISFY the check
+            # rather than a surface it scrutinizes — the inverse of
+            # claude-skills-202's actual concern (real, unverified claims
+            # hiding in references). Reverted; reference-file anti-fab risk
+            # stays out of scope until claude-skills-141 gives it real
+            # per-file scrutiny instead of a corpus-wide keyword OR. See
+            # has-anti-fab-evidence for what "present" means and its limits
+            # even at SKILL.md scope.
+            if not (has-anti-fab-evidence $content) {
                 $failed = ($failed | append "anti_fab")
             }
 
