@@ -18,15 +18,21 @@
 # regex families, not hand-picked patterns) found 7 more genuine pins of
 # classes this registry already covers and had simply missed:
 # allium-tools@3.0.4, runex@0.0.7, postgres:15, redis:7-alpine, postgres:16,
-# node:24, ubuntu:22.04 — see their entries below. Current total: 21
-# literals across 17 files. This does not match the bee's original "13
-# across 7 files" from 2026-07-29 either — content has moved since (new
-# skills, and claude-skills-210/211/212 added prose in skill-update/SKILL.md
-# that DISCUSSES several of these same literals as commentary, correctly
-# excluded here since that text is analysis, not a pin). The honest claim
-# is: this is what a fence-aware sweep plus one independent cross-check
-# found as of 2026-08-04, not a verified-complete inventory — a future sweep
-# with yet another method could still find more.
+# node:24, ubuntu:22.04 — see their entries below. claude-skills-230/231
+# (2026-08-04, same day Gate 3 also found these): extended the registry to
+# template mise.toml tool pins (nushell, sbx, graphify, runex — the same
+# staleness surface reached via a template file instead of a markdown fence;
+# no new mechanism needed, see the note above the first template entry) and
+# added the two unregistered sbx elixir-tidewave postgres:16 occurrences for
+# per-file attribution. Current total: 27 literals across 23 files. This does
+# not match the bee's original "13 across 7 files" from 2026-07-29 either —
+# content has moved since (new skills, and claude-skills-210/211/212 added
+# prose in skill-update/SKILL.md that DISCUSSES several of these same
+# literals as commentary, correctly excluded here since that text is
+# analysis, not a pin). The honest claim is: this is what a fence-aware sweep
+# plus one independent cross-check found as of 2026-08-04, not a
+# verified-complete inventory — a future sweep with yet another method could
+# still find more.
 #
 # Excluded as non-pins (illustrate command syntax, not a real version
 # claim): `mise install node@20.10.0` and `git tag v1.0.0` (core/mise/
@@ -89,13 +95,13 @@ notes = ""
 
 [[literals]]
 file = "plugins/tools/agent-sandboxing/skills/claude-code-on-sandbox/SKILL.md"
-literal = "MISE_VERSION=2026.5.0"
+literal = "MISE_VERSION=v2026.5.0"
 context = "ARG in the embedded Dockerfile copy, mirrors templates/Dockerfile.claude-code"
 check_method = "github-releases"
 github_repo = "jdx/mise"
 pinned_tag = "v2026.5.0"
 policy = "track"
-notes = "Discovered defect, out of scope to fix here: this ARG is declared but never consumed — the Dockerfile installs mise via `curl -fsSL https://mise.run | sh` (always latest at build time), not via $MISE_VERSION. The 'pin' is decorative. Flag as a follow-up; freshness of the literal itself is still meaningful to report."
+notes = "claude-skills-228: the ARG is now consumed by the install step (`curl -fsSL https://mise.run | MISE_VERSION=${MISE_VERSION} sh`), per https://mise.jdx.dev/installing-mise.html. The pin is real; a version bump here now changes the built image."
 
 [[literals]]
 file = "plugins/tools/agent-sandboxing/templates/Dockerfile.claude-code"
@@ -111,13 +117,13 @@ notes = ""
 
 [[literals]]
 file = "plugins/tools/agent-sandboxing/templates/Dockerfile.claude-code"
-literal = "MISE_VERSION=2026.5.0"
+literal = "MISE_VERSION=v2026.5.0"
 context = "ARG (source of truth; SKILL.md above is a copy)"
 check_method = "github-releases"
 github_repo = "jdx/mise"
 pinned_tag = "v2026.5.0"
 policy = "track"
-notes = "Same unused-ARG defect as the SKILL.md copy of this literal — see that entry's notes. Not fixed here; out of scope for a freshness-detection tool."
+notes = "claude-skills-228: fixed alongside the SKILL.md copy — see that entry's notes."
 
 [[literals]]
 file = "plugins/tools/github/skills/actions/SKILL.md"
@@ -274,3 +280,83 @@ eol_product = "ubuntu"
 eol_cycle = "22.04"
 policy = "track"
 notes = ""
+
+# -----------------------------------------------------------------------------
+# claude-skills-230: template mise.toml tool pins. Structurally the same
+# staleness surface as the entries above (a version literal that can drift
+# from what the skill claims), reached via a template file instead of a
+# markdown fence. No new mechanism needed — this file's header already scopes
+# it to "markdown code fences AND non-markdown templates", and the
+# doc-agreement check (test/validate-fenced-literals.nu) does a raw
+# open+str-contains on `file`, so it is format-agnostic; the
+# templates/Dockerfile.claude-code entries above are the existing precedent.
+# -----------------------------------------------------------------------------
+
+[[literals]]
+file = "plugins/core/skills/nushell/templates/mise.toml"
+literal = "0.113.1"
+context = "commented 'pin to a specific version' example; claude-skills-230 fixed this from a stale 0.111.0 to match the nushell skill's own sources.toml current_version"
+check_method = "github-releases"
+github_repo = "nushell/nushell"
+pinned_tag = "0.113.1"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/tools/sbx/skills/sbx/templates/mise.toml"
+literal = "0.30.0"
+context = "github:docker/sbx-releases tool pin"
+check_method = "github-releases"
+github_repo = "docker/sbx-releases"
+pinned_tag = "v0.30.0"
+policy = "track"
+notes = "Matches plugins/tools/sbx/skills/sources.toml current_version — the release the skill's install/archive-layout claims were verified against, not today's live tag (sources.toml notes v0.37.1 is now published upstream). Not bumped here for the same reason sources.toml has not re-verified against it."
+
+[[literals]]
+file = "plugins/tools/graphify/skills/graphify/templates/mise.toml"
+literal = "0.8.36"
+context = "pipx:graphifyy tool pin (PyPI package graphifyy; CLI command graphify)"
+check_method = "github-releases"
+github_repo = "Graphify-Labs/graphify"
+pinned_tag = "v0.8.36"
+policy = "track"
+notes = "fenced-literals.toml has no pypi check_method; the upstream GitHub repo tags releases as vX.Y.Z matching the PyPI version (verified: releases/tags/v0.8.36 resolves, releases/tags/0.8.36 does not), so github-releases gives an automated check for the same version. Matches plugins/tools/graphify/skills/sources.toml current_version, deliberately not bumped to the live 0.9.31+ upstream — skill content not yet re-verified against it."
+
+[[literals]]
+file = "plugins/tools/runex/skills/runex/templates/0.0.7/mise.toml"
+literal = "0.0.7"
+context = "github:vinnie357/runex tool pin, ready-to-copy per runex SKILL.md's 'templates/0.0.7/mise.toml' reference"
+check_method = "manual"
+policy = "intentional-pin"
+notes = "Versioned template directory (templates/0.0.7/, sibling templates/0.1.0/ also exists) — a deliberate frozen snapshot per the /claude-code:skill-update convention ('When a CLI tool has breaking command changes across versions, create a versioned template'), not drift. check_method=manual: vinnie357/runex is a private repo: unauthenticated tag-existence checks 404 regardless of whether the tag exists (see plugins/core/skills/mise/references/transitive-runtime-deps.md-style private-repo gotcha), which would misreport as broken."
+
+# -----------------------------------------------------------------------------
+# claude-skills-231: postgres:16 also appears in the sbx elixir-tidewave
+# template's README and compose.yaml, alongside the already-registered
+# core/skills/container/SKILL.md entry. Per-file attribution, same pattern
+# as the two debian:13-slim entries above.
+# -----------------------------------------------------------------------------
+
+[[literals]]
+file = "plugins/tools/sbx/skills/sbx/templates/elixir-tidewave/README.md"
+literal = "postgres:16"
+context = "directory-tree diagram showing the compose-managed postgres container, mirrors compose.yaml in the same template"
+check_method = "docker-hub"
+docker_image = "library/postgres"
+pinned_tag = "16"
+eol_product = "postgresql"
+eol_cycle = "16"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/tools/sbx/skills/sbx/templates/elixir-tidewave/compose.yaml"
+literal = "postgres:16"
+context = "compose service image (source of truth; README.md above documents it)"
+check_method = "docker-hub"
+docker_image = "library/postgres"
+pinned_tag = "16"
+eol_product = "postgresql"
+eol_cycle = "16"
+policy = "track"
+notes = "Non-markdown file — confirms the doc-agreement check (raw open + str-contains) works on compose.yaml the same as it already does for templates/Dockerfile.claude-code."
