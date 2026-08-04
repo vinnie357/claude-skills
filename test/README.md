@@ -79,14 +79,23 @@ nu test/validate-core-list.nu
 ### Test Version Bumps
 
 Checks that every plugin with changed files also bumped its version in both
-`plugin.json` and `marketplace.json`:
+`plugin.json` and `marketplace.json`, comparing against `origin/main`'s
+CURRENT value — not just the diff direction — so a version equal to or
+behind a moving main is caught, and includes the `all-skills` meta-plugin,
+which aggregates every other plugin's skills and never diffs on its own:
 
 ```bash
-mise run test:version-bumps main
+mise run test:version-bumps           # defaults to origin/main
+mise run test:version-bumps main      # explicit local ref still works
 ```
 
 Fails loudly (non-zero exit, diagnostic message) if the base ref does not
 exist — it no longer silently reports "no files changed" on a bad `--base`.
+The default is `origin/main`, not the local `main` branch, which can be
+behind the real remote; the script tries a quiet `git fetch origin` first
+and proceeds on the cached ref if offline. Run `nu test/check-version-bumps.nu
+--self-test` to run the pure-function fixture suite alone (no git, no base
+ref needed).
 
 ### Direct Script Usage
 

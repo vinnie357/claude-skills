@@ -93,13 +93,39 @@ def classify-bump [
   { status: "pass", reason: $"($base) -> ($current)" }
 }
 
+# Whether all-skills is in scope for the strict-bump check. True when
+# another tracked plugin's directory changed (it aggregates them), OR the
+# root plugin.json itself is a changed file. The second arm matters on its
+# own for a PLUGIN-REMOVAL PR: a deleted plugin's files no longer match any
+# entry in the CURRENT marketplace.json (it's gone), so `modified_plugin_count`
+# is 0 even though `mise update-all-skills` rewrote the root skills array —
+# checking the changed-files list directly for the root file catches that
+# shape, which the directory-prefix match alone cannot (claude-skills-207 F1).
+# Pure — no I/O.
+def all-skills-in-scope [changed_files: list<string>, modified_plugin_count: int] {
+  (".claude-plugin/plugin.json" in $changed_files) or ($modified_plugin_count > 0)
+}
+
 def main [
-  --base: string = "main"  # Base branch to compare against
-  --self-test               # Run the pure-function fixture suite and exit
+  --base: string = "origin/main"  # Base branch to compare against
+  --self-test                      # Run the pure-function fixture suite and exit
 ] {
   if $self_test {
     self-test
     return
+  }
+
+  # A bare "main" is the LOCAL branch ref, which can be a merge or more
+  # behind the real base — a stale local main falsely passes a regression
+  # that current origin/main would catch (claude-skills-207 F3). Default to
+  # origin/main and try a quiet fetch first so the ref is actually current;
+  # never fail the run over it — offline still gets a correct-if-stale
+  # comparison rather than a hard block.
+  if ($base | str starts-with "origin/") {
+    let fetch_result = (do { git fetch origin --quiet } | complete)
+    if $fetch_result.exit_code != 0 {
+      print $"(ansi yellow)⚠️  git fetch origin failed \(offline?\) — comparing against locally cached ($base)(ansi reset)"
+    }
   }
 
   let base_check = (do { git rev-parse --verify $"($base)^{commit}" } | complete)
@@ -160,11 +186,13 @@ def main [
   }
 
   # all-skills special case: in scope whenever any other plugin's content
-  # changed on this branch (it aggregates every plugin's skills), or when its
-  # own version line was edited even absent any other plugin change.
+  # changed on this branch (it aggregates every plugin's skills), the root
+  # plugin.json was itself touched (covers plugin removal — see
+  # all-skills-in-scope), or its own version line was edited even absent any
+  # other plugin change (classify-bump's version_line_changed arm).
   let has_all_skills = (($marketplace.plugins | where name == "all-skills" | length) > 0)
   if $has_all_skills {
-    let content_changed_elsewhere = (($plugins | length) > 0)
+    let content_changed_elsewhere = (all-skills-in-scope $changed_files ($plugins | length))
     let result = check-plugin-version-bump "all-skills" "." $base $content_changed_elsewhere
     if not $result.bumped {
       $errors = ($errors | append $result.error)
@@ -332,10 +360,19 @@ def check-marketplace-version-bump [base: string] {
     return { bumped: false, error: "marketplace: Cannot read metadata.version" }
   }
 
-  if $current_version == $base_version {
+  let cmp = (semver-compare $current_version $base_version)
+
+  if $cmp == "malformed" {
     return {
       bumped: false,
-      error: $"marketplace: metadata.version not bumped \(still ($base_version)\) — plugin list changed"
+      error: $"marketplace: cannot compare metadata.version \(current=($current_version), base=($base_version)\) — malformed semver"
+    }
+  }
+
+  if $cmp != "gt" {
+    return {
+      bumped: false,
+      error: $"marketplace: metadata.version not increased \(($base_version) -> ($current_version)\) — plugin list changed"
     }
   }
 
@@ -429,12 +466,55 @@ def self-test [] {
     }
   }
 
+  # all-skills-in-scope cases — F1: a removed plugin no longer matches any
+  # entry in the CURRENT marketplace.json, so directory-prefix matching alone
+  # (modified_plugin_count) misses a removal-driven root plugin.json edit.
+  let scope_cases = [
+    {
+      name: "removed_plugin_root_file_touched_is_in_scope"
+      # simulates: plugins/tweag/** deleted (no longer in plugin_map, so
+      # modified_plugin_count is 0), but `mise update-all-skills` rewrote
+      # the root skills array.
+      changed_files: [".claude-plugin/plugin.json" "plugins/tweag/.claude-plugin/plugin.json"]
+      modified_plugin_count: 0
+      expect: true
+    }
+    {
+      name: "removed_plugin_without_root_edit_stays_out_of_scope"
+      # the gap this check does NOT cover — no update-all-skills run means
+      # no root plugin.json edit either; caught by the separate dangling-
+      # skill-path validation job instead, per the reviewer's severity note.
+      changed_files: ["plugins/tweag/.claude-plugin/plugin.json"]
+      modified_plugin_count: 0
+      expect: false
+    }
+    {
+      name: "regular_plugin_content_change_is_in_scope"
+      changed_files: ["plugins/core/skills/git/SKILL.md"]
+      modified_plugin_count: 1
+      expect: true
+    }
+    {
+      name: "test_only_change_stays_out_of_scope"
+      changed_files: ["test/check-version-bumps.nu" "mise.toml"]
+      modified_plugin_count: 0
+      expect: false
+    }
+  ]
+
+  for c in $scope_cases {
+    let got = (all-skills-in-scope $c.changed_files $c.modified_plugin_count)
+    if $got != $c.expect {
+      $failures = ($failures | append $"all-skills-in-scope/($c.name): expected ($c.expect), got ($got)")
+    }
+  }
+
   if ($failures | is-not-empty) {
     print $"(ansi red_bold)❌ check-version-bumps self-test failed:(ansi reset)"
     for f in $failures { print $"  • ($f)" }
     exit 1
   }
 
-  let total = (($semver_cases | length) + ($bump_cases | length))
+  let total = (($semver_cases | length) + ($bump_cases | length) + ($scope_cases | length))
   print $"(ansi green_bold)✅ check-version-bumps self-test passed \(($total) cases\)(ansi reset)"
 }
