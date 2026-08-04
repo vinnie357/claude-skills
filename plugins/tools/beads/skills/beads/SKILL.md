@@ -22,7 +22,7 @@ Activate when:
 
 Beads is a distributed graph issue tracker designed for AI agents and modern development workflows. As of v1.1.x it is powered by [Dolt](https://github.com/dolthub/dolt) — a version-controlled SQL database — not plain JSONL+SQLite (confirmed against `gastownhall/beads` README, tag `v1.1.2`; the legacy SQLite backend has been removed):
 
-- **Hash-based IDs**: Collision-resistant task identifiers of the form `<prefix>-<hash>` (default prefix `bd`, default hash length 4 hex chars, e.g. `bd-a1b2`; both prefix and length are configurable via `bd config set id.prefix` / `id.hash_length`). Hierarchical children append `.N` (e.g. `bd-a3f8e9.1`).
+- **Hash-based IDs**: Collision-resistant task identifiers of the form `<prefix>-<suffix>`. Observed default in `bd` 1.1.0: a 3-character base36 suffix (letters+digits, not hex — e.g. ten fresh issues produced `i8v, 0bh, j63, 21c, 1k4, tt6, 6do, da7, uki, u0f`; `v/k/o/u/i/t` aren't hex digits). `bd config set id.hash_length <n>` / `id.prefix <name>` both return "not a recognized config key. Did you mean 'git.hash_length'/'git.prefix'?" and still store the value as an arbitrary key with no observed effect on ID generation — `bd config list` shows the real, already-set prefix key is `issue_prefix` (defaulted from the directory name at init), not `id.prefix`. Hierarchical children append `.N` (e.g. `bd-a3f8e9.1`).
 - **Dolt-backed storage**: Issue data lives in a Dolt database under `.beads/embeddeddolt/` (embedded mode, the default) or `.beads/dolt/` (`bd init --server`, external `dolt sql-server`). `.beads/issues.jsonl` is an export for viewers/interchange/migration — it is not the source of truth and not the sync channel.
 - **Dependency-aware**: Query ready tasks with `bd ready`
 - **JSON output**: Machine-readable format via the global `--json` flag
@@ -159,7 +159,8 @@ Cross-machine sync moves the Dolt database, not JSONL, over `refs/dolt/data`
 on the git remote — `bd sync`/`bd pull` as standalone commands do not exist:
 
 ```bash
-# Push commits to the configured Dolt remote
+# Push commits to the configured Dolt remote (a no-op with a "No remote is
+# configured — skipping" message if none is set, not a hard error)
 bd dolt push
 
 # Pull commits from the Dolt remote
@@ -169,8 +170,10 @@ bd dolt pull
 # for Dolt server state specifically)
 bd status
 
-# Export issues to .beads/issues.jsonl for interchange/viewers (not a sync channel)
-bd export
+# Export issues for interchange/viewers (not a sync channel). Bare `bd export`
+# streams JSONL to STDOUT — it does NOT write .beads/issues.jsonl by itself.
+# Use -o to write the file:
+bd export -o issues.jsonl
 ```
 
 ## JSON Output for AI Agents
@@ -306,7 +309,10 @@ bd ready --assignee "alice"
 
 ### File Structure
 
-Verified against `bd init --non-interactive` (bd 1.1.0, embedded/default mode):
+Verified against a fresh `bd init --non-interactive` (bd 1.1.0, embedded/default
+mode) — this is the file set present immediately after init; `issues.jsonl`
+is NOT among them (it appears only after `bd export -o issues.jsonl` runs;
+bare `bd export` streams to STDOUT and writes nothing):
 
 ```
 .beads/
@@ -314,13 +320,18 @@ Verified against `bd init --non-interactive` (bd 1.1.0, embedded/default mode):
 │   └── <db-name>/
 ├── config.yaml       # Local configuration
 ├── metadata.json     # Repository metadata
-├── issues.jsonl      # Export for viewers/interchange — NOT the source of truth,
-│                      # NOT the sync channel (populated by `bd export`, not by init)
+├── README.md         # Generated usage pointer
 ├── interactions.jsonl
 ├── hooks/             # git hooks installed by `bd init` (pre-commit, post-merge, ...)
+├── last-touched       # Appears after the first create/update/show/close — tracks
+│                      # the "current" issue for commands like `bd close` with no ID
 ├── .local_version
 └── .gitignore
 ```
+
+`.beads/issues.jsonl` is export-only — for interchange/viewers, not the source of
+truth and not the sync channel — and only exists once something has exported to
+it (`bd export -o issues.jsonl`, or auto-export if `export.auto` is enabled).
 
 There is no `.beads.sqlite` — the legacy SQLite backend was removed in the
 Dolt-based releases; `bd init --backend=sqlite` only prints a deprecation
@@ -346,7 +357,7 @@ bd dolt pull
 
 # Inspect Dolt-level state/diffs directly if a pull reports conflicts
 bd dolt status
-bd diff
+bd diff HEAD~1 HEAD   # bd diff takes two required refs (commits, branches, or HEAD~N)
 ```
 
 ## Workflow Examples
