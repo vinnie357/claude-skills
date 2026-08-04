@@ -12,30 +12,46 @@
 # schema and that each `literal` string still appears in its named `file` —
 # catches registry drift when a doc changes without updating this file.
 #
-# Inventory as of 2026-08-04 (claude-skills-176): a fresh sweep of the
-# corpus for version-shaped tokens inside fences found 14 literals across
-# 12 files. This does not match the bee's original "13 across 7 files" from
-# 2026-07-29 — content has moved since (new skills, and claude-skills-210/
-# 211/212 added prose in skill-update/SKILL.md that DISCUSSES several of
-# these same literals as commentary, correctly excluded here since that
-# text is analysis, not a pin). Excluded as non-pins (illustrate command
-# syntax, not a real version claim): `mise install node@20.10.0` and
-# `git tag v1.0.0` (core/mise/SKILL.md), `ansible-galaxy collection install
-# community.general:==6.0.0` (ansible-roles/SKILL.md), and `@v4.1.0` →
-# `@v4.2.2` (github/dependabot-consolidator — a hypothetical bump example).
+# Inventory: first pass (2026-08-04, grep-based hand sweep) found 14
+# literals across 12 files. claude-skills-176 Gate 3 F1: an INDEPENDENT
+# fence-aware sweep (a different method — a fence-state tracker plus six
+# regex families, not hand-picked patterns) found 7 more genuine pins of
+# classes this registry already covers and had simply missed:
+# allium-tools@3.0.4, runex@0.0.7, postgres:15, redis:7-alpine, postgres:16,
+# node:24, ubuntu:22.04 — see their entries below. Current total: 21
+# literals across 17 files. This does not match the bee's original "13
+# across 7 files" from 2026-07-29 either — content has moved since (new
+# skills, and claude-skills-210/211/212 added prose in skill-update/SKILL.md
+# that DISCUSSES several of these same literals as commentary, correctly
+# excluded here since that text is analysis, not a pin). The honest claim
+# is: this is what a fence-aware sweep plus one independent cross-check
+# found as of 2026-08-04, not a verified-complete inventory — a future sweep
+# with yet another method could still find more.
 #
-# Deliberately excluded as a CATEGORY, not just individually: GitHub Actions
-# `uses: owner/action@vN` floating-major-version pins (~30 occurrences
-# across ~15 files, e.g. `actions/checkout@v7`, `jdx/mise-action@v4`). These
-# are a different pattern from everything above — a floating major tag the
+# Excluded as non-pins (illustrate command syntax, not a real version
+# claim): `mise install node@20.10.0` and `git tag v1.0.0` (core/mise/
+# SKILL.md), `ansible-galaxy collection install community.general:==6.0.0`
+# (ansible-roles/SKILL.md), and `@v4.1.0` → `@v4.2.2` (github/
+# dependabot-consolidator — a hypothetical bump example).
+#
+# Deliberately excluded as a CATEGORY, not just individually (confirmed
+# acceptable by the operator after F1's review): GitHub Actions `uses:
+# owner/action@vN` floating-major-version pins (~30 occurrences across ~15
+# files, e.g. `actions/checkout@v7`, `jdx/mise-action@v4`). These are a
+# different pattern from everything above — a floating major tag the
 # action's maintainer re-points at their newest v7.x.x on every release, by
 # GitHub's own recommended convention, not a discrete version a doc author
 # chose and that can go stale the way `rev: v8.30.1` can. Whether a doc
 # should upgrade from `@v7` to a newer major is a real, different question
 # (major-version currency, not tag-existence/EOL) that this registry's
-# schema does not answer today. Flagged here as a scope decision, not a
-# silent omission — the bee's own worked examples (Docker image tags, CLI
-# install examples, package pins) never named this pattern.
+# schema does not answer today. One exception was found and confirmed NOT
+# a floating pin: `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1`
+# (github/dependabot-consolidator/references/consolidation-algorithm.md:63)
+# is a full-commit-SHA pin with a `# v7.0.1` comment — but it is itself a
+# STYLE ILLUSTRATION (the doc is teaching what a SHA-pinned action line
+# looks like, not recommending this specific action be SHA-pinned), so it
+# stays excluded on the same "illustrates syntax, not a real claim" basis
+# as the mise/ansible examples above, not on the floating-tag basis.
 
 [[literals]]
 file = "plugins/core/skills/security/SKILL.md"
@@ -176,3 +192,85 @@ context = "mise install quick-start example"
 check_method = "manual"
 policy = "track"
 notes = "Matches sources.toml current_version exactly (0.16.0). check_method=manual mirrors sources.toml's own decision: ziglang stopped tagging GitHub releases after 0.15.2 (confirmed live 2026-08-04: GET /repos/ziglang/zig/releases/tags/0.16.0 → 404). Authoritative source is https://ziglang.org/download/index.json per that sources.toml entry's notes."
+
+# ----------------------------------------------------------------------------
+# claude-skills-176 Gate 3 F1: added after an independent fence-aware sweep
+# found these 7 — same classes this registry already covers (mise/GitHub
+# pins, Docker cycle tags), simply missed by the first hand sweep.
+# ----------------------------------------------------------------------------
+
+[[literals]]
+file = "plugins/tools/allium/skills/allium/references/installation.md"
+literal = "allium-tools@3.0.4"
+context = "mise global pin example"
+check_method = "github-releases"
+github_repo = "juxt/allium-tools"
+pinned_tag = "v3.0.4"
+policy = "track"
+notes = "pinned_tag is v3.0.4, not bare 3.0.4 — confirmed live: GET .../releases/tags/3.0.4 -> 404, GET .../releases/tags/v3.0.4 -> 200 (published 2026-04-10). Latest upstream at check time was v3.5.2 — behind, but not EOL/broken, so correctly not flagged under the encoded policy."
+
+[[literals]]
+file = "plugins/tools/runex/skills/runex/SKILL.md"
+literal = "runex@0.0.7"
+context = "mise global pin example"
+check_method = "manual"
+policy = "track"
+notes = "vinnie357/runex is a PRIVATE repo — mirrors the existing sources.toml entry's own check_method=manual decision (confirmed live 2026-08-04: unauthenticated GET .../releases/tags/v0.0.7 -> 404, indistinguishable from a genuinely deleted tag without GITHUB_TOKEN access to the private repo). Registering this as check_method=github-releases would report a FALSE broken finding for anyone running the tool without repo access, which is most environments including CI."
+
+[[literals]]
+file = "plugins/core/skills/twelve-factor/references/factor-examples.md"
+literal = "postgres:15"
+context = "docker-compose service example (Factor IV: Backing Services)"
+check_method = "docker-hub"
+docker_image = "library/postgres"
+pinned_tag = "15"
+eol_product = "postgresql"
+eol_cycle = "15"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/core/skills/twelve-factor/references/factor-examples.md"
+literal = "redis:7-alpine"
+context = "docker-compose service example (Factor IV: Backing Services)"
+check_method = "docker-hub"
+docker_image = "library/redis"
+pinned_tag = "7-alpine"
+policy = "track"
+notes = "No eol_product/eol_cycle configured: this is a floating MAJOR-only tag (7-alpine tracks all 7.x), but endoflife.date's redis feed keys cycles by minor (8.10, 8.8, 7.4, ...) — there is no bare \"7\" cycle to look up (confirmed live: query for cycle \"7\" returns empty). Existence is still checked; EOL status reports unknown rather than a false negative from a cycle-string mismatch."
+
+[[literals]]
+file = "plugins/core/skills/container/SKILL.md"
+literal = "postgres:16"
+context = "container run example (Apple Container CLI)"
+check_method = "docker-hub"
+docker_image = "library/postgres"
+pinned_tag = "16"
+eol_product = "postgresql"
+eol_cycle = "16"
+policy = "track"
+notes = ""
+
+[[literals]]
+file = "plugins/tools/dagu/skills/workflows/references/executors.md"
+literal = "node:24"
+context = "Docker executor config example"
+check_method = "docker-hub"
+docker_image = "library/node"
+pinned_tag = "24"
+eol_product = "nodejs"
+eol_cycle = "24"
+policy = "track"
+notes = "Same nodejs cycle 24 as the already-registered node:24-alpine entry (twelve-factor/references/factor-examples.md) — different tag, same major, same EOL date (2028-04-30)."
+
+[[literals]]
+file = "plugins/tools/github/skills/act/SKILL.md"
+literal = "ubuntu:22.04"
+context = "act -P image-override troubleshooting example"
+check_method = "docker-hub"
+docker_image = "library/ubuntu"
+pinned_tag = "22.04"
+eol_product = "ubuntu"
+eol_cycle = "22.04"
+policy = "track"
+notes = ""

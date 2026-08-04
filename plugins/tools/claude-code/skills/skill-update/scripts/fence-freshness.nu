@@ -33,7 +33,7 @@
 # which is exactly the failure mode this tool exists to catch regardless of
 # intent.
 
-use sources-lib.nu [classify-fetch-error, catch-http-error, check-github-releases]
+use sources-lib.nu [catch-http-error]
 
 const USER_AGENT = "claude-skills-fence-freshness/1.0 (github.com/vinnie357/claude-skills)"
 
@@ -72,10 +72,25 @@ export def classify-fence-status [policy: string, exists: any, is_eol: any]: not
 
 # ---- network boundary: does the exact pin still resolve? -------------------
 
+# Shared catch-block body for both check-*-tag-exists functions below. Pure
+# (given an already-caught `$err` record), self-tested with fixture err
+# records — the exact seam claude-skills-210 Gate 3 named after `check-npm`
+# shipped with untested parsing: a check-* function's HTTP call and its
+# response/error interpretation must be separable so the interpretation is
+# testable without the network.
+export def existence-from-error [err: record]: nothing -> record {
+    let classified = (catch-http-error $err)
+    if $classified == "no-releases" {
+        {exists: false, detail: "tag not found"}
+    } else {
+        {exists: "unknown", detail: $classified}
+    }
+}
+
 # Check whether a specific GitHub release TAG exists (not "latest" — the
 # exact pinned tag). Distinguishes "genuinely deleted/renamed" from "network
 # hiccup" the same way sources-lib.nu's check-* functions do, via
-# catch-http-error / classify-fetch-error.
+# existence-from-error / catch-http-error.
 export def check-github-tag-exists [repo: string, tag: string]: nothing -> record {
     let url = $"https://api.github.com/repos/($repo)/releases/tags/($tag)"
     let token = $env.GITHUB_TOKEN? | default ""
@@ -88,12 +103,7 @@ export def check-github-tag-exists [repo: string, tag: string]: nothing -> recor
         let response = http get -H $headers $url
         {exists: true, detail: ($response.published_at? | default "unknown")}
     } catch {|err|
-        let classified = catch-http-error $err
-        if $classified == "no-releases" {
-            {exists: false, detail: "tag not found"}
-        } else {
-            {exists: "unknown", detail: classified}
-        }
+        existence-from-error $err
     }
 }
 
@@ -108,12 +118,7 @@ export def check-docker-tag-exists [image: string, tag: string]: nothing -> reco
         let response = http get $url
         {exists: true, detail: ($response.last_updated? | default "unknown")}
     } catch {|err|
-        let classified = catch-http-error $err
-        if $classified == "no-releases" {
-            {exists: false, detail: "tag not found"}
-        } else {
-            {exists: "unknown", detail: classified}
-        }
+        existence-from-error $err
     }
 }
 
@@ -202,8 +207,34 @@ def run-self-test [] {
             $failed = true
         }
     }
+
+    # existence-from-error (claude-skills-176 Gate 3 F2/F4): fixture-based
+    # cases against the actual catch-block interpretation, not just the
+    # policy layer above it. F2 shipped a bare-word bug (`detail: classified`
+    # instead of `detail: $classified` — nushell reads a bare identifier
+    # inside a record literal as the STRING "classified", not the variable)
+    # that no test caught, because only classify-fence-status had fixture
+    # coverage. These cases would have failed on that bug: `.detail` would
+    # have been the literal string "classified" instead of a real
+    # classification.
+    let error_cases = [
+        {label: "404 debug text -> exists false, detail names the tag" err: {debug: "Requested file not found (404): \"x\""} want_exists: false want_detail: "tag not found"}
+        {label: "403 debug text -> exists unknown, detail carries the real classification" err: {debug: "Access forbidden (403) to \"x\""} want_exists: "unknown" want_detail: "rate-limited"}
+        {label: "429 msg text (no debug field) -> exists unknown, detail carries rate-limited" err: {msg: "Cannot make request to \"x\". Error is \"429 Too Many Requests\""} want_exists: "unknown" want_detail: "rate-limited"}
+        {label: "unrelated network failure -> exists unknown, detail carries generic error" err: {debug: "Could not resolve host: example.com"} want_exists: "unknown" want_detail: "error"}
+        {label: "empty error record -> exists unknown, detail carries generic error, not the literal word 'classified'" err: {} want_exists: "unknown" want_detail: "error"}
+    ]
+    for c in $error_cases {
+        let got = existence-from-error $c.err
+        if $got.exists != $c.want_exists or $got.detail != $c.want_detail {
+            print $"(ansi red_bold)❌ existence-from-error: ($c.label): want \(exists=($c.want_exists), detail=($c.want_detail)\), got \(exists=($got.exists), detail=($got.detail)\)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    let total = ($cases | length) + ($error_cases | length)
     if $failed { exit 1 }
-    print $"(ansi green_bold)✅ fence-freshness self-test passed \(($cases | length) cases\)(ansi reset)"
+    print $"(ansi green_bold)✅ fence-freshness self-test passed \(($total) cases\)(ansi reset)"
     exit 0
 }
 
