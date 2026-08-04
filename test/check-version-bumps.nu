@@ -4,7 +4,8 @@
 #
 # Usage:
 #   nu check-version-bumps.nu [--base main]
-#   nu check-version-bumps.nu --self-test
+#   nu check-version-bumps.nu --self-test              # pure-function fixtures (no git, no filesystem)
+#   nu check-version-bumps.nu --integration-self-test   # real git-fixture wiring test (claude-skills-221)
 #
 # Compares current branch to base branch and ensures any plugin
 # with file changes also has a version bump in both:
@@ -109,10 +110,19 @@ def all-skills-in-scope [changed_files: list<string>, modified_plugin_count: int
 def main [
   --base: string = "origin/main"  # Base branch to compare against
   --self-test                      # Run the pure-function fixture suite and exit
+  --integration-self-test          # Run the git-fixture wiring test and exit
 ] {
   if $self_test {
     self-test
     return
+  }
+
+  if $integration_self_test {
+    # $env.CURRENT_FILE must be captured before any `cd` — it is this
+    # script's own absolute path, needed to invoke a fresh subprocess of
+    # itself against the fixture repo built below.
+    if (integration-self-test ($env.CURRENT_FILE | path expand)) { exit 1 }
+    exit 0
   }
 
   # A bare "main" is the LOCAL branch ref, which can be a merge or more
@@ -517,4 +527,105 @@ def self-test [] {
 
   let total = (($semver_cases | length) + ($bump_cases | length) + ($scope_cases | length))
   print $"(ansi green_bold)✅ check-version-bumps self-test passed \(($total) cases\)(ansi reset)"
+}
+
+# Git-fixture integration test (claude-skills-221). `self-test` above proves
+# semver-compare / classify-bump / all-skills-in-scope are individually
+# correct, but nothing exercises the WIRING in `main` that calls them — the
+# per-plugin loop (get-modified-plugins, check-plugin-version-bump) and the
+# all-skills special case (lines ~188-200). A future refactor that drops or
+# breaks that wiring leaves every self-test green, because the fixtures never
+# call `main` at all. That is the exact shape of the original claude-skills-207
+# bug: the logic was simply absent and nothing noticed.
+#
+# Builds a REAL throwaway git repo (own `.git`, own commits), then invokes
+# THIS SAME SCRIPT as a subprocess against it via `--base <sha>` — the actual
+# entry point CI uses — and asserts on its exit code. A green run on a
+# corpus with no violation proves nothing, so the fixture drives both
+# directions from one repo:
+#   commit 1 (base):      core@0.1.0, all-skills@0.1.0
+#   commit 2:             core content changed + bumped to 0.1.1,
+#                         all-skills left at 0.1.0 (unbumped) — must FAIL
+#   commit 3:             all-skills bumped to 0.1.1 — must PASS
+# Returns true when either assertion failed.
+def integration-self-test [self_path: string] {
+  mut failed = false
+  let root = (mktemp -d)
+
+  let outcome = (do {
+    cd $root
+    ^git init --quiet -b main
+    ^git config user.email "test@example.com"
+    ^git config user.name "Test"
+
+    mkdir ".claude-plugin"
+    mkdir (["plugins" "core" ".claude-plugin"] | path join)
+    mkdir (["plugins" "core" "skills" "foo"] | path join)
+
+    # commit 1: base — everything at 0.1.0
+    { name: "all-skills", version: "0.1.0", skills: [] } | to json | save ".claude-plugin/plugin.json"
+    {
+      plugins: [
+        { name: "core", source: "./plugins/core", version: "0.1.0" }
+        { name: "all-skills", source: "./", version: "0.1.0" }
+      ]
+      metadata: { version: "0.1.0" }
+    } | to json | save ".claude-plugin/marketplace.json"
+    { name: "core", version: "0.1.0", skills: ["./skills/foo"] } | to json | save (["plugins" "core" ".claude-plugin" "plugin.json"] | path join)
+    "old content" | save (["plugins" "core" "skills" "foo" "SKILL.md"] | path join)
+    ^git add -A
+    ^git commit --quiet -m "base"
+    let base_sha = (^git rev-parse HEAD | str trim)
+
+    # commit 2: core's content changes and its version bumps correctly, but
+    # all-skills (which aggregates core) is left unbumped — the regression
+    # shape this integration test exists to guard.
+    "new content" | save --force (["plugins" "core" "skills" "foo" "SKILL.md"] | path join)
+    { name: "core", version: "0.1.1", skills: ["./skills/foo"] } | to json | save --force (["plugins" "core" ".claude-plugin" "plugin.json"] | path join)
+    {
+      plugins: [
+        { name: "core", source: "./plugins/core", version: "0.1.1" }
+        { name: "all-skills", source: "./", version: "0.1.0" }
+      ]
+      metadata: { version: "0.1.0" }
+    } | to json | save --force ".claude-plugin/marketplace.json"
+    ^git add -A
+    ^git commit --quiet -m "bump core only"
+
+    let unbumped = (^nu $self_path --base $base_sha | complete)
+
+    # commit 3: all-skills catches up to 0.1.1 — now everything in scope has
+    # strictly increased from base, so the same wiring must pass.
+    { name: "all-skills", version: "0.1.1", skills: [] } | to json | save --force ".claude-plugin/plugin.json"
+    {
+      plugins: [
+        { name: "core", source: "./plugins/core", version: "0.1.1" }
+        { name: "all-skills", source: "./", version: "0.1.1" }
+      ]
+      metadata: { version: "0.1.0" }
+    } | to json | save --force ".claude-plugin/marketplace.json"
+    ^git add -A
+    ^git commit --quiet -m "bump all-skills too"
+
+    let bumped = (^nu $self_path --base $base_sha | complete)
+
+    { unbumped_exit: $unbumped.exit_code, bumped_exit: $bumped.exit_code, unbumped_out: $unbumped.stdout }
+  })
+
+  if $outcome.unbumped_exit == 0 {
+    print $"(ansi red_bold)❌ integration self-test: unbumped all-skills wiring did not fail \(exit ($outcome.unbumped_exit)\)(ansi reset)"
+    print $"  stdout: ($outcome.unbumped_out)"
+    $failed = true
+  }
+
+  if $outcome.bumped_exit != 0 {
+    print $"(ansi red_bold)❌ integration self-test: correctly bumped fixture wrongly failed \(exit ($outcome.bumped_exit)\)(ansi reset)"
+    $failed = true
+  }
+
+  rm -rf $root
+  if not $failed {
+    print $"(ansi green_bold)✅ check-version-bumps integration self-test passed \(2 cases\)(ansi reset)"
+  }
+  $failed
 }

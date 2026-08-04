@@ -25,7 +25,7 @@
 # Checks whose findings are countable at runtime; their baseline entries must
 # carry an integer detail_count so a waiver covers the recorded count, not
 # unbounded growth of the same check.
-const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth" "duplicate_block" "vocab_disjoint" "fm_schema"]
+const DETAIL_CHECKS = ["lines" "links" "orphans" "invocations" "version_pin" "ref_depth" "duplicate_block" "vocab_disjoint" "fm_schema" "ref_unsafe"]
 
 # Sliding-window size for the corpus-wide duplicate-block check: 8 normalised
 # lines. Measured in the claude-skills-124 plan (revision 2): at N=8 with no
@@ -390,6 +390,38 @@ def strip-fences [content: string] {
 # too: names like claude-api or anthropic-sdk are legitimate domains.
 def is-reserved-name [name: string]: nothing -> bool {
     $name in ["claude" "anthropic"]
+}
+
+# Guards a single reference-file read against three failure modes that used
+# to abort the whole run via an unhandled `open --raw` error (claude-skills-222):
+# a dangling symlink, an unreadable-permissions file, and a symlink that
+# resolves outside the repo. The first two are read attempts that fail; the
+# third succeeds but must never happen — reading it would scan arbitrary
+# filesystem content into the corpus, so it is quarantined (content never
+# read) rather than opened. Returns {name, content, unsafe, reason} where
+# reason is "broken" | "unreadable" | "external" | null. Content is "" for
+# every unsafe case.
+def safe-read-ref [f: string, repo_root: string]: nothing -> record {
+    let name = ($f | path basename)
+    if ($f | path type) == "symlink" {
+        let resolved = ($f | path expand)
+        if not ($resolved | path exists) {
+            return {name: $name, content: "", unsafe: true, reason: "broken"}
+        }
+        let root = ($repo_root | path expand)
+        if not ($resolved | str starts-with $"($root)/") {
+            return {name: $name, content: "", unsafe: true, reason: "external"}
+        }
+    }
+    let read = (try {
+        {ok: true, data: (open --raw $f)}
+    } catch {
+        {ok: false, data: ""}
+    })
+    if not $read.ok {
+        return {name: $name, content: "", unsafe: true, reason: "unreadable"}
+    }
+    {name: $name, content: $read.data, unsafe: false, reason: null}
 }
 
 # Examples check: the skill presents at least one example — a code fence or
@@ -1204,6 +1236,73 @@ def run-orphans-self-test [] {
 
     if not $failed {
         print $"(ansi green_bold)✅ Orphans self-test passed \(($cases | length) cases\)(ansi reset)"
+    }
+    $failed
+}
+
+# Embedded self-test for safe-read-ref (claude-skills-222): a broken symlink
+# under references/ used to abort the ENTIRE run via an unhandled `open --raw`
+# error before this function existed — zero tables printed, every other
+# finding masked (reproduced against the pre-fix script: exit 1, only a raw
+# nu error trace, no scorecard). Exercises all three unsafe modes against a
+# REAL filesystem fixture (dangling symlink, chmod-000 file, symlink
+# resolving outside the fixture's own tree) plus the normal-read path, so a
+# regression that lets any one of them raise again is caught here instead of
+# by a crash with no diagnostic. A green run on a corpus with no broken
+# symlinks proves nothing — this fixture manufactures the failure modes
+# directly. Fixture tree removed at the end. Returns true when any case
+# failed.
+def run-safe-read-ref-self-test [] {
+    mut failed = false
+
+    let root = (mktemp -d)
+    let repo = ($root | path join "repo")
+    let refs = ($repo | path join "references")
+    mkdir $refs
+    "normal content" | save ($refs | path join "good.md")
+    ^ln -s /nonexistent-target-claude-skills-222 ($refs | path join "broken.md")
+    "" | save ($refs | path join "unreadable.md")
+    ^chmod 000 ($refs | path join "unreadable.md")
+    # The outside target must exist and be readable, so this case proves
+    # "resolves outside the repo", not "happens to also be broken".
+    let outside = ($root | path join "outside.md")
+    "outside content" | save $outside
+    ^ln -s $outside ($refs | path join "external.md")
+
+    # Case: normal file reads through unchanged.
+    let good = (safe-read-ref ($refs | path join "good.md") $repo)
+    if $good.unsafe or $good.content != "normal content" {
+        print $"(ansi red_bold)❌ safe-read-ref self-test: normal file wrongly flagged unsafe \(got: ($good)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case: broken (dangling) symlink is reported, not raised.
+    let broken = (safe-read-ref ($refs | path join "broken.md") $repo)
+    if not $broken.unsafe or $broken.reason != "broken" {
+        print $"(ansi red_bold)❌ safe-read-ref self-test: broken symlink not reported \(got: ($broken)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case: unreadable permissions is reported, not raised.
+    let unreadable = (safe-read-ref ($refs | path join "unreadable.md") $repo)
+    if not $unreadable.unsafe or $unreadable.reason != "unreadable" {
+        print $"(ansi red_bold)❌ safe-read-ref self-test: unreadable file not reported \(got: ($unreadable)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case: symlink resolving outside the repo is quarantined — reported, and
+    # its content is never read (empty), even though the target itself is
+    # perfectly readable.
+    let external = (safe-read-ref ($refs | path join "external.md") $repo)
+    if not $external.unsafe or $external.reason != "external" or $external.content != "" {
+        print $"(ansi red_bold)❌ safe-read-ref self-test: external symlink not quarantined \(got: ($external)\)(ansi reset)"
+        $failed = true
+    }
+
+    ^chmod 644 ($refs | path join "unreadable.md")
+    rm -rf $root
+    if not $failed {
+        print $"(ansi green_bold)✅ safe-read-ref self-test passed \(4 cases\)(ansi reset)"
     }
     $failed
 }
@@ -2726,12 +2825,13 @@ def main [--update-baseline, --self-test] {
         let vocab_failed = (run-vocab-self-test)
         let pass2_links_failed = (run-pass2-links-self-test)
         let orphans_failed = (run-orphans-self-test)
+        let safe_read_ref_failed = (run-safe-read-ref-self-test)
         let fm_schema_failed = (run-frontmatter-schema-self-test)
         let accumulator_failed = (run-accumulator-self-test)
         let pass2_eval_failed = (run-pass2-eval-self-test)
         let anti_fab_failed = (run-anti-fab-self-test)
         let braced_claude_failed = (run-braced-claude-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed { exit 1 }
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed { exit 1 }
         exit 0
     }
 
@@ -2927,7 +3027,15 @@ def main [--update-baseline, --self-test] {
             } else {
                 []
             }
-            let refs = ($ref_files | each {|f| {name: ($f | path basename), content: (open --raw $f)}})
+            # 19. Reference files are safe to read (claude-skills-222). See
+            # safe-read-ref: a broken symlink or unreadable-permissions file
+            # is reported as a finding instead of aborting the run, and a
+            # symlink resolving outside the repo is quarantined (never read)
+            # and reported rather than silently scanned into the corpus.
+            let ref_reads = ($ref_files | each {|f| safe-read-ref $f $repo_root})
+            let refs = ($ref_reads | each {|r| {name: $r.name, content: $r.content}})
+            let unsafe_refs = ($ref_reads | where {|r| $r.unsafe})
+            if ($unsafe_refs | length) > 0 { $failed = ($failed | append "ref_unsafe") }
 
             # 8. Has examples: code fence / example header in SKILL.md, or a
             # code fence in a reference file SKILL.md mentions (see has-examples)
@@ -3060,9 +3168,10 @@ def main [--update-baseline, --self-test] {
                 {check: "version_pin", count: ($stale_pins | length)}
                 {check: "ref_depth", count: ($nested | length)}
                 {check: "fm_schema", count: ($fm_unknown | length)}
+                {check: "ref_unsafe", count: ($unsafe_refs | length)}
             ])
 
-            let check_count = 18
+            let check_count = 19
             let score = $check_count - ($failed | length)
 
             $results = ($results | append {
@@ -3072,7 +3181,7 @@ def main [--update-baseline, --self-test] {
                 score: $"($score)/($check_count)"
                 failed: ($failed | str join " ")
                 new: ($new_failures | each {|k| $k | split row ":" | last} | str join " ")
-                details: ($broken_links | append $bad_invocations | append $stale_pins | append ($orphans | each {|f| $f | path basename}) | append ($fm_unknown | each {|k| $"frontmatter:($k)"}) | append ($nested | each {|r| $"nested:($r.name)"}) | str join " ")
+                details: ($broken_links | append $bad_invocations | append $stale_pins | append ($orphans | each {|f| $f | path basename}) | append ($fm_unknown | each {|k| $"frontmatter:($k)"}) | append ($nested | each {|r| $"nested:($r.name)"}) | append ($unsafe_refs | each {|r| $"($r.reason):($r.name)"}) | str join " ")
             })
 
             if ($failed | is-empty) {
