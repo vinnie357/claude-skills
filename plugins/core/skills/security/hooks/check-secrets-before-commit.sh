@@ -12,7 +12,9 @@
 #
 # Exit codes:
 #   0 - Allow command (not a git commit OR no secrets found OR no scanner available)
-#   2 - Block command (secrets detected in staged files)
+#   2 - Block command (secrets detected in staged files, OR the scanner
+#       itself exited with an unexpected code and we cannot confirm the
+#       repo is clean — claude-skills-224, fail closed rather than open)
 
 set -euo pipefail
 
@@ -228,7 +230,28 @@ elif [[ $EXIT_CODE -eq 1 ]]; then
     log_error "  3. Add to .gitleaks-baseline.json if false positive"
     exit 2
 else
-    log_warning "Gitleaks scan failed (exit code: $EXIT_CODE)"
-    log_warning "Allowing commit - check gitleaks configuration"
-    exit 0
+    # Fail CLOSED here — this is not the "no scanner available" branch
+    # above (which has its own documented fail-open rationale). Gitleaks
+    # WAS invoked and exited with a code that means neither "clean" (0)
+    # nor "secrets found" (1) — a crash, a malformed .gitleaks.toml, a bad
+    # baseline file, or some other scanner-side failure. We do not know
+    # whether secrets are present, so we cannot allow the commit.
+    #
+    # Failing open here would be a STANDING bypass, not an occasional one:
+    # a single committed broken .gitleaks.toml makes every subsequent scan
+    # exit non-1, so every commit thereafter would be silently allowed
+    # (claude-skills-224). This hook is currently the only automated
+    # secret scan in this repo (no gitleaks step in CI) — there is no
+    # other line of defense behind it.
+    log_error "Gitleaks scan failed unexpectedly (exit code: $EXIT_CODE)"
+    log_error "Commit blocked - unable to verify no secrets are present."
+    log_error ""
+    log_error "This means gitleaks itself failed to run cleanly (crash, bad"
+    log_error "config, bad baseline file) rather than reporting a clean scan."
+    log_error "Investigate before committing:"
+    log_error "  1. Run gitleaks manually to see the real error:"
+    log_error "     ${NATIVE_BIN:-gitleaks} detect --source=. --no-git -v"
+    log_error "  2. Check .gitleaks.toml parses (if present)"
+    log_error "  3. Check .gitleaks-baseline.json is valid JSON (if present)"
+    exit 2
 fi

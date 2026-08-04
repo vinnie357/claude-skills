@@ -332,6 +332,7 @@ frontmatter; both sides normalise named args to one `$name` family marker.
 - **validate-skills-quality.nu** — Skill quality scorecard plus agents/commands/hooks surface pass, duplicate-block scan, and syntax-vs-usage vocabulary check, all ratchet-baseline enforced (`--update-baseline` to regenerate, shrink-only)
 - **validate-core-list.nu** — Verifies the mandatory core skill list is identical across the canonical block and all anchored satellite load lists, and sweeps for unregistered files carrying a near-complete copy (`--self-test` runs its fixtures)
 - **check-version-bumps.nu** — Verifies every plugin with changed files bumped `plugin.json` and `marketplace.json` versions against a base ref; hard-fails on a missing/invalid base ref
+- **validate-security-hook.nu** — Regression test for `check-secrets-before-commit.sh`'s gitleaks exit-code handling: stubs a `gitleaks` binary on PATH with a scripted exit code and asserts 0 → allow, 1 → block, any other code → fail closed (claude-skills-224), plus the pre-existing documented fail-open when no scanner is available at all
 
 `quality-baseline.json` is the ratchet baseline data file consumed by `validate-skills-quality.nu` — not a script, but tracked here since it gates CI.
 
