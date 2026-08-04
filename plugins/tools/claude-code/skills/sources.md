@@ -87,7 +87,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - `outputStyles` (string\|array) — custom output style files/directories, replaces the default `output-styles/` scan
   - `lspServers` (string\|array\|object) — LSP configs for code intelligence; defaults to a `.lsp.json` file at the plugin root when unset
   - `experimental.themes` and `experimental.monitors` (both string\|array) — components whose schema may still change; both also work unnested at the top level for backward compatibility
-  - `dependencies` is documented as a valid plugin.json field (array), contradicting this skill's current invalid-fields list — filed as a new bee, not fixed under this AC
+  - `dependencies` is documented as a valid plugin.json field (array), contradicting this skill's current invalid-fields list — tracked in claude-skills-218, not fixed under this AC. The validator's denylist-only unknown-field handling (no allowlist) is tracked separately in claude-skills-219
 - **Used In**: skills/claude-plugins/SKILL.md
 
 ### Claude Code Commands Documentation

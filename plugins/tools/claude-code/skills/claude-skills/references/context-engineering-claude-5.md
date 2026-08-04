@@ -79,16 +79,21 @@ something else depends on:
   demand is env-var config discipline. Both under-fire under description-driven activation, which is
   why they stay in the mandatory always-load set in `/core:agent-loop` "Core Skills (Mandatory)"
   rather than activating on demand.
-- **Quoted source material.** A verbatim blockquote attributed to an external source is not eligible
-  for softening at all — altering a direct quotation is a fabrication risk in the opposite direction,
-  regardless of how the other three clauses would score it. `/core:twelve-factor` SKILL.md's blockquote
-  from 12factor.net (`plugins/core/skills/twelve-factor/SKILL.md:263`, "A twelve-factor app never
-  relies on implicit existence of state on the filesystem...") is the worked example: paraphrasing it
-  to read more naturally would misrepresent what the source actually says.
+- **Quoted source material, once fidelity is established.** A blockquote attributed to an external
+  source is not eligible for softening at all — altering a *verified* quotation is a fabrication risk
+  in the opposite direction, regardless of how the other three clauses would score it. The fidelity
+  check comes first: confirm the quoted text against the source before invoking this category, because
+  a quotation that misrepresents its source is not protected by being a quotation — it is a fabrication
+  the category would otherwise shield. `/core:twelve-factor` SKILL.md's blockquote from 12factor.net
+  (`plugins/core/skills/twelve-factor/SKILL.md:261`, "The twelve-factor methodology can be applied to
+  apps written in any programming language, and which use any combination of backing services
+  (database, queue, memory cache, etc).") is the worked example: verified verbatim against the
+  12factor.net front page, so paraphrasing it to read more naturally would misrepresent what the
+  source actually says.
 
 Test for the boundary: if removing the prescription would break a check, permit a fabrication,
-misrepresent quoted source material, or rely on an agent recognising a need it does not yet have,
-keep it prescriptive.
+misrepresent a verified quotation, or rely on an agent recognising a need it does not yet have, keep
+it prescriptive.
 
 ## Related: the `/doctor` checkup
 

@@ -59,7 +59,7 @@ Relative to the plugin root, `./`-prefixed. Each has a dedicated skill for its o
 
 ### `experimental` field
 
-`experimental` is an object holding components whose manifest schema may still change between releases: `experimental.themes` (string or array — color theme files/directories, replacing the default `themes/` scan) and `experimental.monitors` (string or array — background monitor configs that start automatically while the plugin is active, replacing the default `monitors/monitors.json`). Both keys also work unnested at the top level (`"themes": ...`, `"monitors": ...`) for backward compatibility; nesting under `experimental` is the forward-compatible form.
+`experimental` is an object holding components whose manifest schema may still change between releases: `experimental.themes` (string or array — color theme files/directories, replacing the default `themes/` scan) and `experimental.monitors` (string or array — background monitor configs that start automatically while the plugin is active, replacing the default `monitors/monitors.json`). Both keys also work unnested at the top level (`"themes": ...`, `"monitors": ...`) today, but `claude plugin validate` already warns on the unnested form, and a future release will require nesting under `experimental` — use the nested form for new plugins rather than relying on the still-working top-level fallback.
 
 ```json
 {
