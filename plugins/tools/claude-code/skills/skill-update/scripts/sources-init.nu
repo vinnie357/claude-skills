@@ -176,8 +176,8 @@ def generate-toml [plugin_name: string, sources: list] {
 # by a human/agent reading sources.md before this file is committed.
 #
 # sources.toml — structured source-of-truth for plugin: ($plugin_name)
-# Edit check_method and repo/package/crate fields to enable automated version checks.
-# Valid check_method values: github-releases | hex-pm | crates-io | manual | none
+# Edit check_method and repo/package/crate/image/product fields to enable automated version checks.
+# Valid check_method values: github-releases | hex-pm | crates-io | npm | docker-hub | endoflife-date | manual | none
 # `mise test:sources` will reject this file until every NEEDS-JUDGMENT marker
 # is resolved and skills = [...] holds only real plugin.json skill directories.
 
@@ -277,6 +277,9 @@ def main [plugin_name: string, --write] {
         print "       github-releases  → add: github_repo = \"owner/repo\""
         print "       hex-pm           → add: hex_package = \"package_name\""
         print "       crates-io        → add: crate_name = \"crate_name\""
+        print "       npm              → add: npm_package = \"package_name\""
+        print "       docker-hub       → add: docker_image = \"namespace/repository\""
+        print "       endoflife-date   → add: eol_product = \"product_slug\""
         print "       manual           → no additional fields needed"
         print "       none             → remove url/current_version/version_constraint/update_priority; notes required"
         print "  3. Set current_version to the version you currently depend on"

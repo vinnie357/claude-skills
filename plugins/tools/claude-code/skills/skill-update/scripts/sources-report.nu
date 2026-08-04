@@ -12,6 +12,13 @@
 # NOT wired into `mise test`/`mise run ci` — CI has no credentials and must
 # pass with zero external dependencies. Run manually via `mise sources:report`.
 
+use sources-lib.nu *
+# Also imported module-qualified (below, unstarred) so the local
+# `run-self-test` wrapper can call `sources-lib run-self-test` without
+# colliding with its own name — a starred re-import of the same symbol
+# would make the wrapper recurse into itself.
+use sources-lib.nu
+
 # Resolve the repo root relative to this script's location
 def repo-root [] {
     $env.FILE_PWD | path join ".." ".." ".." ".." ".." ".." | path expand
@@ -36,119 +43,9 @@ def resolve-plugin-path [repo: string, source: any] {
     }
 }
 
-# Classify a caught HTTP error's text into a specific latest-version sentinel.
-# Pure function (string -> string), self-tested below — the network call
-# stays at the boundary in check-github-releases; this only interprets the
-# text nushell's `http get` catch already produced.
-#
-# claude-skills-176: a dead/404 release feed (repo has no GitHub Releases,
-# e.g. a monorepo or unreleased tool) and a rate-limited/unauthenticated
-# GitHub response both used to collapse into a generic "error", which reads
-# identically to "the request itself failed" — no way to tell "this source
-# will never have a releases feed" from "try again with a token". Six
-# sources.toml entries across 5 plugins document a live 404 on
-# `releases/latest` today (grep `notes` fields for "404" — allium's
-# juxt-allium, github's actions-toolkit, claude-code's
-# example-skills-repository and skills-cookbook, tweag's JSON-Schema-to-
-# Nickel tool, runex's private-repo entry). All six are check_method=manual,
-# so none reach this classifier live — the schema already routes 404-prone
-# repos away from github-releases specifically to avoid this failure mode.
-# This branch is proven only by the self-test below, not by live traffic;
-# it exists for the day an entry is flipped to github-releases without
-# re-checking the feed first.
-#
-# claude-skills-176 Gate 3 (F3): match `(404)`/`(403)` WITH the parens, not
-# bare digits. `$err.debug` embeds nushell's own `Span[<byte-offsets>]` from
-# the failing call site, and a bare `str contains "404"` matches those
-# offsets too — reviewer forced a DNS-failure text whose span happened to
-# contain "404"/"403" as plain digits and got misclassified. nushell's HTTP
-# error text always wraps the real status as `(404):`/`(403):` (see the
-# self-test fixtures below, copied from an actual caught error); a byte
-# offset is never rendered inside parens, so requiring them is structural,
-# not just narrower. Does not fire on live traffic today (see above), so
-# this was latent, not observed.
-#
-# hex-pm and crates-io still fall through to a bare `catch { "error" }` —
-# neither wraps a status code the same way, and GitHub's secondary
-# (undocumented-shape) 429 rate limit is not classified separately from a
-# generic error either. Both are known gaps, not silently assumed handled.
-def classify-fetch-error [err_text: string]: nothing -> string {
-    if ($err_text | str contains "(404)") {
-        "no-releases"
-    } else if ($err_text | str contains "(403)") or ($err_text | str downcase | str contains "rate limit") {
-        "rate-limited"
-    } else {
-        "error"
-    }
-}
-
-# Check latest version via github-releases API
-def check-github-releases [repo: string] {
-    let url = $"https://api.github.com/repos/($repo)/releases/latest"
-    let token = $env.GITHUB_TOKEN? | default ""
-    let headers = if ($token | is-not-empty) {
-        [Authorization $"Bearer ($token)" User-Agent "sources-report.nu/1.0"]
-    } else {
-        [User-Agent "sources-report.nu/1.0"]
-    }
-    try {
-        let response = http get -H $headers $url
-        let tag = $response.tag_name? | default ""
-        $tag | str replace -r '^v' ''
-    } catch {|err|
-        classify-fetch-error ($err.debug? | default ($err.msg? | default ""))
-    }
-}
-
-# Check latest version via hex.pm API
-def check-hex-pm [package: string] {
-    let url = $"https://hex.pm/api/packages/($package)"
-    try {
-        let response = http get $url
-        let releases = $response.releases? | default []
-        if ($releases | length) > 0 {
-            $releases | first | get version? | default "unknown"
-        } else {
-            "unknown"
-        }
-    } catch {
-        "error"
-    }
-}
-
-# Check latest version via crates.io API
-def check-crates-io [crate_name: string] {
-    let url = $"https://crates.io/api/v1/crates/($crate_name)"
-    let headers = [User-Agent "sources-report.nu/1.0 (claude-skills)"]
-    try {
-        let response = http get -H $headers $url
-        $response.crate?.max_version? | default "unknown"
-    } catch {
-        "error"
-    }
-}
-
-# Dispatch version check by method
-def fetch-latest [source: record] {
-    let method = $source.check_method? | default "manual"
-    match $method {
-        "github-releases" => {
-            let repo = $source.github_repo? | default ""
-            if ($repo | is-empty) { "error" } else { check-github-releases $repo }
-        }
-        "hex-pm" => {
-            let pkg = $source.hex_package? | default ""
-            if ($pkg | is-empty) { "error" } else { check-hex-pm $pkg }
-        }
-        "crates-io" => {
-            let crate_name = $source.crate_name? | default ""
-            if ($crate_name | is-empty) { "error" } else { check-crates-io $crate_name }
-        }
-        "manual" => { "manual" }
-        "none" => { "internal" }
-        _ => { "unknown-method" }
-    }
-}
+# classify-fetch-error, check-github-releases, check-hex-pm, check-crates-io,
+# and fetch-latest live in sources-lib.nu (claude-skills-211) — imported
+# above via `use sources-lib.nu *`.
 
 # Render a stale indicator emoji for markdown
 def stale-badge [stale: string] {
@@ -167,47 +64,8 @@ def stale-badge [stale: string] {
     }
 }
 
-# Classify (current, latest) into a staleness sentinel. Pure function,
-# self-tested below — no network, no I/O.
-#
-# claude-skills-176: `current_version = "unknown"` is a documented schema
-# placeholder (see test/validate-sources.nu's VERSION_SHAPE_RE — "unknown" is
-# an accepted literal, not a missing value) meaning "no pin recorded to
-# compare against upstream". Treating it as a real version made every one of
-# these entries compare unequal to whatever `latest` resolved to and report
-# false-positive drift. It must classify as "no-pin", distinct from "unset"
-# (the field is genuinely absent) and from "yes" (a real pin is behind).
-#
-# claude-skills-176 Gate 3 (F4): the equality check strips a leading `v` from
-# BOTH sides before comparing — only for the comparison, the displayed
-# `current`/`latest` values are untouched. `check-github-releases` already
-# strips `v` from the upstream tag, but `current_version` in sources.toml is
-# free text and sometimes keeps it (e.g. "v0.0.0"), so "v0.0.0" vs "0.0.0"
-# compared unequal and reported false-positive drift for an entry that is
-# actually current.
-def classify-staleness [current: string, latest: string]: nothing -> string {
-    if $latest == "internal" {
-        "no"
-    } else if $latest == "manual" {
-        "manual"
-    } else if $latest == "no-releases" {
-        "no-releases"
-    } else if $latest == "rate-limited" {
-        "rate-limited"
-    } else if $latest == "unknown" {
-        "unknown"
-    } else if $latest == "error" {
-        "error"
-    } else if $current == "unset" {
-        "unset"
-    } else if $current == "unknown" {
-        "no-pin"
-    } else if ($current | str replace -r '^v' '') != ($latest | str replace -r '^v' '') {
-        "yes"
-    } else {
-        "no"
-    }
-}
+# classify-staleness lives in sources-lib.nu (claude-skills-211) — imported
+# above via `use sources-lib.nu *`.
 
 # Process a sources.toml and return enriched rows
 def process-sources-toml [toml_path: string, plugin_name: string] {
@@ -248,25 +106,8 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     }
 }
 
-# Sanitize a notes string for embedding as ONE markdown table cell. Pure
-# function, self-tested below.
-#
-# claude-skills-176 Gate 3 (F1): the original renderer printed notes as a
-# sibling "  - Notes: ..." line between table rows. GFM only continues a
-# table across ADJACENT `|`-prefixed lines — a non-table line breaks it, so
-# every row after the first note closed the table and the rest rendered as
-# raw pipe text (verified via `gh api markdown -f mode=gfm`). A `|` or
-# newline INSIDE the cell is just as fatal (unescaped `|` reads as a new
-# column boundary, a raw newline ends the row), so both must be neutralized
-# before the value goes anywhere near a `| ... |` line.
-def sanitize-notes-cell [notes: string, max_len: int]: nothing -> string {
-    let flat = ($notes | str replace --all "|" "\\|" | str replace --all --regex '\s+' " " | str trim)
-    if ($flat | str length) > $max_len {
-        ($flat | str substring 0..($max_len - 1)) + "…"
-    } else {
-        $flat
-    }
-}
+# sanitize-notes-cell lives in sources-lib.nu (claude-skills-211) — imported
+# above via `use sources-lib.nu *`.
 
 # Render markdown table row
 def md-row [r: record] {
@@ -280,78 +121,16 @@ def md-row [r: record] {
     $"| ($r.plugin) | ($r.skill) | ($link) | ($r.current) | ($r.latest) | ($badge) | ($r.priority) | ($notes_cell) |"
 }
 
-# Self-test for the pure classify-staleness / classify-fetch-error logic.
-# Follows the house case-table pattern (run-self-test in
-# test/validate-sources.nu): records with named fields, one got != want
-# comparison per case. No network — proves the parsing/comparison logic
-# independent of the HTTP boundary (classify-staleness never calls http get).
+# Delegates to sources-lib.nu's shared case table (claude-skills-211) — this
+# script has no cases of its own beyond what the shared module covers
+# (classify-staleness, classify-fetch-error, and sanitize-notes-cell — the
+# md-row/notes-cell rendering used only by this script — are all shared).
 def run-self-test [] {
-    mut failed = false
-
-    let staleness_cases = [
-        {label: "unknown pin is no-pin, not drift" current: "unknown" latest: "9.9.9" want: "no-pin"}
-        {label: "unset pin is unset" current: "unset" latest: "9.9.9" want: "unset"}
-        {label: "matching pins are current" current: "1.0.0" latest: "1.0.0" want: "no"}
-        {label: "mismatched pins are stale" current: "1.0.0" latest: "1.1.0" want: "yes"}
-        {label: "manual check_method never compared" current: "1.0.0" latest: "manual" want: "manual"}
-        {label: "none check_method is internal, always current" current: "unknown" latest: "internal" want: "no"}
-        {label: "dead/404 release feed is no-releases, not error" current: "1.0.0" latest: "no-releases" want: "no-releases"}
-        {label: "rate-limited/unauthenticated is distinct from error" current: "1.0.0" latest: "rate-limited" want: "rate-limited"}
-        {label: "hex-pm/crates-io package with zero releases" current: "1.0.0" latest: "unknown" want: "unknown"}
-        {label: "generic fetch failure still reported as error" current: "1.0.0" latest: "error" want: "error"}
-        {label: "unknown pin plus no-releases feed: feed status wins" current: "unknown" latest: "no-releases" want: "no-releases"}
-        {label: "v-prefixed pin matching a v-stripped latest is current, not stale" current: "v0.0.0" latest: "0.0.0" want: "no"}
-        {label: "v-prefixed pin genuinely behind is still stale" current: "v0.0.0" latest: "0.1.0" want: "yes"}
-    ]
-    for c in $staleness_cases {
-        let got = classify-staleness $c.current $c.latest
-        if $got != $c.want {
-            print $"(ansi red_bold)❌ classify-staleness: ($c.label): want ($c.want), got ($got)(ansi reset)"
-            $failed = true
-        }
-    }
-
-    let fetch_error_cases = [
-        {label: "404 body classifies as no-releases" text: "Requested file not found (404): \"https://api.github.com/repos/x/y/releases/latest\"" want: "no-releases"}
-        {label: "403 status classifies as rate-limited" text: "Client error (403): API rate limit exceeded" want: "rate-limited"}
-        {label: "rate limit phrase without 403 digits still matches" text: "GitHub secondary rate limit hit, retry later" want: "rate-limited"}
-        {label: "unrelated network failure falls through to error" text: "Could not resolve host: api.github.com" want: "error"}
-        {label: "empty error text falls through to error" text: "" want: "error"}
-        {label: "bare digits in a byte-offset span do NOT collide with a real (404)" text: "NetworkFailure { msg: \"Could not resolve host: api.github.com\", span: Span[160039..160404] }" want: "error"}
-        {label: "bare digits spelling 403 in a span do NOT collide with a real (403)" text: "NetworkFailure { msg: \"connection reset\", span: Span[140033..140403] }" want: "error"}
-    ]
-    for c in $fetch_error_cases {
-        let got = classify-fetch-error $c.text
-        if $got != $c.want {
-            print $"(ansi red_bold)❌ classify-fetch-error: ($c.label): want ($c.want), got ($got)(ansi reset)"
-            $failed = true
-        }
-    }
-
-    # F1 (Gate 3, claude-skills-176): a pipe or newline inside a notes value
-    # is fatal to a markdown table cell — an unescaped `|` reads as a new
-    # column, a raw newline ends the row. Both must be neutralized.
-    let notes_cases = [
-        {label: "plain text passes through unchanged" notes: "no external upstream" max_len: 80 want: "no external upstream"}
-        {label: "pipe is escaped, not left to break the column" notes: "a | b" max_len: 80 want: "a \\| b"}
-        {label: "embedded newline collapses to a space" notes: "line one\nline two" max_len: 80 want: "line one line two"}
-        {label: "over-length text truncates with an ellipsis" notes: "0123456789" max_len: 5 want: "01234…"}
-        {label: "exactly max_len does not truncate" notes: "01234" max_len: 5 want: "01234"}
-        {label: "leading/trailing whitespace is trimmed" notes: "  padded  " max_len: 80 want: "padded"}
-    ]
-    for c in $notes_cases {
-        let got = sanitize-notes-cell $c.notes $c.max_len
-        if $got != $c.want {
-            print $"(ansi red_bold)❌ sanitize-notes-cell: ($c.label): want '($c.want)', got '($got)'(ansi reset)"
-            $failed = true
-        }
-    }
-
-    if $failed {
+    let result = (sources-lib run-self-test)
+    if $result.failed {
         exit 1
     }
-    let total = ($staleness_cases | length) + ($fetch_error_cases | length) + ($notes_cases | length)
-    print $"(ansi green_bold)✅ sources-report self-test passed \(($total) cases\)(ansi reset)"
+    print $"(ansi green_bold)✅ sources-report self-test passed \(($result.count) cases\)(ansi reset)"
     exit 0
 }
 
