@@ -135,15 +135,27 @@ Complete JSON schema for Claude Code plugin.json files.
 }
 ```
 
+## Fields not covered above
+
+These plugin.json fields exist but aren't part of the minimal schema block at the top of this file — see the `claude-plugins` SKILL.md "Metadata and dependency fields" section for full detail:
+
+- `dependencies`: array of required plugins — bare name strings and/or `{name, version}` objects with an optional semver constraint. This is a valid, documented plugin.json field, NOT marketplace-only.
+- `displayName`: human-readable name for UI surfaces, falls back to `name`
+- `defaultEnabled`: boolean, whether the plugin installs enabled (default `true`)
+- `workflows`: string or array of workflow script paths, replaces default `workflows/` scan
+- `userConfig`: object declaring enable-time user-prompted values
+- `channels`: array of message-channel declarations bound to an MCP server
+
 ## Invalid Fields
 
-These fields are **NOT valid** in plugin.json (they belong in marketplace.json):
+These fields are **NOT valid** in plugin.json (they are marketplace-entry-specific, per the marketplace-entries schema — see `plugin-marketplace`):
 
-- `dependencies`: Plugin dependencies (marketplace-level)
 - `category`: Plugin categorization (marketplace-level)
 - `strict`: Strict mode control (marketplace-level)
 - `source`: Plugin source location (marketplace-level)
 - `tags`: Use `keywords` instead
+
+Any other unrecognized top-level field produces a validator **warning**, not an error — it may be intentional metadata for another tool sharing the same manifest file.
 
 ## Validation Rules
 
@@ -201,7 +213,7 @@ These fields are **NOT valid** in plugin.json (they belong in marketplace.json):
 - [ ] `name` field is present
 - [ ] `name` is kebab-case
 - [ ] `version` uses semantic versioning (if present)
-- [ ] No invalid fields (dependencies, category, strict, source, tags)
+- [ ] No invalid fields (category, strict, source, tags)
 - [ ] All skill paths exist and contain SKILL.md
 - [ ] All command paths exist
 - [ ] All agent paths exist

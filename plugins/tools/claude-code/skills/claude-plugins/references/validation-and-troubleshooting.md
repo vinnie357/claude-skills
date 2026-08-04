@@ -21,15 +21,30 @@ message apply to marketplace names, via the `plugin-marketplace` skill.
 
 ### Error — `Invalid field '<field>' - this belongs in marketplace.json, not plugin.json`
 
-Raised for `dependencies`, `category`, `strict`, `source`, and `tags`. The skill body lists why each
-one is marketplace-level.
+Raised for `category`, `strict`, `source`, and `tags`. The skill body lists why each one is
+marketplace-level. `dependencies` is NOT one of these — it's a valid plugin.json field (see the
+skill body's "Metadata and dependency fields" section); claude-skills-218 removed it from this
+error after confirming against upstream that plugin.json documents it directly.
 
 ```json
 // Invalid
-{ "name": "my-plugin", "dependencies": ["other-plugin"] }
+{ "name": "my-plugin", "category": "productivity" }
 
 // Valid
 { "name": "my-plugin", "keywords": ["tool", "utility"] }
+{ "name": "my-plugin", "dependencies": ["other-plugin", { "name": "secrets-vault", "version": "~2.1.0" }] }
+```
+
+### Warning — `Unrecognized field '<field>' - not a known plugin.json field`
+
+Any top-level field that is neither a known plugin.json field nor one of the four marketplace-only
+fields above produces this warning (claude-skills-219) — never a hard failure, so a manifest that
+doubles as another tool's config (npm's `package.json`, a VS Code extension manifest) still passes.
+Treat it as a nudge to check for a typo, not proof the field is wrong.
+
+```json
+// Warns: "Unrecognized field 'dependancies' - not a known plugin.json field ..."
+{ "name": "my-plugin", "dependancies": ["other-plugin"] }
 ```
 
 ### Error — skill path missing or has no SKILL.md

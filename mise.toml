@@ -166,10 +166,12 @@ description = "Validate all plugin.json files (local and external)"
 run = """
 #!/usr/bin/env nu
 
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "plugins" "tools" "claude-code" "skills" "claude-plugins" "scripts" "validate-plugin.nu") --self-test
+
 print "🔍 Validating all plugins..."
 print ""
 
-let repo_root = (git rev-parse --show-toplevel | str trim)
 let marketplace = (open ($repo_root | path join ".claude-plugin" "marketplace.json"))
 
 mut all_passed = true

@@ -123,7 +123,7 @@ version_constraint = "rolling"
 last_checked = "2026-08-04"
 update_priority = "medium"
 breaking_changes_likely = true
-notes = "Live fetch 2026-08-04 for claude-skills-215 confirmed outputStyles (string|array, replaces default output-styles/ scan), lspServers (string|array|object, defaults to .lsp.json at plugin root when unset), and experimental.themes / experimental.monitors (both string|array) as documented plugin.json fields. The experimental.themes / experimental.monitors keys also work unnested at the top level today, but claude plugin validate already warns on that unnested form, and a future release will require the nested experimental.* form. The same fetch also surfaced that this page now documents plugin.json fields not yet modeled anywhere in this skill, including displayName, defaultEnabled, workflows, userConfig, channels, and — notably — dependencies as a VALID plugin.json field (array of required plugins with optional semver constraints), which directly contradicts this skill's 'Fields that must NOT appear in plugin.json' section still listing dependencies as invalid. That contradiction is out of scope for claude-skills-215 (three named fields only); tracked in claude-skills-218. The validator's denylist-only unknown-field handling (accepts any field not on the denylist, no allowlist) is tracked separately in claude-skills-219. Priority raised to medium and breaking_changes_likely set true given how much drift one fetch surfaced against a source last reviewed 2025-11-15."
+notes = "Live fetch 2026-08-04 for claude-skills-215 confirmed outputStyles (string|array, replaces default output-styles/ scan), lspServers (string|array|object, defaults to .lsp.json at plugin root when unset), and experimental.themes / experimental.monitors (both string|array) as documented plugin.json fields. The experimental.themes / experimental.monitors keys also work unnested at the top level today, but claude plugin validate already warns on that unnested form, and a future release will require the nested experimental.* form. Re-fetched again 2026-08-04 for claude-skills-218/219 (same day, separate follow-up): confirmed 'dependencies' as a VALID plugin.json field under the 'Component path fields' table, shape array of plugin-name strings and/or {name, version} objects (e.g. [\"helper-lib\", { \"name\": \"secrets-vault\", \"version\": \"~2.1.0\" }]) — this directly contradicted the skill's prior 'Fields that must NOT appear in plugin.json' section and validate-plugin.nu's invalid_fields denylist, both fixed by claude-skills-218. Also confirmed the 5 previously-unmodeled fields as real, documented plugin.json fields: displayName (string, v2.1.143+), defaultEnabled (boolean, v2.1.154+), workflows (string|array, replaces default workflows/ scan), userConfig (object, enable-time prompted values), channels (array, message-channel declarations bound to an mcpServers key). Also confirmed upstream's own 'Unrecognized fields' section: claude plugin validate reports fields it doesn't recognize as WARNINGS, not errors — a plugin with only unrecognized-field warnings still passes and loads at runtime; --strict promotes warnings to errors. This directly informed claude-skills-219's fix (warn-on-unknown-field in validate-plugin.nu, not hard-fail)."
 
 [[sources]]
 skills = ["claude-commands"]
@@ -181,16 +181,16 @@ notes = "sources.md Date Accessed 2026-04-17. Used In both skills/claude-output-
 # rather than duplicated per the "don't split one upstream" rule.
 # ----------------------------------------------------------------------------
 [[sources]]
-skills = ["plugin-marketplace"]
+skills = ["plugin-marketplace", "claude-plugins"]
 name = "claude-code-plugin-marketplaces-docs"
 url = "https://code.claude.com/docs/en/plugin-marketplaces"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2025-11-15"
+last_checked = "2026-08-04"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2025-11-15 for both the base 'Claude Code Plugin Marketplace Schema' entry and the 'Advanced Plugin Entry Features' entry, which cites the #advanced-plugin-entries anchor on this exact same URL — merged into one sources.toml row rather than duplicated."
+notes = "sources.md Date Accessed 2025-11-15 for both the base 'Claude Code Plugin Marketplace Schema' entry and the 'Advanced Plugin Entry Features' entry, which cites the #advanced-plugin-entries anchor on this exact same URL — merged into one sources.toml row rather than duplicated. Re-fetched 2026-08-04 for claude-skills-218/219: confirmed the 'Plugin entries' section states an entry may include any field from the plugin manifest schema PLUS these marketplace-specific fields: source, category, tags, strict, and relevance. This confirms category/strict/source/tags are marketplace-entry-only (correctly denylisted in validate-plugin.nu) and that dependencies is NOT among them — it's a plugin-manifest-schema field a marketplace entry may optionally echo, not a marketplace-only field. relevance is also marketplace-entry-only but was out of scope for claude-skills-218/219 (neither bee named it) and is not yet added to the claude-plugins denylist — flagged here for a future pass rather than added speculatively (restraint: stick to what was asked)."
 
 # ----------------------------------------------------------------------------
 # "Claude Teams Skill" section of sources.md — eight distinct upstreams.

@@ -82,13 +82,15 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 ### Claude Code Plugins Reference Documentation
 - **URL**: https://code.claude.com/docs/en/plugins-reference
 - **Purpose**: Complete technical specification of the plugin.json manifest schema
-- **Date Accessed**: 2026-08-04
+- **Date Accessed**: 2026-08-04 (re-fetched same day for claude-skills-218/219)
 - **Key Findings**:
   - `outputStyles` (string\|array) — custom output style files/directories, replaces the default `output-styles/` scan
   - `lspServers` (string\|array\|object) — LSP configs for code intelligence; defaults to a `.lsp.json` file at the plugin root when unset
   - `experimental.themes` and `experimental.monitors` (both string\|array) — components whose schema may still change; both also work unnested at the top level for backward compatibility
-  - `dependencies` is documented as a valid plugin.json field (array), contradicting this skill's current invalid-fields list — tracked in claude-skills-218, not fixed under this AC. The validator's denylist-only unknown-field handling (no allowlist) is tracked separately in claude-skills-219
-- **Used In**: skills/claude-plugins/SKILL.md
+  - `dependencies` (array) IS a documented, valid plugin.json field — shape is bare plugin-name strings and/or `{name, version}` objects with a semver constraint. This contradicted the skill's prior invalid-fields list and `validate-plugin.nu`'s denylist; both fixed under claude-skills-218
+  - Five previously-unmodeled plugin.json fields confirmed real and documented: `displayName` (string, v2.1.143+), `defaultEnabled` (boolean, v2.1.154+), `workflows` (string\|array), `userConfig` (object), `channels` (array) — all now documented in SKILL.md and recognized by the validator (claude-skills-218)
+  - Upstream's own `claude plugin validate` treats an unrecognized top-level field as a WARNING, not an error, so a manifest can double as another tool's config file — directly informed the warn-not-fail fix for claude-skills-219
+- **Used In**: skills/claude-plugins/SKILL.md, skills/claude-plugins/references/plugin-schema.md, skills/claude-plugins/references/validation-and-troubleshooting.md, skills/claude-plugins/scripts/validate-plugin.nu
 
 ### Claude Code Commands Documentation
 - **URL**: https://code.claude.com/docs/en/commands
@@ -140,7 +142,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 ### Claude Code Plugin Marketplace Schema
 - **URL**: https://code.claude.com/docs/en/plugin-marketplaces
 - **Purpose**: Official specification for creating plugin marketplaces
-- **Date Accessed**: 2025-11-15
+- **Date Accessed**: 2025-11-15 (re-fetched 2026-08-04 for claude-skills-218/219)
 - **Key Specifications**:
   - Marketplace file location: `.claude-plugin/marketplace.json`
   - Required fields: `name`, `owner`, `plugins` array
@@ -150,7 +152,8 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - Environment variables: `${CLAUDE_PLUGIN_ROOT}` for dynamic path resolution
   - Standard metadata fields: description, version, author, homepage, repository, license, keywords, category, tags
   - Component configuration: commands, agents, hooks, mcpServers
-- **Used In**: skills/plugin-marketplace/SKILL.md
+  - Confirmed 2026-08-04: a marketplace entry may carry any field from the plugin manifest schema PLUS these marketplace-specific fields — `source`, `category`, `tags`, `strict`, and `relevance`. This confirms `category`/`strict`/`source`/`tags` are correctly marketplace-only in `validate-plugin.nu`'s denylist, and that `dependencies` is NOT among them — it belongs to the plugin manifest schema (claude-skills-218). `relevance` is also marketplace-only but out of scope for claude-skills-218/219 — not added to the denylist speculatively
+- **Used In**: skills/plugin-marketplace/SKILL.md, skills/claude-plugins/SKILL.md
 
 ### Advanced Plugin Entry Features
 - **URL**: https://code.claude.com/docs/en/plugin-marketplaces#advanced-plugin-entries
@@ -175,8 +178,9 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - Required: `name` (kebab-case)
   - Recommended: `version` (semver), `description`, `license` (SPDX)
   - Optional: `author`, `homepage`, `repository`, `keywords`
-  - Component paths: `skills`, `commands`, `agents`, `hooks`, `mcpServers`
-  - Invalid in plugin.json: `dependencies`, `category`, `strict`, `source`, `tags` (marketplace-only)
+  - Component paths: `skills`, `commands`, `agents`, `workflows`, `hooks`, `mcpServers`
+  - Also valid: `displayName`, `defaultEnabled`, `userConfig`, `channels`, `dependencies` (array of plugin-name strings and/or `{name, version}` objects — corrected 2026-08-04, claude-skills-218; was previously miscategorized as marketplace-only)
+  - Invalid in plugin.json: `category`, `strict`, `source`, `tags` (marketplace-only)
 - **Used In**: skills/claude-plugins/SKILL.md
 
 ## Validation Scripts
