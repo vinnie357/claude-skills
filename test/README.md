@@ -17,7 +17,9 @@ mise test
 
 `mise run ci` is the canonical CI gate (matches the workspace-wide convention);
 it depends on `test`, which depends on `test:claude`, `test:marketplace`,
-`test:plugins`, `test:skills-quality`, `test:core-list`, and `test:disclosure`.
+`test:plugins`, `test:skills-quality`, `test:core-list`, `test:disclosure`,
+`test:sources`, `test:fenced-literals`, `test:security-hook`, and
+`test:no-symlinks`.
 
 `test:version-bumps` is deliberately **not** a dependency of `test` — it
 needs a real base ref to diff against, which is only meaningful with the
