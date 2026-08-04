@@ -44,13 +44,6 @@
       "detail_count": null
     },
     {
-      "key": "core/bees:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "core/mise:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",

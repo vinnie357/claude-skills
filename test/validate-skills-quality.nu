@@ -407,6 +407,70 @@ def has-examples [content: string, refs: list]: nothing -> bool {
     ($refs | any {|r| ($content | str contains $"references/($r.name)") and ($r.content | str contains $code_fence)})
 }
 
+# Anti-fabrication presence check (claude-skills-202, claude-skills-203).
+# Presence-only: does NOT validate that a claim is true, only that the
+# content carries recognizable verification language SOMEWHERE — either the
+# core:anti-fabrication skill's own vocabulary (its header text, a direct
+# skill reference, or the literal "fabricat" substring) or an explicit
+# per-claim verification citation ("verified against <tool> <version>",
+# e.g. "verified against bees 0.4.0"). Two failure directions this cannot
+# close, in either form: content that says "verified" without having
+# actually checked, and content that is accurate but omits the phrase.
+# Both require semantic review, not a keyword search — this check only
+# answers "is there SOME verification vocabulary present", never "is the
+# claim correct".
+def has-anti-fab-evidence [content: string]: nothing -> bool {
+    let content_lower = ($content | str downcase)
+    let has_header = ($content_lower | str contains "anti-fabrication")
+    let has_ref = ($content | str contains "core:anti-fabrication")
+    let has_fabricat = ($content_lower | str contains "fabricat")
+    let has_verified = (($content_lower | parse --regex 'verified against \S+ [0-9]') | is-not-empty)
+    $has_header or $has_ref or $has_fabricat or $has_verified
+}
+
+# Strip a leading YAML frontmatter block (--- ... ---) and return the
+# remaining body. Content with no opening "---" as its first line, or an
+# unterminated frontmatter block, passes through unchanged — used by the
+# braced-CLAUDE_* check (claude-skills-205) so a harness-expanded value in
+# frontmatter (e.g. a hooks: command field) is never mistaken for the
+# disallowed body form.
+#
+# Known gap, not engineered around: this treats ANY first-line "---" as a
+# frontmatter opener, so a file whose first line is a genuine Markdown
+# horizontal rule (rather than real frontmatter) has everything up to the
+# next "---" silently swallowed, exempting a braced var in that span. Zero
+# corpus impact today — every real SKILL.md and commands/*.md carries valid
+# frontmatter starting at byte 0 — but a hand-written fixture could trigger
+# it. Not worth a stricter YAML-shape check for a gap the corpus never hits.
+def strip-frontmatter [content: string]: nothing -> string {
+    let all_lines = ($content | lines)
+    if ($all_lines | first | default "" | str trim) != "---" {
+        return $content
+    }
+    let rest = ($all_lines | skip 1)
+    let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
+    if ($end_matches | is-empty) {
+        return $content
+    }
+    let end_idx = ($end_matches | first | get index)
+    ($rest | skip ($end_idx + 1) | str join "\n")
+}
+
+# Braced CLAUDE_* env var check (claude-skills-205). The braced form
+# (`${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_SKILL_DIR}`, ...) expands at load time
+# wherever the harness treats it as a live substitution — correct in
+# frontmatter and manifests, a bug in prose/example bodies, where it bakes
+# one machine's absolute cache path into the text. The documented body-safe
+# form is bare or angle-bracketed (see claude-plugins's `CLAUDE_SKILL_DIR`
+# usage note): `<CLAUDE_SKILL_DIR>/scripts/foo.sh`. The trailing `[^}]*`
+# also matches shell-default-value forms like
+# `${CLAUDE_PLUGIN_ROOT:-/some/default}` — whether the harness actually
+# expands that form is unverified, but it is still the same var name inside
+# braces, so flagging it errs toward catching the bug rather than missing it.
+def has-braced-claude-var [body: string]: nothing -> bool {
+    ($body | parse --regex '\$\{CLAUDE_[A-Z_]+[^}]*\}' | is-not-empty)
+}
+
 # Embedded self-test for the skills: frontmatter checks (claude-skills-119):
 # every bad case must be flagged, every good case must pass clean. Exercises
 # check-agent-skills directly — the same implementation the Pass-2 agent
@@ -457,6 +521,111 @@ def run-skills-self-test [] {
 
     if not $failed {
         print $"(ansi green_bold)✅ Agent skills: frontmatter self-test passed \(5 cases\)(ansi reset)"
+    }
+    $failed
+}
+
+# Self-test for has-anti-fab-evidence (claude-skills-202, claude-skills-203).
+# Exercises the exact function the Pass-1 loop calls, so there is no drift
+# between what is tested and what runs.
+def run-anti-fab-self-test [] {
+    mut failed = false
+
+    # Case 1: the literal "fabricat" substring alone satisfies the check.
+    if not (has-anti-fab-evidence "This skill guards against fabricated claims.") {
+        print $"(ansi red_bold)❌ anti-fab self-test: 'fabricat' substring not recognized(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2: an "anti-fabrication" header/mention alone satisfies the check.
+    if not (has-anti-fab-evidence "## Anti-fabrication\n\nRules go here.") {
+        print $"(ansi red_bold)❌ anti-fab self-test: 'anti-fabrication' header not recognized(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3 (claude-skills-203): an explicit "verified against <tool>
+    # <version>" citation satisfies the check even with neither of the above
+    # two markers present — this is core/bees's actual shape (six such
+    # citations, zero mentions of "fabricat" or "anti-fabrication").
+    if not (has-anti-fab-evidence "Verified against bees 0.4.0 in a throwaway .bees/ directory.") {
+        print $"(ansi red_bold)❌ anti-fab self-test: 'verified against X <version>' citation not recognized(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4: content with none of the three markers still fails — the check
+    # must not become unconditionally lenient.
+    if (has-anti-fab-evidence "This skill does whatever it wants with no evidence markers.") {
+        print $"(ansi red_bold)❌ anti-fab self-test: content with no markers wrongly passed(ansi reset)"
+        $failed = true
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ anti-fab self-test passed \(4 cases\)(ansi reset)"
+    }
+    $failed
+}
+
+# Self-test for strip-frontmatter and has-braced-claude-var
+# (claude-skills-205). AC requires one case each for: flagged (body), and
+# not-flagged (frontmatter, references/templates-shaped content, and the
+# documented body-safe angle-bracket form).
+def run-braced-claude-self-test [] {
+    mut failed = false
+
+    # Case 1: braced form in a SKILL.md/commands body is flagged.
+    if not (has-braced-claude-var "Run `${CLAUDE_SKILL_DIR}/scripts/foo.sh` from the body.") {
+        print $"(ansi red_bold)❌ braced-claude self-test: braced form in body not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2: the documented body-safe bare/angle-bracket form is NOT
+    # flagged — this is the skill-authoring convention that lets bodies
+    # reference the var without triggering harness expansion.
+    if (has-braced-claude-var "Run `bash <CLAUDE_SKILL_DIR>/scripts/foo.sh` from the body.") {
+        print $"(ansi red_bold)❌ braced-claude self-test: bare angle-bracket form wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2b (Gate 3): the shell-default-value form is flagged too — the
+    # var name is still braced-CLAUDE_*, just with a `:-default` suffix
+    # before the closing brace.
+    if not (has-braced-claude-var "Run `${CLAUDE_PLUGIN_ROOT:-/some/default}/scripts/foo.sh` from the body.") {
+        print $"(ansi red_bold)❌ braced-claude self-test: shell-default-value form not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3: strip-frontmatter removes a braced occurrence living inside
+    # frontmatter (the harness-expanded, allowed case — e.g. a hooks:
+    # command field, per core/skills/security/SKILL.md) so the per-file
+    # check never sees it.
+    let fm_content = "---\nname: x\nhooks:\n  command: \"${CLAUDE_PLUGIN_ROOT}/hooks/x.sh\"\n---\n\n# X\n\nClean body, no braced vars here.\n"
+    if (has-braced-claude-var (strip-frontmatter $fm_content)) {
+        print $"(ansi red_bold)❌ braced-claude self-test: frontmatter-only occurrence leaked into stripped body(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4: a braced occurrence AFTER the frontmatter closing marker
+    # survives stripping and is still flagged — proves strip-frontmatter
+    # only removes the frontmatter block itself, not the whole file.
+    let mixed_content = "---\nname: x\n---\n\nBody uses ${CLAUDE_SKILL_DIR} directly.\n"
+    if not (has-braced-claude-var (strip-frontmatter $mixed_content)) {
+        print $"(ansi red_bold)❌ braced-claude self-test: body occurrence after frontmatter not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5: content with no frontmatter markers at all (the references/
+    # and templates/ shape — those directories are never passed through
+    # this check by the Pass-1/Pass-2 call sites, but this confirms
+    # strip-frontmatter itself does not silently alter non-frontmatter
+    # content, which is the structural guarantee those exemptions rely on).
+    let ref_like = "# Reference doc\n\nExample: `${CLAUDE_PLUGIN_ROOT}/scripts/foo.sh`\n"
+    if (strip-frontmatter $ref_like) != $ref_like {
+        print $"(ansi red_bold)❌ braced-claude self-test: strip-frontmatter altered content with no frontmatter markers(ansi reset)"
+        $failed = true
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ braced-claude self-test passed \(6 cases\)(ansi reset)"
     }
     $failed
 }
@@ -2396,6 +2565,13 @@ def evaluate-command-file [f: string, plugin_name: string, plugin_dir: string, r
     let cmd_fm_unknown = (unknown-frontmatter-keys $fm_lines $SKILL_FM_KEYS)
     if ($cmd_fm_unknown | is-not-empty) { $failed = ($failed | append "fm_schema") }
 
+    # No braced CLAUDE_* env var in the command body (claude-skills-205).
+    # Same rule and exemption as the Pass-1 SKILL.md check — frontmatter is
+    # harness-expanded and exempt, the body form is a bug.
+    if (has-braced-claude-var (strip-frontmatter $content)) {
+        $failed = ($failed | append "braced_claude")
+    }
+
     let key_base = $"($plugin_name)/commands/($f | path basename)"
     {
         failed: $failed
@@ -2553,7 +2729,9 @@ def main [--update-baseline, --self-test] {
         let fm_schema_failed = (run-frontmatter-schema-self-test)
         let accumulator_failed = (run-accumulator-self-test)
         let pass2_eval_failed = (run-pass2-eval-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed { exit 1 }
+        let anti_fab_failed = (run-anti-fab-self-test)
+        let braced_claude_failed = (run-braced-claude-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed { exit 1 }
         exit 0
     }
 
@@ -2763,13 +2941,35 @@ def main [--update-baseline, --self-test] {
             })
             if ($nested | length) > 0 { $failed = ($failed | append "ref_depth") }
 
-            # 10. Anti-fabrication present
-            let content_lower = ($content | str downcase)
-            let has_anti_fab_header = ($content_lower | str contains "anti-fabrication")
-            let has_anti_fab_ref = ($content | str contains "core:anti-fabrication")
-            let has_fabricat = ($content_lower | str contains "fabricat")
-            if not ($has_anti_fab_header or $has_anti_fab_ref or $has_fabricat) {
+            # 10. Anti-fabrication present — SKILL.md ONLY, deliberately
+            # (claude-skills-202, option b of its AC). A prior version of
+            # this check scanned SKILL.md's reference files too, reasoning
+            # that widening an OR-across-content match could only make a
+            # previously-failing skill pass, never fail a passing one — true
+            # by construction, but it missed the check's actual job. A Gate
+            # 3 fixture proved it: a SKILL.md with ZERO anti-fabrication
+            # content, plus a mentioned reference file containing nothing
+            # but the bare word "fabrication", scored full marks under the
+            # wider scan. References became a way to SATISFY the check
+            # rather than a surface it scrutinizes — the inverse of
+            # claude-skills-202's actual concern (real, unverified claims
+            # hiding in references). Reverted; reference-file anti-fab risk
+            # stays out of scope until claude-skills-141 gives it real
+            # per-file scrutiny instead of a corpus-wide keyword OR. See
+            # has-anti-fab-evidence for what "present" means and its limits
+            # even at SKILL.md scope.
+            if not (has-anti-fab-evidence $content) {
                 $failed = ($failed | append "anti_fab")
+            }
+
+            # 11. No braced CLAUDE_* env var in the SKILL.md body
+            # (claude-skills-205). Frontmatter is exempt — the harness
+            # expands the braced form there (e.g. a hooks: command field);
+            # the body form is a bug that bakes one machine's absolute
+            # cache path into prose. See has-braced-claude-var /
+            # strip-frontmatter.
+            if (has-braced-claude-var (strip-frontmatter $content)) {
+                $failed = ($failed | append "braced_claude")
             }
 
             # 12. No 'allowed-tools' in frontmatter
@@ -2862,7 +3062,7 @@ def main [--update-baseline, --self-test] {
                 {check: "fm_schema", count: ($fm_unknown | length)}
             ])
 
-            let check_count = 17
+            let check_count = 18
             let score = $check_count - ($failed | length)
 
             $results = ($results | append {

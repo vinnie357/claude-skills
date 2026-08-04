@@ -8,7 +8,7 @@ arrives.
 Two bugs were found this way and could not have been found any other way. One skill could not be loaded
 at all — it documented the injection syntax with a command that exits non-zero, so the load hard-failed.
 Sibling skills used the same pattern with a command that exits zero, so they "worked" while silently
-replacing the syntax they teach with that command's output. A skill can score 17/17 on every validator
+replacing the syntax they teach with that command's output. A skill can score full marks on every validator
 while being unloadable, because no check ever loads a skill.
 
 ## The loop

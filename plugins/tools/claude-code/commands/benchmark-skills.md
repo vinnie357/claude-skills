@@ -51,3 +51,4 @@ If `--plugin=<name>` is provided, only benchmark skills in that plugin.
 - Report actual line counts and check results
 - Mark any checks that cannot be performed as "N/A" with explanation
 - Use the `claude-skills-benchmark` skill for methodology reference
+- The anti-fabrication check is SKILL.md-only by design (claude-skills-202): it does not scan `references/`, so a skill routing unverified, version-gated claims through a reference file is not flagged by this check. A wider scan was tried and reverted — it let a reference file merely mentioning "fabrication" satisfy the check for a SKILL.md carrying zero anti-fabrication content, which is more lenient, not stricter. Per-file reference scrutiny is tracked separately as claude-skills-141; until it lands, treat a skill's reference files as outside this check's coverage when narrating results
