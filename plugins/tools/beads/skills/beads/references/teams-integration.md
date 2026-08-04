@@ -83,7 +83,7 @@ Always close beads first (persistent system), then Claude (ephemeral):
 
 ```bash
 bd close <id>
-bd sync
+bd dolt push   # no-op with a "No remote configured" message if unset; `bd sync` does not exist
 TaskUpdate taskId="<claude-id>" status="completed"
 ```
 

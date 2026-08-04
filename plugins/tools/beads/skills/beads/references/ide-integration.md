@@ -43,8 +43,11 @@ Add to `.vscode/settings.json` for beads projects:
     "*.jsonl": "json"
   },
   "files.exclude": {
-    ".beads.sqlite": true
+    ".beads/embeddeddolt": true
   }
 }
 ```
+
+There is no `.beads.sqlite` file — bd 1.1.x is Dolt-backed and stores the database
+under `.beads/embeddeddolt/` (embedded mode) or `.beads/dolt/` (`--server` mode).
 

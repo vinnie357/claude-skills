@@ -104,7 +104,7 @@ while true; do
   # Do work...
 
   bd close "$TASK_ID"
-  bd sync
+  bd dolt push   # no-op with a "No remote configured" message if unset; `bd sync` does not exist
 done
 ```
 
@@ -122,7 +122,7 @@ git checkout -b feature/dark-mode
 
 # Complete tasks as you go
 bd close palette789
-bd sync
+bd dolt push   # no-op with a "No remote configured" message if unset; `bd sync` does not exist
 
 # Toggle is now ready
 bd ready  # Shows toggle456

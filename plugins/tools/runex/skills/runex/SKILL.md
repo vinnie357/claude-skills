@@ -6,7 +6,22 @@ license: MIT
 
 # Runex Workflow Engine
 
-Runex is a single-binary Elixir workflow orchestrator. It parses TOML (primary) and YAML workflow definitions, builds a DAG of steps, and executes them via pluggable drivers (`shell, mise, nushell, runex, wasm, container, flame, workflow`). It runs in standalone mode (SQLite, default — no configuration required) or federated mode (Postgres + libcluster) for multi-node deployments.
+Runex is a single-binary Elixir workflow orchestrator. It parses TOML (primary) and YAML workflow definitions, builds a DAG of steps, and executes them via pluggable drivers. It runs in standalone mode (SQLite, default — no configuration required) or federated mode (Postgres + libcluster) for multi-node deployments.
+
+Verified against `lib/runex/driver.ex`'s `@drivers` map (single source of truth for valid `driver =` values, `Runex.Driver.names/0`) — 14 registered drivers:
+- **command**: `shell, mise, nushell`
+- **agent**: `agent, altana, awman, codex, antigravity, claude`
+- **workflow**: `workflow, runex` (module `Runex.Drivers.RunexSub`)
+- **container**: `container, flame`
+- **wasm**: `wasm`
+
+The 14 names are the flat `@drivers` map; the class labels above come from
+`execution_class/1`'s module doc comment, not from the function's actual runtime
+behavior — that function's `"workflow"` guard clause matches
+the literal string `"runex_sub"`, not the registered driver name `"runex"`, so
+`execution_class("runex")` actually falls through to `"other"`. This looks like an
+upstream naming-drift bug (the guard clause not being updated when the driver was
+registered as `"runex"` rather than `"runex_sub"`), not a documentation error here.
 
 Current documented version: **0.0.7** (`mix.exs @version`). Legacy templates for older deployments remain under `templates/0.1.0/` and `scripts/0.1.0/`.
 
@@ -129,6 +144,7 @@ Runex resolves `workflow_path` values through an ordered search (`lib/runex/path
 1. **Custom dirs**: `RUNEX_WORKFLOW_PATH` env var (colon-separated)
 2. **Project dir**: `RUNEX_WORKFLOWS_DIR` env var (default `./workflows`, relative to Runex cwd)
 3. **Core priv**: `priv/workflows/` shipped with the Runex release
+4. **User data dir**: `<data_dir>/workflows` (a 4th, lowest-priority search root appended by `Paths.workflows_dirs/0`, easy to miss when reading only the first three. No dedicated env var — but `data_dir/0` resolves per-platform via `platform_data_dir/0`, which on Linux honors `XDG_DATA_HOME`, so it moves indirectly there)
 
 Accepts absolute paths, filenames with extension, or bare names (tries `.toml`, `.yaml`, `.yml` in order).
 

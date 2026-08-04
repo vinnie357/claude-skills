@@ -262,7 +262,7 @@ An automated task-loop script (poll `bees ready --json`, work, close, sync): `re
 
 | Feature | Bees | Beads |
 |---------|------|-------|
-| Storage | SQLite (WAL mode) | JSONL + SQLite cache |
+| Storage | SQLite (WAL mode) | Dolt (version-controlled SQL DB, `.beads/embeddeddolt/`); JSONL is export-only |
 | Language | Zig | Go |
 | Binary | Single static binary | Go binary |
 | Sync model | One-directional export (`bees sync`) | Bidirectional git sync (`bd sync`/`bd pull`) |
@@ -270,7 +270,7 @@ An automated task-loop script (poll `bees ready --json`, work, close, sync): `re
 | Init modes | Local-first only | Full, stealth, contributor |
 | Comments | `bees comment add` | `bd comment` |
 | Dependency types | blocks, related, parent (`-t` flag) | blocks only |
-| Rebuild from JSONL | `bees import` | `bd rebuild` |
+| Rebuild from JSONL | `bees import` | `bd import` (upsert; there is no `bd rebuild`) |
 
 ## Best Practices
 

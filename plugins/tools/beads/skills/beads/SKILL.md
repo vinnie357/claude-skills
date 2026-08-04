@@ -20,13 +20,13 @@ Activate when:
 
 ## What is Beads?
 
-Beads is a distributed git-backed graph issue tracker designed for AI agents and modern development workflows:
+Beads is a distributed graph issue tracker designed for AI agents and modern development workflows. As of v1.1.x it is powered by [Dolt](https://github.com/dolthub/dolt) — a version-controlled SQL database — not plain JSONL+SQLite (confirmed against `gastownhall/beads` README, tag `v1.1.2`; the legacy SQLite backend has been removed):
 
-- **Hash-based IDs**: Collision-resistant task identifiers (8+ hex characters)
-- **Git-native storage**: Tasks stored as JSONL in `.beads/` directory
+- **Hash-based IDs**: Collision-resistant task identifiers of the form `<prefix>-<suffix>`. Observed default in `bd` 1.1.0: a 3-character base36 suffix (letters+digits, not hex — e.g. ten fresh issues produced `i8v, 0bh, j63, 21c, 1k4, tt6, 6do, da7, uki, u0f`; `v/k/o/u/i/t` aren't hex digits). `bd config set id.hash_length <n>` / `id.prefix <name>` both return "not a recognized config key. Did you mean 'git.hash_length'/'git.prefix'?" and still store the value as an arbitrary key with no observed effect on ID generation — `bd config list` shows the real, already-set prefix key is `issue_prefix` (defaulted from the directory name at init), not `id.prefix`. Hierarchical children append `.N` (e.g. `bd-a3f8e9.1`).
+- **Dolt-backed storage**: Issue data lives in a Dolt database under `.beads/embeddeddolt/` (embedded mode, the default) or `.beads/dolt/` (`bd init --server`, external `dolt sql-server`). `.beads/issues.jsonl` is an export for viewers/interchange/migration — it is not the source of truth and not the sync channel.
 - **Dependency-aware**: Query ready tasks with `bd ready`
-- **JSON output**: Machine-readable format for AI agent integration
-- **SQLite cache**: Fast local queries with git sync
+- **JSON output**: Machine-readable format via the global `--json` flag
+- **Cross-machine sync via Dolt remotes**: `bd dolt push` / `bd dolt pull` against `refs/dolt/data` on the git remote, separate from source branches
 
 ## Installation
 
@@ -42,13 +42,17 @@ npm install -g @beads/bd
 ### Initialize Beads
 
 ```bash
-# Full mode - syncs to remote (shared with team)
+# Default (maintainer) mode - Dolt database tracked in the repo, syncs via
+# `bd dolt push`/`bd dolt pull`
 bd init
 
-# Stealth mode - local only, no commits
+# Stealth mode - global gitattributes/gitignore keep beads files out of the
+# repo entirely (no local repo tracking); nothing is committed
 bd init --stealth
 
-# Contributor mode - pull only, no push
+# Contributor mode - runs an interactive OSS-contributor wizard that routes
+# planning issues to a separate local planning repo (e.g. `~/.beads-planning`)
+# instead of the forked repo, keeping experimental work out of PRs
 bd init --contributor
 ```
 
@@ -85,8 +89,8 @@ bd ready --json
 bd list --status open
 bd list --status closed
 
-# Filter by label
-bd list --labels "bug"
+# Filter by label (singular flag — `--labels` does not exist and errors "unknown flag")
+bd list --label "bug"
 
 # Filter by assignee
 bd list --assignee "bob"
@@ -98,11 +102,11 @@ bd list --assignee "bob"
 # Show task by ID (use first 4+ characters)
 bd show abc1
 
-# Full JSON output
+# Full JSON output (returns an array, even for one ID: [ {...} ])
 bd show abc1 --json
 
-# Show with comments
-bd show abc1 --comments
+# Stream full comment bodies in JSON output (--comments alone does not exist)
+bd show abc1 --json --include-comments
 ```
 
 ### Manage Dependencies
@@ -114,15 +118,17 @@ bd dep add task2 task1
 # Remove dependency
 bd dep remove task2 task1
 
-# View dependency graph
-bd dep graph
+# View dependency tree rooted at a task (`bd dep graph` does not exist)
+bd dep tree task2
 
-# List blockers for a task
-bd dep blockers task2
+# List blockers for a task (default direction=down: what this depends on)
+bd dep list task2
 
-# List tasks blocked by a task
-bd dep blocking task1
+# List tasks blocked by a task (direction=up: what depends on this)
+bd dep list task1 --direction=up
 ```
+
+`bd dep blockers`/`bd dep blocking` are not real subcommands (`bd dep --help` lists only `add, cycles, list, relate, remove, tree, unrelate`) — `bd dep list [id] [--direction=up|down]` is the actual query surface.
 
 ### Update Tasks
 
@@ -136,28 +142,38 @@ bd reopen abc1
 # Add a comment
 bd comment abc1 "Working on this now"
 
-# Update labels
-bd label abc1 --add "priority:high"
-bd label abc1 --remove "wip"
+# Update labels (subcommand form — `--add`/`--remove` flags don't exist)
+bd label add abc1 "priority:high"
+bd label remove abc1 "wip"
 
 # Assign task
 bd assign abc1 alice
 
-# Unassign
-bd unassign abc1
+# Unassign (empty string; there is no separate `bd unassign` command)
+bd assign abc1 ""
 ```
 
-### Sync with Git
+### Sync with Dolt
+
+Cross-machine sync moves the Dolt database, not JSONL, over `refs/dolt/data`
+on the git remote — `bd sync`/`bd pull` as standalone commands do not exist:
 
 ```bash
-# Sync changes to remote
-bd sync
+# Push commits to the configured Dolt remote (a no-op with a "No remote is
+# configured — skipping" message if none is set, not a hard error)
+bd dolt push
 
-# Pull changes from remote
-bd pull
+# Pull commits from the Dolt remote
+bd dolt pull
 
-# Check sync status
+# Issue-count/status overview (not literally "sync status" — see `bd dolt status`
+# for Dolt server state specifically)
 bd status
+
+# Export issues for interchange/viewers (not a sync channel). Bare `bd export`
+# streams JSONL to STDOUT — it does NOT write .beads/issues.jsonl by itself.
+# Use -o to write the file:
+bd export -o issues.jsonl
 ```
 
 ## JSON Output for AI Agents
@@ -170,17 +186,28 @@ All commands support `--json` for machine-readable output:
 bd ready --json
 ```
 
-Output:
+Output shape (field names verified against `bd` 1.1.0 live output; a fresh
+issue with no dependencies/comments — dependency/comment bodies are counts,
+not embedded arrays, unless `--include-dependents`/`--include-comments` is
+passed):
 ```json
 [
   {
-    "id": "abc12345",
+    "id": "bd-throwaway-bad",
     "title": "Implement login form",
+    "description": "desc",
     "status": "open",
-    "labels": ["feature", "frontend"],
-    "created": "2024-01-15T10:30:00Z",
-    "dependencies": [],
-    "blocking": ["def67890"]
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "alice",
+    "owner": "vinnie@example.com",
+    "created_at": "2026-08-04T22:10:17Z",
+    "created_by": "Vinnie Mazza",
+    "updated_at": "2026-08-04T22:10:17Z",
+    "labels": ["feature", "ui"],
+    "dependent_count": 0,
+    "dependency_count": 0,
+    "comment_count": 0
   }
 ]
 ```
@@ -191,28 +218,8 @@ Output:
 bd show abc1 --json
 ```
 
-Output:
-```json
-{
-  "id": "abc12345",
-  "title": "Implement login form",
-  "description": "Create a login form with email and password fields",
-  "status": "open",
-  "labels": ["feature", "frontend"],
-  "assignee": "alice",
-  "created": "2024-01-15T10:30:00Z",
-  "updated": "2024-01-16T14:20:00Z",
-  "dependencies": [],
-  "blocking": ["def67890"],
-  "comments": [
-    {
-      "author": "bob",
-      "body": "Should we add OAuth support?",
-      "created": "2024-01-15T11:00:00Z"
-    }
-  ]
-}
-```
+`bd show --json` always returns an array, even for a single ID — not a bare
+object. The field set matches the `bd ready --json` shape above.
 
 ### Parse JSON in Scripts
 
@@ -241,12 +248,13 @@ bd create "Login form" --parent auth123
 bd create "Password reset" --parent auth123
 bd create "Session management" --parent auth123
 
-# List children
-bd list --parent auth123
-
-# View hierarchy
-bd tree auth123
+# List children (also accepts --json / --pretty)
+bd children auth123
 ```
+
+`bd children <id>` is a convenience alias for `bd list --parent <id> --status all`; there
+is no separate top-level `bd tree` command. `bd dep tree <id>` is a different thing —
+it walks blocking dependencies, not parent-child hierarchy.
 
 ### Epic/Story/Task Pattern
 
@@ -271,13 +279,14 @@ bd create "Implement validation" --parent story456 --labels "task"
 # Task A blocks Task B (B depends on A)
 bd dep add taskB taskA
 
-# View what blocks a task
-bd dep blockers taskB
+# View what blocks a task (default direction=down)
+bd dep list taskB
 
-# View what a task blocks
-bd dep blocking taskA
+# View what a task blocks (direction=up)
+bd dep list taskA --direction=up
 
-# Circular dependency detection
+# Circular dependency detection — confirmed live: exit 1,
+# "Error: adding dependency would create a cycle" (bd 1.1.0)
 bd dep add taskA taskB  # Error if creates cycle
 ```
 
@@ -300,36 +309,55 @@ bd ready --assignee "alice"
 
 ### File Structure
 
+Verified against a fresh `bd init --non-interactive` (bd 1.1.0, embedded/default
+mode) — this is the file set present immediately after init; `issues.jsonl`
+is NOT among them (it appears only after `bd export -o issues.jsonl` runs;
+bare `bd export` streams to STDOUT and writes nothing):
+
 ```
 .beads/
-├── tasks.jsonl     # Task data (append-only)
-├── comments.jsonl  # Comments (append-only)
-└── deps.jsonl      # Dependencies (append-only)
-
-.beads.sqlite       # Local cache (not committed)
+├── embeddeddolt/     # The Dolt database itself (source of truth)
+│   └── <db-name>/
+├── config.yaml       # Local configuration
+├── metadata.json     # Repository metadata
+├── README.md         # Generated usage pointer
+├── interactions.jsonl
+├── hooks/             # git hooks installed by `bd init` (pre-commit, post-merge, ...)
+├── last-touched       # Appears after the first create/update/show/close — tracks
+│                      # the "current" issue for commands like `bd close` with no ID
+├── .local_version
+└── .gitignore
 ```
+
+`.beads/issues.jsonl` is export-only — for interchange/viewers, not the source of
+truth and not the sync channel — and only exists once something has exported to
+it (`bd export -o issues.jsonl`, or auto-export if `export.auto` is enabled).
+
+There is no `.beads.sqlite` — the legacy SQLite backend was removed in the
+Dolt-based releases; `bd init --backend=sqlite` only prints a deprecation
+notice.
 
 ### Sync Modes
 
-| Mode | `bd init` Flag | Commits | Pushes | Use Case |
-|------|----------------|---------|--------|----------|
-| Full | (default) | Yes | Yes | Team shared |
-| Stealth | `--stealth` | No | No | Local only |
-| Contributor | `--contributor` | Yes | No | Pull-only |
+| Mode | `bd init` Flag | Behavior |
+|------|----------------|----------|
+| Maintainer (default) | (default), or `--role maintainer` | Dolt database tracked and committed in the repo; sync via `bd dolt push`/`bd dolt pull` |
+| Stealth | `--stealth` | Global gitattributes/gitignore keep beads files out of the repo entirely; nothing local is tracked or committed |
+| Contributor | `--contributor` | Interactive OSS-contributor wizard; routes planning issues to a separate local planning repo instead of the forked repo |
 
 ### Conflict Resolution
 
-Beads uses append-only JSONL and hash-based IDs to minimize conflicts:
+Beads is Dolt-backed, not append-only JSONL — Dolt itself handles merge/diff at the
+database level. There is no `git mergetool` step against `.beads/*.jsonl` and no
+`bd rebuild` command:
 
 ```bash
-# Pull remote changes
-bd pull
+# Pull remote changes (Dolt commits, not a git pull of .beads/)
+bd dolt pull
 
-# Resolve conflicts in .beads/ files
-git mergetool .beads/tasks.jsonl
-
-# Rebuild cache after conflict resolution
-bd rebuild
+# Inspect Dolt-level state/diffs directly if a pull reports conflicts
+bd dolt status
+bd diff main HEAD      # two required refs; despite --help advertising HEAD~N, that form errors live in bd 1.1.0 (claude-skills-240)
 ```
 
 ## Workflow Examples
@@ -416,27 +444,27 @@ see `references/ide-integration.md`.
 
 ## Troubleshooting
 
-### Cache Issues
+### Database Issues
+
+There is no SQLite cache or `bd rebuild` command in the Dolt-backed releases —
+`bd doctor` is the equivalent entry point ("Check and fix beads installation
+health (start here)"):
 
 ```bash
-# Rebuild SQLite cache from JSONL
-bd rebuild
-
-# Clear and rebuild
-rm .beads.sqlite
-bd rebuild
+bd doctor
+bd dolt status      # Dolt server/connection state
+bd ping             # Check database connectivity
 ```
 
 ### Sync Conflicts
 
 ```bash
-# Check status
+# Issue-count/status overview
 bd status
 
-# Manual conflict resolution
-git status .beads/
-git mergetool .beads/tasks.jsonl
-bd rebuild
+# Dolt-level state and connection test
+bd dolt show
+bd dolt test
 ```
 
 ### ID Collisions
@@ -469,4 +497,4 @@ bd show abc12345678
 - **Collision-resistant**: Hash IDs work across branches and forks
 - **Dependency-aware**: Query ready tasks, manage blockers
 - **AI-friendly**: JSON output for programmatic access
-- **Distributed**: No central server, sync via git
+- **Distributed**: Sync via Dolt remotes (`bd dolt push`/`bd dolt pull`, `refs/dolt/data` on the git remote), not a central application server
