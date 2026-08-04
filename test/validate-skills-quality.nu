@@ -394,24 +394,29 @@ def is-reserved-name [name: string]: nothing -> bool {
 
 # Guards a single reference-file read against three failure modes that used
 # to abort the whole run via an unhandled `open --raw` error (claude-skills-222):
-# a dangling symlink, an unreadable-permissions file, and a symlink that
-# resolves outside the repo. The first two are read attempts that fail; the
-# third succeeds but must never happen — reading it would scan arbitrary
-# filesystem content into the corpus, so it is quarantined (content never
-# read) rather than opened. Returns {name, content, unsafe, reason} where
+# a dangling path, an unreadable-permissions file, and a path that resolves
+# outside the repo. The first two are read attempts that fail; the third
+# succeeds but must never happen — reading it would scan arbitrary filesystem
+# content into the corpus, so it is quarantined (content never read) rather
+# than opened. The outside-the-repo guard covers a symlinked ANCESTOR as well
+# as a symlinked leaf, because the whole path is canonicalized before either
+# check runs. Returns {name, content, unsafe, reason} where
 # reason is "broken" | "unreadable" | "external" | null. Content is "" for
 # every unsafe case.
 def safe-read-ref [f: string, repo_root: string]: nothing -> record {
     let name = ($f | path basename)
-    if ($f | path type) == "symlink" {
-        let resolved = ($f | path expand)
-        if not ($resolved | path exists) {
-            return {name: $name, content: "", unsafe: true, reason: "broken"}
-        }
-        let root = ($repo_root | path expand)
-        if not ($resolved | str starts-with $"($root)/") {
-            return {name: $name, content: "", unsafe: true, reason: "external"}
-        }
+    # Canonicalize unconditionally, not just when the leaf itself is a symlink:
+    # a symlinked ANCESTOR (e.g. the whole references/ directory pointing outside
+    # the repo) leaves every leaf a plain file, so a leaf-only check would read
+    # arbitrary filesystem content into the corpus. `path expand` resolves the
+    # entire path, so both shapes land on the same guard.
+    let resolved = ($f | path expand)
+    if not ($resolved | path exists) {
+        return {name: $name, content: "", unsafe: true, reason: "broken"}
+    }
+    let root = ($repo_root | path expand)
+    if not ($resolved | str starts-with $"($root)/") {
+        return {name: $name, content: "", unsafe: true, reason: "external"}
     }
     let read = (try {
         {ok: true, data: (open --raw $f)}
@@ -3028,10 +3033,11 @@ def main [--update-baseline, --self-test] {
                 []
             }
             # 19. Reference files are safe to read (claude-skills-222). See
-            # safe-read-ref: a broken symlink or unreadable-permissions file
-            # is reported as a finding instead of aborting the run, and a
-            # symlink resolving outside the repo is quarantined (never read)
-            # and reported rather than silently scanned into the corpus.
+            # safe-read-ref: a broken path or unreadable-permissions file is
+            # reported as a finding instead of aborting the run, and a path
+            # resolving outside the repo — whether via a symlinked leaf or a
+            # symlinked ancestor directory — is quarantined (never read) and
+            # reported rather than silently scanned into the corpus.
             let ref_reads = ($ref_files | each {|f| safe-read-ref $f $repo_root})
             let refs = ($ref_reads | each {|r| {name: $r.name, content: $r.content}})
             let unsafe_refs = ($ref_reads | where {|r| $r.unsafe})
