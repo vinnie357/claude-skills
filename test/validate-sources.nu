@@ -70,6 +70,19 @@ const SEMVER_RE = '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # rejected — see SKILL.md's field table for the reasoning.
 const VERSION_SHAPE_RE = '^[A-Za-z]{0,10}[-.]?\d+((\.\d+){1,4}([-+][0-9A-Za-z.-]+)?|([-+][0-9A-Za-z.]+)?)$'
 
+# claude-skills-225 F1: check-docker-hub-tag (sources-lib.nu) records
+# current_version as a Docker Hub content digest, not a version string, when
+# a source sets docker_tag — the digest-comparator usage this constant's
+# comment used to claim (falsely) VERSION_SHAPE_RE "never applies to". A
+# `sha256:<64 hex>` value can never match VERSION_SHAPE_RE (the colon isn't
+# in its alphabet), so b3_version_shape rejected the ONLY value the digest
+# comparator can legitimately write — the feature was adoptable at the
+# library level but not through this validator. Scoped to `docker_tag`
+# entries specifically (rather than widening VERSION_SHAPE_RE itself) so a
+# `sha256:...`-shaped typo under a non-docker_tag check_method still fails
+# loudly instead of silently passing as a coincidental digest.
+const DOCKER_DIGEST_RE = '^sha256:[0-9a-f]{64}$'
+
 # Returns [{rule, severity, message}] for ONE plugin. severity is "fail" or
 # "info"; main exits 1 only on "fail". Pure: no filesystem, no network —
 # every input is an argument, so the self-test feeds literal TOML through
@@ -420,11 +433,13 @@ def check-sources [
                         message: $"($plugin)/($name): current_version is a ($raw_t), expected a QUOTED version string or 'unknown' — an unquoted numeric records a different value \(1.10 becomes 1.1\)"
                     })
                 } else if not ($entry.current_version == "unknown"
-                               or ($entry.current_version =~ $VERSION_SHAPE_RE)) {
+                               or ($entry.current_version =~ $VERSION_SHAPE_RE)
+                               or (($entry.docker_tag? | default "" | is-not-empty)
+                                   and ($entry.current_version =~ $DOCKER_DIGEST_RE))) {
                     $findings = ($findings | append {
                         rule: "b3_version_shape"
                         severity: "fail"
-                        message: $"($plugin)/($name): current_version '($entry.current_version)' is neither a recognizable version string nor 'unknown'"
+                        message: $"($plugin)/($name): current_version '($entry.current_version)' is neither a recognizable version string, a docker_tag content digest, nor 'unknown'"
                     })
                 }
             }
@@ -1473,10 +1488,9 @@ notes = "pinned tag tracked in skill content is node:16-buster-slim; Docker Hub 
             # claude-skills-225: docker_tag is an OPTIONAL key (not in
             # ENTRY_REQUIRED_ALWAYS, not in ENTRY_NETWORK_KEYS, no
             # conditional-required rule) — only needs to be a known key so
-            # b1_entry_unknown doesn't reject it. current_version here is a
-            # digest, not a version string, which is why version_constraint
-            # stays "rolling" (VERSION_SHAPE_RE never applies to docker-hub's
-            # digest-comparator usage, same as the plain-tag usage above).
+            # b1_entry_unknown doesn't reject it. current_version here is
+            # "unknown", the same schema-compliant placeholder any other
+            # check_method accepts before a first real check has run.
             label: "docker-hub entry with docker_tag is a known key, not an error"
             toml: '
 [meta]
@@ -1501,6 +1515,75 @@ notes = "digest-tracked pin"
             version: "1.0.0"
             md: "demo-source is documented here"
             want: []
+        }
+        {
+            # F1 (claude-skills-225 Gate 3 follow-up): a docker_tag source's
+            # current_version is a Docker Hub content digest — NOT a version
+            # string — once check-docker-hub-tag has recorded a real reading.
+            # Corrected claim: VERSION_SHAPE_RE does NOT special-case
+            # docker-hub at all (see validate-sources.nu:402-430 — the rule
+            # applies unconditionally, digest or not); this test proves the
+            # digest passes because b3_version_shape now also accepts
+            # DOCKER_DIGEST_RE, scoped to entries with docker_tag set. The
+            # digest below is the live value captured for library/node's
+            # 24-alpine tag (2026-08-04), matching templates/sources.toml's
+            # worked example byte-for-byte — a colon-bearing "sha256:..."
+            # value can never match VERSION_SHAPE_RE, so before this fix no
+            # value an author could write for a docker_tag entry passed once
+            # a real digest was recorded.
+            label: "docker-hub entry with docker_tag and a real digest current_version passes"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://hub.docker.com/_/node"
+check_method = "docker-hub"
+docker_image = "library/node"
+docker_tag = "24-alpine"
+current_version = "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
+version_constraint = "rolling"
+last_checked = "2026-08-04"
+update_priority = "low"
+notes = "digest-tracked pin"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            # F1: the digest carve-out is scoped to docker_tag entries —
+            # a sha256:-shaped current_version WITHOUT docker_tag set is
+            # still rejected, so a typo under a non-digest check_method
+            # fails loudly instead of silently passing as a coincidental
+            # digest match.
+            label: "sha256-shaped current_version without docker_tag still fails b3_version_shape"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://hub.docker.com/_/node"
+check_method = "docker-hub"
+docker_image = "library/node"
+current_version = "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
+version_constraint = "rolling"
+last_checked = "2026-08-04"
+update_priority = "low"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_version_shape"]
         }
         {
             # claude-skills-210: endoflife.date requires eol_product (the

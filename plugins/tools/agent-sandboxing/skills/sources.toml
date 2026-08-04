@@ -3,8 +3,8 @@
 
 [meta]
 plugin = "agent-sandboxing"
-reviewed_at_plugin_version = "0.2.3"
-last_full_check = "2026-07-30"
+reviewed_at_plugin_version = "0.2.12"
+last_full_check = "2026-08-04"
 
 # ----------------------------------------------------------------------------
 # kubernetes-sigs/agent-sandbox — the upstream CRD project (Sandbox,
@@ -132,6 +132,29 @@ last_checked = "2026-07-30"
 update_priority = "low"
 breaking_changes_likely = false
 notes = "sources.md Date accessed 2026-05-23 for the extracted content (Dockerfile structure, non-root user pattern UID 1000, ~/.claude named volume, init-firewall.sh NET_ADMIN/NET_RAW egress allowlist); this plugin's own templates/Dockerfile.claude-code is mise-driven rather than copying Anthropic's npm-driven setup, per feedback-mise-first + feedback-mise-registry-short-names. check_method is 'manual' rather than github-releases because the cited content is a specific example directory, not something versioned by CLI release tags. Live GitHub API check 2026-07-30 confirms anthropics/claude-code still resolves (full_name unchanged) — repo-reachability verified only, directory contents not re-diffed."
+
+# ----------------------------------------------------------------------------
+# Docker Hub debian:13-slim — the real `FROM` base image pinned in this
+# plugin's own templates/Dockerfile.claude-code (claude-skills-225 F1: the
+# first real docker_tag adopter, exercising check-docker-hub-tag's per-tag
+# digest comparator end-to-end instead of only the template's illustrative
+# example). current_version is the tag's content digest, not a version
+# string — drift means the base image was re-pushed since last_checked and
+# the pin should be re-verified.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["claude-code-on-sandbox"]
+name = "debian-13-slim-base-image"
+url = "https://hub.docker.com/_/debian"
+check_method = "docker-hub"
+docker_image = "library/debian"
+docker_tag = "13-slim"
+current_version = "sha256:020c0d20b9880058cbe785a9db107156c3c75c2ac944a6aa7ab59f2add76a7bd"
+version_constraint = "rolling"
+last_checked = "2026-08-04"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "templates/Dockerfile.claude-code:7 pins FROM debian:13-slim AS base. Live digest captured 2026-08-04 via https://hub.docker.com/v2/repositories/library/debian/tags/13-slim/ — matches this file's current_version byte-for-byte. Re-run mise sources:check to detect when Debian re-pushes the 13-slim tag (security patch, base-layer rebuild)."
 
 # ----------------------------------------------------------------------------
 # Google Cloud blog — GKE Agent Sandbox GA announcement and Sandbox-vs-
