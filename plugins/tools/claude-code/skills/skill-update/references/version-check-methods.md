@@ -113,6 +113,103 @@ let latest = get-crates-latest "wasmtime"
 
 ---
 
+## npm
+
+Queries the npm registry for a package's `dist-tags.latest` version.
+
+| Property | Value |
+|---|---|
+| Endpoint | `https://registry.npmjs.org/{package}` |
+| Auth | None required |
+| Rate limit | No published anonymous limit found |
+| Required field | `npm_package = "package_name"` (`@scope/name` unmodified) |
+
+**Response parsing**: Extract `.dist-tags.latest`. **Gotcha (claude-skills-210 Gate 3)**: nushell's `get` only splits a dotted path on the `.` when the argument is an UNQUOTED bareword (`get dist-tags.latest`). A QUOTED string (`get -o "dist-tags.latest"`) is treated as one flat column name — the response has no such flat key (it's nested, `{"dist-tags": {"latest": ...}}`), so the quoted form always misses and silently returns nothing. This shipped broken once; verify any change to this parsing against a real captured response, not just the URL.
+
+```nushell
+# Query latest dist-tag for an npm package
+def get-npm-latest [package: string] -> string {
+    let url = $"https://registry.npmjs.org/($package)"
+    let response = http get $url
+    $response | get -o dist-tags.latest | default "unknown"
+}
+
+# Example
+let latest = get-npm-latest "express"
+# Returns: "5.2.1" (verified live 2026-08-04)
+```
+
+**Notes**:
+- A nonexistent package renders as a 404 (`Requested file not found (404): ...`), classified as `no-releases` by `classify-fetch-error` — same handling as a dead GitHub releases feed
+- `dist-tags` also carries other tags (e.g. `latest-4` for an old major's maintenance line); only `latest` is queried here
+
+---
+
+## docker-hub
+
+Queries the Docker Hub Hub API v2 tags list for an image, sorted by most-recently-updated.
+
+| Property | Value |
+|---|---|
+| Endpoint | `https://hub.docker.com/v2/repositories/{namespace}/{repository}/tags?page_size=1&ordering=last_updated` |
+| Auth | None required (public repos) |
+| Rate limit | Not documented for Hub API reads (distinct from the image-pull rate limit) |
+| Required field | `docker_image = "namespace/repository"` (e.g. `library/node`) |
+
+**Response parsing**: Extract `.results[0].name`. **`ordering=last_updated` (no leading `-`) is NEWEST-first** — verified live; do not "correct" this to `-last_updated`, which is oldest-first and the opposite of what this check needs.
+
+```nushell
+# Query the most-recently-updated tag for a Docker Hub image
+def get-docker-hub-latest [image: string] -> string {
+    let url = $"https://hub.docker.com/v2/repositories/($image)/tags?page_size=1&ordering=last_updated"
+    let response = http get $url
+    let results = ($response.results? | default [])
+    if ($results | is-empty) { "unknown" } else { $results | first | get -o name | default "unknown" }
+}
+
+# Example
+let latest = get-docker-hub-latest "library/node"
+# Returns: "lts-trixie-slim" (verified live 2026-08-04)
+```
+
+**Notes**:
+- Docker Hub tags are not semver in general — this answers "is a newer tag available" (string equality against the most-recently-updated tag name), not "is there a newer semver release"
+- A specific pinned tag that isn't itself version-shaped (e.g. `16-buster-slim`) belongs in `notes`, not `current_version` — `current_version = "unknown"` with `version_constraint = "rolling"` is the schema-compliant way to track it (see `templates/sources.toml`)
+
+---
+
+## endoflife-date
+
+Queries endoflife.date's per-product release-cycle feed for the newest cycle's latest patch version.
+
+| Property | Value |
+|---|---|
+| Endpoint | `https://endoflife.date/api/{product}.json` |
+| Auth | None required |
+| Rate limit | Not documented |
+| Required field | `eol_product = "product_slug"` (e.g. `nodejs`) |
+
+**Response parsing**: The API returns release cycles newest-first; extract `[0].latest`.
+
+```nushell
+# Query the newest release cycle's latest patch version
+def get-endoflife-latest [product: string] -> string {
+    let url = $"https://endoflife.date/api/($product).json"
+    let cycles = (http get $url | default [])
+    if ($cycles | is-empty) { "unknown" } else { $cycles | first | get -o latest | default "unknown" }
+}
+
+# Example
+let latest = get-endoflife-latest "nodejs"
+# Returns: "26.6.0" (verified live 2026-08-04)
+```
+
+**Notes**:
+- Reports the newest cycle's latest patch UNCONDITIONALLY, even when that cycle is itself past its own `eol` date (a fully-EOL product like `centos` still returns its last cycle's last patch). This matches every other check_method here — none of them filter by "is this still supported", only "is a newer version available to pin". A future caller wanting "is this product line still supported" would build that as a separate check against each cycle's `eol` field, not fold it into this one
+- The product slug must match endoflife.date's URL scheme exactly (check the product's page URL, e.g. `endoflife.date/nodejs` → `nodejs`)
+
+---
+
 ## manual
 
 No automated API check. Requires human review of the `releases_url`.

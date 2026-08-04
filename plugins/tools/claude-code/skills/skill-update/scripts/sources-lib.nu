@@ -4,9 +4,21 @@
 # sources-report.nu (claude-skills-211).
 #
 # PR #197 fixed a real bug in this logic (unknown pins reported as drift)
-# and had to apply the fix three times across byte-identical copies. The
+# and had to apply the fix three times. The classify-fetch-error /
+# classify-staleness bodies WERE byte-identical across the three scripts
+# (confirmed by the reviewer diffing all three against this module); the
 # next bug needed fixing three times again — this module is the fix for
 # that: one copy, imported by all three scripts.
+#
+# Correction (claude-skills-211 Gate 3): "byte-identical copies" does NOT
+# describe check-github-releases/check-crates-io — each script embedded its
+# own per-script User-Agent string ("sources-check.nu/1.0",
+# "sources-stale.nu/1.0", "sources-report.nu/1.0 (claude-skills)", ...).
+# This module unifies all of them to one constant, $USER_AGENT below — a
+# deliberate, documented behavior change: upstream APIs now see one client
+# identity instead of three. Benign (User-Agent affects only what a request
+# identifies itself as, not response content), but it IS a behavior change
+# and was previously mis-reported as none.
 #
 # Import via `use sources-lib.nu *` from a sibling script. Nushell resolves
 # a static relative `use`/`source` path against the IMPORTING FILE's own
@@ -188,6 +200,25 @@ export def check-crates-io [crate_name: string] {
     }
 }
 
+# Parse the npm registry's package-metadata response into a latest-version
+# string. Pure, self-tested below against a captured response fixture.
+#
+# claude-skills-210 Gate 3 BLOCKER: the original inline implementation used
+# `get -o "dist-tags.latest"` — a QUOTED string. nushell's `get` treats a
+# quoted string argument as ONE flat column name, not a dotted cell path; it
+# is only the UNQUOTED bareword form (`get dist-tags.latest`) that nushell's
+# cell-path grammar splits on the dot. The real response has no flat column
+# literally named "dist-tags.latest" (it is nested: `{"dist-tags": {"latest":
+# ...}}`), so the quoted form silently missed on every call and always fell
+# through to "unknown" — verified live against registry.npmjs.org/express
+# both ways before and after the fix. This function existing separately from
+# check-npm's network call is what makes that a self-testable fact instead of
+# something only a live call could have caught: a fixture record proves the
+# parse logic without touching the network.
+export def parse-npm-latest [response: record]: nothing -> string {
+    $response | get -o dist-tags.latest | default "unknown"
+}
+
 # Check latest version via the npm registry API (claude-skills-210).
 # `package` is an npm package name (scoped names like "@scope/name" work
 # unmodified — the registry accepts the literal name in the URL path).
@@ -195,9 +226,20 @@ export def check-npm [package: string] {
     let url = $"https://registry.npmjs.org/($package)"
     try {
         let response = http get $url
-        $response | get -o "dist-tags.latest" | default "unknown"
+        parse-npm-latest $response
     } catch {|err|
         catch-http-error $err
+    }
+}
+
+# Parse a Docker Hub Hub API tags-list response into a latest-tag string.
+# Pure, self-tested below against a captured response fixture.
+export def parse-docker-hub-latest [response: record]: nothing -> string {
+    let results = ($response.results? | default [])
+    if ($results | is-empty) {
+        "unknown"
+    } else {
+        $results | first | get -o name | default "unknown"
     }
 }
 
@@ -210,18 +252,31 @@ export def check-npm [package: string] {
 # there a newer semver release"; classify-staleness's plain string
 # comparison still applies (equal tag names are "no", anything else is
 # "yes"), same as every other check_method.
+#
+# `ordering=last_updated` (no leading `-`) is NEWEST-first — verified live
+# against the Hub API (library/node returns the just-published tag at
+# index 0). This is non-obvious: Hub's own docs use `-field` for descending
+# on some other endpoints, which reads like it SHOULD be `-last_updated`
+# here too. It is not — `-last_updated` returns OLDEST-first (the opposite
+# of what this function needs). Do not "fix" this to add the minus sign.
 export def check-docker-hub [image: string] {
     let url = $"https://hub.docker.com/v2/repositories/($image)/tags?page_size=1&ordering=last_updated"
     try {
         let response = http get $url
-        let results = ($response.results? | default [])
-        if ($results | is-empty) {
-            "unknown"
-        } else {
-            $results | first | get -o name | default "unknown"
-        }
+        parse-docker-hub-latest $response
     } catch {|err|
         catch-http-error $err
+    }
+}
+
+# Parse an endoflife.date product-cycles response into a latest-version
+# string. Pure, self-tested below against a captured response fixture.
+export def parse-endoflife-latest [cycles: list]: nothing -> string {
+    let c = ($cycles | default [])
+    if ($c | is-empty) {
+        "unknown"
+    } else {
+        $c | first | get -o latest | default "unknown"
     }
 }
 
@@ -230,16 +285,23 @@ export def check-docker-hub [image: string] {
 # returns release cycles newest-first; the first entry's `latest` field is
 # that cycle's newest patch version — verified empirically against the real
 # nodejs.json feed (2026-08-04).
+#
+# Deliberate scope decision (Gate 3): this reports the newest cycle's latest
+# patch UNCONDITIONALLY, even when that cycle is itself past its own `eol`
+# date (e.g. a fully-EOL product like centos still returns its last cycle's
+# last patch as "latest"). Every other check_method in this file has the
+# same shape — github-releases reports the newest tag whether or not the
+# repo is archived, hex-pm/crates-io report the newest publish whether or
+# not the maintainer still supports it. This check_method answers "is a
+# newer version available to pin", the same question the others answer, not
+# "is this product line still supported" — endoflife.date's `eol` field
+# would let a future caller build the latter as a separate, explicit check,
+# but that is a different question from staleness and out of scope here.
 export def check-endoflife-date [product: string] {
     let url = $"https://endoflife.date/api/($product).json"
     try {
         let response = http get $url
-        let cycles = ($response | default [])
-        if ($cycles | is-empty) {
-            "unknown"
-        } else {
-            $cycles | first | get -o latest | default "unknown"
-        }
+        parse-endoflife-latest $response
     } catch {|err|
         catch-http-error $err
     }
@@ -368,6 +430,34 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
         let got = sanitize-notes-cell $c.notes $c.max_len
         if $got != $c.want {
             print $"(ansi red_bold)❌ sanitize-notes-cell: ($c.label): want '($c.want)', got '($got)'(ansi reset)"
+            $failed = true
+        }
+    }
+
+    # parse-npm-latest / parse-docker-hub-latest / parse-endoflife-latest
+    # (claude-skills-210 Gate 3): fixtures shaped from CAPTURED real
+    # responses (registry.npmjs.org/express, hub.docker.com library/node
+    # tags, endoflife.date/api/nodejs.json — captured 2026-08-04), not
+    # invented shapes. This is the test that would have caught the original
+    # quoted-path bug in parse-npm-latest: it exercises the actual parse
+    # against real response shape, not just "did we call the right URL".
+    let parse_cases = [
+        {label: "npm: dist-tags.latest extracted from a real-shaped response" fn: "npm" input: {"dist-tags": {latest: "5.2.1" "latest-4": "4.22.2"}} want: "5.2.1"}
+        {label: "npm: missing dist-tags falls through to unknown" fn: "npm" input: {name: "some-package"} want: "unknown"}
+        {label: "docker-hub: first result's name extracted from a real-shaped response" fn: "docker-hub" input: {count: 8992 results: [{name: "lts-trixie-slim" last_updated: "2026-08-01T00:00:00Z"}]} want: "lts-trixie-slim"}
+        {label: "docker-hub: empty results falls through to unknown" fn: "docker-hub" input: {count: 0 results: []} want: "unknown"}
+        {label: "endoflife-date: newest cycle's latest extracted from a real-shaped response" fn: "endoflife-date" input: [{cycle: "26" latest: "26.6.0" eol: "2029-04-30"} {cycle: "25" latest: "25.9.0" eol: "2026-06-01"}] want: "26.6.0"}
+        {label: "endoflife-date: empty cycles list falls through to unknown" fn: "endoflife-date" input: [] want: "unknown"}
+    ]
+    for c in $parse_cases {
+        $count += 1
+        let got = match $c.fn {
+            "npm" => (parse-npm-latest $c.input)
+            "docker-hub" => (parse-docker-hub-latest $c.input)
+            "endoflife-date" => (parse-endoflife-latest $c.input)
+        }
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ ($c.fn) parse: ($c.label): want ($c.want), got ($got)(ansi reset)"
             $failed = true
         }
     }
