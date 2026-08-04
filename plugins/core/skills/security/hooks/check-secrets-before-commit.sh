@@ -2,8 +2,16 @@
 # Pre-commit secret scanner hook for Claude Code
 # Blocks git commit if secrets detected in staged files
 #
+# Runtime selection precedence (mirrors scripts/gitleaks.nu, claude-skills-209):
+#   1. native (mise)  — `mise which gitleaks` resolves a mise-managed binary
+#   2. native (PATH)  — a `gitleaks` binary is on PATH (non-mise install)
+#   3. container      — Apple Container (macOS 26+)
+#   4. docker         — Docker Desktop or Docker Engine
+#   5. colima         — Colima via mise exec
+#   (none available)  — see the "Fail-open, deliberately" note below
+#
 # Exit codes:
-#   0 - Allow command (not a git commit OR no secrets found)
+#   0 - Allow command (not a git commit OR no secrets found OR no scanner available)
 #   2 - Block command (secrets detected in staged files)
 
 set -euo pipefail
@@ -70,7 +78,28 @@ while IFS= read -r file; do
     fi
 done <<< "$STAGED_FILES"
 
-# Detect container runtime
+# Detect a native gitleaks binary. Prints the resolved absolute path and
+# returns 0 on success; returns 1 with no output otherwise. Never invokes a
+# bare `gitleaks` — resolves the path explicitly so an interactive-shell
+# function named `gitleaks` (the shadowing trap documented in SKILL.md)
+# cannot silently reroute this hook through a container.
+detect_native() {
+    if command -v mise &> /dev/null; then
+        local resolved
+        resolved=$(mise which gitleaks 2>/dev/null || true)
+        if [[ -n "$resolved" ]]; then
+            echo "$resolved"
+            return 0
+        fi
+    fi
+    if command -v gitleaks &> /dev/null; then
+        command -v gitleaks
+        return 0
+    fi
+    return 1
+}
+
+# Detect a container runtime (fallback when no native binary is available)
 detect_runtime() {
     # Priority 1: Apple Container (macOS 26+)
     if command -v container &> /dev/null; then
@@ -99,48 +128,92 @@ detect_runtime() {
     echo ""
 }
 
-RUNTIME=$(detect_runtime)
+NATIVE_BIN=$(detect_native || true)
 
-if [[ -z "$RUNTIME" ]]; then
-    log_warning "No container runtime available - skipping secret scan"
-    log_warning "Install Docker, Apple Container (macOS 26+), or Colima via mise"
-    exit 0
+if [[ -n "$NATIVE_BIN" ]]; then
+    log_info "Using runtime: native ($NATIVE_BIN)"
+
+    GITLEAKS_ARGS="detect --source=$TEMP_DIR --no-git -v"
+
+    if [[ -f ".gitleaks-baseline.json" ]]; then
+        GITLEAKS_ARGS="$GITLEAKS_ARGS --baseline-path=$(pwd)/.gitleaks-baseline.json"
+        log_info "Using baseline: .gitleaks-baseline.json"
+    fi
+
+    if [[ -f ".gitleaks.toml" ]]; then
+        GITLEAKS_ARGS="$GITLEAKS_ARGS --config=$(pwd)/.gitleaks.toml"
+        log_info "Using config: .gitleaks.toml"
+    fi
+
+    EXIT_CODE=0
+    "$NATIVE_BIN" $GITLEAKS_ARGS || EXIT_CODE=$?
+else
+    RUNTIME=$(detect_runtime)
+
+    if [[ -z "$RUNTIME" ]]; then
+        # Fail-open, deliberately (claude-skills-209 Gate 3 review — this
+        # decision was previously undocumented and is now explicit):
+        #
+        # This hook is a LOCAL convenience gate, not this repo's only line
+        # of defense — CI does not currently run a gitleaks scan, so this
+        # hook is presently the only automated check, which makes fail-open
+        # a real tradeoff, not a free one. It is kept anyway because the
+        # alternative (blocking every commit when no scanner is installed)
+        # bricks onboarding and any host without mise/docker/container/
+        # colima — a bigger blast radius than an occasional unscanned local
+        # commit. Native-first detection above makes this branch rare in
+        # practice: any host with mise gets a working native binary via
+        # `mise use gitleaks@latest` with no container/VM dependency at
+        # all. If this repo adds gitleaks to CI, revisit this default.
+        log_warning "No gitleaks binary and no container runtime available - skipping secret scan"
+        log_warning "Install gitleaks via mise (mise use gitleaks@latest), or Docker, Apple Container (macOS 26+), or Colima"
+        exit 0
+    fi
+
+    log_info "Using runtime: $RUNTIME"
+
+    IMAGE="zricethezav/gitleaks"
+    GITLEAKS_ARGS="detect --source=/code --no-git -v"
+
+    if [[ -f ".gitleaks-baseline.json" ]]; then
+        cp ".gitleaks-baseline.json" "$TEMP_DIR/"
+        GITLEAKS_ARGS="$GITLEAKS_ARGS --baseline-path=/code/.gitleaks-baseline.json"
+        log_info "Using baseline: .gitleaks-baseline.json"
+    fi
+
+    if [[ -f ".gitleaks.toml" ]]; then
+        cp ".gitleaks.toml" "$TEMP_DIR/"
+        GITLEAKS_ARGS="$GITLEAKS_ARGS --config=/code/.gitleaks.toml"
+        log_info "Using config: .gitleaks.toml"
+    fi
+
+    EXIT_CODE=0
+
+    case "$RUNTIME" in
+        container)
+            # Apple Container 1.0.0 does not reliably remove the container on
+            # exit despite --rm (claude-skills-208, observed on 1.0.0 — not
+            # independently reproduced here). Name the container so a
+            # defensive cleanup can target ONLY this one afterward — never
+            # an unfiltered `container ls -aq` splat into `rm`, which has
+            # previously destroyed every container on a host including
+            # unrelated k8s control planes. See container SKILL.md.
+            CONTAINER_NAME="gitleaks-hook-$(date +%Y%m%d%H%M%S)-$$"
+            container run --rm --name "$CONTAINER_NAME" -v "$TEMP_DIR:/code" "$IMAGE" $GITLEAKS_ARGS || EXIT_CODE=$?
+            # Best-effort cleanup scoped to the exact name just created.
+            # --rm should have handled this; ignore failures (container may
+            # already be gone if --rm worked) — never treat cleanup failure
+            # as a scan failure.
+            container rm -f "$CONTAINER_NAME" &> /dev/null || true
+            ;;
+        docker)
+            docker run --rm -v "$TEMP_DIR:/code" "$IMAGE" $GITLEAKS_ARGS || EXIT_CODE=$?
+            ;;
+        colima)
+            mise exec lima@latest colima@latest -- docker run --rm -v "$TEMP_DIR:/code" "$IMAGE" $GITLEAKS_ARGS || EXIT_CODE=$?
+            ;;
+    esac
 fi
-
-log_info "Using runtime: $RUNTIME"
-
-# Run gitleaks scan on staged files (--no-git since we exported files)
-IMAGE="zricethezav/gitleaks"
-GITLEAKS_ARGS="detect --source=/code --no-git -v"
-
-# Check for baseline file
-if [[ -f ".gitleaks-baseline.json" ]]; then
-    # Copy baseline to temp dir
-    cp ".gitleaks-baseline.json" "$TEMP_DIR/"
-    GITLEAKS_ARGS="$GITLEAKS_ARGS --baseline-path=/code/.gitleaks-baseline.json"
-    log_info "Using baseline: .gitleaks-baseline.json"
-fi
-
-# Check for config file
-if [[ -f ".gitleaks.toml" ]]; then
-    cp ".gitleaks.toml" "$TEMP_DIR/"
-    GITLEAKS_ARGS="$GITLEAKS_ARGS --config=/code/.gitleaks.toml"
-    log_info "Using config: .gitleaks.toml"
-fi
-
-EXIT_CODE=0
-
-case "$RUNTIME" in
-    container)
-        container run --rm -v "$TEMP_DIR:/code" "$IMAGE" $GITLEAKS_ARGS || EXIT_CODE=$?
-        ;;
-    docker)
-        docker run --rm -v "$TEMP_DIR:/code" "$IMAGE" $GITLEAKS_ARGS || EXIT_CODE=$?
-        ;;
-    colima)
-        mise exec lima@latest colima@latest -- docker run --rm -v "$TEMP_DIR:/code" "$IMAGE" $GITLEAKS_ARGS || EXIT_CODE=$?
-        ;;
-esac
 
 if [[ $EXIT_CODE -eq 0 ]]; then
     log_success "No secrets detected in staged files"

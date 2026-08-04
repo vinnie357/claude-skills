@@ -175,17 +175,24 @@ regexes = [
 
 ## Scripts
 
-This skill includes scripts for running gitleaks with automatic container runtime detection.
+This skill includes scripts for running gitleaks, preferring a native binary and falling back to a container runtime.
 
 ### gitleaks.nu (Nushell)
 
-Cross-platform Nushell script with automatic runtime detection:
+Cross-platform Nushell script with automatic runtime detection. `gitleaks.nu` resolves a runtime in this priority order and never fails opaquely — if nothing is found, it prints exactly which install paths it checked and exits 1:
+
+1. **native (mise)** — a mise-managed `gitleaks` binary, resolved via `mise which gitleaks`. Preferred: no container/VM startup cost, no image pull.
+2. **native (PATH)** — a `gitleaks` binary on `PATH` installed some other way (e.g. `brew install gitleaks`).
+3. **container** — Apple Container (macOS 26+)
+4. **docker** — Docker Desktop or Docker Engine
+5. **colima** — Colima via mise exec
 
 ```bash
-# Run with auto-detected runtime
+# Run with auto-detected runtime (prefers native, falls back to container)
 nu scripts/gitleaks.nu
 
-# Specify runtime
+# Force a specific runtime
+nu scripts/gitleaks.nu --runtime native
 nu scripts/gitleaks.nu --runtime docker
 nu scripts/gitleaks.nu --runtime container  # Apple Container (macOS 26+)
 nu scripts/gitleaks.nu --runtime colima
@@ -198,11 +205,18 @@ nu scripts/gitleaks.nu --config ./.gitleaks.toml
 
 # Scan specific path
 nu scripts/gitleaks.nu --path ./src
+
+# Run the internal selection-logic self-tests (no subprocess/container calls)
+nu scripts/gitleaks.nu --self-test
 ```
+
+#### Shell-function shadowing trap
+
+A shell function named `gitleaks` defined in an interactive shell's rc file (zsh/bash) can shadow the real binary and silently reroute a bare `gitleaks ...` invocation at the terminal through `container run` instead of the native binary — observed on a real host, where an rc-sourced snapshot defined exactly such a function. `gitleaks.nu` itself is immune: it never invokes a bare `gitleaks` command, it resolves the binary's absolute path via `mise which gitleaks` (or `which gitleaks` as fallback) and executes that resolved path directly. The trap only bites a human typing `gitleaks ...` directly at an interactive prompt. Check for it with `type gitleaks` — if the output names a shell function or an rc file instead of a binary path, the shadow is active; invoke `nu scripts/gitleaks.nu` (or the mise-resolved absolute path) instead of the bare command.
 
 ### gitleaks.sh (Bash)
 
-Bash script with the same capabilities:
+Bash script covering the same container runtimes as `gitleaks.nu`. It does NOT yet have the native-binary path or `--self-test` described above (claude-skills-209 scoped the native-first fix to `gitleaks.nu`) — prefer `gitleaks.nu` when a native binary is available:
 
 ```bash
 # Run with auto-detected runtime

@@ -8,6 +8,7 @@
 "github:nushell/nushell" = { version = "0.113.1", exe = "nu", platforms = '{ linux-arm64 = { asset_pattern = "nu-*-aarch64-unknown-linux-gnu.tar.gz" }', " linux-x64 " = ' { asset_pattern = "nu-*-x86_64-unknown-linux-gnu.tar.gz" }', " macos-arm64 " = ' { asset_pattern = "nu-*-aarch64-apple-darwin.tar.gz" }', " macos-x64 " = ' { asset_pattern = "nu-*-x86_64-apple-darwin.tar.gz" } }' }
 act = "latest"  # Local GitHub Actions testing
 claude = "latest"  # Self-contained Bun binary; bypasses npm/node toolchain breakage
+gitleaks = "latest"  # Native binary preferred by scripts/gitleaks.nu over container runtimes (claude-skills-209)
 
 # Note: Lima and Colima are macOS-only tools for local act testing
 # Install manually on Mac: mise install lima colima
