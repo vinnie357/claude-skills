@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.117",
+      "version": "0.4.118",
       "category": "meta",
       "keywords": [
         "skills",
@@ -143,7 +143,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, TDD, code review, gitleaks secret scanning, documentation, restraint, anti-fabrication, twelve-factor apps, the agent loop, bees issue tracking, mise, nushell, and Apple Container",
-      "version": "0.2.55",
+      "version": "0.2.56",
       "category": "development",
       "keywords": [
         "git",
