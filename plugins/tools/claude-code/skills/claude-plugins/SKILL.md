@@ -52,8 +52,27 @@ Relative to the plugin root, `./`-prefixed. Each has a dedicated skill for its o
 - `agents` — string directory or array of files (see `claude-agents`)
 - `hooks` — string path to a hooks.json, or an inline hooks object (see `claude-hooks`)
 - `mcpServers` — string path to an MCP config, or an inline object
+- `outputStyles` — string or array of output-style files/directories, replacing the default `output-styles/` scan (see `claude-output-styles`)
+- `lspServers` — string, array, or inline object of LSP (Language Server Protocol) configs for code intelligence (go-to-definition, find-references). Defaults to a `.lsp.json` file at the plugin root when the field is absent.
 
-`output-styles/` is discovered by convention and needs no manifest field (see `claude-output-styles`).
+`output-styles/` is discovered by convention when `outputStyles` is unset; setting the field replaces that default scan rather than adding to it (see `claude-output-styles`).
+
+### `experimental` field
+
+`experimental` is an object holding components whose manifest schema may still change between releases: `experimental.themes` (string or array — color theme files/directories, replacing the default `themes/` scan) and `experimental.monitors` (string or array — background monitor configs that start automatically while the plugin is active, replacing the default `monitors/monitors.json`). Both keys also work unnested at the top level (`"themes": ...`, `"monitors": ...`) for backward compatibility; nesting under `experimental` is the forward-compatible form.
+
+```json
+{
+  "outputStyles": "./styles/",
+  "lspServers": "./.lsp.json",
+  "experimental": {
+    "themes": "./themes/",
+    "monitors": "./monitors.json"
+  }
+}
+```
+
+Verified against `validate-plugin.nu`'s fixed `invalid_fields` denylist (`dependencies`, `category`, `strict`, `source`, `tags`): none of these three fields are on it, and a fixture plugin.json carrying all three passes validation with zero errors and zero warnings.
 
 Both `hooks` and `mcpServers` accept either a path or an inline object. Inline, they use each component's own schema — hooks are **event-keyed**, not lifecycle-keyed:
 

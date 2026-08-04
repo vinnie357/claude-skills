@@ -114,6 +114,18 @@ breaking_changes_likely = false
 notes = "sources.md Date Accessed 2025-11-15. Plugin architecture, commands/agents/skills/hooks structure, plugin.json format, installation and distribution."
 
 [[sources]]
+skills = ["claude-plugins"]
+name = "claude-code-plugins-reference-docs"
+url = "https://code.claude.com/docs/en/plugins-reference"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-08-04"
+update_priority = "medium"
+breaking_changes_likely = true
+notes = "Live fetch 2026-08-04 for claude-skills-215 confirmed outputStyles (string|array, replaces default output-styles/ scan), lspServers (string|array|object, defaults to .lsp.json at plugin root when unset), and experimental.themes / experimental.monitors (both string|array, both usable unnested at the top level for backward compatibility) as documented plugin.json fields. The same fetch also surfaced that this page now documents plugin.json fields not yet modeled anywhere in this skill, including displayName, defaultEnabled, workflows, userConfig, channels, and — notably — dependencies as a VALID plugin.json field (array of required plugins with optional semver constraints), which directly contradicts this skill's 'Fields that must NOT appear in plugin.json' section still listing dependencies as invalid. That contradiction is out of scope for claude-skills-215 (three named fields only) and is filed as a new bee rather than fixed here. Priority raised to medium and breaking_changes_likely set true given how much drift one fetch surfaced against a source last reviewed 2025-11-15."
+
+[[sources]]
 skills = ["claude-commands"]
 name = "claude-code-commands-docs"
 url = "https://code.claude.com/docs/en/commands"

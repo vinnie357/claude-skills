@@ -79,9 +79,16 @@ something else depends on:
   demand is env-var config discipline. Both under-fire under description-driven activation, which is
   why they stay in the mandatory always-load set in `/core:agent-loop` "Core Skills (Mandatory)"
   rather than activating on demand.
+- **Quoted source material.** A verbatim blockquote attributed to an external source is not eligible
+  for softening at all — altering a direct quotation is a fabrication risk in the opposite direction,
+  regardless of how the other three clauses would score it. `/core:twelve-factor` SKILL.md's blockquote
+  from 12factor.net (`plugins/core/skills/twelve-factor/SKILL.md:263`, "A twelve-factor app never
+  relies on implicit existence of state on the filesystem...") is the worked example: paraphrasing it
+  to read more naturally would misrepresent what the source actually says.
 
-Test for the boundary: if removing the prescription would break a check, permit a fabrication, or
-rely on an agent recognising a need it does not yet have, keep it prescriptive.
+Test for the boundary: if removing the prescription would break a check, permit a fabrication,
+misrepresent quoted source material, or rely on an agent recognising a need it does not yet have,
+keep it prescriptive.
 
 ## Related: the `/doctor` checkup
 
