@@ -33,7 +33,7 @@ depends = ["test"]
 # "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
 # Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:no-symlinks"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -316,6 +316,16 @@ nu ($repo_root | path join "test" "validate-fenced-literals.nu")
 # unwired here, same reasoning as sources:check/stale/report above.
 let scripts_dir = ($repo_root | path join "plugins" "tools" "claude-code" "skills" "skill-update" "scripts")
 nu ($scripts_dir | path join "fence-freshness.nu") --self-test
+"""
+
+[tasks."test:no-symlinks"]
+description = "Forbid symlinks tracked under plugins/ (claude-skills-236)"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "validate-no-plugin-symlinks.nu") --self-test
+nu ($repo_root | path join "test" "validate-no-plugin-symlinks.nu")
 """
 
 [tasks."test:plugin"]

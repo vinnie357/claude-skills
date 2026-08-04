@@ -24,7 +24,15 @@
 # staleness surface reached via a template file instead of a markdown fence;
 # no new mechanism needed, see the note above the first template entry) and
 # added the two unregistered sbx elixir-tidewave postgres:16 occurrences for
-# per-file attribution. Current total: 27 literals across 23 files. This does
+# per-file attribution. claude-skills-232 (2026-08-04, same day): an
+# independent sweep found six more unregistered template mise.toml pins —
+# whamm, sbx elixir-tidewave (erlang + elixir), awman's three versioned
+# templates (0.9.1/0.10.0/0.11.0), zig's three versioned templates
+# (0.14.1/0.15.2/0.16.0), and slidev's bare-major node pin. Established the
+# versioned-template-directory policy rule once, generalizing the existing
+# runex templates/0.0.7/ precedent — see the claude-skills-232 section
+# comment further down this file. Current total: 37 literals across 32
+# files. This does
 # not match the bee's original "13 across 7 files" from 2026-07-29 either —
 # content has moved since (new skills, and claude-skills-210/211/212 added
 # prose in skill-update/SKILL.md that DISCUSSES several of these same
@@ -80,6 +88,7 @@ eol_product = "nodejs"
 eol_cycle = "24"
 policy = "track"
 notes = ""
+occurrences = 2
 
 [[literals]]
 file = "plugins/tools/agent-sandboxing/skills/claude-code-on-sandbox/SKILL.md"
@@ -172,6 +181,7 @@ context = "WIT import/use examples (recurs ~8 times in this file alone)"
 check_method = "manual"
 policy = "intentional-pin"
 notes = "Same WASI 0.2.0 intentional-pin rationale as wasmtime/references/guest-rust.md — see that entry. This file also states the rationale explicitly in prose: 'Pin to WASI 0.2.0 ... this is the first stable WASI release and the recommended target for new components.'"
+occurrences = 4
 
 [[literals]]
 file = "plugins/wasm/skills/wit/references/syntax-reference.md"
@@ -180,6 +190,7 @@ context = "WIT syntax reference examples (recurs ~9 times in this file)"
 check_method = "manual"
 policy = "intentional-pin"
 notes = "Same WASI 0.2.0 intentional-pin rationale as wasmtime/references/guest-rust.md — see that entry."
+occurrences = 3
 
 [[literals]]
 file = "plugins/tools/awman/skills/awman/SKILL.md"
@@ -321,6 +332,7 @@ github_repo = "Graphify-Labs/graphify"
 pinned_tag = "v0.8.36"
 policy = "track"
 notes = "fenced-literals.toml has no pypi check_method; the upstream GitHub repo tags releases as vX.Y.Z matching the PyPI version (verified: releases/tags/v0.8.36 resolves, releases/tags/0.8.36 does not), so github-releases gives an automated check for the same version. Matches plugins/tools/graphify/skills/sources.toml current_version, deliberately not bumped to the live 0.9.31+ upstream — skill content not yet re-verified against it."
+occurrences = 2
 
 [[literals]]
 file = "plugins/tools/runex/skills/runex/templates/0.0.7/mise.toml"
@@ -360,3 +372,154 @@ eol_product = "postgresql"
 eol_cycle = "16"
 policy = "track"
 notes = "Non-markdown file — confirms the doc-agreement check (raw open + str-contains) works on compose.yaml the same as it already does for templates/Dockerfile.claude-code."
+
+# -----------------------------------------------------------------------------
+# claude-skills-232: independent sweep found these unregistered — same
+# classes this registry already covers, reached via template mise.toml tool
+# pins the earlier hand sweeps missed. All tag shapes verified live
+# (2026-08-04) before registering: `mise ls-remote` / GitHub tags API /
+# ziglang.org's download index as applicable, per file below.
+#
+# Versioned-template-directory rule (decided once here, applied uniformly to
+# every entry below living under a bare `templates/<version>/` path,
+# including awman's CURRENTLY-newest 0.11.0 and zig's CURRENTLY-newest
+# 0.16.0): policy = "intentional-pin". Scope, stated explicitly per Gate 3 on
+# claude-skills-232/233's PR: this covers the TOOL'S OWN version pin (the
+# thing the directory is named/versioned after — awman's own version, zig's
+# own version) — NOT any runtime or base-image pin that happens to live in
+# the same directory (a node/erlang/postgres/debian version a versioned
+# template also pins). Those get registered and reasoned about on their own
+# terms (see the sbx elixir-tidewave and slidev entries elsewhere in this
+# file, both policy=track, neither living in a templates/<version>/ path) —
+# a runtime dependency doesn't freeze just because it ships inside an
+# immutable tool-version snapshot; it can go EOL like any other tracked
+# runtime regardless of which directory names it. Applying intentional-pin
+# blanket-wide to everything under such a directory would make a future
+# versioned template that also pins e.g. node or debian permanently
+# EOL-silent for that runtime pin — a real risk since this rule is prose,
+# not enforced code, and someone extending the pattern by imitation would
+# reasonably assume "everything in here is intentional-pin" without this
+# line. Rationale for the TOOL'S OWN pin specifically — per the
+# /claude-code:skill-update convention ("When a CLI tool has breaking
+# command changes across versions, create a versioned template"), a new
+# upstream release gets a NEW templates/<version>/ directory; the existing
+# ones are never edited in place to chase it (that's the entire point of
+# keeping historical snapshots — see awman/skills/awman/SKILL.md's own
+# "Immutable vX.Y.Z command snapshot" labels, and zig's matching comment
+# on its own older template files). "Currently newest" is a transient
+# property of the file tree, not of the pin text itself — the day a newer
+# version ships, today's newest directory is demoted to historical without
+# its own content changing at all. Treating the newest directory as "track"
+# and the rest as "intentional-pin" would mean re-deciding this file's
+# policy on every version bump for no behavioral gain: neither awman nor zig
+# has an endoflife.date product (verified live: /api/v1/products/awman and
+# /api/v1/products/zig both 404), so track vs intentional-pin has zero
+# effect on the EOL half of the check either way — the distinction is
+# purely documentary, and one rule applied uniformly is cheaper to reason
+# about than a per-directory judgment call. Same rule generalizes the
+# existing runex templates/0.0.7/mise.toml precedent above; it is not a new
+# mechanism.
+# -----------------------------------------------------------------------------
+
+[[literals]]
+file = "plugins/tools/whamm/skills/whamm/templates/mise.toml"
+literal = "0.1.0"
+context = "github:ejrgilbert/whamm tool pin — single canonical templates/mise.toml, not a versioned-template directory, so policy=track applies (should advance as whamm releases)"
+check_method = "github-releases"
+github_repo = "ejrgilbert/whamm"
+pinned_tag = "v0.1.0"
+policy = "track"
+occurrences = 4
+notes = "Verified live 2026-08-04: releases/tags/v0.1.0 resolves; upstream has since released v1.0.0 (staleness for mise sources:fence-check to report, not this check's concern). occurrences=4: the real pin (line 6, `version = \"0.1.0\"`) plus three prose mentions explaining v0.1.0's platform-asset limitations (source comment, x86_64-only note, Rosetta 2 note) — caught by claude-skills-233's occurrence check while drafting this entry, confirming it works."
+
+[[literals]]
+file = "plugins/tools/sbx/skills/sbx/templates/elixir-tidewave/mise.toml"
+literal = 'erlang = "27.2"'
+context = "erlang tool pin for the sandbox VM's mise install"
+check_method = "github-releases"
+github_repo = "erlang/otp"
+pinned_tag = "OTP-27.2"
+eol_product = "erlang"
+eol_cycle = "27"
+policy = "track"
+notes = "erlang/otp tags releases as OTP-X.Y (not vX.Y); verified live 2026-08-04: git/refs/tags/OTP-27.2 resolves. eol_cycle is bare major '27' — endoflife.date's erlang feed keys cycles by major only (confirmed live: cycle list is 29, 28, 27, 26, 25, ...), no minor-level cycle exists to look up. literal is anchored to the key (`erlang = \"27.2\"`, not bare `27.2`) per Gate 3 on claude-skills-232/233's PR: bare `27.2` is a substring of `127.2`, `27.20`, `27.2.x` and similar, and is unique in this ten-line file only by luck, not design — the same both-directions defeat as the slidev `node = \"22\"` entry above. Anchoring to the full `key = \"value\"` assignment removes both failure modes without changing the counting mechanism."
+
+[[literals]]
+file = "plugins/tools/sbx/skills/sbx/templates/elixir-tidewave/mise.toml"
+literal = "1.18.1-otp-27"
+context = "elixir tool pin for the sandbox VM's mise install (asdf-elixir version string: base version + -otp-N build suffix)"
+check_method = "github-releases"
+github_repo = "elixir-lang/elixir"
+pinned_tag = "v1.18.1"
+eol_product = "elixir"
+eol_cycle = "1.18"
+policy = "track"
+notes = "pinned_tag checks existence of the base elixir version (v1.18.1); the '-otp-27' suffix is mise/asdf-elixir's own build-variant syntax, not part of the upstream git tag, so it is not part of pinned_tag. Verified live 2026-08-04: git/refs/tags/v1.18.1 resolves."
+
+[[literals]]
+file = "plugins/tools/awman/skills/awman/templates/0.9.1/mise.toml"
+literal = "0.9.1"
+context = "github:prettysmartdev/awman tool pin, versioned template directory (sibling templates/0.10.0/, templates/0.11.0/ also exist)"
+check_method = "github-releases"
+github_repo = "prettysmartdev/awman"
+pinned_tag = "v0.9.1"
+policy = "intentional-pin"
+notes = "Versioned template directory — see the claude-skills-232 rule stated above this section. Verified live 2026-08-04: releases include tag v0.9.1."
+
+[[literals]]
+file = "plugins/tools/awman/skills/awman/templates/0.10.0/mise.toml"
+literal = "0.10.0"
+context = "github:prettysmartdev/awman tool pin, versioned template directory (sibling templates/0.9.1/, templates/0.11.0/ also exist)"
+check_method = "github-releases"
+github_repo = "prettysmartdev/awman"
+pinned_tag = "v0.10.0"
+policy = "intentional-pin"
+notes = "Versioned template directory — see the claude-skills-232 rule stated above this section. Verified live 2026-08-04: releases include tag v0.10.0."
+
+[[literals]]
+file = "plugins/tools/awman/skills/awman/templates/0.11.0/mise.toml"
+literal = "0.11.0"
+context = "github:prettysmartdev/awman tool pin, versioned template directory (currently the newest — sibling templates/0.9.1/, templates/0.10.0/ also exist); SKILL.md itself labels this 'Immutable v0.11.0 command snapshot'"
+check_method = "github-releases"
+github_repo = "prettysmartdev/awman"
+pinned_tag = "v0.11.0"
+policy = "intentional-pin"
+notes = "Versioned template directory — see the claude-skills-232 rule stated above this section. Currently the newest of the three, still intentional-pin per that rule (not 'track') since the versioned-template convention treats every directory as frozen the moment it's created, not only once superseded. Verified live 2026-08-04: releases include tag v0.11.0 (the actual /releases/latest tag)."
+
+[[literals]]
+file = "plugins/languages/zig/skills/zig/templates/0.14.1/mise.toml"
+literal = "0.14.1"
+context = "zig tool pin, versioned template directory, file's own comment says 'Immutable snapshot for Zig 0.14.x projects'"
+check_method = "github-releases"
+github_repo = "ziglang/zig"
+pinned_tag = "0.14.1"
+policy = "intentional-pin"
+notes = "Versioned template directory — see the claude-skills-232 rule stated above this section. ziglang/zig tags bare (no v-prefix); verified live 2026-08-04: git/refs/tags/0.14.1 resolves."
+
+[[literals]]
+file = "plugins/languages/zig/skills/zig/templates/0.15.2/mise.toml"
+literal = "0.15.2"
+context = "zig tool pin, versioned template directory, file's own comment says 'Immutable snapshot for Zig 0.15.x projects (final 0.15 patch)'"
+check_method = "github-releases"
+github_repo = "ziglang/zig"
+pinned_tag = "0.15.2"
+policy = "intentional-pin"
+notes = "Versioned template directory — see the claude-skills-232 rule stated above this section. Verified live 2026-08-04: git/refs/tags/0.15.2 resolves."
+
+[[literals]]
+file = "plugins/languages/zig/skills/zig/templates/0.16.0/mise.toml"
+literal = "0.16.0"
+context = "zig tool pin, versioned template directory, currently the newest (sibling templates/0.14.1/, templates/0.15.2/ also exist)"
+check_method = "manual"
+policy = "intentional-pin"
+notes = "Versioned template directory — see the claude-skills-232 rule stated above this section (intentional-pin regardless of currently-newest status). check_method=manual, not github-releases: ziglang stopped tagging GitHub releases after 0.15.2 — same finding already on record at plugins/languages/zig/skills/zig/SKILL.md's zig@0.16.0 entry above (confirmed live 2026-08-04: GET /repos/ziglang/zig/releases/tags/0.16.0 -> 404; 0.16.0 IS a real published version per https://ziglang.org/download/index.json and `mise ls-remote zig`, just not GitHub-tag-checkable). Using github-releases here would misreport a real, installable version as broken."
+
+[[literals]]
+file = "plugins/tools/slidev/skills/slidev/templates/mise.toml"
+literal = 'node = "22"'
+context = "node tool pin (bare major, mise fuzzy-resolves to newest 22.x.x) for the Slidev dev environment"
+check_method = "manual"
+eol_product = "nodejs"
+eol_cycle = "22"
+policy = "track"
+notes = "Bare major version, not a discrete tag — no single GitHub tag or docker-hub tag literally named '22' to existence-check the way the docker-tag node:16/node:24 entries above do, so check_method=manual (same reasoning as this file's other manual+eol_product combinations). eol_cycle is bare major '22', consistent with the node:24/node:24-alpine entries above that also key by bare major cycle. literal is anchored to the key (`node = \"22\"`, not bare `22`) per Gate 3 on claude-skills-232/233's PR: a two-character bare literal is a substring of dates, ports, hashes, and other version numbers, so the occurrence counter is defeatable in both directions on it — an unrelated line containing `22` elsewhere inflates the count and fails CI on an intact pin, while a drift that happens to preserve the total count (e.g. bump to `24` while adding an unrelated `22` elsewhere) passes silently. Anchoring to the full `key = \"value\"` assignment removes both failure modes without changing the counting mechanism."
