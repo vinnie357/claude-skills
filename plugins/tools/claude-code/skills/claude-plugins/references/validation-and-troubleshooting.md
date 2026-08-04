@@ -55,18 +55,24 @@ The `version` field on a `dependencies` object entry (claude-skills-235) is vali
 upstream: "The version field accepts any expression supported by Node's semver package, including
 caret, tilde, hyphen, and comparator ranges." Accepted forms: bare version (`2.1.0`), tilde
 (`~2.1.0`), caret (`^2.0`), comparator (`>=1.4`, `>1.4`, `<2.0`, `<=2.0`, `=2.1.0`), x-range
-wildcards (`1.2.x`, `1.x`, `*`), hyphen ranges (`1.2.3 - 2.3.4`), and `||`-joined alternatives
-(`1.2.7 || >=1.2.9 <2.0.0`). Also accepted, matching real node-semver (`semver.validRange`,
-verified against node v24.18.0, claude-skills-234 Gate 3 review): whitespace between an operator
-and its version (`>= 1.2.3`), a `v`/`V` version prefix (`v1.2.3`), `~>` as a tilde-range alias, and
-an empty or whitespace-only string as equivalent to `*` (any version). A string outside this
-grammar — `not-a-semver!!!`, a bare operator with nothing attached (`>=`), or an incomplete hyphen
-range (`1.2.3 -`), for example — is rejected.
+wildcards, but ONLY in trailing position (`1.2.x`, `1.x`, `*` accepted; `x.1.2` and `1.x.3`
+rejected — see below), hyphen ranges (`1.2.3 - 2.3.4`), and `||`-joined alternatives
+(`1.2.7 || >=1.2.9 <2.0.0`). Also accepted, matching real node-semver (`semver.validRange`, verified
+against the actual `semver` npm package — current published version 7.8.5, `npm view semver
+version` — not just upstream's docs, claude-skills-234 Gate 3 review): whitespace between an
+operator and its version (`>= 1.2.3`), a LOWERCASE `v` version prefix (`v1.2.3` — uppercase
+`V1.2.3` is REJECTED; node does not case-fold this prefix), `~>` as a tilde-range alias, and an
+empty or whitespace-only string as equivalent to `*` (any version). A string outside this grammar —
+`not-a-semver!!!`, a bare operator with nothing attached (`>=`), an incomplete hyphen range
+(`1.2.3 -`), an uppercase `V` prefix, or a non-trailing wildcard (`x.1.2`, `1.x.3`), for example —
+is rejected.
 
 ```json
 // Invalid
 { "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "not-a-semver!!!" }] }
 { "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": ">=" }] }
+{ "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "V1.2.3" }] }
+{ "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "x.1.2" }] }
 
 // Valid — upstream's own documented example
 { "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "~2.1.0" }] }
@@ -74,6 +80,7 @@ range (`1.2.3 -`), for example — is rejected.
 // Valid — accepted forms node-semver allows beyond the documented examples
 { "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": ">= 1.2.3" }] }
 { "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "v1.2.3" }] }
+{ "name": "my-plugin", "dependencies": [{ "name": "secrets-vault", "version": "1.2.x" }] }
 ```
 
 ### Error — skill path missing or has no SKILL.md

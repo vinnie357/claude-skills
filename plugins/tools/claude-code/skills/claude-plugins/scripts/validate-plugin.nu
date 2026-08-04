@@ -745,10 +745,18 @@ def is-semver [version: string] {
 # the full node-semver grammar (rung 7 — the minimum that works), not a
 # reimplementation of node-semver itself: it accepts every documented example
 # and operator plus every additional form node's own `semver.validRange`
-# accepts (verified against node v24.18.0, claude-skills-234 Gate 3 review —
-# see the accept-direction fixtures below), and rejects garbage. It DOES model
-# leading-zero rejection in numeric identifiers (`01.2.3` is rejected, same as
-# real node-semver) — that is not a gap.
+# accepts, and rejects garbage. It DOES model leading-zero rejection in
+# numeric identifiers (`01.2.3` is rejected, same as real node-semver) — that
+# is not a gap.
+#
+# Verified against the actual `semver` npm package, not assumed from docs or
+# memory: npm's own bundled copy on this machine is 7.8.1, but `npm view
+# semver version` reports 7.8.5 as the current published release (7.8.1 is a
+# stale bundle) — 7.8.5 is what's cited below as "node-semver" throughout,
+# since that is the version a fresh `npm install semver` resolves today and
+# the one upstream's own docs implicitly mean by "Node's semver package".
+# 7.8.1 and 7.8.5 disagree on x-range wildcard placement (see below) — this
+# was caught by testing both, not by assuming a single version is timeless.
 #
 # Deliberate, upstream-matching decisions worth calling out explicitly rather
 # than leaving as silent behavior:
@@ -761,16 +769,73 @@ def is-semver [version: string] {
 #     "= 2.1.0", "^ 1.2.3", "~ 1.2.3", "~> 1.2.3") is ACCEPTED, including tabs
 #     as the AND-group separator (">=1.2.3\t<2.0.0") — node's tokenizer is
 #     whitespace-insensitive here.
-#   - A `v`/`V` version prefix ("v1.2.3") is ACCEPTED — node strips it.
+#   - A LOWERCASE `v` version prefix ("v1.2.3") is ACCEPTED — node strips it.
+#     UPPERCASE `V` is REJECTED (`semver.validRange("V1.2.3")` returns null)
+#     — node does not case-fold this prefix, so `is-version-partial` must not
+#     either.
 #   - `~>` (Ruby/Bundler-style "twiddle-wakka") is ACCEPTED as a tilde-range
 #     alias — confirmed against node-semver's own range grammar, not assumed
 #     from Ruby conventions.
+#   - An x-range wildcard (`x`, `X`, `*`) is ONLY valid in TRAILING position —
+#     `1.2.x` and `1.x` are ACCEPTED, but `x.1.2` and `1.x.3` are REJECTED
+#     (`semver.validRange` returns null for both on 7.8.5, even though the
+#     older bundled 7.8.1 accepted them). Once a component is a wildcard, or
+#     the dotted core simply ends, no further component may be a concrete
+#     number — enforced by is-x-range-core below, not by the regex alone.
 
-# One dotted version component: an optional v/V prefix, then an exact number
-# or an x-range wildcard (x, X, *) in any position, per node-semver's x-range
-# extension. No leading zeros in numeric identifiers (same as real semver).
-def is-version-partial [v: string] {
-  ($v | str trim) =~ '^[vV]?(0|[1-9][0-9]*|[xX*])(\.(0|[1-9][0-9]*|[xX*]))?(\.(0|[1-9][0-9]*|[xX*]))?(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+# One dotted-core component: a concrete numeric identifier (no leading
+# zeros, same as real semver) or an x-range wildcard (x, X, *).
+def is-x-range-component [p: string] {
+  ($p in ["x", "X", "*"]) or ($p =~ '^(0|[1-9][0-9]*)$')
+}
+
+# Enforces node-semver's trailing-only wildcard rule across a dotted core
+# (1 to 3 components, split on '.'): once a wildcard component is seen,
+# every remaining component to its right must not be a concrete number —
+# there is none, because a wildcard-then-concrete core is rejected outright.
+def is-x-range-core [parts: list<string>] {
+  if (($parts | length) < 1) or (($parts | length) > 3) {
+    false
+  } else {
+    mut wildcard_seen = false
+    mut ok = true
+    for p in $parts {
+      if $wildcard_seen {
+        $ok = false
+      } else if ($p in ["x", "X", "*"]) {
+        $wildcard_seen = true
+      } else if not (is-x-range-component $p) {
+        $ok = false
+      }
+    }
+    $ok
+  }
+}
+
+# One dotted version component: an optional LOWERCASE-ONLY `v` prefix, then
+# an x-range core (1-3 dot-separated parts, wildcard trailing-only — see
+# is-x-range-core), then an optional prerelease/build suffix. The suffix is
+# split off before the core is dot-split, since '-'/'+' only ever appear
+# after the numeric/wildcard core, never inside it.
+def is-version-partial [v0: string] {
+  let v = ($v0 | str trim)
+  if ($v | is-empty) {
+    false
+  } else {
+    let stripped = ($v | str replace --regex '^v' '')
+    if ($stripped | is-empty) {
+      false
+    } else {
+      let m = ($stripped | parse -r '^(?<core>[^-+]+)(?<rest>[-+].*)?$')
+      if ($m | is-empty) {
+        false
+      } else {
+        let rest = $m.0.rest
+        let rest_ok = ($rest | is-empty) or ($rest =~ '^(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$')
+        $rest_ok and (is-x-range-core ($m.0.core | split row '.'))
+      }
+    }
+  }
 }
 
 # The comparator operators node-semver recognizes as a range-token prefix.
@@ -1009,7 +1074,7 @@ def self-test [] {
     }
     {
       name: "dependencies_version_v_prefix_accepted"
-      why: "claude-skills-234 Gate 3 review — node accepts a v/V version prefix (v1.2.3); the pre-review grammar falsely rejected it"
+      why: "claude-skills-234 Gate 3 review — node accepts a LOWERCASE v version prefix (v1.2.3); the pre-review grammar falsely rejected it"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "v1.2.3" }] }
       expect_errors: 0
       expect_warnings: 0
@@ -1053,6 +1118,34 @@ def self-test [] {
       name: "dependencies_version_embedded_newline_rejected"
       why: "claude-skills-234 Gate 3 review — accepting any whitespace as an AND-group separator (including newlines) must not let an embedded newline smuggle garbage past validation"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.3\ngarbage" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_uppercase_v_prefix_rejected"
+      why: "claude-skills-234 Gate 3 nit — semver.validRange(\"V1.2.3\") returns null on real node-semver 7.8.5; node does not case-fold the v prefix, so accepting uppercase V (as an earlier grammar iteration did) was a false accept"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "V1.2.3" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_trailing_wildcard_accepted"
+      why: "claude-skills-234 Gate 3 nit — a trailing x-range wildcard (1.2.x) is the documented, common case and must stay accepted after the trailing-only-wildcard fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.2.x" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_leading_wildcard_rejected"
+      why: "claude-skills-234 Gate 3 nit — semver.validRange(\"x.1.2\") returns null on real node-semver 7.8.5 (wildcard only valid in trailing position); an earlier grammar iteration accepted a wildcard in any position, a false accept"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "x.1.2" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_version_mid_wildcard_rejected"
+      why: "claude-skills-234 Gate 3 nit — semver.validRange(\"1.x.3\") returns null on real node-semver 7.8.5; a wildcard followed by a concrete number is malformed, not just a leading-wildcard special case"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "db-migrate", version: "1.x.3" }] }
       expect_errors: 1
       expect_warnings: 0
     }
