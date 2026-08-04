@@ -613,9 +613,11 @@ set -e
 
 cd "$(git rev-parse --show-toplevel)"
 
-# Default to main if no base specified
-BASE="${1:-main}"
+# Default to origin/main (not the local branch, which can be stale) if no
+# base specified — the nu script itself fetches origin quietly before use.
+BASE="${1:-origin/main}"
 
+nu test/check-version-bumps.nu --self-test
 nu test/check-version-bumps.nu --base "$BASE"
 """
 
