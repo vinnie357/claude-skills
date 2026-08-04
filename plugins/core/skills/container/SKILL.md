@@ -48,6 +48,8 @@ Run, manage, and export containers (`run`, `list`/`ls`, `start`, `stop`, `kill`,
 
 Two corrections worth keeping in view: a custom MAC address is set via `--network <name>,mac=XX:XX:XX:XX:XX:XX` on `container run` — there is no separate `--mac-address` flag. `container export` produces a filesystem tar only (`-o/--output`); it does not create or tag an image, and there is no `-t/--tag` flag.
 
+> **⚠ Observed — `--rm` does not reliably remove the container on 1.0.0.** `container run --rm ...` left a stopped container behind on one host running Apple Container 1.0.0, despite `--rm` being set. This is stated as a direct operator observation at 1.0.0, not independently reproduced or verified against the binary here — do not treat it as confirmed on every 1.0.0 install. It is the likely accumulation mechanism behind roughly 300 stopped containers found on a dev host, a large share of them anonymous short-lived scan containers (e.g. from a gitleaks pre-commit hook that also relied on `--rm`). If a workflow depends on containers being reaped automatically, do not trust `--rm` alone on 1.0.0 — give the container an explicit unique `--name` and follow up with a defensive `container rm -f <that-exact-name>` scoped to only the container you just created. See Troubleshooting below for why an unscoped cleanup is worse than no cleanup at all.
+
 ## Container Machines (1.0.0+)
 
 Machines are long-lived Linux environments with tight host integration — a full Linux system with init support, not an ephemeral application container. Use machines for "edit on the Mac, build inside Linux" workflows, running system services under systemd, and testing across multiple distributions. The subcommand alias is `m` (`container m ls` = `container machine ls`).
@@ -327,6 +329,23 @@ container run -d --name db2 -v appdata:/var/lib/data mydb:latest
 ```
 
 ## Troubleshooting
+
+### Accumulated Stopped Containers (`--rm` unreliable on 1.0.0)
+
+If `container ls -a` shows a growing pile of stopped containers despite scripts using `--rm`, see the `--rm` note under Container Lifecycle above. Clean up deliberately, never with an unfiltered command:
+
+```bash
+# Inspect the full target list FIRST — always, before any destructive command
+container ls -a
+
+# Remove specific, identified containers by name or ID — never a blind splat
+container rm -f <name-or-id> [<name-or-id> ...]
+```
+
+**Never run `container rm -f $(container ls -aq)`.** That command has no filter: on one host it removed every container present, including unrelated k8s control planes that happened to be running alongside the anonymous scan containers it was meant to clean up. Images and named volumes survived that incident; container state did not. Two lessons, both binding for any cleanup script or agent-authored one-liner touching this CLI:
+
+1. **Inspect the target list before a destructive command.** `container ls -a` first, always — confirm what you are about to remove matches what you intend to remove.
+2. **Never splat an unfiltered `ls` into `rm`.** Scope every cleanup to specific names or IDs you created or explicitly identified, not "everything the list command currently returns."
 
 ### System Not Started
 
