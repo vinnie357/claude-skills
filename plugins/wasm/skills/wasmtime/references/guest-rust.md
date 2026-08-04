@@ -127,8 +127,11 @@ Generate Rust bindings from WIT files manually (without cargo-component).
 
 ```toml
 [dependencies]
-wit-bindgen = "0.36"
+wit-bindgen = "0.60"
 ```
+
+<!-- verified against wit-bindgen 0.60.0 (crates.io, 2026-08-04) -->
+
 
 ```rust
 wit_bindgen::generate!({
@@ -285,11 +288,13 @@ fn test_wasi_command() -> anyhow::Result<()> {
     let module = Module::from_file(&engine, "target/wasm32-wasip1/release/my_app.wasm")?;
 
     let mut linker = Linker::new(&engine);
-    wasmtime_wasi::preview1::add_to_linker_sync(&mut linker, |s| s)?;
+    wasmtime_wasi::p1::add_to_linker_sync(&mut linker, |s| s)?;
 
-    let wasi = wasmtime_wasi::preview1::WasiCtxBuilder::new()
+    // wasmtime-wasi 47.0.3 (verified 2026-08-04): preview1 module renamed to p1;
+    // the builder stays at the crate root with a .build_p1() finisher
+    let wasi = wasmtime_wasi::WasiCtxBuilder::new()
         .inherit_stdio()
-        .build();
+        .build_p1();
 
     let mut store = Store::new(&engine, wasi);
     linker.module(&mut store, "", &module)?;

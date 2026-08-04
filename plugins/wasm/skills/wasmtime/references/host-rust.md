@@ -6,16 +6,19 @@ Embed the Wasmtime runtime in Rust applications.
 
 ```toml
 [dependencies]
-wasmtime = "29"
-wasmtime-wasi = "29"       # for WASI support
+wasmtime = "47"
+wasmtime-wasi = "47"       # for WASI support
 anyhow = "1"
 
 # For async support
 tokio = { version = "1", features = ["full"] }
 
 # For Component Model
-wit-bindgen = "0.36"       # (guest-side, if also building components)
+wit-bindgen = "0.60"       # (guest-side, if also building components)
 ```
+
+<!-- verified against wasmtime 47.0.3 / wasmtime-wasi 47.0.3 (crates.io, 2026-08-04) and wit-bindgen 0.60.0 (crates.io, 2026-08-04) -->
+
 
 ## Core Module Embedding
 
@@ -112,23 +115,26 @@ let bytes = memory.data_size(&store);
 
 ### WASIp1 (Preview 1)
 
+<!-- verified against wasmtime-wasi 47.0.3 (docs.rs, 2026-08-04): the preview1 module was renamed to p1, and add_to_linker_sync/async moved from the crate root into the p1/p2 submodules; WasiCtxBuilder stays at the crate root with a .build_p1() finisher for WASIp1 contexts -->
+
 ```rust
 use wasmtime::*;
-use wasmtime_wasi::preview1::{self, WasiP1Ctx};
+use wasmtime_wasi::p1::{self, WasiP1Ctx};
+use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder};
 
 fn main() -> anyhow::Result<()> {
     let engine = Engine::default();
     let module = Module::from_file(&engine, "wasi_app.wasm")?;
 
     let mut linker: Linker<WasiP1Ctx> = Linker::new(&engine);
-    preview1::add_to_linker_sync(&mut linker, |ctx| ctx)?;
+    p1::add_to_linker_sync(&mut linker, |ctx| ctx)?;
 
-    let wasi_ctx = preview1::WasiCtxBuilder::new()
+    let wasi_ctx = WasiCtxBuilder::new()
         .inherit_stdio()
         .inherit_env()
         .args(&["app", "--verbose"])
         .preopened_dir("./data", "data", DirPerms::all(), FilePerms::all())?
-        .build();
+        .build_p1();
 
     let mut store = Store::new(&engine, wasi_ctx);
     linker.module(&mut store, "", &module)?;
@@ -142,10 +148,15 @@ fn main() -> anyhow::Result<()> {
 
 ### WASIp2 (Preview 2)
 
+<!-- verified against wasmtime-wasi 47.0.3 (docs.rs, 2026-08-04): WasiView::ctx() now returns a single WasiCtxView<'_> { ctx, table } instead of two separate ctx()/table() methods -->
+
 ```rust
-use wasmtime::*;
-use wasmtime::component::*;
-use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiView};
+// Explicit imports, not globs: `Linker` exists in BOTH `wasmtime` and
+// `wasmtime::component`, so glob-importing both makes a bare `Linker`
+// ambiguous (E0659). Everything below is the component-model `Linker`.
+use wasmtime::component::{Component, Linker, ResourceTable};
+use wasmtime::{Config, Engine, Store};
+use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 struct ServerState {
     wasi: WasiCtx,
@@ -153,8 +164,9 @@ struct ServerState {
 }
 
 impl WasiView for ServerState {
-    fn ctx(&mut self) -> &mut WasiCtx { &mut self.wasi }
-    fn table(&mut self) -> &mut ResourceTable { &mut self.table }
+    fn ctx(&mut self) -> WasiCtxView<'_> {
+        WasiCtxView { ctx: &mut self.wasi, table: &mut self.table }
+    }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -165,7 +177,7 @@ fn main() -> anyhow::Result<()> {
     let component = Component::from_file(&engine, "component.wasm")?;
 
     let mut linker = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker_sync(&mut linker)?;
+    wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
 
     let wasi = WasiCtxBuilder::new()
         .inherit_stdio()
@@ -219,8 +231,9 @@ let wasi = WasiCtxBuilder::new()
 Generate Rust host bindings from WIT:
 
 ```rust
+// Only the component glob — adding `use wasmtime::*;` alongside it would make
+// the bare `Linker`/`Instance` names ambiguous (E0659) in any block that uses them.
 use wasmtime::component::*;
-use wasmtime::*;
 
 // Generate host-side bindings from WIT
 bindgen!({
@@ -271,8 +284,9 @@ impl MyPluginImports for MyHost {
 }
 
 impl WasiView for MyHost {
-    fn ctx(&mut self) -> &mut WasiCtx { &mut self.wasi }
-    fn table(&mut self) -> &mut ResourceTable { &mut self.table }
+    fn ctx(&mut self) -> WasiCtxView<'_> {
+        WasiCtxView { ctx: &mut self.wasi, table: &mut self.table }
+    }
 }
 ```
 
@@ -287,7 +301,7 @@ fn main() -> anyhow::Result<()> {
     let component = Component::from_file(&engine, "plugin.wasm")?;
 
     let mut linker = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker_sync(&mut linker)?;
+    wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
     MyPlugin::add_to_linker(&mut linker, |state: &mut MyHost| state)?;
 
     let state = MyHost {
@@ -350,7 +364,7 @@ async fn main() -> anyhow::Result<()> {
     let component = Component::from_file(&engine, "plugin.wasm")?;
 
     let mut linker = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker_async(&mut linker)?;
+    wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
 
     let mut store = Store::new(&engine, state);
 
@@ -400,7 +414,7 @@ impl PluginManager {
         let engine = Engine::new(&config)?;
         let mut linker = Linker::new(&engine);
 
-        wasmtime_wasi::add_to_linker_sync(&mut linker)?;
+        wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
 
         Ok(Self { engine, linker })
     }
@@ -456,7 +470,7 @@ fn run_untrusted(wasm_bytes: &[u8]) -> anyhow::Result<String> {
     let component = Component::new(&engine, wasm_bytes)?;
 
     let mut linker = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker_sync(&mut linker)?;
+    wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
 
     let wasi = WasiCtxBuilder::new()
         // No stdio, no env, no filesystem, no network

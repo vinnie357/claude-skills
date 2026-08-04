@@ -181,10 +181,26 @@ extern "c" fn setenv(name: [*:0]const u8, value: [*:0]const u8, overwrite: c_int
 extern "c" fn unsetenv(name: [*:0]const u8) c_int;
 ```
 
-**Portability note.** `std.c.arc4random_buf` is only available on BSDs and
-Darwin (verified in `lib/std/c.zig:10347`). For portable cryptographic random
-bytes prefer `io.random(buffer)` (verified in `lib/std/Io.zig:2468`), which
-works on all supported targets without libc.
+**Portability note.** `std.c.arc4random_buf` is a `switch` on `native_os`
+(`lib/std/c.zig:10347`), not a plain `extern fn`, so on unsupported targets it
+is the `else => {}` branch — a `void` value. Calling it there fails at
+**compile** time with `error: type 'void' not a function`, not at link time.
+
+It resolves to a real symbol on the BSDs and Darwin unconditionally, and on
+Linux only when the ABI is Android or glibc ≥ 2.36. Probed with 0.16.0:
+
+| `-target` | Result |
+|---|---|
+| `aarch64-macos` | compiles |
+| `x86_64-linux-gnu.2.36` | compiles |
+| `x86_64-linux-gnu.2.35` | `error: type 'void' not a function` |
+| `x86_64-linux-gnu` (no version suffix) | `error: type 'void' not a function` — the default glibc is below 2.36 |
+| `x86_64-linux-musl` | `error: type 'void' not a function` |
+
+The bare `x86_64-linux-gnu` row is the trap: the common cross-compile target
+does **not** get `arc4random_buf` unless the glibc version is pinned explicitly.
+For portable cryptographic random bytes prefer `io.random(buffer)`
+(`lib/std/Io.zig:2468`), which works on all supported targets without libc.
 
 ---
 

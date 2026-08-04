@@ -411,78 +411,8 @@ wasm-tools validate --features component-model component.wasm
 
 ## Common Patterns
 
-### Plugin Interface
-
-```wit
-package my-app:plugin@0.1.0;
-
-world plugin {
-    // Host provides these to the plugin
-    import log: func(level: string, msg: string);
-    import config: func(key: string) -> option<string>;
-
-    // Plugin must provide these
-    export init: func() -> result<_, string>;
-    export process: func(input: list<u8>) -> result<list<u8>, string>;
-    export shutdown: func();
-}
-```
-
-### Service Interface with Resources
-
-```wit
-package my-org:database@1.0.0;
-
-interface db {
-    resource connection {
-        constructor(url: string) -> result<connection, string>;
-        query: func(sql: string, params: list<string>) -> result<list<list<string>>, string>;
-        close: func();
-    }
-
-    resource transaction {
-        begin: static func(conn: borrow<connection>) -> result<transaction, string>;
-        commit: func() -> result<_, string>;
-        rollback: func() -> result<_, string>;
-    }
-}
-
-world database-client {
-    import db;
-}
-```
-
-### Shared Type Library
-
-```wit
-package my-org:types@0.1.0;
-
-interface common {
-    record timestamp {
-        seconds: u64,
-        nanos: u32,
-    }
-
-    variant status {
-        ok,
-        error(string),
-        pending,
-    }
-}
-```
-
-Then in another package:
-
-```wit
-package my-org:service@0.1.0;
-
-use my-org:types/common@0.1.0.{timestamp, status};
-
-interface service {
-    get-status: func() -> status;
-    last-updated: func() -> timestamp;
-}
-```
+Worked WIT shapes — plugin world, resource-based service interface, shared
+type library across packages — are in [references/patterns.md](references/patterns.md).
 
 ## Common Pitfalls
 
@@ -490,7 +420,7 @@ interface service {
 - **No dot in identifiers**: use `wasi:io/streams`, not `wasi.io.streams`; dots are not valid in names
 - **Result without payloads**: `result<_, E>` for ok-unit, `result<T, _>` for err-unit, `result` for both unit
 - **borrow vs owned resource**: pass `borrow<resource-type>` when not transferring ownership; plain `resource-type` transfers ownership
-- **Pin to WASI 0.2.0**: use `@0.2.0` for all WASI imports — this is the first stable WASI release and the recommended target for new components
+- **Pin an explicit WASI version**: `@0.2.0` was the first stable WASI release (still valid, synchronous-only); `@0.3.0` is also stable (announced 2026-06-11 per bytecodealliance.org/articles/WASI-0.3, read 2026-08-04) and adds native async (`stream<T>`/`future<T>`) — pick `@0.3.0` for new components on a runtime that supports it (Wasmtime 46+, which enables Component Model Async by default), `@0.2.0` for maximum compatibility
 - **Version in use paths**: always include `@version` when referencing external packages to ensure deterministic resolution
 - **Package path in worlds**: `import wasi:io/streams@0.2.0` imports the `streams` interface from the `wasi:io` package
 - **Missing semicolons**: type alias definitions require a trailing semicolon: `type bytes = list<u8>;`

@@ -90,20 +90,43 @@ let module = unsafe { Module::deserialize_file(&engine, "module.cwasm")? };
 
 Resolves module imports to host functions or other module exports.
 
+`wasmtime::Linker` is the **core-module** linker. WASIp1 is the core-module WASI
+ABI, so this is the pairing that type-checks; the component-model counterpart
+(`wasmtime::component::Linker` + `wasmtime_wasi::p2`) is a different type and is
+shown under [WASIp2](#wasip2-preview-2) below.
+
 ```rust
-let mut linker = Linker::new(&engine);
+// Core-module host state: a WASIp1 context, plus whatever else the host needs.
+struct CoreState {
+    wasi: wasmtime_wasi::p1::WasiP1Ctx,
+}
+
+let mut store = Store::new(&engine, CoreState {
+    wasi: wasmtime_wasi::WasiCtxBuilder::new().inherit_stdio().build_p1(),
+});
+
+let mut linker: Linker<CoreState> = Linker::new(&engine);
 
 // Define a host function
-linker.func_wrap("env", "log", |caller: Caller<'_, HostState>, ptr: i32, len: i32| {
+linker.func_wrap("env", "log", |caller: Caller<'_, CoreState>, ptr: i32, len: i32| {
     // read string from caller memory
 })?;
 
-// Add WASI
-wasmtime_wasi::add_to_linker_sync(&mut linker)?;
+// Add WASIp1. Signature at wasmtime-wasi 47.0.3:
+//   pub fn add_to_linker_sync<T: Send + 'static>(
+//       linker: &mut Linker<T>,
+//       f: impl Fn(&mut T) -> &mut WasiP1Ctx + Copy + Send + Sync + 'static,
+//   ) -> Result<()>
+// — the second argument projects store state to the WASIp1 context.
+wasmtime_wasi::p1::add_to_linker_sync(&mut linker, |s: &mut CoreState| &mut s.wasi)?;
 
 // Instantiate
 let instance = linker.instantiate(&mut store, &module)?;
 ```
+
+`p2::add_to_linker_sync` will **not** compile here: its signature is
+`add_to_linker_sync<T: WasiView>(linker: &mut wasmtime::component::Linker<T>)`,
+so passing the core `wasmtime::Linker` above is a type error.
 
 ### Instance
 
@@ -217,18 +240,22 @@ wasm-tools compose -d b.wasm a.wasm -o composed.wasm
 
 POSIX-inspired system interface using core wasm imports.
 
+<!-- verified against wasmtime-wasi 47.0.3 (docs.rs, 2026-08-04): module renamed preview1 -> p1; the builder stays at the crate root with a .build_p1() finisher -->
+
 ```rust
 // Host setup for WASIp1
-use wasmtime_wasi::preview1;
+use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder};
 
-let wasi = preview1::WasiCtxBuilder::new()
+let wasi = WasiCtxBuilder::new()
     .inherit_stdio()
     .preopened_dir("/sandbox", ".", DirPerms::all(), FilePerms::all())?
-    .build();
+    .build_p1();
 ```
 
 Key WASIp1 modules:
-- `wasi_snapshot_preview1`: filesystem, clock, random, args, environ
+- `wasmtime_wasi::p1::wasi_snapshot_preview1` — the Rust module implementing the
+  guest-visible `wasi_snapshot_preview1` import namespace: filesystem, clock,
+  random, args, environ
 
 ### WASIp2 (Preview 2)
 
@@ -236,7 +263,7 @@ Component Model-based system interface with typed streams.
 
 ```rust
 // Host setup for WASIp2
-use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder};
 
 let wasi_ctx = WasiCtxBuilder::new()
     .inherit_stdio()

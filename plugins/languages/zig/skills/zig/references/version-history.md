@@ -48,7 +48,7 @@ const io = threaded.io();
 | "Juicy main" | `pub fn main(init: std.process.Init) !void` provides `init.arena`, `init.gpa`, `init.io`, `init.minimal.args`; env vars and args are no longer global |
 | `ArenaAllocator` thread-safe and lock-free; `std.heap.ThreadSafeAllocator` removed | Drop the wrapper |
 | Removed: `SegmentedList`, `Io.GenericWriter`/`AnyWriter`/`null_writer`, `Io.CountingReader`, `fs.getAppDataDir`, `*Z`/`*W` path variants | See release notes for per-API replacements |
-| Renamed: `fmt.Formatter` → `fmt.Alt`, `fmt.bufPrintZ` → `bufPrintSentinel`, `fs.File.Mode` → `std.Io.File.Permissions` | Mechanical rename |
+| Renamed: `fmt.Formatter` → `fmt.Alt`, `fs.File.Mode` → `std.Io.File.Permissions` (both old names are gone). Deprecated but still present: `fmt.bufPrintZ` → `fmt.bufPrintSentinel` | Mechanical rename; the `bufPrintZ` call still compiles, so grep for it rather than waiting for an error |
 | Stack trace API reworked | `std.debug.captureCurrentStackTrace(options, addr_buf)` / `writeCurrentStackTrace` |
 | `std.testing.io` added | Use in tests that perform I/O, like `std.testing.allocator` |
 

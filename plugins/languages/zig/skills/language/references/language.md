@@ -246,11 +246,20 @@ std.debug.print("Hello, {s}!\n", .{"World"});
 ### defer - Always Executes
 
 ```zig
-const file = try std.fs.cwd().openFile("data.txt", .{});
-defer file.close();
+// 0.16: filesystem access goes through std.Io; `std.fs.cwd` no longer exists.
+const file = try std.Io.Dir.cwd().openFile(io, "data.txt", .{});
+defer file.close(io);
 ```
 
-On 0.16+ filesystem access moves to the `std.Io` interface (`std.Io.Dir.cwd()`, methods take an `io` parameter) — load the zig:zig skill for the full version history.
+Obtain the `io` from `std.process.Init` in `main`, or standalone:
+
+```zig
+var threaded: std.Io.Threaded = .init_single_threaded;
+const io = threaded.io();
+```
+
+On 0.15 and earlier this was `try std.fs.cwd().openFile("data.txt", .{})` with a
+no-argument `file.close()` — load the zig:zig skill for the full version history.
 
 ### errdefer - Executes Only on Error
 

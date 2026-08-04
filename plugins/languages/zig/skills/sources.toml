@@ -3,8 +3,8 @@
 
 [meta]
 plugin = "zig"
-reviewed_at_plugin_version = "0.1.2"
-last_full_check = "2026-06-12"
+reviewed_at_plugin_version = "0.1.7"
+last_full_check = "2026-08-04"
 
 # ----------------------------------------------------------------------------
 # Zig toolchain — one upstream covers all seven skills in this plugin
@@ -19,7 +19,7 @@ check_method = "manual"
 github_repo = "ziglang/zig"
 current_version = "0.16.0"
 version_constraint = "pre-1.0"
-last_checked = "2026-06-12"
+last_checked = "2026-08-04"
 update_priority = "medium"
 breaking_changes_likely = true
-notes = "Pre-1.0 language; every minor release breaks std and build APIs (0.16: std.Io async architecture, @cImport deprecated, @Type removed; 0.15: std.Io Writergate, unmanaged ArrayList, usingnamespace/async removed). DO NOT use github-releases: ziglang stopped tagging GitHub after 0.15.2 (0.16.0 was missed that way on 2026-06-12). Check https://ziglang.org/download/index.json (machine-readable; keys are released versions, 'master' is dev). Create a versioned templates/X.Y.Z/mise.toml snapshot on each update and extend skills/zig/references/version-history.md. Release notes: https://ziglang.org/download/<version>/release-notes.html"
+notes = "Pre-1.0 language; every minor release breaks std and build APIs (0.16: std.Io async architecture, @cImport deprecated, @Type removed; 0.15: std.Io Writergate, unmanaged ArrayList, usingnamespace/async removed). DO NOT use github-releases: ziglang stopped tagging GitHub after 0.15.2 (0.16.0 was missed that way on 2026-06-12). Check https://ziglang.org/download/index.json (machine-readable; keys are released versions, 'master' is dev). Create a versioned templates/X.Y.Z/mise.toml snapshot on each update and extend skills/zig/references/version-history.md. Release notes: https://ziglang.org/download/<version>/release-notes.html. Content-verification pass 2026-08-04 (claude-skills-204): index.json still lists 0.16.0 (2026-04-13) as the newest non-master release. All seven skills were checked claim-by-claim against a locally installed zig 0.16.0 by compiling the documented snippets; SIX corrections were required (DebugAllocator .init misuse, an arc4random_buf portability claim refuted by its own citation, a nonexistent @cImport warning, an over-broad std.process.Child removal claim, bufPrintZ filed as renamed when it is deprecated-but-present, and a std.fs.cwd() example dead at 0.16). See sources.md for the per-claim record. IMPORTANT for re-verification: the lib/std/... citations anchor to a local 0.16.0 install, NOT to a git tag — ziglang's newest GitHub tag is 0.15.2 and no 0.16.0 tag exists (GitHub API 404), because the project moved to Codeberg. github_repo below is retained only for the historical tag list; do not use it to resolve 0.16+ source lines."
