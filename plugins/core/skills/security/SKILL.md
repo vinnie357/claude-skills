@@ -216,7 +216,7 @@ A shell function named `gitleaks` defined in an interactive shell's rc file (zsh
 
 ### gitleaks.sh (Bash)
 
-Bash script with the same capabilities:
+Bash script covering the same container runtimes as `gitleaks.nu`. It does NOT yet have the native-binary path or `--self-test` described above (claude-skills-209 scoped the native-first fix to `gitleaks.nu`) — prefer `gitleaks.nu` when a native binary is available:
 
 ```bash
 # Run with auto-detected runtime

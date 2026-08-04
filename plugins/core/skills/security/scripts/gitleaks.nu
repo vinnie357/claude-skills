@@ -47,26 +47,28 @@ def main [
         exit 1
     }
 
-    # Detect or validate runtime
-    let selected_runtime = if ($runtime | is-empty) {
+    # Detect or validate runtime. Both return {runtime: string, binary: string}
+    # — binary is the already-resolved native path (empty for container
+    # runtimes), resolved exactly once here rather than probed-then-resolved
+    # separately, to avoid a redundant `mise which gitleaks` subprocess call.
+    let selected = if ($runtime | is-empty) {
         detect-runtime
     } else {
         validate-runtime $runtime
     }
 
-    print $"(ansi cyan)Using runtime:(ansi reset) ($selected_runtime)"
+    print $"(ansi cyan)Using runtime:(ansi reset) ($selected.runtime)"
 
     # Ensure runtime is started (no-op for native)
-    start-runtime $selected_runtime
+    start-runtime $selected.runtime
 
     # Run gitleaks
-    if $selected_runtime in ["native-mise" "native-path"] {
-        let binary = (resolve-native-binary $selected_runtime)
-        let built = (build-gitleaks-args-native $scan_path $report $config $baseline $verbose)
-        run-gitleaks-native $binary $scan_path $built.args
+    if $selected.runtime in ["native-mise" "native-path"] {
+        let built = (build-gitleaks-args-native $scan_path $report $config $baseline)
+        run-gitleaks-native $selected.binary $scan_path $built.args
     } else {
         let built = (build-gitleaks-args-container $report $config $baseline $verbose)
-        run-gitleaks-container $selected_runtime $scan_path $built.args $built.config_mount
+        run-gitleaks-container $selected.runtime $scan_path $built.args $built.config_mount
     }
 }
 
@@ -152,6 +154,19 @@ def run-self-tests [] {
         {name: $name, pass: ($actual == $expected), actual: $actual, expected: $expected}
     }
 
+    # The error-path message builders (validate-runtime's "not found" branch)
+    # interpolate literal parens — the exact class of bug Gate 3 review found
+    # at line 246 (unescaped parens evaluated as a nushell expression, crashing
+    # before the message printed). Exercise the string construction itself via
+    # try/catch: a regression here throws "External command failed" instead
+    # of returning a string, which the pure select-runtime cases above cannot
+    # catch since they never touch string interpolation.
+    let native_not_found = (try {
+        {ok: true, value: (native-not-found-message)}
+    } catch { |err|
+        {ok: false, value: $err.msg}
+    })
+
     let cases = [
         (check "native-mise preferred over everything" (select-runtime true true true true true) "native-mise")
         (check "native-path used when mise unavailable" (select-runtime false true true true true) "native-path")
@@ -160,6 +175,8 @@ def run-self-tests [] {
         (check "colima used as last-resort runtime" (select-runtime false false false false true) "colima")
         (check "nothing available returns null, never a silent default" (select-runtime false false false false false) null)
         (check "native-mise still wins even with nothing else available" (select-runtime true false false false false) "native-mise")
+        (check "native-not-found message builds without throwing (regression: unescaped parens)" $native_not_found.ok true)
+        (check "native-not-found message names both checked sources" ($native_not_found.value | str contains "mise and PATH") true)
     ]
 
     for $c in $cases {
@@ -182,16 +199,33 @@ def run-self-tests [] {
     }
 }
 
-def probe-mise-native [] {
+# Resolve a mise-managed gitleaks binary in one subprocess call. Returns
+# the absolute path, or "" if mise is absent or has no gitleaks. Combining
+# probe + resolve avoids calling `mise which gitleaks` twice (once to check
+# availability, again to get the path) — a Gate 3 review nit on the first
+# version of this script, which had that exact duplication.
+def resolve-mise-native [] {
     if (which mise | is-empty) {
-        false
+        ""
     } else {
-        (do { ^mise which gitleaks } | complete).exit_code == 0
+        let result = (do { ^mise which gitleaks } | complete)
+        if $result.exit_code == 0 {
+            ($result.stdout | str trim)
+        } else {
+            ""
+        }
     }
 }
 
-def probe-path-native [] {
-    (which gitleaks | is-not-empty)
+# Resolve a gitleaks binary on PATH (non-mise install). Returns the
+# absolute path, or "" if not found.
+def resolve-path-native [] {
+    let found = (which gitleaks)
+    if ($found | is-empty) {
+        ""
+    } else {
+        ($found | get 0.path)
+    }
 }
 
 def probe-container [] {
@@ -209,13 +243,13 @@ def probe-colima [] {
 def detect-runtime [] {
     print $"(ansi cyan)Detecting gitleaks runtime...(ansi reset)"
 
-    let mise_native = (probe-mise-native)
-    let path_native = (probe-path-native)
+    let mise_bin = (resolve-mise-native)
+    let path_bin = (resolve-path-native)
     let container = (probe-container)
     let docker = (probe-docker)
     let colima = (probe-colima)
 
-    let selected = (select-runtime $mise_native $path_native $container $docker $colima)
+    let selected = (select-runtime ($mise_bin | is-not-empty) ($path_bin | is-not-empty) $container $docker $colima)
 
     if $selected == null {
         print $"(ansi red)Error:(ansi reset) No gitleaks binary and no container runtime found"
@@ -233,33 +267,47 @@ def detect-runtime [] {
     }
     print $"(ansi green)Found:(ansi reset) ($label)"
 
-    $selected
+    let binary = match $selected {
+        "native-mise" => $mise_bin
+        "native-path" => $path_bin
+        _ => ""
+    }
+
+    {runtime: $selected, binary: $binary}
+}
+
+# Pure message builder — kept separate from print/exit so --self-test can
+# invoke it directly and assert the interpolation itself doesn't blow up.
+# Literal parens in a `$"..."` string are evaluated as nushell expressions
+# unless escaped with `\(...\)` — an earlier version of this exact message
+# had an unescaped `(checked mise and PATH)` that nushell tried to run as
+# an external command named `checked`, crashing before the message ever
+# printed (claude-skills-209 Gate 3 review). This function exists so that
+# regression has a test, not just a human re-reading the diff.
+def native-not-found-message [] {
+    $"--runtime native requested but no gitleaks binary found \(checked mise and PATH\)"
 }
 
 def validate-runtime [runtime: string] {
     if $runtime == "native" {
-        if (probe-mise-native) {
-            "native-mise"
-        } else if (probe-path-native) {
-            "native-path"
+        let mise_bin = (resolve-mise-native)
+        if ($mise_bin | is-not-empty) {
+            {runtime: "native-mise", binary: $mise_bin}
         } else {
-            print $"(ansi red)Error:(ansi reset) --runtime native requested but no gitleaks binary found (checked mise and PATH)"
-            exit 1
+            let path_bin = (resolve-path-native)
+            if ($path_bin | is-not-empty) {
+                {runtime: "native-path", binary: $path_bin}
+            } else {
+                print $"(ansi red)Error:(ansi reset) (native-not-found-message)"
+                exit 1
+            }
         }
     } else if $runtime in ["docker" "container" "colima"] {
-        $runtime
+        {runtime: $runtime, binary: ""}
     } else {
         print $"(ansi red)Error:(ansi reset) Invalid runtime '($runtime)'"
         print "Valid options: native, docker, container, colima"
         exit 1
-    }
-}
-
-def resolve-native-binary [selected_runtime: string] {
-    if $selected_runtime == "native-mise" {
-        (^mise which gitleaks | str trim)
-    } else {
-        (which gitleaks | get 0.path)
     }
 }
 
@@ -335,7 +383,7 @@ def start-colima [] {
 }
 
 # Args for a directly-invoked native binary: real host paths, no /code mount prefix.
-def build-gitleaks-args-native [scan_path: string, report: string, config: string, baseline: string, verbose: bool] {
+def build-gitleaks-args-native [scan_path: string, report: string, config: string, baseline: string] {
     mut args = ["detect" $"--source=($scan_path)"]
 
     $args = ($args | append "-v")
