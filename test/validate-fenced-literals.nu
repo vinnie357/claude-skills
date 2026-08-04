@@ -4,9 +4,10 @@
 #
 # Validates plugins/tools/claude-code/skills/skill-update/fenced-literals.toml:
 #   B-group: schema (required/unknown keys, enums, conditional fields)
-#   C-group: registry <-> doc-content agreement (the `file` exists, and the
-#            `literal` string still appears in it — catches registry drift
-#            when a doc changes without the registry being updated)
+#   C-group: registry <-> doc-content agreement (the `file` exists, the
+#            `literal` string still appears in it, and it appears the
+#            expected number of times — catches registry drift when a doc
+#            changes without the registry being updated)
 #
 # Zero network calls. This is NOT a freshness check — it cannot tell you
 # whether a literal is stale. That question needs upstream, and belongs to
@@ -14,13 +15,27 @@
 # (scripts/fence-freshness.nu). This check only proves the registry is
 # telling the truth about what is CURRENTLY in the docs.
 #
+# claude-skills-233: a bare `str contains` proves the literal exists
+# SOMEWHERE in the file, not that the pin itself is intact. Demonstrated
+# failure: a real pin drifts (`postgres:16` -> `postgres:17`) while an
+# unrelated mention of the old string survives elsewhere in the same file
+# (a comment, a second unrelated example) — `str contains` still finds the
+# old text and reports clean. The optional `occurrences` field closes this:
+# when set, the registry is asserting "this exact literal appears N times in
+# this file"; a live count that no longer matches N means something moved —
+# either the real pin drifted while a stray duplicate survived, or a
+# duplicate the registry didn't know about appeared/disappeared. Entries
+# without `occurrences` keep the original at-least-one-occurrence check
+# (default expectation of exactly 1, the common case for a single pinned
+# example).
+#
 # Usage:
 #   nu test/validate-fenced-literals.nu              # scan the real registry
 #   nu test/validate-fenced-literals.nu --self-test  # verify the rules themselves
 
 const ENTRY_KEYS = [
     "file" "literal" "context" "check_method" "github_repo" "docker_image"
-    "pinned_tag" "eol_product" "eol_cycle" "policy" "notes"
+    "pinned_tag" "eol_product" "eol_cycle" "policy" "notes" "occurrences"
 ]
 const CHECK_METHODS = ["github-releases" "docker-hub" "manual"]
 const POLICIES = ["track" "intentional-pin"]
@@ -118,17 +133,51 @@ def check-entry [entry: record, doc_content: any]: nothing -> list {
         }
     }
 
+    # occurrences (claude-skills-233): optional, but when present must be a
+    # positive integer — how many times `literal` is expected to appear in
+    # `file`. Validated independent of doc content so a garbage value (a
+    # string, zero, negative) is a schema failure, not a silently-ignored
+    # default.
+    let occurrences_valid = if "occurrences" in $cols {
+        let occ = ($entry.occurrences? | default null)
+        if ($occ | describe) != "int" or $occ < 1 {
+            $findings = ($findings | append {
+                rule: "b5_occurrences_type"
+                severity: "fail"
+                message: $"($name): occurrences must be a positive integer, got '($occ)'"
+            })
+            false
+        } else {
+            true
+        }
+    } else {
+        true
+    }
+
     # C-group: registry <-> doc content agreement. $doc_content is null when
     # the caller couldn't read `file` (missing/unreadable) — reported
     # separately by the caller as c1_file_missing, not duplicated here.
     if $doc_content != null and ("literal" in $cols) {
         let literal = ($entry.literal? | default "")
-        if ($literal | is-not-empty) and not ($doc_content | str contains $literal) {
-            $findings = ($findings | append {
-                rule: "c1_literal_drift"
-                severity: "fail"
-                message: $"($name): literal '($literal)' no longer appears in the file — doc changed without the registry being updated, or the registry has a typo"
-            })
+        if ($literal | is-not-empty) {
+            # Non-overlapping substring count — split-and-count-gaps.
+            let actual = (($doc_content | split row $literal | length) - 1)
+            if $actual == 0 {
+                $findings = ($findings | append {
+                    rule: "c1_literal_drift"
+                    severity: "fail"
+                    message: $"($name): literal '($literal)' no longer appears in the file — doc changed without the registry being updated, or the registry has a typo"
+                })
+            } else if $occurrences_valid {
+                let expected = ($entry.occurrences? | default 1)
+                if $actual != $expected {
+                    $findings = ($findings | append {
+                        rule: "c2_occurrence_mismatch"
+                        severity: "fail"
+                        message: $"($name): literal '($literal)' expected ($expected) occurrence\(s\) but found ($actual) — the pin may have drifted while a stale or incidental mention of the same text survives elsewhere \(or a new duplicate appeared/disappeared\); update the registry's occurrences field if this is legitimate, or fix the drifted pin"
+                    })
+                }
+            }
         }
     }
 
@@ -214,6 +263,48 @@ def run-self-test [] {
             entry: {file: "x.md" literal: "v1.0.0" check_method: "manual" policy: "track"}
             content: null
             want: []
+        }
+        {
+            label: "clean entry with occurrences=2, both present"
+            entry: {file: "x.md" literal: "postgres:16" check_method: "manual" policy: "track" occurrences: 2}
+            content: "image: postgres:16\n# note: previously postgres:16"
+            want: []
+        }
+        {
+            label: "claude-skills-233 reproduction — real pin drifts, stale mention survives, bare contains() misses it"
+            entry: {file: "x.md" literal: "postgres:16" check_method: "manual" policy: "track" occurrences: 2}
+            content: "image: postgres:17\n# note: previously postgres:16"
+            want: ["c2_occurrence_mismatch"]
+        }
+        {
+            label: "occurrences field wrong type (string) is a schema failure"
+            entry: {file: "x.md" literal: "v1.0.0" check_method: "manual" policy: "track" occurrences: "two"}
+            content: "v1.0.0"
+            want: ["b5_occurrences_type"]
+        }
+        {
+            label: "occurrences field zero is a schema failure"
+            entry: {file: "x.md" literal: "v1.0.0" check_method: "manual" policy: "track" occurrences: 0}
+            content: "v1.0.0"
+            want: ["b5_occurrences_type"]
+        }
+        {
+            label: "occurrences field negative is a schema failure"
+            entry: {file: "x.md" literal: "v1.0.0" check_method: "manual" policy: "track" occurrences: -1}
+            content: "v1.0.0"
+            want: ["b5_occurrences_type"]
+        }
+        {
+            label: "literal gone entirely still reports c1 (not c2) even with occurrences set"
+            entry: {file: "x.md" literal: "v1.0.0" check_method: "manual" policy: "track" occurrences: 3}
+            content: "this doc now says v2.0.0 instead"
+            want: ["c1_literal_drift"]
+        }
+        {
+            label: "default expectation is exactly 1 when occurrences is absent — a second incidental occurrence is now caught"
+            entry: {file: "x.md" literal: "v1.0.0" check_method: "manual" policy: "track"}
+            content: "v1.0.0 appears here and again as v1.0.0 in a comment"
+            want: ["c2_occurrence_mismatch"]
         }
     ]
 
