@@ -1151,7 +1151,7 @@ def self-test [] {
     }
     {
       name: "top_level_version_malformed_warns"
-      why: "claude-skills-238 — is-semver (the plugin.json top-level 'version' field, distinct from the dependency RANGE check above) had zero fixture coverage; mutating it to always-true passed the pre-fix 30-case suite unchanged"
+      why: "claude-skills-238 — is-semver (the plugin.json top-level 'version' field, distinct from the dependency RANGE check above) had zero fixture coverage; mutating it to always-true passed the pre-fix 34-case suite unchanged"
       plugin: { name: "my-plugin", version: "not-a-version", description: "test fixture", license: "MIT" }
       expect_errors: 0
       expect_warnings: 1
@@ -1230,7 +1230,7 @@ def self-test [] {
   # — no case in $cases above carries a `skills` entry, so a mutation
   # replacing the whole function body with an unconditional error (or with
   # `{ errors: [], warnings: [] }`, the always-pass direction the bee is
-  # actually about) passed the pre-fix 30-case suite unchanged. Called
+  # actually about) passed the pre-fix 34-case suite unchanged. Called
   # directly against real temp SKILL.md files, the same pattern as
   # agent_model_cases above, rather than threaded through a full plugin.json
   # + skills-array + on-disk-directory round trip — that indirection buys
@@ -1434,6 +1434,23 @@ def self-test [] {
   # `nu::shell::error` / "EOF while parsing an object").
   "{\"name\": \"broken\"" | save --force $cli_invalid_json_path
 
+  # claude-skills-238 Gate 3 review — the description/keywords marketplace-
+  # agreement check itself (validate-plugin.nu's has_marketplace_context
+  # blocks, claude-skills-170's deletion-is-a-failure rule) had ZERO
+  # reject-direction fixture coverage: neutering either block to `if false`
+  # left the pre-fix suite green. cli_marketplace_valid_local_plugin_exit_0
+  # above only exercises the AGREE direction. Two dedicated plugin dirs
+  # (rather than reusing my-plugin) keep these isolated from a compounding
+  # "Name mismatch" error, since plugin.json's own 'name' must equal the
+  # marketplace entry's lookup name for that error to stay silent here.
+  let cli_desc_mismatch_dir = ($cli_temp_dir | path join "desc-mismatch-plugin")
+  mkdir ($cli_desc_mismatch_dir | path join ".claude-plugin")
+  { name: "desc-mismatch-plugin", version: "1.0.0", description: "test fixture", keywords: ["alpha", "beta"], license: "MIT" } | save --force ($cli_desc_mismatch_dir | path join ".claude-plugin" "plugin.json")
+
+  let cli_keywords_mismatch_dir = ($cli_temp_dir | path join "keywords-mismatch-plugin")
+  mkdir ($cli_keywords_mismatch_dir | path join ".claude-plugin")
+  { name: "keywords-mismatch-plugin", version: "1.0.0", description: "test fixture", keywords: ["alpha", "beta"], license: "MIT" } | save --force ($cli_keywords_mismatch_dir | path join ".claude-plugin" "plugin.json")
+
   let cli_marketplace_dir = ($cli_temp_dir | path join ".claude-plugin")
   mkdir $cli_marketplace_dir
   let cli_marketplace_path = ($cli_marketplace_dir | path join "marketplace.json")
@@ -1450,6 +1467,12 @@ def self-test [] {
       # validate-from-marketplace's local-source success path.
       { name: "my-plugin", source: "./my-plugin", description: "test fixture" }
       { name: "external-plugin", source: { source: "npm", package: "not-github" } }
+      # Deliberately WRONG description — plugin.json says "test fixture",
+      # keywords agree, so only the description-mismatch branch fires.
+      { name: "desc-mismatch-plugin", source: "./desc-mismatch-plugin", description: "a totally different description", keywords: ["alpha", "beta"] }
+      # Deliberately WRONG keywords — description agrees, so only the
+      # keywords-mismatch branch fires.
+      { name: "keywords-mismatch-plugin", source: "./keywords-mismatch-plugin", description: "test fixture", keywords: ["gamma", "delta"] }
     ]
   } | save --force $cli_marketplace_path
 
@@ -1503,6 +1526,20 @@ def self-test [] {
       args: ["my-plugin", "--marketplace", $cli_marketplace_path]
       expect_exit: 0
       why: "validate-from-marketplace's local-source success path, end to end through main"
+    }
+    {
+      name: "cli_marketplace_description_mismatch_exit_1"
+      args: ["desc-mismatch-plugin", "--marketplace", $cli_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "description mismatch"
+      why: "claude-skills-238 Gate 3 finding — the description-agreement check (claude-skills-170, validate-plugin.nu's has_marketplace_context block around the pj_description comparison) had zero reject-direction coverage; neutering that block to `if false` left the pre-fix suite green"
+    }
+    {
+      name: "cli_marketplace_keywords_mismatch_exit_1"
+      args: ["keywords-mismatch-plugin", "--marketplace", $cli_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "keywords mismatch"
+      why: "claude-skills-238 Gate 3 finding — same gap for the keywords-agreement check's has_marketplace_context block"
     }
     {
       name: "cli_marketplace_unsupported_external_source_exit_1"
