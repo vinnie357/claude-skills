@@ -62,11 +62,63 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
     exit 1
   }
 
-  let marketplace = (open $marketplace_path)
+  # claude-skills-247 — two more crash shapes on this same file, both
+  # reproduced with zero mutation before this fix: (1) nu's `from json`
+  # leniency (claude-skills-243's exact defect, in this THIRD `open` call
+  # site — #227's record guards only covered the two `open $plugin_path`
+  # sites, not this marketplace one) — a malformed marketplace.json that
+  # parses to a bare scalar crashes `$marketplace.plugins` with
+  # `incompatible_path_access: string doesn't support cell paths`; (2) a
+  # syntactically valid marketplace.json missing the `plugins` key
+  # entirely crashes with `column_not_found`, since `.plugins` is a bare
+  # cell-path access, not a `get -o`.
+  let marketplace = try {
+    open $marketplace_path
+  } catch {
+    print $"(ansi red_bold)Error:(ansi reset) Failed to parse marketplace.json: ($marketplace_path)"
+    exit 1
+  }
+  if not ($marketplace | describe | str starts-with "record") {
+    print $"(ansi red_bold)Error:(ansi reset) Failed to parse marketplace.json: ($marketplace_path)"
+    exit 1
+  }
   let marketplace_dir = ($marketplace_path | path dirname | path dirname)
 
-  # Find plugin entry
-  let plugin_entry = ($marketplace.plugins | where name == $plugin_name | first)
+  # Find plugin entry. `get -o plugins | default []` rather than the bare
+  # `.plugins` cell-path access above — a marketplace.json missing the key
+  # entirely now falls through to the existing "not found in marketplace"
+  # branch below instead of crashing on `column_not_found`.
+  #
+  # claude-skills-247 Gate 3 — a `plugins` key that's PRESENT but
+  # wrong-typed crashes in (at least) three distinct sub-shapes, all
+  # reproduced with zero mutation before fixing:
+  #   1. `{"plugins": "hi"}` — describe "string", crashes piped into
+  #      `where` (only_supports_this_input_type).
+  #   2. `{"plugins": [42, "x"]}` — passes the list-type check, but
+  #      crashes on the first non-record entry
+  #      (incompatible_path_access: int doesn't support cell paths).
+  #   3. `{"plugins": [{"foo": 1}]}` — a genuine RECORD, but missing the
+  #      `name` column. This one is NOT caught by filtering to records
+  #      alone: nushell's `where name == ...` does not silently skip a
+  #      record lacking the compared column, it raises
+  #      column_not_found — verified directly and independently of the
+  #      shape-1/shape-2 cases above, which is why an earlier version of
+  #      this guard's own comment (and this PR's body) claiming "a
+  #      malformed entry is tolerated (skipped)" was WRONG for this
+  #      specific sub-shape: a pre-filter that only checks "is this a
+  #      record" does not protect the subsequent `.name` access at all.
+  # Two guards: reject a non-list/table `plugins` outright (closes shape
+  # 1), then a SINGLE closure that checks record-ness AND safely reads
+  # `name` via `get -o` (not bare `.name`) before comparing — closes
+  # shapes 2 and 3 together, since `get -o` returns null rather than
+  # raising for a missing column.
+  let plugins_value = ($marketplace | get -o plugins | default [])
+  let plugins_type = ($plugins_value | describe)
+  if not (($plugins_type | str starts-with "list") or ($plugins_type | str starts-with "table")) {
+    print $"(ansi red_bold)Error:(ansi reset) Marketplace 'plugins' must be an array: ($marketplace_path)"
+    exit 1
+  }
+  let plugin_entry = ($plugins_value | where {|p| (($p | describe | str starts-with "record") and (($p | get -o name) == $plugin_name)) } | first)
   if ($plugin_entry | is-empty) {
     print $"(ansi red_bold)Error:(ansi reset) Plugin '($plugin_name)' not found in marketplace"
     exit 1
@@ -553,8 +605,37 @@ def validate-plugin-content [
     # claude-skills-245 — same unreachable-dead-code shape as skills above:
     # this block is gated by `$commands_value != null`, so a `nothing` type
     # (JSON null) never reaches an inner check. Deleted, verified directly.
-    if not ($commands_type | str starts-with "list") {
-      $errors = ($errors | append $"commands must be an array, got ($commands_type)")
+    if $commands_type == "string" {
+      # claude-skills-246 Gate 3 (team-lead's reviewer, corrected against
+      # the actual upstream docs — verified directly at
+      # code.claude.com/docs/en/plugins-reference before writing this:
+      # the manifest field table documents `commands`/`agents` as
+      # `string | array`, with bare-string examples, and "Replaces the
+      # default: commands, agents..." for the string form). Existence-
+      # check the string as a single path, exactly like an array entry's
+      # path — NOT via the array-entry loop below, which enforces "must
+      # be a file" and calls into content validation. The string form may
+      # legitimately be a directory (it replaces the default commands/
+      # scan), and this validator does not implement directory-content
+      # scanning — that's the Claude Code loader's job at install time,
+      # not this validator's at author time. Naively coercing the string
+      # into a one-element list and reusing the array-entry loop would
+      # wrongly flag a valid directory as an invalid single file entry —
+      # the exact defect class claude-skills-244 fixed elsewhere.
+      let command_path = if $plugin_name == "all-skills" {
+        ($plugin_root | path join $commands_value)
+      } else if $is_external {
+        ($plugin_root | path join $commands_value)
+      } else {
+        ($plugin_root | path join $source_dir $commands_value)
+      }
+      if not ($command_path | path exists) {
+        $warnings = ($warnings | append $"Command path not found: ($commands_value)")
+      } else if $verbose {
+        print $"  ✓ ($commands_value)"
+      }
+    } else if not ($commands_type | str starts-with "list") {
+      $errors = ($errors | append $"commands must be a string or an array, got ($commands_type)")
     } else {
       print $"\n(ansi cyan)Validating commands...(ansi reset)"
       for command in $plugin.commands {
@@ -583,8 +664,25 @@ def validate-plugin-content [
     # commands above: this block is gated by `$agents_value != null`, so a
     # `nothing` type (JSON null) never reaches an inner check. Deleted,
     # verified directly.
-    if not ($agents_type | str starts-with "list") {
-      $errors = ($errors | append $"agents must be an array, got ($agents_type)")
+    if $agents_type == "string" {
+      # claude-skills-246 — same string|array acceptance as commands
+      # above, same reasoning: existence-check only, no file-type
+      # enforcement and no content validation for the string form (it may
+      # legitimately be a directory this validator does not scan).
+      let agent_path = if $plugin_name == "all-skills" {
+        ($plugin_root | path join $agents_value)
+      } else if $is_external {
+        ($plugin_root | path join $agents_value)
+      } else {
+        ($plugin_root | path join $source_dir $agents_value)
+      }
+      if not ($agent_path | path exists) {
+        $warnings = ($warnings | append $"Agent path not found: ($agents_value)")
+      } else if $verbose {
+        print $"  ✓ ($agents_value)"
+      }
+    } else if not ($agents_type | str starts-with "list") {
+      $errors = ($errors | append $"agents must be a string or an array, got ($agents_type)")
     } else {
       print $"\n(ansi cyan)Validating agents...(ansi reset)"
       for agent in $plugin.agents {
@@ -725,7 +823,27 @@ def validate-skill-md [skill_md_path: string, skill_name: string, verbose: bool]
 
   # Extract frontmatter YAML
   let yaml_lines = ($lines | skip 1 | take $end_idx | str join "\n")
-  let frontmatter = ($yaml_lines | from yaml)
+  # claude-skills-247 — the fourth instance of this file's unguarded-parse
+  # defect class, found by sweeping for the CLASS (any operation assuming
+  # well-formed content) rather than the function name ('open') the
+  # earlier sweep used. Two distinct unsafe shapes, both reproduced with
+  # zero mutation on a real on-disk SKILL.md before this fix:
+  #   1. Genuinely malformed YAML (e.g. `name: [unclosed`) raises a
+  #      catchable error from `from yaml` — was completely unguarded.
+  #   2. Valid-but-scalar YAML (e.g. frontmatter body is just `hello`, no
+  #      key: value structure) does NOT raise — `from yaml` returns a bare
+  #      string — so `$frontmatter | get -o name` below crashed instead.
+  #      This is claude-skills-243's exact lenient-parse defect, in YAML:
+  #      a try/catch alone is insufficient, the result also needs a
+  #      record-type check.
+  let frontmatter = try {
+    $yaml_lines | from yaml
+  } catch {
+    return { errors: [$"SKILL.md has malformed YAML frontmatter: ($skill_name)"], warnings: [] }
+  }
+  if not ($frontmatter | describe | str starts-with "record") {
+    return { errors: [$"SKILL.md has malformed YAML frontmatter: ($skill_name)"], warnings: [] }
+  }
 
   mut errors = []
   mut warnings = []
@@ -795,7 +913,18 @@ def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
 
   # Extract frontmatter YAML
   let yaml_lines = ($lines | skip 1 | take $end_idx | str join "\n")
-  let frontmatter = ($yaml_lines | from yaml)
+  # claude-skills-247 — same unguarded-parse defect as validate-skill-md
+  # above: genuinely malformed YAML raises (previously unguarded), and
+  # valid-but-scalar YAML doesn't raise but isn't a record either
+  # (claude-skills-243's lenient-parse defect, in YAML).
+  let frontmatter = try {
+    $yaml_lines | from yaml
+  } catch {
+    return { errors: [$"Agent has malformed YAML frontmatter: ($agent_name)"], warnings: [] }
+  }
+  if not ($frontmatter | describe | str starts-with "record") {
+    return { errors: [$"Agent has malformed YAML frontmatter: ($agent_name)"], warnings: [] }
+  }
 
   mut errors = []
   mut warnings = []
@@ -1441,6 +1570,18 @@ def self-test [] {
       expect_warnings: 0
       why: "skills must not set allowed-tools — tool allowlists belong on the invoking agent, not the skill"
     }
+    # claude-skills-247 — the malformed/scalar-YAML-frontmatter reject
+    # cases are deliberately NOT here. validate-skill-md is called
+    # DIRECTLY (same process as this self-test run), so a mutation that
+    # reintroduces either pre-fix crash shape crashes the WHOLE self-test
+    # script here rather than failing one case cleanly — confirmed
+    # directly while developing this fixture, and it happens BEFORE
+    # cli_cases (which has real subprocess isolation) ever runs, since
+    # skill_md_cases executes first. Covered instead by
+    # cli_scalar_yaml_skill_exit_1 and cli_malformed_yaml_skill_exit_1
+    # below, reached through the full CLI + skills-array path, where a
+    # reverted guard fails by clean stdout-assertion mismatch in the
+    # PARENT self-test process instead of crashing it.
   ]
   let skill_md_temp_dir = (mktemp -d)
   for c in $skill_md_cases {
@@ -1452,6 +1593,10 @@ def self-test [] {
     }
     if ($result.warnings | length) != $c.expect_warnings {
       $failures = ($failures | append $"skill_md_($c.name): expected ($c.expect_warnings) warnings, got (($result.warnings | length)): ($result.warnings | to nuon) -- ($c.why)")
+    }
+    let expect_error_contains = ($c | get -o expect_error_contains)
+    if ($expect_error_contains != null) and not ($result.errors | any {|e| $e | str contains $expect_error_contains }) {
+      $failures = ($failures | append $"skill_md_($c.name): expected an error containing '($expect_error_contains)', got: ($result.errors | to nuon) -- ($c.why)")
     }
   }
   rm -rf $skill_md_temp_dir
@@ -1509,6 +1654,12 @@ def self-test [] {
       expect_errors: 1
       why: "tools must be a string; a bare number is neither the list-shape nor the string-shape branch"
     }
+    # claude-skills-247 — same reasoning as skill_md_cases above: the
+    # malformed/scalar-YAML reject cases are covered by
+    # cli_malformed_yaml_agent_exit_1 and cli_scalar_yaml_agent_exit_1
+    # instead, not here, since a direct call to validate-agent-md would
+    # crash this WHOLE self-test script under a reverted guard rather than
+    # failing one case cleanly.
   ]
   let agent_md_temp_dir = (mktemp -d)
   for c in $agent_md_cases {
@@ -1643,22 +1794,56 @@ def self-test [] {
       why: "claude-skills-244 — skills must be an array had zero reject-direction coverage. (The sibling 'skills field must be an array or omitted entirely (not null)' null-branch this comment used to distinguish itself from was deleted in claude-skills-245 as unreachable dead code — the outer `!= null` guard already skips it for any file-loaded manifest.) plugin-schema.md documents skills as array-only, so no doc divergence here (unlike commands/agents below)"
     }
     {
-      name: "commands_not_array_errors"
+      name: "commands_string_form_accepted"
       root: $root_b
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: "not-an-array" }
-      expect_errors: 1
-      expect_warnings: 0
-      expect_error_contains: "commands must be an array"
-      why: "claude-skills-244 — commands must be an array had zero reject-direction coverage. KNOWN VALIDATOR/DOC DIVERGENCE (Gate 3, team-lead's independent review): references/plugin-schema.md:21 and SKILL.md:50 document 'commands' as accepting a bare STRING (a directory to scan, e.g. './commands'), not array-only — this fixture's string value is rejected under CURRENT (pre-existing, unchanged by this PR) validator behavior, which this fixture intentionally continues to assert. Resolving the divergence needs directory-scan semantics the validator doesn't implement today (glob-matching .md files under the string path) — a real feature addition, not a self-test coverage gap, so it's recorded rather than rushed here. See claude-skills-244's BEES REQUESTS for the follow-up: fix the validator to implement the documented string form, OR narrow the docs to array-only."
+      expect_errors: 0
+      expect_warnings: 1
+      expect_warning_contains: "Command path not found: not-an-array"
+      why: "claude-skills-244/246/Gate-3 history: this fixture (formerly commands_not_array_errors) originally asserted a bare string errors. claude-skills-246 tried narrowing the docs to array-only to match that behavior — WRONG per Gate 3's independent upstream verification (code.claude.com/docs/en/plugins-reference documents commands/agents as string|array, with bare-string examples, and explicitly: a string 'Replaces the default: commands, agents...'). Reversed: the validator now ACCEPTS a string, existence-checked as a single path (not coerced into the array-entry loop, which would wrongly demand it be a file). 'not-an-array' is a syntactically valid but non-resolving path, so this proves acceptance-as-a-type (0 errors) with the expected not-found warning, not a clean pass — see commands_string_form_resolves_cleanly below for that"
     }
     {
-      name: "agents_not_array_errors"
+      name: "agents_string_form_accepted"
       root: $root_b
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: "not-an-array" }
+      expect_errors: 0
+      expect_warnings: 1
+      expect_warning_contains: "Agent path not found: not-an-array"
+      why: "claude-skills-246/Gate-3 — same reversal as commands_string_form_accepted above, for agents (formerly agents_not_array_errors)"
+    }
+    {
+      name: "commands_string_form_resolves_cleanly"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: "commands" }
+      expect_errors: 0
+      expect_warnings: 0
+      why: "claude-skills-246 Gate 3 — the actual restored feature: a string pointing at a real, existing directory (root_b/my-plugin/commands, already on disk from the path-not-found fixtures above) must pass cleanly with zero errors/warnings, proving the string form isn't just type-accepted but genuinely usable"
+    }
+    {
+      name: "agents_string_form_resolves_cleanly"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: "agents" }
+      expect_errors: 0
+      expect_warnings: 0
+      why: "claude-skills-246 Gate 3 — same as commands_string_form_resolves_cleanly above, for agents (root_b/my-plugin/agents already exists on disk)"
+    }
+    {
+      name: "commands_wrong_type_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: 42 }
       expect_errors: 1
       expect_warnings: 0
-      expect_error_contains: "agents must be an array"
-      why: "claude-skills-244 — agents must be an array had zero reject-direction coverage. Same KNOWN VALIDATOR/DOC DIVERGENCE as commands_not_array_errors above: plugin-schema.md:22/95 and SKILL.md:52 document 'agents' as accepting a bare STRING directory too. Recorded, not resolved, for the same reason — see that fixture's why: and claude-skills-244's BEES REQUESTS."
+      expect_error_contains: "commands must be a string or an array"
+      why: "claude-skills-246 Gate 3 — with strings now accepted, the type check needs a value invalid under BOTH accepted shapes to isolate the reject direction; a bare number is neither a string nor a list/table"
+    }
+    {
+      name: "agents_wrong_type_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "agents must be a string or an array"
+      why: "claude-skills-246 Gate 3 — same reasoning as commands_wrong_type_errors above, for agents"
     }
     {
       name: "missing_description_warns"
@@ -1805,6 +1990,49 @@ def self-test [] {
   mkdir ($cli_plugin_dir | path join ".claude-plugin")
   { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_plugin_dir | path join ".claude-plugin" "plugin.json")
 
+  # claude-skills-247 — skill_md_cases' "scalar_yaml_frontmatter" case
+  # above calls validate-skill-md directly (same process as this self-test
+  # run), so a MUTATION that reintroduces the pre-fix crash there crashes
+  # this WHOLE self-test script rather than failing that one case cleanly
+  # — confirmed directly while writing this fixture. Reaching the same
+  # guard through the full CLI (subprocess + `complete`, the same
+  # isolation `cli_cases` already relies on for the marketplace guards
+  # above) means a reverted guard fails THIS case by assertion instead,
+  # without risking the rest of the suite's report.
+  # Direct-file CLI mode derives BOTH plugin_root (the plugin's own
+  # directory) AND source_dir (= plugin_name) from the target, so paths
+  # inside the skills array resolve as plugin_root/plugin_name/<entry> —
+  # a doubled directory-name nesting, verified directly by computing it
+  # before placing this fixture (the first attempt at this fixture put
+  # SKILL.md one level too shallow and silently produced a "Skill path
+  # not found" warning instead of reaching the guard under test at all).
+  let cli_scalar_yaml_plugin_dir = ($cli_temp_dir | path join "scalar-yaml-plugin")
+  mkdir ($cli_scalar_yaml_plugin_dir | path join ".claude-plugin")
+  { name: "scalar-yaml-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/bad-skill"] } | save --force ($cli_scalar_yaml_plugin_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_scalar_yaml_plugin_dir | path join "scalar-yaml-plugin" "skills" "bad-skill")
+  "---\nhello\n---\n\nbody\n" | save --force ($cli_scalar_yaml_plugin_dir | path join "scalar-yaml-plugin" "skills" "bad-skill" "SKILL.md")
+
+  # Same doubled-nesting layout as scalar-yaml-plugin above, for the
+  # remaining three YAML-guard shapes (skill malformed, agent scalar,
+  # agent malformed).
+  let cli_malformed_yaml_skill_plugin_dir = ($cli_temp_dir | path join "malformed-yaml-skill-plugin")
+  mkdir ($cli_malformed_yaml_skill_plugin_dir | path join ".claude-plugin")
+  { name: "malformed-yaml-skill-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/bad-skill"] } | save --force ($cli_malformed_yaml_skill_plugin_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_malformed_yaml_skill_plugin_dir | path join "malformed-yaml-skill-plugin" "skills" "bad-skill")
+  "---\nname: [unclosed\n---\n\nbody\n" | save --force ($cli_malformed_yaml_skill_plugin_dir | path join "malformed-yaml-skill-plugin" "skills" "bad-skill" "SKILL.md")
+
+  let cli_scalar_yaml_agent_plugin_dir = ($cli_temp_dir | path join "scalar-yaml-agent-plugin")
+  mkdir ($cli_scalar_yaml_agent_plugin_dir | path join ".claude-plugin")
+  { name: "scalar-yaml-agent-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: ["agents/bad-agent.md"] } | save --force ($cli_scalar_yaml_agent_plugin_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_scalar_yaml_agent_plugin_dir | path join "scalar-yaml-agent-plugin" "agents")
+  "---\nhello\n---\n\nbody\n" | save --force ($cli_scalar_yaml_agent_plugin_dir | path join "scalar-yaml-agent-plugin" "agents" "bad-agent.md")
+
+  let cli_malformed_yaml_agent_plugin_dir = ($cli_temp_dir | path join "malformed-yaml-agent-plugin")
+  mkdir ($cli_malformed_yaml_agent_plugin_dir | path join ".claude-plugin")
+  { name: "malformed-yaml-agent-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: ["agents/bad-agent.md"] } | save --force ($cli_malformed_yaml_agent_plugin_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_malformed_yaml_agent_plugin_dir | path join "malformed-yaml-agent-plugin" "agents")
+  "---\nname: [unclosed\n---\n\nbody\n" | save --force ($cli_malformed_yaml_agent_plugin_dir | path join "malformed-yaml-agent-plugin" "agents" "bad-agent.md")
+
   let cli_invalid_json_path = ($cli_temp_dir | path join "invalid.json")
   # "not valid json {{{" is NOT actually invalid per nu's own `from json`,
   # which accepts a JSON5-style bare "quoteless string" and returns it
@@ -1892,12 +2120,114 @@ def self-test [] {
   let cli_empty_marketplace_path = ($cli_temp_dir | path join "empty-marketplace.json")
   { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [] } | save --force $cli_empty_marketplace_path
 
+  # claude-skills-247 — several more crash shapes for
+  # validate-from-marketplace, each reproduced with zero mutation against
+  # pre-fix code before being written here.
+  #
+  # "not json {{{" parses LENIENTLY to a bare string (verified:
+  # `"not json {{{" | from json | describe` => "string") — it exercises
+  # ONLY the record-type check, never the try/catch's raise path. Gate 3
+  # caught that neutering just the try/catch (leaving the record check
+  # intact) left the suite green with only this fixture in place —
+  # genuinely malformed content that `from json` cannot parse leniently
+  # at all is needed too (`{"name": }` — verified directly: raises
+  # `nu::shell::error`, "found a punctuator character when expecting a
+  # quoteless string").
+  let cli_malformed_marketplace_path = ($cli_temp_dir | path join "malformed-marketplace.json")
+  "not json {{{" | save --force $cli_malformed_marketplace_path
+  let cli_unparseable_marketplace_path = ($cli_temp_dir | path join "unparseable-marketplace.json")
+  "{\"name\": }" | save --force $cli_unparseable_marketplace_path
+
+  # A syntactically valid marketplace.json missing the 'plugins' key
+  # entirely (bare `.plugins` cell-path access crashed with
+  # column_not_found). Carries `owner` matching the valid fixtures above
+  # so it differs from them in exactly the one dimension under test
+  # (Gate 3 nit — the first version of this fixture omitted `owner` too,
+  # a second, inert difference).
+  let cli_no_plugins_key_marketplace_path = ($cli_temp_dir | path join "no-plugins-key-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" } } | save --force $cli_no_plugins_key_marketplace_path
+
+  # claude-skills-247 Gate 3 — a fifth shape, found on the exact line this
+  # PR rewrote: a `plugins` key that IS present but wrong-typed. Both
+  # sub-shapes reproduced with zero mutation before this fix:
+  # `{"plugins": "hi"}` crashes when the string is piped into `where`;
+  # `{"plugins": [42, "x"]}` passes the list-type check but crashes
+  # inside `where name == ...` on the first non-record entry (verified
+  # directly: `where` raises on the first element it can't apply the
+  # comparison to, it does not silently skip mistyped entries).
+  let cli_plugins_wrong_type_marketplace_path = ($cli_temp_dir | path join "plugins-wrong-type-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: "hi" } | save --force $cli_plugins_wrong_type_marketplace_path
+  let cli_plugins_non_record_entries_marketplace_path = ($cli_temp_dir | path join "plugins-non-record-entries-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [42, "x"] } | save --force $cli_plugins_non_record_entries_marketplace_path
+
+  # claude-skills-247 Gate 3 round 2 — a SIXTH shape, found on the exact
+  # line the round-1 fix rewrote: a `plugins` entry that IS a record but
+  # has no `name` key. Filtering to "is this a record" alone (round 1's
+  # guard) does NOT protect against this — nushell's `where name == ...`
+  # raises column_not_found on a record missing the compared column
+  # rather than skipping it, verified directly and independently of the
+  # non-record shapes above. Two fixtures: the nameless-record-alone case
+  # (must not crash, falls through to not-found), and a nameless record
+  # FOLLOWED BY a valid, matching entry (proves the filter genuinely
+  # skips the bad entry and keeps evaluating, rather than aborting the
+  # whole list on the first bad one).
+  let cli_plugins_nameless_record_marketplace_path = ($cli_temp_dir | path join "plugins-nameless-record-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ foo: 1 }] } | save --force $cli_plugins_nameless_record_marketplace_path
+
+  # `cli_plugins_nameless_then_valid_marketplace_path` needs a REAL local
+  # source lookup to succeed, unlike the other marketplace fixtures above
+  # (which all fail before ever reaching source resolution). marketplace
+  # source resolution derives marketplace_dir as
+  # `dirname(dirname(marketplace_path))`, expecting the file at
+  # `<root>/.claude-plugin/marketplace.json` — a flat file directly under
+  # $cli_temp_dir (like the other marketplace fixtures) resolves
+  # marketplace_dir one level too high and the lookup silently fails. Self-
+  # contained subtree, mirroring cli_marketplace_dir/cli_plugin_dir's own
+  # structure, to avoid that trap (caught directly: this fixture initially
+  # used a flat path and failed with "not found" for the wrong reason).
+  let cli_nameless_then_valid_root = ($cli_temp_dir | path join "nameless-then-valid-mkt")
+  let cli_nameless_then_valid_marketplace_dir = ($cli_nameless_then_valid_root | path join ".claude-plugin")
+  mkdir $cli_nameless_then_valid_marketplace_dir
+  let cli_plugins_nameless_then_valid_marketplace_path = ($cli_nameless_then_valid_marketplace_dir | path join "marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ foo: 1 }, { name: "target-plugin", source: "./target-plugin", description: "test fixture" }] } | save --force $cli_plugins_nameless_then_valid_marketplace_path
+  let cli_nameless_then_valid_plugin_dir = ($cli_nameless_then_valid_root | path join "target-plugin")
+  mkdir ($cli_nameless_then_valid_plugin_dir | path join ".claude-plugin")
+  { name: "target-plugin", version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_nameless_then_valid_plugin_dir | path join ".claude-plugin" "plugin.json")
+
   let cli_cases = [
     {
       name: "cli_valid_plugin_file_exit_0"
       args: [($cli_plugin_dir | path join ".claude-plugin" "plugin.json")]
       expect_exit: 0
       why: "validate-plugin-file's success path — main + validate-plugin-file together"
+    }
+    {
+      name: "cli_scalar_yaml_skill_exit_1"
+      args: [($cli_scalar_yaml_plugin_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "malformed YAML frontmatter"
+      why: "claude-skills-247 — subprocess-isolated regression guard for validate-skill-md's record-type check, reached through the full CLI + skills-array path rather than a direct function call, so a reverted guard fails THIS case by clean assertion (stdout mismatch) instead of crashing the whole self-test — verified directly by reverting the guard and observing the crash happens in the CHILD process only"
+    }
+    {
+      name: "cli_malformed_yaml_skill_exit_1"
+      args: [($cli_malformed_yaml_skill_plugin_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "malformed YAML frontmatter"
+      why: "claude-skills-247 — subprocess-isolated regression guard for validate-skill-md's try/catch (genuinely malformed YAML, an unclosed flow sequence), same isolation reasoning as cli_scalar_yaml_skill_exit_1 above"
+    }
+    {
+      name: "cli_scalar_yaml_agent_exit_1"
+      args: [($cli_scalar_yaml_agent_plugin_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "malformed YAML frontmatter"
+      why: "claude-skills-247 — subprocess-isolated regression guard for validate-agent-md's record-type check, agents-array path, same isolation reasoning as the skill cases above"
+    }
+    {
+      name: "cli_malformed_yaml_agent_exit_1"
+      args: [($cli_malformed_yaml_agent_plugin_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "malformed YAML frontmatter"
+      why: "claude-skills-247 — subprocess-isolated regression guard for validate-agent-md's try/catch, agents-array path, same isolation reasoning as the skill cases above"
     }
     {
       name: "cli_missing_file_exit_1"
@@ -1968,6 +2298,54 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "Marketplace path is not a file"
       why: "claude-skills-244 Gate 3 round 3 finding — a THIRD reachable open() crash, found by sweeping every `open` call site in this file after #223/#224 fixed the first two. `path exists` is true for directories, and this open() had no try/catch (unlike the two safe `open $plugin_path` sites, verified separately to catch is_a_directory via try/catch). Reused cli_plugin_dir (already a real directory from the earlier fixtures) as the --marketplace argument — reproduces with zero mutation and no plugin.json involved: a plain CLI typo pointing --marketplace at a directory instead of marketplace.json"
+    }
+    {
+      name: "cli_marketplace_malformed_json_exit_1"
+      args: ["somename", "--marketplace", $cli_malformed_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "Failed to parse marketplace.json"
+      why: "claude-skills-247 — a FOURTH instance of the lenient-scalar-parse defect (claude-skills-243), in this third `open` call site that #227's record guards never covered. 'not json {{{' parses leniently to a bare string (verified: `\"not json {{{\" | from json | describe` => \"string\"), and the pre-fix code's bare `$marketplace.plugins` cell-path access crashed with incompatible_path_access instead of ever reaching this message"
+    }
+    {
+      name: "cli_marketplace_unparseable_json_exit_1"
+      args: ["somename", "--marketplace", $cli_unparseable_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "Failed to parse marketplace.json"
+      why: "claude-skills-247 Gate 3 — the try/catch's actual raise path, distinct from cli_marketplace_malformed_json_exit_1 above which only exercises the record-type check. '{\"name\": }' genuinely cannot be parsed leniently (verified: raises nu::shell::error, 'found a punctuator character when expecting a quoteless string'). Gate 3 found that neutering ONLY the try/catch (keeping the record check) left the suite green with just the lenient-scalar fixture in place — this one closes that gap"
+    }
+    {
+      name: "cli_marketplace_no_plugins_key_exit_1"
+      args: ["somename", "--marketplace", $cli_no_plugins_key_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "not found in marketplace"
+      why: "claude-skills-247 — a syntactically valid marketplace.json missing the 'plugins' key entirely crashed with column_not_found on the pre-fix bare `.plugins` access. `get -o plugins | default []` routes this into the EXISTING plugin-not-found message rather than a new one — reproduced against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_marketplace_plugins_wrong_type_exit_1"
+      args: ["somename", "--marketplace", $cli_plugins_wrong_type_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "Marketplace 'plugins' must be an array"
+      why: "claude-skills-247 Gate 3 — a fifth crash shape found on the exact line this PR rewrote: {\"plugins\": \"hi\"} crashed the pre-fix `where` filter with only_supports_this_input_type. Reproduced directly before writing this fixture"
+    }
+    {
+      name: "cli_marketplace_plugins_non_record_entries_exit_1"
+      args: ["somename", "--marketplace", $cli_plugins_non_record_entries_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "not found in marketplace"
+      why: "claude-skills-247 Gate 3 — {\"plugins\": [42, \"x\"]} passes the list-type check but the pre-fix code crashed inside `where name == ...` on the first non-record entry (verified directly: incompatible_path_access, int doesn't support cell paths). The single closure (record-check AND safe `get -o name` read, combined) tolerates non-record entries by short-circuiting the `and` before ever reading `.name` on them — falls through to the same 'not found in marketplace' message as an empty plugins list, since no record matches"
+    }
+    {
+      name: "cli_marketplace_plugins_nameless_record_exit_1"
+      args: ["somename", "--marketplace", $cli_plugins_nameless_record_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "not found in marketplace"
+      why: "claude-skills-247 Gate 3 ROUND 2 — a SIXTH crash shape, found on the exact line round 1 rewrote: {\"plugins\": [{\"foo\": 1}]} is a genuine RECORD (round 1's record-only filter would have let it through), but has no 'name' key. Verified directly, independent of the non-record shapes: `[{foo: 1}] | where name == \"x\"` raises column_not_found — nushell does NOT silently skip a record missing the compared column. The fix reads `name` via `get -o` (returns null, doesn't raise) INSIDE the same closure that checks record-ness, so a nameless record is excluded by the comparison itself rather than by a separate pre-filter that only checked the wrong thing"
+    }
+    {
+      name: "cli_marketplace_plugins_nameless_then_valid_exit_0"
+      args: ["target-plugin", "--marketplace", $cli_plugins_nameless_then_valid_marketplace_path]
+      expect_exit: 0
+      why: "claude-skills-247 Gate 3 round 2 — proves the filter genuinely SKIPS the nameless record and keeps evaluating the rest of the list, rather than aborting on the first bad entry: a nameless record ({foo: 1}) is followed by a valid, matching target-plugin entry (self-contained fixture, own plugin dir), and the whole marketplace lookup must still succeed end to end"
     }
     {
       name: "cli_marketplace_plugin_not_found_exit_1"

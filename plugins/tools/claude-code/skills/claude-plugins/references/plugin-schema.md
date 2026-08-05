@@ -83,17 +83,19 @@ Complete JSON schema for Claude Code plugin.json files.
 
 ### commands (Optional)
 - **Type**: String or Array of strings
-- **Description**: Paths to command files or directories
+- **Description**: Paths to command files or directories, replacing the default `commands/` scan
 - **Formats**:
-  - String: `"./commands"` (directory containing .md files)
+  - String: `"./custom/cmd.md"` (a single file or directory)
   - Array: `["./commands/cmd1.md", "./commands/cmd2.md"]`
+- claude-skills-246: upstream (code.claude.com/docs/en/plugins-reference) documents this as `string | array`; the validator accepts the string form as a single path, checked for existence exactly like an array entry — it does not scan a directory's contents (that's the Claude Code loader's job, not this validator's).
 
 ### agents (Optional)
 - **Type**: String or Array of strings
-- **Description**: Paths to agent files or directories
+- **Description**: Paths to agent files, replacing the default `agents/` scan
 - **Formats**:
-  - String: `"./agents"` (directory)
+  - String: `"./custom/agents/reviewer.md"` (a single file or directory)
   - Array: `["./agents/agent1.md", "./agents/agent2.md"]`
+- claude-skills-246: same string|array acceptance as `commands` above.
 
 ### hooks (Optional)
 - **Type**: String or Object
