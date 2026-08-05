@@ -241,6 +241,19 @@ def validate-plugin-file [plugin_path: string, verbose: bool, strict: bool] {
 
   let plugin_name = ($plugin | get -o name | default "unknown")
 
+  # claude-skills-251 — a `name` field that's PRESENT but wrong-typed (e.g.
+  # `"name": 42`) crashes uncaught right here: `default "unknown"` only
+  # replaces null/missing, so $plugin_name stays the raw 42, and the call
+  # below binds it to BOTH `plugin_name: string` and `source_dir: string`
+  # on validate-plugin-content — nushell raises `cant_convert` at the call
+  # boundary itself, before validate-plugin-content's own body (and its own
+  # is-kebab-case check further down) ever runs. Verified directly against
+  # pre-fix code before writing this guard.
+  if not (is-string $plugin_name) {
+    print $"(ansi red_bold)Error:(ansi reset) plugin.json 'name' must be a string, got ($plugin_name | describe): ($plugin_path)"
+    exit 1
+  }
+
   let result = validate-plugin-content $plugin_path $plugin_root $plugin_name $plugin_name false $verbose $strict
 
   if $result.success {
@@ -264,6 +277,21 @@ def setup-external-plugin [source: any, plugin_name: string] {
     ($source | get -o repo | default "")
   } else {
     ($source | str replace "github:" "")
+  }
+
+  # claude-skills-252 — a `repo` field present but wrong-typed (e.g. `repo:
+  # 42`) crashed uncaught below: `default ""` only replaces null/missing,
+  # so $repo_path stays the raw 42, and `str length` doesn't take int
+  # input. A MISSING or empty `repo` is already safe — it routes to the
+  # existing "Unsupported external source format" error below via the
+  # `str length > 0` check, no network op involved (an earlier bee's claim
+  # that a missing repo reaches an unexecuted network op was checked and is
+  # false: the guard is exit 1 before ($github_url) is ever built). Reject
+  # the wrong-typed case cleanly before `str length` runs.
+  if not (is-string $repo_path) {
+    print $"(ansi red_bold)Error:(ansi reset) Unsupported external source format: 'repo' must be a string, got ($repo_path | describe)"
+    print "   Supported formats: github:owner/repo"
+    exit 1
   }
 
   if $is_github and ($repo_path | str length) > 0 {
@@ -348,16 +376,29 @@ def validate-plugin-content [
   } else {
     let name = $plugin.name
 
-    # Validate kebab-case
-    if not (is-kebab-case $name) {
-      $errors = ($errors | append $"Invalid name format: '($name)' \(must be kebab-case\)")
-    }
+    # claude-skills-251 — validate-plugin-file's own copy of this guard
+    # (around the call into this function) only protects the direct-file
+    # entry path. Marketplace mode (validate-from-marketplace) calls this
+    # function directly, bypassing that guard entirely, and `$plugin.name`
+    # here is re-read fresh from the file — so a wrong-typed name reaches
+    # is-kebab-case unguarded via THIS path. Same underlying defect, a
+    # genuinely untested variant until this fixture: verified directly
+    # against pre-fix code, reached only through --marketplace, before
+    # writing the fix.
+    if not (is-string $name) {
+      $errors = ($errors | append $"'name' must be a string, got ($name | describe)")
+    } else {
+      # Validate kebab-case
+      if not (is-kebab-case $name) {
+        $errors = ($errors | append $"Invalid name format: '($name)' \(must be kebab-case\)")
+      }
 
-    # Verify name matches expected
-    if $name != $plugin_name {
-      $errors = ($errors | append $"Name mismatch - expected '($plugin_name)', got '($name)'")
-    } else if $verbose {
-      print $"  ✓ name: ($name)"
+      # Verify name matches expected
+      if $name != $plugin_name {
+        $errors = ($errors | append $"Name mismatch - expected '($plugin_name)', got '($name)'")
+      } else if $verbose {
+        print $"  ✓ name: ($name)"
+      }
     }
   }
 
@@ -430,8 +471,14 @@ def validate-plugin-content [
           # is-semver here would wrongly reject upstream's own documented
           # example (~2.1.0), which is a range, not an exact version.
           let dep_version = ($dep | get -o version)
-          if ($dep_version != null) and not (is-semver-range $dep_version) {
-            let dep_label = ($dep | get -o name | default "?")
+          let dep_label = ($dep | get -o name | default "?")
+          # claude-skills-251 — a `version` present but wrong-typed (e.g.
+          # `["a"]`, a YAML/JSON list) crashed uncaught inside
+          # is-semver-range's typed `string` param, reproduced directly
+          # before this fix.
+          if ($dep_version != null) and not (is-string $dep_version) {
+            $errors = ($errors | append $"dependencies entry '($dep_label)' version must be a string, got ($dep_version | describe)")
+          } else if ($dep_version != null) and not (is-semver-range $dep_version) {
             $errors = ($errors | append $"dependencies entry '($dep_label)' has a malformed version constraint: '($dep_version)' \(expected a node-semver range like ~2.1.0, ^2.0, >=1.4, =2.1.0, or 1.2.3 - 2.3.4 — see https://code.claude.com/docs/en/plugin-dependencies\)")
           }
         } else {
@@ -444,6 +491,12 @@ def validate-plugin-content [
   # Check recommended fields
   if ($plugin | get -o version) == null {
     $warnings = ($warnings | append "Missing recommended field: version")
+  } else if not (is-string $plugin.version) {
+    # claude-skills-251 — a wrong-typed `version` (e.g. `42`) crashed
+    # uncaught inside is-semver's typed `string` param. Same severity as an
+    # unparseable-but-string version below (a warning, not an error) —
+    # `version` is a recommended, not required, field.
+    $warnings = ($warnings | append $"version should be a string, got ($plugin.version | describe)")
   } else {
     if not (is-semver $plugin.version) {
       $warnings = ($warnings | append $"version should use semantic versioning: ($plugin.version)")
@@ -494,14 +547,24 @@ def validate-plugin-content [
   # Validate author
   if ($plugin | get -o author) != null {
     let author = $plugin.author
-    if ($author | get -o name) != null and $verbose {
-      print $"  ✓ author.name: ($author.name)"
-    }
-    if ($author | get -o email) != null and $verbose {
-      print $"  ✓ author.email: ($author.email)"
-    }
-    if ($author | get -o url) != null and $verbose {
-      print $"  ✓ author.url: ($author.url)"
+    # claude-skills-251 — an `author` that's present but not an object
+    # (e.g. the common npm-style `"author": "someone"`) crashed uncaught:
+    # `get -o name` on a bare string raises only_supports_this_input_type
+    # ("only list<any>, table, record, and nothing input data is
+    # supported"). npm-style string authors are the shape most likely to
+    # actually appear in a real user manifest of everything in this sweep.
+    if not ($author | describe | str starts-with "record") {
+      $errors = ($errors | append $"'author' must be an object, got ($author | describe)")
+    } else {
+      if ($author | get -o name) != null and $verbose {
+        print $"  ✓ author.name: ($author.name)"
+      }
+      if ($author | get -o email) != null and $verbose {
+        print $"  ✓ author.email: ($author.email)"
+      }
+      if ($author | get -o url) != null and $verbose {
+        print $"  ✓ author.url: ($author.url)"
+      }
     }
   }
 
@@ -579,6 +642,18 @@ def validate-plugin-content [
       $errors = ($errors | append $"skills must be a string or an array, got ($skills_type)")
     } else {
       for skill in $plugin.skills {
+        # claude-skills-251 — a skills array entry that isn't a string (a
+        # bare wrong type like `42`, OR a nested list like `["a"]`) crashed
+        # uncaught inside `path join`, which can't convert either shape to
+        # a string. `continue` skips straight to the next entry rather than
+        # re-indenting this whole loop body into an else branch — same
+        # crash class as commands/agents below, verified independently at
+        # each of the three loops since `path join`'s crash is per-call,
+        # not shared state.
+        if not (is-string $skill) {
+          $errors = ($errors | append $"skills entry must be a string, got ($skill | describe): ($skill | to nuon)")
+          continue
+        }
         let skill_path = if $plugin_name == "all-skills" {
           ($plugin_root | path join $skill)
         } else if $is_external {
@@ -696,6 +771,13 @@ def validate-plugin-content [
     } else {
       print $"\n(ansi cyan)Validating commands...(ansi reset)"
       for command in $plugin.commands {
+        # claude-skills-251 — same crash class as the skills loop above: a
+        # commands array entry that isn't a string crashed uncaught inside
+        # `path join`.
+        if not (is-string $command) {
+          $errors = ($errors | append $"commands entry must be a string, got ($command | describe): ($command | to nuon)")
+          continue
+        }
         let command_path = if $plugin_name == "all-skills" {
           ($plugin_root | path join $command)
         } else if $is_external {
@@ -743,6 +825,13 @@ def validate-plugin-content [
     } else {
       print $"\n(ansi cyan)Validating agents...(ansi reset)"
       for agent in $plugin.agents {
+        # claude-skills-251 — same crash class as the skills/commands loops
+        # above: an agents array entry that isn't a string crashed
+        # uncaught inside `path join`.
+        if not (is-string $agent) {
+          $errors = ($errors | append $"agents entry must be a string, got ($agent | describe): ($agent | to nuon)")
+          continue
+        }
         let agent_path = if $plugin_name == "all-skills" {
           ($plugin_root | path join $agent)
         } else if $is_external {
@@ -819,6 +908,34 @@ def validate-plugin-content [
     if ($pj_keywords | is-not-empty) {
       if ($mkt_keywords | is-empty) {
         $errors = ($errors | append $"marketplace.json entry is missing 'keywords' that plugin.json defines: ($pj_keywords)")
+      } else if not ($pj_keywords | describe | str starts-with "list") {
+        # claude-skills-251 Gate 3 — this is the sibling of the class the
+        # rest of this PR closes: a LIST-assuming op (`sort`), not a
+        # string-assuming one. `is-not-empty` above returns true for ANY
+        # non-empty value including a bare scalar (`42 | is-not-empty` is
+        # true), so a wrong-typed 'keywords' sails past that guard-shaped
+        # check straight into `sort`, which crashes uncaught
+        # (only_supports_this_input_type) for anything but a list or
+        # record. Reproduced directly, zero mutation, before this fix. Two
+        # operands, guarded independently: this branch is plugin.json's
+        # own 'keywords' — already reported by the standalone 'keywords
+        # must be an array' check earlier in this function, so nothing is
+        # appended here; before this fix that error was accumulated into
+        # $errors and then the crash below suppressed it from ever being
+        # printed — the exact finding-masking failure this file's own
+        # comments describe elsewhere. Fixed by not reaching the crash at
+        # all, not by duplicating the message.
+      } else if not ($mkt_keywords | describe | str starts-with "list") {
+        # The other operand: a marketplace ENTRY's 'keywords' present but
+        # wrong-typed (e.g. a bare string) — verified directly that the
+        # `list<string>`-typed --mkt-keywords flag parameter does NOT
+        # reject this at the call boundary the way a bare `string`
+        # positional param would (contrast the plugin.json 'name'/
+        # 'version'/'author' typed-param crashes elsewhere in this PR);
+        # the wrong type reaches this function's body untouched and
+        # crashes at the same `sort` call. No existing check catches this
+        # side, so it gets its own new error here.
+        $errors = ($errors | append $"marketplace.json entry 'keywords' must be an array, got ($mkt_keywords | describe)")
       } else if ($pj_keywords | sort) != ($mkt_keywords | sort) {
         $errors = ($errors | append $"keywords mismatch — plugin.json is authoritative: plugin.json=($pj_keywords) marketplace.json=($mkt_keywords)")
       }
@@ -909,6 +1026,12 @@ def validate-skill-md [skill_md_path: string, skill_name: string, verbose: bool]
   let name = ($frontmatter | get -o name)
   if $name == null {
     $errors = ($errors | append $"SKILL.md missing 'name' field: ($skill_name)")
+  } else if not (is-string $name) {
+    # claude-skills-251 — a frontmatter `name` present but wrong-typed
+    # (e.g. `name: 42`) crashed uncaught inside the very next line's `str
+    # length` (only_supports_this_input_type — `str length` doesn't take
+    # int input at all).
+    $errors = ($errors | append $"SKILL.md 'name' must be a string, got ($name | describe): ($skill_name)")
   } else {
     let name_len = ($name | str length)
     if $name_len > 64 {
@@ -923,6 +1046,15 @@ def validate-skill-md [skill_md_path: string, skill_name: string, verbose: bool]
   let description = ($frontmatter | get -o description)
   if $description == null {
     $errors = ($errors | append $"SKILL.md missing 'description' field: ($skill_name)")
+  } else if not (is-string $description) {
+    # claude-skills-251 — a frontmatter `description` present but
+    # wrong-typed crashed two different ways depending on the shape: a
+    # bare int hits `str length` directly (only_supports_this_input_type,
+    # same as 'name' above); a YAML list (`[a, b]`) passes THROUGH `str
+    # length` (nu maps it to a list of per-entry lengths) and crashes one
+    # line later at `$desc_len > 1024` instead (operator_unsupported, `>`
+    # doesn't support list<int>). Both reproduced directly before this fix.
+    $errors = ($errors | append $"SKILL.md 'description' must be a string, got ($description | describe): ($skill_name)")
   } else {
     let desc_len = ($description | str length)
 
@@ -990,6 +1122,13 @@ def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
   let name = ($frontmatter | get -o name)
   if $name == null {
     $errors = ($errors | append $"Agent missing 'name' field: ($agent_name)")
+  } else if not (is-string $name) {
+    # claude-skills-251 — same crash class as SKILL.md's 'name' guard
+    # above: a frontmatter `name` present but wrong-typed crashed uncaught
+    # inside is-kebab-case's typed `string` param. Its own call site
+    # (distinct from SKILL.md's and from validate-plugin-content's) was an
+    # untested variant of the same defect.
+    $errors = ($errors | append $"Agent 'name' must be a string, got ($name | describe): ($agent_name)")
   } else {
     if not (is-kebab-case $name) {
       $errors = ($errors | append $"Agent 'name' must be kebab-case: ($agent_name)")
@@ -1025,10 +1164,20 @@ def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
   # alphanumeric segments) rather than trying to enumerate every release.
   let model = ($frontmatter | get -o model)
   if $model != null {
-    let valid_short_models = ["haiku", "sonnet", "opus", "fable", "inherit"]
-    let looks_like_full_model_id = ($model =~ '^claude-[a-z0-9]+(-[a-z0-9]+)*$')
-    if not ($model in $valid_short_models) and not $looks_like_full_model_id {
-      $warnings = ($warnings | append $"Agent 'model' should be one of: haiku, sonnet, opus, fable, inherit, or a full model ID like claude-opus-4-8 - got: ($model)")
+    # claude-skills-251 — a `model` present but wrong-typed (e.g. `model:
+    # 42`) crashed uncaught: `=~` on line 1125 below evaluates
+    # unconditionally, before the `in` membership check that would
+    # otherwise short-circuit on a bad value, and `=~` raises
+    # operator_unsupported for a non-string operand. Same severity as an
+    # unrecognized-but-string model (a warning, not an error).
+    if not (is-string $model) {
+      $warnings = ($warnings | append $"Agent 'model' should be a string, got ($model | describe): ($agent_name)")
+    } else {
+      let valid_short_models = ["haiku", "sonnet", "opus", "fable", "inherit"]
+      let looks_like_full_model_id = ($model =~ '^claude-[a-z0-9]+(-[a-z0-9]+)*$')
+      if not ($model in $valid_short_models) and not $looks_like_full_model_id {
+        $warnings = ($warnings | append $"Agent 'model' should be one of: haiku, sonnet, opus, fable, inherit, or a full model ID like claude-opus-4-8 - got: ($model)")
+      }
     }
   }
 
@@ -1037,6 +1186,35 @@ def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
   }
 
   { errors: $errors, warnings: $warnings }
+}
+
+# claude-skills-251/252 — the crash-guard class: every helper above with a
+# typed `string` parameter (is-kebab-case, is-semver, is-semver-range below)
+# and every bare `str length`/`str replace`/`=~` call against a manifest or
+# frontmatter value assumes the value is already a string. It never is,
+# necessarily — plugin.json and marketplace.json are user-authored JSON,
+# SKILL.md/agent frontmatter is user-authored YAML, and nothing upstream of
+# these call sites enforces the type before the value reaches them. A
+# wrong-typed value (int, bool, list, nested list) crashes uncaught: a typed
+# `string` param raises `cant_convert` at the call boundary, a bare `str
+# length`/`str replace` raises `only_supports_this_input_type`, and `=~`
+# raises `operator_unsupported` for non-string operands. Ten call sites
+# across this file share this exact defect, all reproduced end to end with a
+# real fixture file before this fix, zero mutation: plugin.json `name`
+# (both the direct-file call boundary AND validate-plugin-content's own
+# is-kebab-case call, which is only reachable via marketplace mode and was
+# untested), `version`, `author` (non-record), a `dependencies` entry's
+# `version`, each of the skills/commands/agents array-entry loops (a bare
+# wrong type OR a nested list — `path join` can't convert either), SKILL.md
+# frontmatter `name` and `description`, agent frontmatter `model` and
+# `name`, and a marketplace source's `repo` field. One helper, reused at
+# every site, same shape as is-kebab-case/is-semver/is-semver-range below —
+# not a generic "validate and report" abstraction, since each site's error
+# message and severity (error vs warning) differs and stays local to that
+# site; this is just the boolean type check they all need before doing
+# anything else with the value.
+def is-string [value: any] {
+  ($value | describe) == "string"
 }
 
 # Check if string is kebab-case
@@ -2279,6 +2457,153 @@ def self-test [] {
   let cli_plugins_wrong_type_source_marketplace_path = ($cli_temp_dir | path join "plugins-wrong-type-source-marketplace.json")
   { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "bad-source-plugin", source: 42 }] } | save --force $cli_plugins_wrong_type_source_marketplace_path
 
+  # claude-skills-251/252 — the crash-guard class sweep. Every fixture
+  # below is a real on-disk manifest/frontmatter file reproduced end to
+  # end against pre-fix code before being written here (verified directly,
+  # zero mutation) — no manifest already in this repo exercises any wrong
+  # type in these fields, so each fix needs its own dedicated fixture.
+  # CLI-subprocess pattern throughout, same reason as every other fixture
+  # in this block: a reverted guard would crash the whole self-test run if
+  # reached via a direct in-process call instead.
+
+  # Shape 1a — direct-file: plugin.json 'name' present but wrong-typed.
+  let cli_name_wrong_type_dir = ($cli_temp_dir | path join "name-wrong-type-plugin")
+  mkdir ($cli_name_wrong_type_dir | path join ".claude-plugin")
+  { name: 42, version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_name_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  # Shape 1b — marketplace mode reaches the SAME defect through a DIFFERENT
+  # call site (validate-plugin-content's own is-kebab-case call, only
+  # reachable when this function is invoked directly by
+  # validate-from-marketplace, bypassing validate-plugin-file's copy of
+  # the guard entirely) — an untested variant until this fixture. The
+  # marketplace entry's own 'name' (used for the lookup) is a valid
+  # string; the target plugin.json's 'name' field is the wrong-typed one.
+  # marketplace source resolution derives marketplace_dir as
+  # dirname(dirname(marketplace_path)), expecting the file at
+  # <root>/.claude-plugin/marketplace.json — a flat file directly under
+  # $cli_temp_dir resolves marketplace_dir one level too high and the
+  # source lookup fails for the wrong reason (caught directly: this
+  # fixture's first version used a flat path and failed with "plugin.json
+  # not found", not the crash under test). Self-contained subtree, same
+  # shape as cli_nameless_then_valid_root above.
+  let cli_name_wrong_type_mkt_root = ($cli_temp_dir | path join "name-wrong-type-mkt")
+  let cli_name_wrong_type_mkt_marketplace_dir = ($cli_name_wrong_type_mkt_root | path join ".claude-plugin")
+  mkdir $cli_name_wrong_type_mkt_marketplace_dir
+  let cli_name_wrong_type_marketplace_path = ($cli_name_wrong_type_mkt_marketplace_dir | path join "marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "name-wrong-type-mkt-plugin", source: "./name-wrong-type-mkt-plugin", description: "test fixture" }] } | save --force $cli_name_wrong_type_marketplace_path
+  let cli_name_wrong_type_mkt_plugin_dir = ($cli_name_wrong_type_mkt_root | path join "name-wrong-type-mkt-plugin")
+  mkdir ($cli_name_wrong_type_mkt_plugin_dir | path join ".claude-plugin")
+  { name: 42, version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_name_wrong_type_mkt_plugin_dir | path join ".claude-plugin" "plugin.json")
+
+  # Shape 2 — plugin.json 'version' present but wrong-typed. Exit 0: this
+  # field is recommended, not required, so the guard reports a warning
+  # (same severity as an unparseable-but-string version), not an error.
+  let cli_version_wrong_type_dir = ($cli_temp_dir | path join "version-wrong-type-plugin")
+  mkdir ($cli_version_wrong_type_dir | path join ".claude-plugin")
+  { name: "version-wrong-type-plugin", version: 42, description: "test fixture", license: "MIT" } | save --force ($cli_version_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  # Shape 3 — plugin.json 'author' present but not an object. The
+  # npm-style bare-string author ("author": "someone") is the shape most
+  # likely to appear in a real user manifest of everything in this sweep.
+  let cli_author_wrong_type_dir = ($cli_temp_dir | path join "author-wrong-type-plugin")
+  mkdir ($cli_author_wrong_type_dir | path join ".claude-plugin")
+  { name: "author-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: "someone" } | save --force ($cli_author_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  # Shape 4 — a 'dependencies' entry's 'version' present but wrong-typed
+  # (a YAML/JSON list, not a string).
+  let cli_dep_version_wrong_type_dir = ($cli_temp_dir | path join "dep-version-wrong-type-plugin")
+  mkdir ($cli_dep_version_wrong_type_dir | path join ".claude-plugin")
+  { name: "dep-version-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "x", version: ["a"] }] } | save --force ($cli_dep_version_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  # Shape 5 — skills/commands/agents array entries that aren't strings.
+  # Three distinct call sites (separate for-loops, separate `path join`
+  # calls, separate error messages) — each verified and fixtured
+  # independently rather than assuming one loop's fix covers the others.
+  # 'skills' uses a nested list (the shape claude-skills-251's own bee
+  # named); 'commands'/'agents' use a bare wrong type (a plain int),
+  # proving the fix isn't narrowly targeted at nested lists specifically —
+  # team-lead's Gate 3 correction: "the same sites crash on ANY non-string
+  # entry, not just nested lists."
+  let cli_skills_entry_wrong_type_dir = ($cli_temp_dir | path join "skills-entry-wrong-type-plugin")
+  mkdir ($cli_skills_entry_wrong_type_dir | path join ".claude-plugin")
+  { name: "skills-entry-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: [["a"]] } | save --force ($cli_skills_entry_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  let cli_commands_entry_wrong_type_dir = ($cli_temp_dir | path join "commands-entry-wrong-type-plugin")
+  mkdir ($cli_commands_entry_wrong_type_dir | path join ".claude-plugin")
+  { name: "commands-entry-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: [42] } | save --force ($cli_commands_entry_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  let cli_agents_entry_wrong_type_dir = ($cli_temp_dir | path join "agents-entry-wrong-type-plugin")
+  mkdir ($cli_agents_entry_wrong_type_dir | path join ".claude-plugin")
+  { name: "agents-entry-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: [42] } | save --force ($cli_agents_entry_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  # Shape 6/7 — SKILL.md frontmatter 'name'/'description' present but
+  # wrong-typed. Direct-file CLI mode derives source_dir = plugin_name, so
+  # skill paths resolve with the doubled directory-name nesting documented
+  # elsewhere in this file (claude-skills-247's cli_scalar_yaml_plugin_dir
+  # comment) — computed explicitly here rather than assumed, same
+  # precaution.
+  let cli_skill_md_name_wrong_type_dir = ($cli_temp_dir | path join "skill-md-name-wrong-type-plugin")
+  mkdir ($cli_skill_md_name_wrong_type_dir | path join ".claude-plugin")
+  { name: "skill-md-name-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/bad-skill"] } | save --force ($cli_skill_md_name_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_skill_md_name_wrong_type_dir | path join "skill-md-name-wrong-type-plugin" "skills" "bad-skill")
+  "---\nname: 42\ndescription: Use when testing.\n---\n\nbody\n" | save --force ($cli_skill_md_name_wrong_type_dir | path join "skill-md-name-wrong-type-plugin" "skills" "bad-skill" "SKILL.md")
+
+  # 'description' as a YAML list — the sneakier of the two pre-fix crash
+  # shapes (passes THROUGH `str length`, which maps a list to per-entry
+  # lengths, and only crashes one line later at the `>` comparison). Chosen
+  # over the bare-int variant because it demonstrates the guard covers the
+  # crash that does NOT fail at the first possible line.
+  let cli_skill_md_description_wrong_type_dir = ($cli_temp_dir | path join "skill-md-description-wrong-type-plugin")
+  mkdir ($cli_skill_md_description_wrong_type_dir | path join ".claude-plugin")
+  { name: "skill-md-description-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/bad-skill"] } | save --force ($cli_skill_md_description_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_skill_md_description_wrong_type_dir | path join "skill-md-description-wrong-type-plugin" "skills" "bad-skill")
+  "---\nname: bad-skill\ndescription: [a, b]\n---\n\nbody\n" | save --force ($cli_skill_md_description_wrong_type_dir | path join "skill-md-description-wrong-type-plugin" "skills" "bad-skill" "SKILL.md")
+
+  # Shape 8/9 — agent frontmatter 'model'/'name' present but wrong-typed.
+  let cli_agent_model_wrong_type_dir = ($cli_temp_dir | path join "agent-model-wrong-type-plugin")
+  mkdir ($cli_agent_model_wrong_type_dir | path join ".claude-plugin")
+  { name: "agent-model-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: ["agents/bad-agent.md"] } | save --force ($cli_agent_model_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_agent_model_wrong_type_dir | path join "agent-model-wrong-type-plugin" "agents")
+  "---\nname: bad-agent\ndescription: test fixture\nmodel: 42\n---\n\nbody\n" | save --force ($cli_agent_model_wrong_type_dir | path join "agent-model-wrong-type-plugin" "agents" "bad-agent.md")
+
+  let cli_agent_name_wrong_type_dir = ($cli_temp_dir | path join "agent-name-wrong-type-plugin")
+  mkdir ($cli_agent_name_wrong_type_dir | path join ".claude-plugin")
+  { name: "agent-name-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: ["agents/bad-agent.md"] } | save --force ($cli_agent_name_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_agent_name_wrong_type_dir | path join "agent-name-wrong-type-plugin" "agents")
+  "---\nname: 42\ndescription: test fixture\n---\n\nbody\n" | save --force ($cli_agent_name_wrong_type_dir | path join "agent-name-wrong-type-plugin" "agents" "bad-agent.md")
+
+  # Shape 10 — a marketplace source object's 'repo' present but
+  # wrong-typed. Flat marketplace file: setup-external-plugin's guard
+  # fires before marketplace_dir/plugin_root are ever dereferenced.
+  let cli_source_repo_wrong_type_marketplace_path = ($cli_temp_dir | path join "source-repo-wrong-type-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "source-repo-wrong-type-plugin", source: { source: "github", repo: 42 } }] } | save --force $cli_source_repo_wrong_type_marketplace_path
+
+  # Shape 11 — Gate 3 finding: the marketplace-context keywords comparison
+  # (`sort` on both operands) is the LIST-assuming sibling of the
+  # string-assuming class this PR otherwise closes. `is-not-empty` returns
+  # true for ANY non-empty value (including a bare scalar), so the
+  # guard-shaped check above the comparison does not actually protect it —
+  # both operands crash independently at `sort`, verified directly, zero
+  # mutation, both self-contained marketplace subtrees (source resolution
+  # needs a real plugin.json to reach this far).
+  let cli_pj_keywords_wrong_type_root = ($cli_temp_dir | path join "pj-keywords-wrong-type-mkt")
+  let cli_pj_keywords_wrong_type_marketplace_dir = ($cli_pj_keywords_wrong_type_root | path join ".claude-plugin")
+  mkdir $cli_pj_keywords_wrong_type_marketplace_dir
+  let cli_pj_keywords_wrong_type_marketplace_path = ($cli_pj_keywords_wrong_type_marketplace_dir | path join "marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "pj-keywords-wrong-type-plugin", source: "./pj-keywords-wrong-type-plugin", description: "test fixture", keywords: ["a", "b"] }] } | save --force $cli_pj_keywords_wrong_type_marketplace_path
+  let cli_pj_keywords_wrong_type_plugin_dir = ($cli_pj_keywords_wrong_type_root | path join "pj-keywords-wrong-type-plugin")
+  mkdir ($cli_pj_keywords_wrong_type_plugin_dir | path join ".claude-plugin")
+  { name: "pj-keywords-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", keywords: 42 } | save --force ($cli_pj_keywords_wrong_type_plugin_dir | path join ".claude-plugin" "plugin.json")
+
+  let cli_mkt_keywords_wrong_type_root = ($cli_temp_dir | path join "mkt-keywords-wrong-type-mkt")
+  let cli_mkt_keywords_wrong_type_marketplace_dir = ($cli_mkt_keywords_wrong_type_root | path join ".claude-plugin")
+  mkdir $cli_mkt_keywords_wrong_type_marketplace_dir
+  let cli_mkt_keywords_wrong_type_marketplace_path = ($cli_mkt_keywords_wrong_type_marketplace_dir | path join "marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "mkt-keywords-wrong-type-plugin", source: "./mkt-keywords-wrong-type-plugin", description: "test fixture", keywords: "notalist" }] } | save --force $cli_mkt_keywords_wrong_type_marketplace_path
+  let cli_mkt_keywords_wrong_type_plugin_dir = ($cli_mkt_keywords_wrong_type_root | path join "mkt-keywords-wrong-type-plugin")
+  mkdir ($cli_mkt_keywords_wrong_type_plugin_dir | path join ".claude-plugin")
+  { name: "mkt-keywords-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", keywords: ["a", "b"] } | save --force ($cli_mkt_keywords_wrong_type_plugin_dir | path join ".claude-plugin" "plugin.json")
+
   let cli_cases = [
     {
       name: "cli_valid_plugin_file_exit_0"
@@ -2472,6 +2797,111 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "Unsupported external source format"
       why: "setup-external-plugin's non-github-object branch — the one setup-external-plugin path reachable without a live git clone"
+    }
+    {
+      name: "cli_name_wrong_type_direct_exit_1"
+      args: [($cli_name_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "'name' must be a string, got int"
+      why: "claude-skills-251 shape 1a — a plugin.json 'name' present but wrong-typed crashed uncaught at the call into validate-plugin-content: default \"unknown\" only replaces null/missing, so the raw int reaches a `string`-typed positional param and nushell raises cant_convert at the call boundary, before validate-plugin-content's own body ever runs. Reproduced directly against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_name_wrong_type_marketplace_exit_1"
+      args: ["name-wrong-type-mkt-plugin", "--marketplace", $cli_name_wrong_type_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "'name' must be a string, got int"
+      why: "claude-skills-251 shape 1b — the SAME defect reached through a DIFFERENT call site: marketplace mode calls validate-plugin-content directly (bypassing validate-plugin-file's copy of the guard), and `$plugin.name` there is re-read fresh from the file, reaching is-kebab-case unguarded. An untested variant of shape 1a until this fixture — the marketplace entry's own name (used for the lookup) is a valid string, only the target plugin.json's 'name' field is wrong-typed"
+    }
+    {
+      name: "cli_version_wrong_type_exit_0"
+      args: [($cli_version_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 0
+      expect_output_contains: "version should be a string, got int"
+      why: "claude-skills-251 shape 2 — a plugin.json 'version' present but wrong-typed crashed uncaught inside is-semver's typed string param. Same severity as an unparseable-but-string version (a warning, not an error) — version is recommended, not required, so overall validation still exits 0"
+    }
+    {
+      name: "cli_author_wrong_type_exit_1"
+      args: [($cli_author_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "'author' must be an object, got string"
+      why: "claude-skills-251 shape 3 — an 'author' present but not an object crashed uncaught: `get -o name` on a bare string raises only_supports_this_input_type. The npm-style bare-string author (\"author\": \"someone\") is the shape most likely to appear in a real user manifest of everything in this sweep"
+    }
+    {
+      name: "cli_dependency_version_wrong_type_exit_1"
+      args: [($cli_dep_version_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "dependencies entry 'x' version must be a string, got list<string>"
+      why: "claude-skills-251 shape 4 — a dependencies entry's 'version' present but wrong-typed (a list, not a string) crashed uncaught inside is-semver-range's typed string param"
+    }
+    {
+      name: "cli_skills_entry_wrong_type_exit_1"
+      args: [($cli_skills_entry_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "skills entry must be a string, got list<string>"
+      why: "claude-skills-251 shape 5 (skills) — a skills array entry that's a nested list ([[\"a\"]], the shape the bee itself named) crashed uncaught inside `path join`, which can't convert list<string> to a string. Distinct call site from commands/agents below — each `path join` crash is per-loop, verified and fixtured independently"
+    }
+    {
+      name: "cli_commands_entry_wrong_type_exit_1"
+      args: [($cli_commands_entry_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "commands entry must be a string, got int"
+      why: "claude-skills-251 shape 5 (commands) — a bare wrong type (not a nested list), proving the fix isn't narrowly targeted at nested lists specifically: any non-string entry crashes identically, and the guard rejects any non-string entry, not just the nested-list shape"
+    }
+    {
+      name: "cli_agents_entry_wrong_type_exit_1"
+      args: [($cli_agents_entry_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "agents entry must be a string, got int"
+      why: "claude-skills-251 shape 5 (agents) — same crash class and same fix as the skills/commands loops above, distinct call site"
+    }
+    {
+      name: "cli_skill_md_name_wrong_type_exit_1"
+      args: [($cli_skill_md_name_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "SKILL.md 'name' must be a string, got int"
+      why: "claude-skills-251 shape 6 — a SKILL.md frontmatter 'name' present but wrong-typed crashed uncaught at the very next line's `str length` (only_supports_this_input_type)"
+    }
+    {
+      name: "cli_skill_md_description_wrong_type_exit_1"
+      args: [($cli_skill_md_description_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "SKILL.md 'description' must be a string, got list<string>"
+      why: "claude-skills-251 shape 7 — a SKILL.md frontmatter 'description' as a YAML list passed THROUGH `str length` (nu maps a list to per-entry lengths) and crashed one line later at the `>` length comparison (operator_unsupported) — the sneakier of the two pre-fix crash shapes, since it doesn't fail at the first place you'd look. Chosen over the bare-int variant (which crashes at `str length` directly, same mechanism as shape 6) because it proves the guard covers the crash that does NOT fail at the earliest possible line"
+    }
+    {
+      name: "cli_agent_model_wrong_type_exit_0"
+      args: [($cli_agent_model_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 0
+      expect_output_contains: "Agent 'model' should be a string, got int"
+      why: "claude-skills-251 shape 8 — an agent frontmatter 'model' present but wrong-typed crashed uncaught: the regex match against `model` evaluates unconditionally before the membership check that would otherwise short-circuit, and `=~` raises operator_unsupported for a non-string operand. Same severity as an unrecognized-but-string model (a warning, not an error), so overall validation still exits 0"
+    }
+    {
+      name: "cli_agent_name_wrong_type_exit_1"
+      args: [($cli_agent_name_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "Agent 'name' must be a string, got int"
+      why: "claude-skills-251 shape 9 — same crash class as SKILL.md's 'name' guard, a DIFFERENT call site (agent frontmatter, not SKILL.md, and not plugin.json's top-level name) — an untested variant until this fixture"
+    }
+    {
+      name: "cli_source_repo_wrong_type_exit_1"
+      args: ["source-repo-wrong-type-plugin", "--marketplace", $cli_source_repo_wrong_type_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "'repo' must be a string, got int"
+      why: "claude-skills-252 — a marketplace source object's 'repo' present but wrong-typed crashed uncaught inside `str length` in setup-external-plugin. A missing/empty repo is already safe (routes to the existing 'Unsupported external source format' error via the str length > 0 check, no network op involved — an earlier bee's claim that a missing repo reaches an unexecuted network op was checked directly and found false) — only the wrong-TYPED case needed a new guard"
+    }
+    {
+      name: "cli_pj_keywords_wrong_type_exit_1"
+      args: ["pj-keywords-wrong-type-plugin", "--marketplace", $cli_pj_keywords_wrong_type_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "'keywords' must be an array"
+      why: "claude-skills-251 shape 11 (Gate 3) — plugin.json 'keywords' present but wrong-typed (a bare int) crashed uncaught at the marketplace-context keywords comparison's `sort` call, NOT caught by the `is-not-empty` guard above it (is-not-empty on 42 returns true). Before this fix the standalone 'keywords must be an array' check earlier in the function had already appended its error to $errors, and the crash below suppressed it from ever being printed — reproduced directly, zero mutation. The fix does not duplicate that message; it just stops re-crashing on the same already-reported value, so the existing error surfaces"
+    }
+    {
+      name: "cli_mkt_keywords_wrong_type_exit_1"
+      args: ["mkt-keywords-wrong-type-plugin", "--marketplace", $cli_mkt_keywords_wrong_type_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "marketplace.json entry 'keywords' must be an array, got string"
+      why: "claude-skills-251 shape 11 (Gate 3) — the OTHER operand: a marketplace entry's 'keywords' present but wrong-typed (a bare string) crashed uncaught at the same `sort` call. Verified directly that the list<string>-typed --mkt-keywords flag parameter does NOT reject this at the call boundary the way a bare `string` positional param would elsewhere in this PR — the wrong type reaches this function's body untouched. No existing check catches this side, so it gets a new error message here, unlike the plugin.json side above"
     }
   ]
 
