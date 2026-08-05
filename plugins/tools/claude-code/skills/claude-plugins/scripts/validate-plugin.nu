@@ -908,6 +908,34 @@ def validate-plugin-content [
     if ($pj_keywords | is-not-empty) {
       if ($mkt_keywords | is-empty) {
         $errors = ($errors | append $"marketplace.json entry is missing 'keywords' that plugin.json defines: ($pj_keywords)")
+      } else if not ($pj_keywords | describe | str starts-with "list") {
+        # claude-skills-251 Gate 3 — this is the sibling of the class the
+        # rest of this PR closes: a LIST-assuming op (`sort`), not a
+        # string-assuming one. `is-not-empty` above returns true for ANY
+        # non-empty value including a bare scalar (`42 | is-not-empty` is
+        # true), so a wrong-typed 'keywords' sails past that guard-shaped
+        # check straight into `sort`, which crashes uncaught
+        # (only_supports_this_input_type) for anything but a list or
+        # record. Reproduced directly, zero mutation, before this fix. Two
+        # operands, guarded independently: this branch is plugin.json's
+        # own 'keywords' — already reported by the standalone 'keywords
+        # must be an array' check earlier in this function, so nothing is
+        # appended here; before this fix that error was accumulated into
+        # $errors and then the crash below suppressed it from ever being
+        # printed — the exact finding-masking failure this file's own
+        # comments describe elsewhere. Fixed by not reaching the crash at
+        # all, not by duplicating the message.
+      } else if not ($mkt_keywords | describe | str starts-with "list") {
+        # The other operand: a marketplace ENTRY's 'keywords' present but
+        # wrong-typed (e.g. a bare string) — verified directly that the
+        # `list<string>`-typed --mkt-keywords flag parameter does NOT
+        # reject this at the call boundary the way a bare `string`
+        # positional param would (contrast the plugin.json 'name'/
+        # 'version'/'author' typed-param crashes elsewhere in this PR);
+        # the wrong type reaches this function's body untouched and
+        # crashes at the same `sort` call. No existing check catches this
+        # side, so it gets its own new error here.
+        $errors = ($errors | append $"marketplace.json entry 'keywords' must be an array, got ($mkt_keywords | describe)")
       } else if ($pj_keywords | sort) != ($mkt_keywords | sort) {
         $errors = ($errors | append $"keywords mismatch — plugin.json is authoritative: plugin.json=($pj_keywords) marketplace.json=($mkt_keywords)")
       }
@@ -2550,6 +2578,32 @@ def self-test [] {
   let cli_source_repo_wrong_type_marketplace_path = ($cli_temp_dir | path join "source-repo-wrong-type-marketplace.json")
   { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "source-repo-wrong-type-plugin", source: { source: "github", repo: 42 } }] } | save --force $cli_source_repo_wrong_type_marketplace_path
 
+  # Shape 11 — Gate 3 finding: the marketplace-context keywords comparison
+  # (`sort` on both operands) is the LIST-assuming sibling of the
+  # string-assuming class this PR otherwise closes. `is-not-empty` returns
+  # true for ANY non-empty value (including a bare scalar), so the
+  # guard-shaped check above the comparison does not actually protect it —
+  # both operands crash independently at `sort`, verified directly, zero
+  # mutation, both self-contained marketplace subtrees (source resolution
+  # needs a real plugin.json to reach this far).
+  let cli_pj_keywords_wrong_type_root = ($cli_temp_dir | path join "pj-keywords-wrong-type-mkt")
+  let cli_pj_keywords_wrong_type_marketplace_dir = ($cli_pj_keywords_wrong_type_root | path join ".claude-plugin")
+  mkdir $cli_pj_keywords_wrong_type_marketplace_dir
+  let cli_pj_keywords_wrong_type_marketplace_path = ($cli_pj_keywords_wrong_type_marketplace_dir | path join "marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "pj-keywords-wrong-type-plugin", source: "./pj-keywords-wrong-type-plugin", description: "test fixture", keywords: ["a", "b"] }] } | save --force $cli_pj_keywords_wrong_type_marketplace_path
+  let cli_pj_keywords_wrong_type_plugin_dir = ($cli_pj_keywords_wrong_type_root | path join "pj-keywords-wrong-type-plugin")
+  mkdir ($cli_pj_keywords_wrong_type_plugin_dir | path join ".claude-plugin")
+  { name: "pj-keywords-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", keywords: 42 } | save --force ($cli_pj_keywords_wrong_type_plugin_dir | path join ".claude-plugin" "plugin.json")
+
+  let cli_mkt_keywords_wrong_type_root = ($cli_temp_dir | path join "mkt-keywords-wrong-type-mkt")
+  let cli_mkt_keywords_wrong_type_marketplace_dir = ($cli_mkt_keywords_wrong_type_root | path join ".claude-plugin")
+  mkdir $cli_mkt_keywords_wrong_type_marketplace_dir
+  let cli_mkt_keywords_wrong_type_marketplace_path = ($cli_mkt_keywords_wrong_type_marketplace_dir | path join "marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "mkt-keywords-wrong-type-plugin", source: "./mkt-keywords-wrong-type-plugin", description: "test fixture", keywords: "notalist" }] } | save --force $cli_mkt_keywords_wrong_type_marketplace_path
+  let cli_mkt_keywords_wrong_type_plugin_dir = ($cli_mkt_keywords_wrong_type_root | path join "mkt-keywords-wrong-type-plugin")
+  mkdir ($cli_mkt_keywords_wrong_type_plugin_dir | path join ".claude-plugin")
+  { name: "mkt-keywords-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", keywords: ["a", "b"] } | save --force ($cli_mkt_keywords_wrong_type_plugin_dir | path join ".claude-plugin" "plugin.json")
+
   let cli_cases = [
     {
       name: "cli_valid_plugin_file_exit_0"
@@ -2834,6 +2888,20 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "'repo' must be a string, got int"
       why: "claude-skills-252 — a marketplace source object's 'repo' present but wrong-typed crashed uncaught inside `str length` in setup-external-plugin. A missing/empty repo is already safe (routes to the existing 'Unsupported external source format' error via the str length > 0 check, no network op involved — an earlier bee's claim that a missing repo reaches an unexecuted network op was checked directly and found false) — only the wrong-TYPED case needed a new guard"
+    }
+    {
+      name: "cli_pj_keywords_wrong_type_exit_1"
+      args: ["pj-keywords-wrong-type-plugin", "--marketplace", $cli_pj_keywords_wrong_type_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "'keywords' must be an array"
+      why: "claude-skills-251 shape 11 (Gate 3) — plugin.json 'keywords' present but wrong-typed (a bare int) crashed uncaught at the marketplace-context keywords comparison's `sort` call, NOT caught by the `is-not-empty` guard above it (is-not-empty on 42 returns true). Before this fix the standalone 'keywords must be an array' check earlier in the function had already appended its error to $errors, and the crash below suppressed it from ever being printed — reproduced directly, zero mutation. The fix does not duplicate that message; it just stops re-crashing on the same already-reported value, so the existing error surfaces"
+    }
+    {
+      name: "cli_mkt_keywords_wrong_type_exit_1"
+      args: ["mkt-keywords-wrong-type-plugin", "--marketplace", $cli_mkt_keywords_wrong_type_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "marketplace.json entry 'keywords' must be an array, got string"
+      why: "claude-skills-251 shape 11 (Gate 3) — the OTHER operand: a marketplace entry's 'keywords' present but wrong-typed (a bare string) crashed uncaught at the same `sort` call. Verified directly that the list<string>-typed --mkt-keywords flag parameter does NOT reject this at the call boundary the way a bare `string` positional param would elsewhere in this PR — the wrong type reaches this function's body untouched. No existing check catches this side, so it gets a new error message here, unlike the plugin.json side above"
     }
   ]
 
