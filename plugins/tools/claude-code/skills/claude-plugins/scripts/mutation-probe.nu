@@ -152,6 +152,12 @@ def main [] {
       let probe_dir = (mktemp -d)
       let temp_target = ($probe_dir | path join "validate-plugin.nu")
       ($original | str replace $p.find $p.replace) | save --force $temp_target
+      # No timeout here: a mutation that makes --self-test hang (rather
+      # than fail or crash) would hang this harness indefinitely too.
+      # Accepted for a curated, on-demand, human-run tool — not worth
+      # timeout machinery for a failure mode none of the 10 probes below
+      # exhibit. If this ever hangs, that IS the finding: Ctrl+C, then look
+      # at what the most recently added/changed probe touches.
       let run = (do { ^nu $temp_target --self-test } | complete)
       rm -rf $probe_dir
 
