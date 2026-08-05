@@ -1418,6 +1418,154 @@ def self-test [] {
     }
   }
 
+  # claude-skills-244: the skills/commands/agents array-type checks and the
+  # path-existence / recommended-file checks below them had ZERO
+  # reject-direction fixture coverage — a Gate 3 mutation sweep on PR #221
+  # found all 11 of them always-pass-neuterable. Two on-disk roots isolate
+  # the path-existence pair per team-lead's independent-review guidance: a
+  # fixture whose path is both MISSING and MALFORMED proves nothing about
+  # which rule fired. root_b's "present-without-md" directory genuinely
+  # EXISTS (so "Skill path not found" can't be what's firing) but lacks
+  # SKILL.md (so the missing-SKILL.md check is what's isolated); the
+  # "does-not-exist" skill entry genuinely does NOT exist (so the opposite
+  # check is isolated). Both roots also carry (or omit) skills/sources.md
+  # deliberately, so the sources.md-missing warning doesn't leak into cases
+  # that aren't testing it.
+  let array_path_temp_dir = (mktemp -d)
+
+  # root_a: no skills/sources.md, one skill dir that's fully valid (exists,
+  # has a well-formed SKILL.md) — used only to isolate the sources.md warning.
+  let root_a = ($array_path_temp_dir | path join "root-a")
+  mkdir ($root_a | path join "my-plugin" "skills" "present-with-md")
+  "---\nname: present-with-md\ndescription: Use when testing.\n---\n\nbody\n" | save --force ($root_a | path join "my-plugin" "skills" "present-with-md" "SKILL.md")
+
+  # root_b: skills/sources.md present (suppresses that warning here), one
+  # skill dir that exists but has no SKILL.md — used to isolate the
+  # missing-SKILL.md error and the skill-path-not-found warning (the latter
+  # via a skill entry that deliberately doesn't exist under this root).
+  # Also doubles as the root for the command/agent path-not-found cases
+  # (that check doesn't reference sources.md at all, so reuse is harmless)
+  # and for the array-type and missing-recommended-field cases (none of
+  # which reach path-resolution code, so the on-disk layout is inert noise
+  # for them).
+  let root_b = ($array_path_temp_dir | path join "root-b")
+  mkdir ($root_b | path join "my-plugin" "skills" "present-without-md")
+  "# Sources\n" | save --force ($root_b | path join "my-plugin" "skills" "sources.md")
+  # commands/ and agents/ PARENT dirs exist but the specific referenced file
+  # inside each does not — a non-equivalent mutation that checks
+  # `$command_path | path dirname | path exists` instead of `$command_path |
+  # path exists` (same bug shape for agents) coincidentally produced the
+  # same not-found result when the parent dir ALSO didn't exist, so this
+  # split is required to distinguish "the file is missing" from "the whole
+  # directory is missing" — found and killed during claude-skills-244's own
+  # non-equivalent mutation pass.
+  mkdir ($root_b | path join "my-plugin" "commands")
+  mkdir ($root_b | path join "my-plugin" "agents")
+
+  let array_path_cases = [
+    {
+      name: "keywords_not_array_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", keywords: "not-an-array" }
+      expect_errors: 1
+      expect_warnings: 0
+      why: "claude-skills-244 — 'keywords' must be an array had zero reject-direction coverage; a string value isolates the type-check dimension alone"
+    }
+    {
+      name: "skills_not_array_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: "not-an-array" }
+      expect_errors: 1
+      expect_warnings: 0
+      why: "claude-skills-244 — skills must be an array had zero reject-direction coverage (distinct from the 'skills field must be an array or omitted entirely (not null)' null-branch, out of this bee's named 11)"
+    }
+    {
+      name: "commands_not_array_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: "not-an-array" }
+      expect_errors: 1
+      expect_warnings: 0
+      why: "claude-skills-244 — commands must be an array had zero reject-direction coverage"
+    }
+    {
+      name: "agents_not_array_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: "not-an-array" }
+      expect_errors: 1
+      expect_warnings: 0
+      why: "claude-skills-244 — agents must be an array had zero reject-direction coverage"
+    }
+    {
+      name: "missing_description_warns"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", license: "MIT" }
+      expect_errors: 0
+      expect_warnings: 1
+      why: "claude-skills-244 — 'Missing recommended field: description' had zero reject-direction coverage in isolation (existing missing-name fixture drops 3 fields at once and doesn't assert warning counts)"
+    }
+    {
+      name: "missing_license_warns"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture" }
+      expect_errors: 0
+      expect_warnings: 1
+      why: "claude-skills-244 — 'Missing recommended field: license' had zero reject-direction coverage in isolation"
+    }
+    {
+      name: "skill_dir_exists_no_skill_md_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/present-without-md"] }
+      expect_errors: 1
+      expect_warnings: 0
+      why: "claude-skills-244 — 'Skill directory ... missing SKILL.md file' had zero coverage; skills/present-without-md genuinely EXISTS under root_b (so the path-not-found warning can't be what's firing) but has no SKILL.md, and root_b carries sources.md so that warning doesn't leak in"
+    }
+    {
+      name: "skill_path_missing_warns"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/does-not-exist"] }
+      expect_errors: 0
+      expect_warnings: 1
+      why: "claude-skills-244 — 'Skill path not found' had zero coverage; skills/does-not-exist genuinely does NOT exist under root_b, isolating this from the missing-SKILL.md case above which points at a path that DOES exist"
+    }
+    {
+      name: "sources_md_missing_warns"
+      root: $root_a
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/present-with-md"] }
+      expect_errors: 0
+      expect_warnings: 1
+      why: "claude-skills-244 — 'Missing recommended file: skills/sources.md' had zero coverage; root_a's skills/present-with-md genuinely exists with a fully valid SKILL.md (no errors/warnings of its own), isolating the sources.md-missing warning alone"
+    }
+    {
+      name: "command_path_missing_warns"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: ["commands/does-not-exist.md"] }
+      expect_errors: 0
+      expect_warnings: 1
+      why: "claude-skills-244 — 'Command path not found' had zero coverage"
+    }
+    {
+      name: "agent_path_missing_warns"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: ["agents/does-not-exist.md"] }
+      expect_errors: 0
+      expect_warnings: 1
+      why: "claude-skills-244 — 'Agent path not found' had zero coverage"
+    }
+  ]
+
+  for c in $array_path_cases {
+    let plugin_path = ($array_path_temp_dir | path join $"($c.name).json")
+    $c.plugin | save --force $plugin_path
+    let result = (validate-plugin-content $plugin_path $c.root "my-plugin" "my-plugin" false false false)
+    if ($result.errors | length) != $c.expect_errors {
+      $failures = ($failures | append $"array_path_($c.name): expected ($c.expect_errors) errors, got (($result.errors | length)): ($result.errors | to nuon) -- ($c.why)")
+    }
+    if ($result.warnings | length) != $c.expect_warnings {
+      $failures = ($failures | append $"array_path_($c.name): expected ($c.expect_warnings) warnings, got (($result.warnings | length)): ($result.warnings | to nuon) -- ($c.why)")
+    }
+  }
+  rm -rf $array_path_temp_dir
+
   # claude-skills-238: main, validate-plugin-file, validate-from-marketplace,
   # and setup-external-plugin's non-network branch are entirely unreached by
   # every case above, because all of them call `exit` on at least one path —
@@ -1592,6 +1740,6 @@ def self-test [] {
     exit 1
   }
 
-  let total_cases = ($cases | length) + ($agent_model_cases | length) + ($skill_md_cases | length) + ($agent_md_cases | length) + ($cleanup_temp_cases | length) + ($cli_cases | length)
+  let total_cases = ($cases | length) + ($agent_model_cases | length) + ($skill_md_cases | length) + ($agent_md_cases | length) + ($cleanup_temp_cases | length) + ($array_path_cases | length) + ($cli_cases | length)
   print $"(ansi green_bold)✅ validate-plugin.nu self-test passed \(($total_cases) cases\)(ansi reset)"
 }
