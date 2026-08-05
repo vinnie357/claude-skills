@@ -942,6 +942,106 @@ def validate-plugin-content [
     }
   }
 
+  # Validate workflows (claude-skills-250): upstream documents `workflows` as
+  # `string | array`, same shape as commands/agents above, but this field had
+  # NO type checking before this fix — a bare number or bool sailed through
+  # with 0 errors. Top-level shape only, matching the `keywords` check above
+  # rather than the commands/agents pattern: no per-entry string check and no
+  # path-existence check. This validator does not scan workflow directories
+  # any more than it scans command/agent directories for content — that
+  # remains the Claude Code loader's job at install time. Verified directly
+  # at https://code.claude.com/docs/en/plugins-reference before writing this.
+  if ($plugin | get -o workflows) != null {
+    let workflows_type = ($plugin.workflows | describe)
+    if not (($workflows_type == "string") or (is-array-type $workflows_type)) {
+      $errors = ($errors | append $"'workflows' must be a string or an array, got ($workflows_type)")
+    }
+  }
+
+  # Validate outputStyles (claude-skills-250): same `string | array` shape
+  # and same top-level-only scope as workflows above.
+  if ($plugin | get -o outputStyles) != null {
+    let output_styles_type = ($plugin.outputStyles | describe)
+    if not (($output_styles_type == "string") or (is-array-type $output_styles_type)) {
+      $errors = ($errors | append $"'outputStyles' must be a string or an array, got ($output_styles_type)")
+    }
+  }
+
+  # Validate hooks, mcpServers, lspServers (claude-skills-250): upstream
+  # documents all three as `string | array | object` — a config file path, an
+  # array of paths, or an inline config record. `str starts-with "record"`
+  # matches an empty object too (`{} | describe` is `record<>`), same helper
+  # shape already used for `author` and dependency-entry checks above.
+  if ($plugin | get -o hooks) != null {
+    let hooks_type = ($plugin.hooks | describe)
+    if not (($hooks_type == "string") or (is-array-type $hooks_type) or ($hooks_type | str starts-with "record")) {
+      $errors = ($errors | append $"'hooks' must be a string, an array, or an object, got ($hooks_type)")
+    }
+  }
+
+  if ($plugin | get -o mcpServers) != null {
+    let mcp_servers_type = ($plugin.mcpServers | describe)
+    if not (($mcp_servers_type == "string") or (is-array-type $mcp_servers_type) or ($mcp_servers_type | str starts-with "record")) {
+      $errors = ($errors | append $"'mcpServers' must be a string, an array, or an object, got ($mcp_servers_type)")
+    }
+  }
+
+  if ($plugin | get -o lspServers) != null {
+    let lsp_servers_type = ($plugin.lspServers | describe)
+    if not (($lsp_servers_type == "string") or (is-array-type $lsp_servers_type) or ($lsp_servers_type | str starts-with "record")) {
+      $errors = ($errors | append $"'lspServers' must be a string, an array, or an object, got ($lsp_servers_type)")
+    }
+  }
+
+  # Validate experimental.themes / experimental.monitors (claude-skills-250,
+  # closing the class rather than five separate fixes): both documented as
+  # `string | array`, nested under `experimental`. `experimental` itself
+  # must be checked as an object BEFORE drilling into it with `get -o` —
+  # `get -o` on a non-record value raises uncaught, the same crash class
+  # this file's other comments describe for `author`/`dependencies` above —
+  # so this guard is required to avoid introducing a NEW crash, not optional
+  # hardening.
+  if ($plugin | get -o experimental) != null {
+    let experimental_type = ($plugin.experimental | describe)
+    if not ($experimental_type | str starts-with "record") {
+      $errors = ($errors | append $"'experimental' must be an object, got ($experimental_type)")
+    } else {
+      let themes_value = ($plugin.experimental | get -o themes)
+      if $themes_value != null {
+        let themes_type = ($themes_value | describe)
+        if not (($themes_type == "string") or (is-array-type $themes_type)) {
+          $errors = ($errors | append $"'experimental.themes' must be a string or an array, got ($themes_type)")
+        }
+      }
+      let monitors_value = ($plugin.experimental | get -o monitors)
+      if $monitors_value != null {
+        let monitors_type = ($monitors_value | describe)
+        if not (($monitors_type == "string") or (is-array-type $monitors_type)) {
+          $errors = ($errors | append $"'experimental.monitors' must be a string or an array, got ($monitors_type)")
+        }
+      }
+    }
+  }
+
+  # Validate userConfig (claude-skills-250): upstream documents `userConfig`
+  # as `object` only — no string/array alternative like the path-based
+  # fields above.
+  if ($plugin | get -o userConfig) != null {
+    let user_config_type = ($plugin.userConfig | describe)
+    if not ($user_config_type | str starts-with "record") {
+      $errors = ($errors | append $"'userConfig' must be an object, got ($user_config_type)")
+    }
+  }
+
+  # Validate channels (claude-skills-250): upstream documents `channels` as
+  # `array` only.
+  if ($plugin | get -o channels) != null {
+    let channels_type = ($plugin.channels | describe)
+    if not (is-array-type $channels_type) {
+      $errors = ($errors | append $"'channels' must be an array, got ($channels_type)")
+    }
+  }
+
   # Print results
   print $"\n(ansi cyan_bold)Validation Results:(ansi reset)"
   print $"  Errors: (($errors | length))"
@@ -1215,6 +1315,25 @@ def validate-agent-md [agent_path: string, agent_name: string, verbose: bool] {
 # anything else with the value.
 def is-string [value: any] {
   ($value | describe) == "string"
+}
+
+# claude-skills-250 — array-ish type check for the `describe` STRING already
+# computed at each call site (not the raw value, unlike is-string above): a
+# nushell array describes as "list<...>" for homogeneous scalars but as
+# "table<...>" for a homogeneous array of records — the same gotcha this
+# file already documents inline for 'dependencies' above (a plain array of
+# strings describes as list<string>; an array of {name, version} objects
+# describes as table<name: string, version: string>). Reproduced directly
+# for 'channels' while writing this fix: a fixture using the upstream-
+# documented `[{type: "telegram"}]` shape described as
+# `table<type: string>`, not `list<...>`, and a `str starts-with "list"`-only
+# check rejected it as a false positive. Accept both prefixes, same as
+# dependencies already does inline, so every 'workflows'/'hooks'/
+# 'mcpServers'/'lspServers'/'outputStyles'/'experimental.*'/'channels' check
+# below shares one call instead of repeating the two-condition test six
+# times over.
+def is-array-type [type_desc: string] {
+  ($type_desc | str starts-with "list") or ($type_desc | str starts-with "table")
 }
 
 # Check if string is kebab-case
@@ -1674,6 +1793,215 @@ def self-test [] {
       why: "claude-skills-238 Gate 3 (team-lead's independent review) — a stub is-kebab-case reading '^[a-z0-9_]+(-[a-z0-9_]+)*\$' (accepting underscores) survived the pre-fix 66-case suite unchanged, because the only reject fixture, 'My_Plugin', carries BOTH an uppercase letter AND an underscore — the uppercase alone is enough to fail it under the stub too, so the fixture never isolated which rule actually rejected it. 'my_plugin' is lowercase (so the stub's uppercase-tolerant claim is moot) and differs from valid kebab-case in exactly the underscore dimension"
       plugin: { name: "my_plugin", version: "1.0.0", description: "test fixture", license: "MIT" }
       expect_errors: 2  # invalid name format, AND name mismatch (same shape as plugin_name_bad_kebab_case_errors above — fixture always passes plugin_name="my-plugin" as expected)
+      expect_warnings: 0
+    }
+    # claude-skills-250 — five documented fields (workflows, hooks,
+    # mcpServers, outputStyles, lspServers) had NO type checking at all
+    # before this fix, plus the mechanical siblings this PR also closes
+    # (experimental.themes, experimental.monitors, userConfig, channels).
+    # Every accept fixture below differs from the shared valid base
+    # ({ name: "my-plugin", version: "1.0.0", description: "test fixture",
+    # license: "MIT" }) in exactly the one field under test, and every
+    # reject fixture adds exactly one wrong-typed field to that same base —
+    # same one-dimension discipline as plugin_name_bad_kebab_case_errors
+    # above. None of these can crash the self-test if neutered (no `get -o`
+    # drilling, no `path join`, no loop over entries) EXCEPT the
+    # 'experimental' record guard, which is fixtured separately below as a
+    # cli_cases entry for that reason.
+    {
+      name: "workflows_string_accepted"
+      why: "claude-skills-250 — upstream documents workflows as string|array; a bare path string is the primary documented shape"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", workflows: "./workflows/" }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "workflows_array_accepted"
+      why: "claude-skills-250 — the array half of workflows' string|array shape"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", workflows: ["./workflows/a.js"] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "workflows_wrong_type_number_errors"
+      why: "claude-skills-250 — a bare number is invalid under both documented shapes; verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", workflows: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "output_styles_string_accepted"
+      why: "claude-skills-250 — upstream documents outputStyles as string|array"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", outputStyles: "./styles/" }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "output_styles_array_accepted"
+      why: "claude-skills-250 — the array half of outputStyles' string|array shape"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", outputStyles: ["./styles/a.md"] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "output_styles_wrong_type_bool_errors"
+      why: "claude-skills-250 — a bare bool is invalid under both documented shapes; verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", outputStyles: true }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "hooks_string_accepted"
+      why: "claude-skills-250 — upstream documents hooks as string|array|object (a config file path)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", hooks: "./my-extra-hooks.json" }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "hooks_array_accepted"
+      why: "claude-skills-250 — the array half of hooks' string|array|object shape (an array of config paths)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", hooks: ["./hooks-a.json", "./hooks-b.json"] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "hooks_object_accepted"
+      why: "claude-skills-250 — the object half of hooks' string|array|object shape (an inline config)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", hooks: {} }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "hooks_wrong_type_number_errors"
+      why: "claude-skills-250 — a bare number is invalid under all three documented shapes; verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", hooks: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "mcp_servers_string_accepted"
+      why: "claude-skills-250 — upstream documents mcpServers as string|array|object (a config file path)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: "./my-extra-mcp-config.json" }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "mcp_servers_array_accepted"
+      why: "claude-skills-250 — the array half of mcpServers' string|array|object shape"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: ["./mcp-a.json"] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "mcp_servers_object_accepted"
+      why: "claude-skills-250 — the object half of mcpServers' string|array|object shape (an inline config)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: {} }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "mcp_servers_wrong_type_bool_errors"
+      why: "claude-skills-250 — a bare bool is invalid under all three documented shapes; verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: false }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "lsp_servers_string_accepted"
+      why: "claude-skills-250 — upstream documents lspServers as string|array|object"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", lspServers: "./.lsp.json" }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "lsp_servers_array_accepted"
+      why: "claude-skills-250 — the array half of lspServers' string|array|object shape"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", lspServers: ["./a.lsp.json"] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "lsp_servers_object_accepted"
+      why: "claude-skills-250 — the object half of lspServers' string|array|object shape (an inline config)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", lspServers: {} }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "lsp_servers_wrong_type_number_errors"
+      why: "claude-skills-250 — a bare number is invalid under all three documented shapes; verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", lspServers: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "experimental_themes_string_accepted"
+      why: "claude-skills-250 — closing the class: experimental.themes is documented string|array, same as workflows/outputStyles above, just nested under 'experimental'"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", experimental: { themes: "./themes/" } }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "experimental_themes_array_accepted"
+      why: "claude-skills-250 — the array half of experimental.themes' string|array shape"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", experimental: { themes: ["./themes/a.json"] } }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "experimental_themes_wrong_type_errors"
+      why: "claude-skills-250 — a bare number nested under a genuinely valid 'experimental' record; no crash risk here since 'experimental' itself is well-typed, unlike the cli_cases guard fixture below"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", experimental: { themes: 42 } }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "experimental_monitors_string_accepted"
+      why: "claude-skills-250 — closing the class: experimental.monitors is documented string|array"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", experimental: { monitors: "./monitors.json" } }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "experimental_monitors_array_accepted"
+      why: "claude-skills-250 — the array half of experimental.monitors' string|array shape; upstream documents inline monitor declarations as an array of records too ('to declare monitors inline, set experimental.monitors ... to the same array'), which nushell describes as table<...> not list<...> — reproduced directly while writing this fixture, is-array-type accepts both"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", experimental: { monitors: [{ name: "watcher", type: "poll" }] } }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "experimental_monitors_wrong_type_errors"
+      why: "claude-skills-250 — a bare bool nested under a genuinely valid 'experimental' record"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", experimental: { monitors: true } }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "user_config_object_accepted"
+      why: "claude-skills-250 — closing the class: userConfig is documented as object only, no string/array alternative like the path-based fields above"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: {} }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "user_config_wrong_type_number_errors"
+      why: "claude-skills-250 — a bare number is invalid under userConfig's only documented shape (object); verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "channels_array_of_objects_accepted"
+      why: "claude-skills-250 — closing the class: channels is documented as array only. Upstream's own shape ('channel declarations') is an array of objects, which nushell describes as table<type: string>, not list<...> — reproduced directly while writing this fixture (a str-starts-with-list-only check false-rejects this exact upstream-documented shape); is-array-type accepts both"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ type: "telegram" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "channels_wrong_type_bool_errors"
+      why: "claude-skills-250 — a bare bool is invalid under channels' only documented shape (array); verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: true }
+      expect_errors: 1
       expect_warnings: 0
     }
   ]
@@ -2604,6 +2932,20 @@ def self-test [] {
   mkdir ($cli_mkt_keywords_wrong_type_plugin_dir | path join ".claude-plugin")
   { name: "mkt-keywords-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", keywords: ["a", "b"] } | save --force ($cli_mkt_keywords_wrong_type_plugin_dir | path join ".claude-plugin" "plugin.json")
 
+  # Shape 12 — claude-skills-250: plugin.json 'experimental' present but
+  # wrong-typed (a bare int). The new 'experimental.themes'/
+  # 'experimental.monitors' checks drill into 'experimental' with `get -o`,
+  # which raises uncaught for a non-record value — the same crash class
+  # this file's other comments describe for 'author'/'dependencies' above.
+  # Reproduced directly against a build of this fix with the record-type
+  # guard removed before writing this fixture: neutering ONLY the guard (and
+  # leaving the two nested checks in place) crashes the whole self-test run
+  # if reached via a direct in-process $cases call, so this is CLI-subprocess
+  # isolated, same reasoning as every other fixture in this block.
+  let cli_experimental_wrong_type_dir = ($cli_temp_dir | path join "experimental-wrong-type-plugin")
+  mkdir ($cli_experimental_wrong_type_dir | path join ".claude-plugin")
+  { name: "experimental-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", experimental: 42 } | save --force ($cli_experimental_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
   let cli_cases = [
     {
       name: "cli_valid_plugin_file_exit_0"
@@ -2902,6 +3244,13 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "marketplace.json entry 'keywords' must be an array, got string"
       why: "claude-skills-251 shape 11 (Gate 3) — the OTHER operand: a marketplace entry's 'keywords' present but wrong-typed (a bare string) crashed uncaught at the same `sort` call. Verified directly that the list<string>-typed --mkt-keywords flag parameter does NOT reject this at the call boundary the way a bare `string` positional param would elsewhere in this PR — the wrong type reaches this function's body untouched. No existing check catches this side, so it gets a new error message here, unlike the plugin.json side above"
+    }
+    {
+      name: "cli_experimental_wrong_type_exit_1"
+      args: [($cli_experimental_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "'experimental' must be an object, got int"
+      why: "claude-skills-250 shape 12 — 'experimental' present but wrong-typed (a bare int) would crash uncaught inside the new experimental.themes/experimental.monitors checks' `get -o` calls if the record-type guard were removed; CLI-subprocess isolated so a reverted guard fails THIS case by clean stdout assertion instead of crashing the whole self-test run"
     }
   ]
 
