@@ -33,6 +33,16 @@ _Tracked in sources.toml as `ansible-core-docs`._
   - **Key topics**: Inventory plugins, AWS EC2, Azure, GCP, constructing groups
   - **Accessed**: 2026-05-06
 
+- **URL**: https://galaxy.ansible.com/ui/repo/published/azure/azcollection/
+  - **Purpose**: Azure RM dynamic inventory plugin (`azure.azcollection.azure_rm`) — tracked in sources.toml as `azure-azcollection`
+  - **Key topics**: `ansible-doc -t inventory` option table, auth_source precedence, keyed_groups tag access, host var naming
+  - **Accessed**: 2026-08-05
+
+- **URL**: https://galaxy.ansible.com/ui/repo/published/google/cloud/
+  - **Purpose**: GCP Compute Engine dynamic inventory plugin (`google.cloud.gcp_compute`) — tracked in sources.toml as `google-cloud-collection`
+  - **Key topics**: `ansible-doc -t inventory` option table, auth_kind requirement, filters syntax, keyed_groups label/zone access
+  - **Accessed**: 2026-08-05
+
 ## ansible-roles Skill
 
 - **URL**: https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html

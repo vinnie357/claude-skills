@@ -43,13 +43,13 @@ Material Design 3 uses HCT (Hue, Chroma, Tone) color space for perceptually accu
 
 **Key concepts:**
 - Color roles (primary, secondary, tertiary, error, neutral)
-- Tonal palettes (50-99 tones per color)
+- Tonal palettes (13 tones per color, ranging 0-100: 0, 10, 20...90, 95, 98, 99, 100)
 - Automatic light/dark theme generation
 - User-driven personalization from wallpaper/system
 
 ### 2. Typography
 
-Type scale with 5 display sizes and 9 text sizes:
+Type scale with 5 categories (display, headline, title, body, label), each with 3 sizes (large, medium, small) — 15 styles total:
 
 **Quick example:**
 - Display Large: 57sp
@@ -63,7 +63,8 @@ Responsive breakpoints and grid system:
 
 - **Compact**: 0-599dp (phones)
 - **Medium**: 600-839dp (tablets, folded phones)
-- **Expanded**: 840dp+ (desktops, large tablets)
+- **Expanded**: 840-1199dp (desktops, large tablets)
+- **Large**: 1200-1599dp; **Extra-large**: 1600dp+ (both added after the original 3-class model, for very large tablets and external displays)
 
 ## Component Guidelines
 
@@ -173,7 +174,7 @@ Load `/design:accessibility` for WCAG implementation guidance.
 ## Resources
 
 - **Material Design 3**: https://m3.material.io/
-- **Material Theme Builder**: https://m3.material.io/theme-builder
-- **Jetpack Compose**: https://developer.android.com/jetpack/compose/designsystems/material3
+- **Material Theme Builder**: https://material-foundation.github.io/material-theme-builder/ (moved off m3.material.io; the old `/theme-builder` path now redirects here)
+- **Jetpack Compose**: https://developer.android.com/develop/ui/compose/designsystems/material3 (old `/jetpack/compose/...` path now redirects here)
 - **Material Web Components**: https://github.com/material-components/material-web
-- **Flutter Material 3**: https://flutter.dev/docs/development/ui/material
+- **Flutter Material 3**: https://docs.flutter.dev/ui/design/material (old `flutter.dev/docs/...` path now redirects here through 3 hops)
