@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.132",
+      "version": "0.4.133",
       "category": "meta",
       "keywords": [
         "skills",
@@ -433,7 +433,7 @@
       "source": "./plugins/tools/slidev",
       "strict": true,
       "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
-      "version": "0.2.7",
+      "version": "0.2.8",
       "category": "tools",
       "keywords": [
         "slidev",
