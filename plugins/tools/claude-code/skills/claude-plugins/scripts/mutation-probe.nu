@@ -171,6 +171,16 @@ def main [] {
       expect_case_substring: "dependencies_entry_name_empty_errors"
     }
     {
+      # claude-skills-257 Gate 3 — the bare-string dependencies[] form's
+      # empty-string rejection, added after Gate 3 review found the object
+      # form ({name: ""}) was guarded but the sibling bare-string form
+      # (dependencies: [""]) was not, same field, two syntactic forms.
+      name: "dependencies_entry_bare_string_empty_never_checked"
+      find: "if ($dep | is-empty) {"
+      replace: "if false {"
+      expect_case_substring: "dependencies_entry_bare_string_empty_errors"
+    }
+    {
       # claude-skills-257 — channels[].server empty-string rejection. Same
       # neuter-one-branch shape as the dependencies probe above; the
       # empty-check branch sits ahead of the mcpServers cross-field match,

@@ -478,7 +478,19 @@ def validate-plugin-content [
       for dep in $plugin.dependencies {
         let dep_type = ($dep | describe)
         if $dep_type == "string" {
-          # valid: bare plugin name
+          # claude-skills-257 Gate 3 — upstream's own documented shape mixes
+          # bare plugin-name strings with {name, version} objects in the
+          # SAME array (["helper-lib", {name: "secrets-vault", ...}]), and
+          # both forms carry the identical 'name' identifier semantics: an
+          # empty string resolves against nothing either way. The object
+          # form's 'name' subfield got an empty-string check below in this
+          # same fix; this bare-string form did not, and '""' entry in
+          # dependencies silently passed with 0 errors — reproduced
+          # directly against pre-fix code before writing this guard, found
+          # by Gate 3 review of this exact PR, not a new/unrelated defect.
+          if ($dep | is-empty) {
+            $errors = ($errors | append "dependencies entry must not be an empty string")
+          }
         } else if ($dep_type | str starts-with "record") {
           let dep_name = ($dep | get -o name)
           if $dep_name == null {
@@ -1951,6 +1963,14 @@ def self-test [] {
       expect_errors: 1
       expect_warnings: 0
       expect_error_contains: "dependencies entry 'name' must not be empty"
+    }
+    {
+      name: "dependencies_entry_bare_string_empty_errors"
+      why: "claude-skills-257 Gate 3 — the bare-string dependency form (dependencies_array_of_bare_names_accepted's shape) carries the identical 'name' identifier semantics as the {name, version} object form above, but had no emptiness check: dependencies: [''] passed with 0 errors before this fix, found by Gate 3 review of this same PR. Differs from the accepted base (['helper-lib']) in exactly one dimension. expect_error_contains pins the MESSAGE: neutering the dedicated empty-check branch falls through to the 'valid: bare plugin name' no-op and would silently pass — reproduced directly by mutation before adding this assertion"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [""] }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "dependencies entry must not be an empty string"
     }
     {
       name: "dependencies_not_an_array_errors"
