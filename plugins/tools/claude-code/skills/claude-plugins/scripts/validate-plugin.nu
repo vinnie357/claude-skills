@@ -498,6 +498,26 @@ def validate-plugin-content [
 
         if not ($agent_path | path exists) {
           $warnings = ($warnings | append $"Agent path not found: ($agent)")
+        } else if ($agent_path | path type) != "file" {
+          # claude-skills-244 Gate 3 — validate-agent-md calls `open
+          # $agent_path --raw`, which crashes the WHOLE self-test (and a
+          # real `claude plugin validate` run) with an uncaught
+          # nu::shell::io::is_a_directory error when an agents array entry
+          # resolves to a directory instead of a file. Reproduced with zero
+          # mutation: {agents: ["agents"]} against an on-disk "agents/"
+          # directory. Report a clean error instead of crashing — a crash
+          # here would suppress every already-recorded failure and every
+          # remaining self-test case, since failures are accumulated and
+          # printed only at the end.
+          # Guards on `!= "file"` rather than `== "dir"` on purpose: `path
+          # type` returns EMPTY (neither "dir" nor "file", no error) for a
+          # path that `path exists` claimed was there but isn't actually a
+          # file — the shape a broken/mutated existence check produces, not
+          # just a genuine directory. `!= "file"` catches both without a
+          # second crash-prone branch.
+          let agent_path_type = ($agent_path | path type)
+          let type_desc = if $agent_path_type == "dir" { "a directory" } else { $"an unexpected path type \(($agent_path_type)\)" }
+          $errors = ($errors | append $"Agent path is ($type_desc), not a file: ($agent)")
         } else {
           # Validate agent file content
           let validation = (validate-agent-md $agent_path $agent $verbose)
@@ -1469,7 +1489,8 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", keywords: "not-an-array" }
       expect_errors: 1
       expect_warnings: 0
-      why: "claude-skills-244 — 'keywords' must be an array had zero reject-direction coverage; a string value isolates the type-check dimension alone"
+      expect_error_contains: "'keywords' must be an array"
+      why: "claude-skills-244 — 'keywords' must be an array had zero reject-direction coverage; a string value isolates the type-check dimension alone. plugin-schema.md documents keywords as array-only, so no doc divergence here (unlike commands/agents below)"
     }
     {
       name: "skills_not_array_errors"
@@ -1477,7 +1498,8 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: "not-an-array" }
       expect_errors: 1
       expect_warnings: 0
-      why: "claude-skills-244 — skills must be an array had zero reject-direction coverage (distinct from the 'skills field must be an array or omitted entirely (not null)' null-branch, out of this bee's named 11)"
+      expect_error_contains: "skills must be an array"
+      why: "claude-skills-244 — skills must be an array had zero reject-direction coverage (distinct from the 'skills field must be an array or omitted entirely (not null)' null-branch, out of this bee's named 11). plugin-schema.md documents skills as array-only, so no doc divergence here (unlike commands/agents below)"
     }
     {
       name: "commands_not_array_errors"
@@ -1485,7 +1507,8 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: "not-an-array" }
       expect_errors: 1
       expect_warnings: 0
-      why: "claude-skills-244 — commands must be an array had zero reject-direction coverage"
+      expect_error_contains: "commands must be an array"
+      why: "claude-skills-244 — commands must be an array had zero reject-direction coverage. KNOWN VALIDATOR/DOC DIVERGENCE (Gate 3, team-lead's independent review): references/plugin-schema.md:21 and SKILL.md:50 document 'commands' as accepting a bare STRING (a directory to scan, e.g. './commands'), not array-only — this fixture's string value is rejected under CURRENT (pre-existing, unchanged by this PR) validator behavior, which this fixture intentionally continues to assert. Resolving the divergence needs directory-scan semantics the validator doesn't implement today (glob-matching .md files under the string path) — a real feature addition, not a self-test coverage gap, so it's recorded rather than rushed here. See claude-skills-244's BEES REQUESTS for the follow-up: fix the validator to implement the documented string form, OR narrow the docs to array-only."
     }
     {
       name: "agents_not_array_errors"
@@ -1493,7 +1516,8 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: "not-an-array" }
       expect_errors: 1
       expect_warnings: 0
-      why: "claude-skills-244 — agents must be an array had zero reject-direction coverage"
+      expect_error_contains: "agents must be an array"
+      why: "claude-skills-244 — agents must be an array had zero reject-direction coverage. Same KNOWN VALIDATOR/DOC DIVERGENCE as commands_not_array_errors above: plugin-schema.md:22/95 and SKILL.md:52 document 'agents' as accepting a bare STRING directory too. Recorded, not resolved, for the same reason — see that fixture's why: and claude-skills-244's BEES REQUESTS."
     }
     {
       name: "missing_description_warns"
@@ -1501,6 +1525,7 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", license: "MIT" }
       expect_errors: 0
       expect_warnings: 1
+      expect_warning_contains: "Missing recommended field: description"
       why: "claude-skills-244 — 'Missing recommended field: description' had zero reject-direction coverage in isolation (existing missing-name fixture drops 3 fields at once and doesn't assert warning counts)"
     }
     {
@@ -1509,6 +1534,7 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture" }
       expect_errors: 0
       expect_warnings: 1
+      expect_warning_contains: "Missing recommended field: license"
       why: "claude-skills-244 — 'Missing recommended field: license' had zero reject-direction coverage in isolation"
     }
     {
@@ -1517,6 +1543,7 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/present-without-md"] }
       expect_errors: 1
       expect_warnings: 0
+      expect_error_contains: "missing SKILL.md file"
       why: "claude-skills-244 — 'Skill directory ... missing SKILL.md file' had zero coverage; skills/present-without-md genuinely EXISTS under root_b (so the path-not-found warning can't be what's firing) but has no SKILL.md, and root_b carries sources.md so that warning doesn't leak in"
     }
     {
@@ -1525,6 +1552,7 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/does-not-exist"] }
       expect_errors: 0
       expect_warnings: 1
+      expect_warning_contains: "Skill path not found"
       why: "claude-skills-244 — 'Skill path not found' had zero coverage; skills/does-not-exist genuinely does NOT exist under root_b, isolating this from the missing-SKILL.md case above which points at a path that DOES exist"
     }
     {
@@ -1533,6 +1561,7 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/present-with-md"] }
       expect_errors: 0
       expect_warnings: 1
+      expect_warning_contains: "Missing recommended file: skills/sources.md"
       why: "claude-skills-244 — 'Missing recommended file: skills/sources.md' had zero coverage; root_a's skills/present-with-md genuinely exists with a fully valid SKILL.md (no errors/warnings of its own), isolating the sources.md-missing warning alone"
     }
     {
@@ -1541,7 +1570,8 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: ["commands/does-not-exist.md"] }
       expect_errors: 0
       expect_warnings: 1
-      why: "claude-skills-244 — 'Command path not found' had zero coverage"
+      expect_warning_contains: "Command path not found: commands/does-not-exist.md"
+      why: "claude-skills-244 — 'Command path not found' had zero coverage. Substring pins the FULL message (including the path), not just severity+count, per Gate 3's 'right check, wrong report' finding: a mutation at line 472 that swapped the literal to 'Agent path not found: ($command)' kept the same warning count and passed 79/79 until this assertion was added"
     }
     {
       name: "agent_path_missing_warns"
@@ -1549,7 +1579,17 @@ def self-test [] {
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: ["agents/does-not-exist.md"] }
       expect_errors: 0
       expect_warnings: 1
-      why: "claude-skills-244 — 'Agent path not found' had zero coverage"
+      expect_warning_contains: "Agent path not found: agents/does-not-exist.md"
+      why: "claude-skills-244 — 'Agent path not found' had zero coverage. Substring pins the full message for the same 'right check, wrong report' reason as command_path_missing_warns above"
+    }
+    {
+      name: "agent_path_is_directory_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: ["agents"] }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "Agent path is a directory, not a file"
+      why: "claude-skills-244 Gate 3 finding — reachable with ZERO mutation on real production code: an agents array entry resolving to a directory (root_b/my-plugin/agents, empty, created above) hit validate-agent-md's `open $agent_path --raw` and crashed the entire self-test run with an uncaught nu::shell::io::is_a_directory error, silently discarding every already-recorded failure and every case queued after it. Fixed with a `path type` guard reporting a clean error instead of crashing; this fixture is the regression guard for that fix, not just a coverage gap"
     }
   ]
 
@@ -1559,6 +1599,14 @@ def self-test [] {
     let result = (validate-plugin-content $plugin_path $c.root "my-plugin" "my-plugin" false false false)
     if ($result.errors | length) != $c.expect_errors {
       $failures = ($failures | append $"array_path_($c.name): expected ($c.expect_errors) errors, got (($result.errors | length)): ($result.errors | to nuon) -- ($c.why)")
+    }
+    let expect_error_contains = ($c | get -o expect_error_contains)
+    if ($expect_error_contains != null) and not ($result.errors | any {|e| $e | str contains $expect_error_contains }) {
+      $failures = ($failures | append $"array_path_($c.name): expected an error containing '($expect_error_contains)', got: ($result.errors | to nuon) -- ($c.why)")
+    }
+    let expect_warning_contains = ($c | get -o expect_warning_contains)
+    if ($expect_warning_contains != null) and not ($result.warnings | any {|w| $w | str contains $expect_warning_contains }) {
+      $failures = ($failures | append $"array_path_($c.name): expected a warning containing '($expect_warning_contains)', got: ($result.warnings | to nuon) -- ($c.why)")
     }
     if ($result.warnings | length) != $c.expect_warnings {
       $failures = ($failures | append $"array_path_($c.name): expected ($c.expect_warnings) warnings, got (($result.warnings | length)): ($result.warnings | to nuon) -- ($c.why)")
