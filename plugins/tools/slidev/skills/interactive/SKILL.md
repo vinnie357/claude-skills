@@ -474,9 +474,9 @@ See `references/animation-patterns.md` for motion-safe animation examples.
 
 ## Export Considerations
 
-- Vue components render during PDF/PPTX export — use `$slidev.nav.isPresenter` to detect export mode and disable timers
+- Vue components render during PDF/PPTX export — use `$slidev.nav.isPrintMode` to detect export/print mode and disable timers. `isPresenter` is a different flag (true in the presenter dual-window view) and does not indicate export rendering; `isExporting` does not exist on the nav context at all — verified against `packages/client/composables/useNav.ts` on the slidevjs/slidev GitHub repo
 - Iframes do not render in exported PDFs — add a static screenshot or description as fallback
-- Use `<v-if="!$slidev.nav.isExporting">` to hide demo-only elements from exports
+- Use `<v-if="!$slidev.nav.isPrintMode">` to hide demo-only elements from exports
 
 ## References
 

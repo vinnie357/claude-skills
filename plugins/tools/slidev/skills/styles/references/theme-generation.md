@@ -248,7 +248,7 @@ slidev-theme-brand/
 {
   "name": "slidev-theme-brand",
   "version": "0.1.0",
-  "keywords": ["slidev-theme"],
+  "keywords": ["slidev-theme", "slidev"],
   "exports": {
     ".": "./styles/index.css"
   },
@@ -259,7 +259,20 @@ slidev-theme-brand/
 }
 ```
 
-The `keywords` array must include `"slidev-theme"` for Slidev to recognize the package.
+The `keywords` array must include both `"slidev-theme"` and `"slidev"` — verified against
+`docs/guide/write-theme.md` on the slidevjs/slidev GitHub repo ("Add `slidev-theme` and
+`slidev` in the `keywords` field").
+
+Both `colorSchema` and `highlighter` under `slidev` are real, consumed theme metadata —
+verified against the `SlidevThemeMeta` interface (`packages/types/src/types.ts`: "Metadata
+for 'slidev' field in themes' package.json") and its use in `resolveConfig`
+(`packages/parser/src/config.ts`), which reads `themeMeta.highlighter` directly to set the
+config's highlighter. `highlighter` is real but undocumented in `write-theme.md` itself.
+
+`slidev.colorSchema` here (valid values: `light`, `dark`, `both`) is a different field from
+the per-presentation `colorSchema` frontmatter option (valid values: `auto`, `light`, `dark`,
+`all`), which is documented separately in the `syntax` skill — easy to conflate since both
+are named `colorSchema`.
 
 Reference the local package in a presentation:
 

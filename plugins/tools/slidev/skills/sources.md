@@ -2,9 +2,9 @@
 
 This file documents the sources used to create the slidev plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `slidev-syntax-guide`, `slidev-builtin-layouts`, `slidev-slot-sugar`, `slidev-block-frontmatter`, `slidev-draggable-elements` (Slidev Syntax section below); `slidev-code-blocks`, `slidev-code-line-numbers`, `slidev-code-max-height`, `slidev-code-groups`, `slidev-monaco-editor`, `slidev-import-snippets`, `slidev-latex`, `slidev-mermaid`, `slidev-plantuml` (Slidev Code Blocks section below); `slidev-exporting-guide`, `slidev-cli-reference` (Slidev Export section below); `pyramid-principle`, `kawasaki-10-20-30`, `assertion-evidence-design`, `duarte-resonate`, `presentation-zen`, `rule-of-three` (Presentation Strategy section below); `playwright-mcp-browser-tools`, `wcag-contrast-requirements`, `slidev-unocss-theming` (Brand Discovery and Styles section below); `vue3-composition-api`, `slidev-custom-components`, `slidev-iframe-layouts` (Interactive Demos section below).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `slidev-syntax-guide`, `slidev-builtin-layouts`, `slidev-slot-sugar`, `slidev-block-frontmatter`, `slidev-draggable-elements` (Slidev Syntax section below); `slidev-code-blocks`, `slidev-code-line-numbers`, `slidev-code-max-height`, `slidev-code-groups`, `slidev-monaco-editor`, `slidev-import-snippets`, `slidev-latex`, `slidev-mermaid`, `slidev-plantuml` (Slidev Code Blocks section below); `slidev-exporting-guide`, `slidev-cli-reference` (Slidev Export section below); `pyramid-principle`, `kawasaki-10-20-30`, `assertion-evidence-design`, `duarte-resonate`, `presentation-zen`, `rule-of-three` (Presentation Strategy section below); `playwright-mcp-browser-tools`, `wcag-contrast-requirements`, `slidev-unocss-theming`, `slidev-write-theme` (Brand Discovery and Styles section below); `vue3-composition-api`, `slidev-custom-components`, `slidev-iframe-layouts` (Interactive Demos section below).
 
-Two skills have no section of their own because they draw on sources cited elsewhere in this file. The `slidev` overview skill uses `slidev-syntax-guide` (frontmatter quick start) and `slidev-cli-reference` (the `npm init slidev@latest` / `npx slidev` commands). The `troubleshooting` skill uses `slidev-syntax-guide`, `slidev-code-groups`, `slidev-monaco-editor`, `slidev-exporting-guide`, and `slidev-cli-reference` — the export flags (`--timeout`, `--wait`, `--omit-background`), the `mdc: true` code-group requirement, and the Monaco-not-appearing case each trace back to those pages. `sources.toml` records both attributions in its `skills` arrays.
+Two skills have no section of their own because they draw on sources cited elsewhere in this file. The `slidev` overview skill uses `slidev-syntax-guide` (frontmatter quick start) and `slidev-cli-reference` (the `npm init slidev@latest` / `npx slidev` commands). The `troubleshooting` skill uses `slidev-syntax-guide`, `slidev-code-groups`, `slidev-monaco-editor`, `slidev-exporting-guide`, and `slidev-cli-reference` — the export flags (`--timeout`, `--wait`, `--omit-background`), the `comark: true` code-group requirement (`mdc: true` is a deprecated alias), and the Monaco-not-appearing case each trace back to those pages. `sources.toml` records both attributions in its `skills` arrays.
 
 ## Slidev Syntax
 
@@ -165,6 +165,12 @@ Two skills have no section of their own because they draw on sources cited elsew
 - **Purpose**: UnoCSS configuration for Slidev themes
 - **Date Accessed**: 2026-04-04
 - **Key Topics**: Theme shortcuts, CSS variables, custom rules
+
+### Slidev Write Theme
+- **URL**: https://sli.dev/guide/write-theme
+- **Purpose**: Theme package.json conventions (keywords, `slidev.*` metadata, publishing)
+- **Date Accessed**: 2026-08-05
+- **Key Topics**: Required `keywords` (`slidev-theme`, `slidev`), `slidev.defaults`, `slidev.colorSchema` (light/dark/both), `engines.slidev`
 
 ## Interactive Demos
 

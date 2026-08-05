@@ -120,8 +120,10 @@ lineNumbers: true
 drawings:
   persist: false
 transition: slide-left
-mdc: true
+comark: true
 ---
 ```
+
+`comark` (formerly `mdc`, still a working but deprecated alias — see the `syntax` skill) enables Comark/MDC-style component syntax.
 
 See `templates/mise.toml` for project task definitions.

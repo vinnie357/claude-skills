@@ -164,7 +164,31 @@ url: /mocks/dashboard/index.html
 ---
 ```
 
-The slide body is replaced entirely by the iframe. Add `class: "border-0"` to remove the default iframe border.
+The slide body is replaced entirely by the iframe.
+
+There is no default border on the iframe to remove in the first place. Every Slidev deck
+loads a Tailwind-style CSS reset before anything else — `packages/client/setup/main.ts`
+imports `../styles`, and `packages/client/styles/index.ts`'s first import is
+`@unocss/reset/tailwind.css`, which zeroes `border-width` on `*, ::before, ::after` deck-wide.
+No slidev stylesheet re-adds a border to the iframe. So `class: "border-0"` was never doing
+anything useful — not because it targets the wrong element, but because the border it claims
+to remove does not exist.
+
+Separately, `class: "border-0"` in frontmatter would not reach the `<iframe id="frame">`
+element even if a border did exist: `class` is not in `FRONTMATTER_FIELDS`/`HEADMATTER_FIELDS`
+(`packages/client/constants.ts`), so `frontmatterToProps` (`packages/client/context.ts`) passes
+it through as an unresolved prop, and Vue's attribute fallthrough applies an un-declared
+`class` to a component's own root element — here the `iframe.vue` layout's outer
+`<div class="h-full w-full">`, not the nested `<iframe>` several levels deeper.
+
+If you actually want to add a visible border around an embedded mock, target the iframe by
+its fixed id in global CSS (applies to every `iframe`/`iframe-left`/`iframe-right` slide in
+the deck, since the layouts all use `id="frame"`):
+
+```css
+/* styles/index.css */
+#frame { border: 1px solid #e2e8f0; }
+```
 
 ### iframe on the Right
 

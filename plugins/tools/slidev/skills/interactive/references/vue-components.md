@@ -345,8 +345,11 @@ const total = computed(() => $slidev.nav.total)
 // True when in presenter mode
 const isPresenter = computed(() => $slidev.nav.isPresenter)
 
-// Detect export rendering (disable timers/animations in export)
-const isExporting = computed(() => $slidev.nav.isExporting)
+// Detect print/export rendering (disable timers/animations)
+// `isExporting` does not exist on the nav context — the real property is `isPrintMode`,
+// verified against `packages/client/composables/useNav.ts` on the slidevjs/slidev GitHub
+// repo (`isPrintMode = computed(() => query.value.has('print') || currentRoute.name === 'export')`)
+const isPrintMode = computed(() => $slidev.nav.isPrintMode)
 </script>
 
 <template>
@@ -356,7 +359,7 @@ const isExporting = computed(() => $slidev.nav.isExporting)
     <div v-if="clicks >= 2" class="step">Step 2 revealed</div>
 
     <!-- Suppress live updates during export -->
-    <LiveChart v-if="!isExporting" />
+    <LiveChart v-if="!isPrintMode" />
     <StaticChartImage v-else />
   </div>
 </template>
@@ -489,7 +492,8 @@ const statusCode = ref(null)
 const requestBody = ref('{\n  "name": "My Widget"\n}')
 
 const showBody = computed(() => ['POST', 'PUT', 'PATCH'].includes(props.method))
-const isDisabled = computed(() => phase.value === 'sending' || $slidev.nav.isExporting)
+// `isPrintMode`, not `isExporting` — see the Slide-Aware Behavior section above
+const isDisabled = computed(() => phase.value === 'sending' || $slidev.nav.isPrintMode)
 
 async function sendRequest() {
   phase.value = 'sending'

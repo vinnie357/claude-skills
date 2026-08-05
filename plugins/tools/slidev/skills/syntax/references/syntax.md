@@ -312,9 +312,9 @@ transition: slide-left
 ---
 ```
 
-## MDC Syntax (Markdown Components)
+## Comark Syntax (formerly MDC / Markdown Components)
 
-Enable with `mdc: true` in headmatter. Allows using Vue components with a Markdown-friendly syntax:
+Enable with `comark: true` in headmatter. Allows using Vue components with a Markdown-friendly syntax:
 
 ```markdown
 ::component-name{prop1="value" prop2="value"}
@@ -322,7 +322,9 @@ Content
 ::
 ```
 
-Required for features like code groups.
+Required for features like code groups. The deprecated `mdc: true` key still enables this
+too — see the `mdc` row in the Headmatter table above — but new decks should use
+`comark: true`.
 
 ## LaTeX Math
 

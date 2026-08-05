@@ -574,7 +574,10 @@ nav button:focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; }
 
 ## Performance in Export Mode
 
-Detect Slidev's export rendering and disable resource-intensive animations:
+Detect Slidev's print/export rendering and disable resource-intensive animations. The nav
+context has no `isExporting` property — the real one is `isPrintMode`, verified against
+`packages/client/composables/useNav.ts` on the slidevjs/slidev GitHub repo (it's `true` when
+the `print` query param is set or the route name is `export`):
 
 ```vue
 <script setup>
@@ -582,12 +585,12 @@ import { useSlideContext } from '@slidev/client'
 import { computed, onMounted, onUnmounted } from 'vue'
 
 const { $slidev } = useSlideContext()
-const isExporting = computed(() => $slidev.nav.isExporting)
+const isPrintMode = computed(() => $slidev.nav.isPrintMode)
 
 let interval = null
 
 onMounted(() => {
-  if (!isExporting.value) {
+  if (!isPrintMode.value) {
     interval = setInterval(tick, 1000)
   }
 })
@@ -600,7 +603,7 @@ onUnmounted(() => {
 <template>
   <div>
     <!-- Live chart visible only during presentation -->
-    <AnimatedChart v-if="!isExporting" />
+    <AnimatedChart v-if="!isPrintMode" />
     <!-- Static fallback for PDF/PPTX export -->
     <img v-else src="/chart-snapshot.png" alt="Chart showing Q4 growth trend" />
   </div>

@@ -35,7 +35,11 @@ function add(
 {2,5}     — lines 2 and 5
 {1-3}     — lines 1 through 3
 {1-3,5}   — lines 1 through 3, and line 5
+{hide}    — hide the whole code block
+{none}    — show the block, highlight no lines
 ```
+
+Verified against `docs/features/line-highlighting.md` on the slidevjs/slidev GitHub repo — `hide` and `none` were undocumented here.
 
 ### Click-Based Highlighting
 
@@ -120,7 +124,7 @@ The block becomes scrollable when content exceeds the specified height.
 
 ## Code Groups
 
-Display multiple code blocks as tabs. Requires `mdc: true` in headmatter.
+Display multiple code blocks as tabs. Requires `comark: true` in headmatter — verified against `docs/features/code-groups.md` on the slidevjs/slidev GitHub repo, which states the feature requires Comark Syntax. The deprecated `mdc: true` alias still enables it too (see `packages/types/src/frontmatter.ts`: `@deprecated MDC is now Comark. Use the comark option instead`), but new decks should use `comark: true`.
 
 ````markdown
 ::code-group
@@ -212,7 +216,7 @@ monacoTypesSource: local  # 'cdn', 'local', or 'none'
 
 Animate code transitions between states. Shows smooth morphing between code blocks:
 
-````markdown
+`````markdown
 ````md magic-move
 ```ts
 const greeting = 'hello'
@@ -227,9 +231,27 @@ const name = 'world'
 console.log(`${greeting}, ${name}!`)
 ```
 ````
-````
+`````
 
 Each code block represents a step. Slidev animates the transition between steps on click.
+
+Combine with line highlighting/numbers and control timing:
+
+`````markdown
+````md magic-move {at:4, lines: true}
+```js {*|1|2-5}
+let count = 1
+function add() {
+  count++
+}
+```
+````
+`````
+
+- `{duration:500}` overrides the animation duration (ms) for that block; the headmatter default is `magicMoveDuration: 800`.
+- A filename in the opening fence (`` ````md magic-move [app.js] ``) adds a title bar with an auto-matched icon (available since Slidev v0.52.0).
+
+Verified against `docs/features/shiki-magic-move.md` on the slidevjs/slidev GitHub repo.
 
 ## TwoSlash
 

@@ -154,23 +154,27 @@ slidev --port 3031
 
 **Symptom**: `::component::` syntax renders as text.
 
-**Solution**: Enable MDC in headmatter:
+**Solution**: Enable Comark (formerly called MDC) in headmatter:
 ```yaml
 ---
-mdc: true
+comark: true
 ---
 ```
+
+`mdc: true` still works as a deprecated alias, but new decks should use `comark: true` — verified against `packages/types/src/frontmatter.ts` on the slidevjs/slidev GitHub repo (`@deprecated MDC is now Comark. Use the comark option instead`).
 
 ### Code Groups Not Rendering
 
 **Symptom**: Code group tabs not appearing, code blocks render separately.
 
-**Solution**: Code groups require MDC syntax enabled:
+**Solution**: Code groups require Comark syntax enabled:
 ```yaml
 ---
-mdc: true
+comark: true
 ---
 ```
+
+Verified against `docs/features/code-groups.md` on the slidevjs/slidev GitHub repo — it states the feature requires Comark Syntax, not MDC directly (the deprecated `mdc: true` key still enables it too).
 
 ### Monaco Editor Not Appearing
 
