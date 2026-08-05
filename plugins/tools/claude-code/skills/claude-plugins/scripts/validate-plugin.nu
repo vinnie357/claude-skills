@@ -152,6 +152,23 @@ def validate-plugin-file [plugin_path: string, verbose: bool, strict: bool] {
     exit 1
   }
 
+  # claude-skills-243 — nu's `from json` (what `open` calls for a .json
+  # extension) parses JSON5-style bare scalars leniently instead of
+  # raising: a bare string, number, bool, or list all come back as that
+  # scalar type rather than triggering the catch above (verified directly:
+  # `"not valid json {{{" | from json | describe` => "string", `"42" |
+  # from json | describe` => "int", `"true"` => "bool", `"[1, 2, 3]"` =>
+  # "list<int>"). Downstream code assumes a record and crashes with
+  # `nu::shell::only_supports_this_input_type` instead of ever printing
+  # this message. Reject anything that isn't a record here, routed into
+  # the SAME message/exit as the catch above per the existing
+  # cli_invalid_json_exit_1 fixture's compatibility constraint — not a
+  # restructure of the catch, an addition after it.
+  if not ($plugin | describe | str starts-with "record") {
+    print $"(ansi red_bold)Error:(ansi reset) Invalid JSON syntax in ($plugin_path)"
+    exit 1
+  }
+
   let plugin_name = ($plugin | get -o name | default "unknown")
 
   let result = validate-plugin-content $plugin_path $plugin_root $plugin_name $plugin_name false $verbose $strict
@@ -236,6 +253,16 @@ def validate-plugin-content [
   let plugin = try {
     open $plugin_path
   } catch {
+    print $"(ansi red_bold)Error:(ansi reset) Failed to parse plugin.json"
+    return { success: false, errors: ["Failed to parse plugin.json"], warnings: [] }
+  }
+
+  # claude-skills-243 — the SECOND instance of the lenient-scalar guard
+  # hole: this function has its own try/catch and its own message, reached
+  # directly from validate-from-marketplace (bypassing validate-plugin-
+  # file's copy of this same guard entirely). Same leniency, same fix
+  # shape, this function's own message per the compatibility constraint.
+  if not ($plugin | describe | str starts-with "record") {
     print $"(ansi red_bold)Error:(ansi reset) Failed to parse plugin.json"
     return { success: false, errors: ["Failed to parse plugin.json"], warnings: [] }
   }
@@ -429,9 +456,17 @@ def validate-plugin-content [
     print $"\n(ansi cyan)Validating skills...(ansi reset)"
 
     let skills_type = ($plugin.skills | describe)
-    if $skills_type == "nothing" {
-      $errors = ($errors | append "skills field must be an array or omitted entirely (not null)")
-    } else if not ($skills_type | str starts-with "list") {
+    # claude-skills-245 — no `$skills_type == "nothing"` branch here on
+    # purpose: this whole block is already gated by `($plugin | get -o
+    # skills) != null` above, and a JSON `null` loads through nu's `open`
+    # as `nothing`, so `nothing == null` is true and the outer guard skips
+    # this block entirely before any inner check runs. A branch here for
+    # that case was unreachable dead code — verified directly with a real
+    # on-disk manifest (`"skills": null`) through the actual CLI: 0 errors,
+    # "✓ Plugin is valid!". Deleted rather than fixtured, since a fixture
+    # for unreachable code would pass for a reason unrelated to what it
+    # claims to test.
+    if not ($skills_type | str starts-with "list") {
       $errors = ($errors | append $"skills must be an array, got ($skills_type)")
     } else {
       for skill in $plugin.skills {
@@ -515,9 +550,10 @@ def validate-plugin-content [
   let commands_value = ($plugin | get -o commands)
   if $commands_value != null {
     let commands_type = ($commands_value | describe)
-    if $commands_type == "nothing" {
-      $errors = ($errors | append "commands field must be an array or omitted entirely (not null)")
-    } else if not ($commands_type | str starts-with "list") {
+    # claude-skills-245 — same unreachable-dead-code shape as skills above:
+    # this block is gated by `$commands_value != null`, so a `nothing` type
+    # (JSON null) never reaches an inner check. Deleted, verified directly.
+    if not ($commands_type | str starts-with "list") {
       $errors = ($errors | append $"commands must be an array, got ($commands_type)")
     } else {
       print $"\n(ansi cyan)Validating commands...(ansi reset)"
@@ -543,9 +579,11 @@ def validate-plugin-content [
   let agents_value = ($plugin | get -o agents)
   if $agents_value != null {
     let agents_type = ($agents_value | describe)
-    if $agents_type == "nothing" {
-      $errors = ($errors | append "agents field must be an array or omitted entirely (not null)")
-    } else if not ($agents_type | str starts-with "list") {
+    # claude-skills-245 — same unreachable-dead-code shape as skills/
+    # commands above: this block is gated by `$agents_value != null`, so a
+    # `nothing` type (JSON null) never reaches an inner check. Deleted,
+    # verified directly.
+    if not ($agents_type | str starts-with "list") {
       $errors = ($errors | append $"agents must be an array, got ($agents_type)")
     } else {
       print $"\n(ansi cyan)Validating agents...(ansi reset)"
@@ -1602,7 +1640,7 @@ def self-test [] {
       expect_errors: 1
       expect_warnings: 0
       expect_error_contains: "skills must be an array"
-      why: "claude-skills-244 — skills must be an array had zero reject-direction coverage (distinct from the 'skills field must be an array or omitted entirely (not null)' null-branch, out of this bee's named 11). plugin-schema.md documents skills as array-only, so no doc divergence here (unlike commands/agents below)"
+      why: "claude-skills-244 — skills must be an array had zero reject-direction coverage. (The sibling 'skills field must be an array or omitted entirely (not null)' null-branch this comment used to distinguish itself from was deleted in claude-skills-245 as unreachable dead code — the outer `!= null` guard already skips it for any file-loaded manifest.) plugin-schema.md documents skills as array-only, so no doc divergence here (unlike commands/agents below)"
     }
     {
       name: "commands_not_array_errors"
@@ -1777,6 +1815,34 @@ def self-test [] {
   # `nu::shell::error` / "EOF while parsing an object").
   "{\"name\": \"broken\"" | save --force $cli_invalid_json_path
 
+  # claude-skills-243 — the flip side of cli_invalid_json_path above: these
+  # ARE genuinely valid JSON (a bare string, number, bool, and array are
+  # all legal top-level JSON values, not just nu leniency), but none of
+  # them is a plugin.json OBJECT, so the pre-fix code crashed trying to
+  # treat the parsed scalar as a record. Content verified to actually
+  # parse leniently before use, not assumed: `"not valid json {{{" | from
+  # json | describe` => "string", `"42"` => "int", `"true"` => "bool",
+  # `"[1, 2, 3]"` => "list<int>".
+  let cli_scalar_string_path = ($cli_temp_dir | path join "scalar-string.json")
+  "not valid json {{{" | save --force $cli_scalar_string_path
+  let cli_scalar_number_path = ($cli_temp_dir | path join "scalar-number.json")
+  "42" | save --force $cli_scalar_number_path
+  let cli_scalar_bool_path = ($cli_temp_dir | path join "scalar-bool.json")
+  "true" | save --force $cli_scalar_bool_path
+  let cli_scalar_list_path = ($cli_temp_dir | path join "scalar-list.json")
+  "[1, 2, 3]" | save --force $cli_scalar_list_path
+
+  # claude-skills-243 — the SECOND instance of the same guard hole, in
+  # validate-plugin-content's own try/catch, reached only via the
+  # marketplace path (validate-from-marketplace bypasses validate-plugin-
+  # file's copy of this guard entirely). One shape is enough to prove this
+  # second, structurally-identical guard is also fixed; the four shapes
+  # above already cover the AC's "each scalar shape" against the primary,
+  # more commonly hit validate-plugin-file guard.
+  let cli_scalar_marketplace_plugin_dir = ($cli_temp_dir | path join "scalar-plugin")
+  mkdir ($cli_scalar_marketplace_plugin_dir | path join ".claude-plugin")
+  "42" | save --force ($cli_scalar_marketplace_plugin_dir | path join ".claude-plugin" "plugin.json")
+
   # claude-skills-238 Gate 3 review — the description/keywords marketplace-
   # agreement check itself (validate-plugin.nu's has_marketplace_context
   # blocks, claude-skills-170's deletion-is-a-failure rule) had ZERO
@@ -1816,6 +1882,10 @@ def self-test [] {
       # Deliberately WRONG keywords — description agrees, so only the
       # keywords-mismatch branch fires.
       { name: "keywords-mismatch-plugin", source: "./keywords-mismatch-plugin", description: "test fixture", keywords: ["gamma", "delta"] }
+      # claude-skills-243 — scalar-plugin's on-disk plugin.json (created
+      # above) is the bare integer 42, reaching validate-plugin-content's
+      # OWN try/catch guard directly through this marketplace path.
+      { name: "scalar-plugin", source: "./scalar-plugin" }
     ]
   } | save --force $cli_marketplace_path
 
@@ -1842,6 +1912,41 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "Invalid JSON syntax"
       why: "validate-plugin-file's JSON-parse-failure branch"
+    }
+    {
+      name: "cli_scalar_string_json_exit_1"
+      args: [$cli_scalar_string_path]
+      expect_exit: 1
+      expect_output_contains: "Invalid JSON syntax"
+      why: "claude-skills-243 — a bare string parses leniently instead of raising, so the try/catch above never fires; the record-type check after it must still reject this and route into the same message"
+    }
+    {
+      name: "cli_scalar_number_json_exit_1"
+      args: [$cli_scalar_number_path]
+      expect_exit: 1
+      expect_output_contains: "Invalid JSON syntax"
+      why: "claude-skills-243 — a bare number ('42') is genuinely valid top-level JSON, not just nu leniency, and parses to an int; must still be rejected as not-a-plugin-manifest"
+    }
+    {
+      name: "cli_scalar_bool_json_exit_1"
+      args: [$cli_scalar_bool_path]
+      expect_exit: 1
+      expect_output_contains: "Invalid JSON syntax"
+      why: "claude-skills-243 — a bare bool ('true') is valid top-level JSON and parses to a bool; must still be rejected"
+    }
+    {
+      name: "cli_scalar_list_json_exit_1"
+      args: [$cli_scalar_list_path]
+      expect_exit: 1
+      expect_output_contains: "Invalid JSON syntax"
+      why: "claude-skills-243 — a JSON array is a valid top-level JSON value and parses to a list, not a record; must still be rejected"
+    }
+    {
+      name: "cli_marketplace_scalar_plugin_exit_1"
+      args: ["scalar-plugin", "--marketplace", $cli_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "Failed to parse plugin.json"
+      why: "claude-skills-243 — the SECOND guard instance, in validate-plugin-content's own try/catch, reached only via the marketplace path (validate-from-marketplace never goes through validate-plugin-file's copy of this guard). Different message than the direct-file cases above on purpose, per the compatibility constraint: this function's existing 'Failed to parse plugin.json' message, not a shared one"
     }
     {
       name: "cli_no_target_exit_1"
