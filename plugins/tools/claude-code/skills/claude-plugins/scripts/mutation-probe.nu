@@ -184,12 +184,13 @@ def main [] {
 
   print ($results | select name status | table)
 
-  # `ok? != true` (not `ok == false`) so a result missing the `ok` column or
-  # carrying `ok: null` both count as a gap, the same as an explicit
-  # `ok: false` — every append site above does set `ok` to a literal bool
-  # today, but only `!= true` fails closed for all three "not clearly ok"
-  # shapes; `== false` only catches an explicit `false` and lets `null`
-  # (which `== false` treats as not-equal, not as a match) through.
+  # `ok? != true`: verified directly (piped through both `length` and a
+  # plain print, not just counted) that a result missing the `ok` column, one
+  # carrying `ok: null`, and one carrying `ok: false` are all selected here,
+  # and one carrying `ok: true` is not. Every append site above does set
+  # `ok` to a literal bool today, so none of the first three shapes is
+  # reachable yet — this is what keeps a future append site that forgets to
+  # set `ok` from silently passing.
   let gaps = ($results | where ok? != true)
   if ($gaps | length) > 0 {
     print $"\n(ansi red_bold)($gaps | length) of (($probes | length)) probes did not cleanly confirm coverage — see non-ok rows above.(ansi reset)"
