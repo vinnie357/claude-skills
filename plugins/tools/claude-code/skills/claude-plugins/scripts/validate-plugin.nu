@@ -544,6 +544,38 @@ def validate-plugin-content [
     print $"  ✓ license: ($plugin.license)"
   }
 
+  # Validate $schema, displayName, description, homepage, repository, license
+  # (claude-skills-253): upstream documents all six as plain `string` in the
+  # "Metadata fields" table — verified directly against the live doc at
+  # https://code.claude.com/docs/en/plugins-reference before writing this.
+  # None had a type check before this fix: a manifest with e.g.
+  # `displayName: 42` passed silently with 0 errors. Upstream states wrong
+  # types are load errors ("a keywords value that is a string instead of an
+  # array is a load error, and claude plugin validate reports it as one"),
+  # so rejecting these as errors (not warnings) is upstream-faithful. Reuses
+  # the same dynamic `get -o $field` idiom as the invalid_fields loop above.
+  # `author` is deliberately excluded — upstream documents it as `object`,
+  # not `string` (the claude-skills-250/253 trap already handled below).
+  # `version` is also excluded: it already has its own type guard above (a
+  # warning, since version is a recommended, not required, field) — a second
+  # check here would be a duplicate.
+  for field in ["$schema", "displayName", "description", "homepage", "repository", "license"] {
+    let value = ($plugin | get -o $field)
+    if ($value != null) and not (is-string $value) {
+      $errors = ($errors | append $"'($field)' must be a string, got ($value | describe)")
+    }
+  }
+
+  # Validate defaultEnabled (claude-skills-253): upstream documents it as
+  # `boolean`. No existing check before this fix — a manifest with
+  # `defaultEnabled: "yes"` passed silently with 0 errors.
+  if ($plugin | get -o defaultEnabled) != null {
+    let default_enabled_type = ($plugin.defaultEnabled | describe)
+    if $default_enabled_type != "bool" {
+      $errors = ($errors | append $"'defaultEnabled' must be a boolean, got ($default_enabled_type)")
+    }
+  }
+
   # Validate author
   if ($plugin | get -o author) != null {
     let author = $plugin.author
@@ -2001,6 +2033,97 @@ def self-test [] {
       name: "channels_wrong_type_bool_errors"
       why: "claude-skills-250 — a bare bool is invalid under channels' only documented shape (array); verified accepted with 0 errors before this fix"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: true }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    # claude-skills-253 — seven scalar metadata fields ($schema, displayName,
+    # description, homepage, repository, license, defaultEnabled) had NO
+    # type checking at all before this fix (Gate 3 finding on PR #231): a
+    # manifest with e.g. `displayName: 42` passed silently with 0 errors.
+    # `$schema`/homepage/repository get a dedicated accept fixture below —
+    # no prior case in this suite exercised those three fields at all.
+    # displayName and defaultEnabled already have accept coverage at the
+    # correct type via complete_manifest_all_documented_fields_recognized
+    # above (that fixture's specific job is denylist-absence verification
+    # per SKILL.md's "nine fields" sentence — left alone rather than
+    # overloaded with a second, unrelated purpose). description and license
+    # already have pervasive accept coverage — every other fixture in this
+    # suite passes them as valid strings. Every reject fixture below adds
+    # exactly one wrong-typed field to the shared valid base ({ name:
+    # "my-plugin", version: "1.0.0", description: "test fixture", license:
+    # "MIT" }), same one-dimension discipline as plugin_name_bad_kebab_case_
+    # errors above. None of these seven checks drill into the value with
+    # `get -o` or a loop over entries, so none can crash the self-test if
+    # neutered — in-process $cases is the correct group for all ten fixtures
+    # below (contrast the 'experimental' guard, which IS cli_cases-isolated
+    # because it drills into a record).
+    {
+      name: "schema_string_accepted"
+      why: "claude-skills-253 — upstream documents $schema as string; no prior fixture in this suite ever set it"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json" }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "schema_wrong_type_number_errors"
+      why: "claude-skills-253 — a bare number is invalid under $schema's only documented shape (string); verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", "$schema": 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "display_name_wrong_type_number_errors"
+      why: "claude-skills-253 — a bare number is invalid under displayName's only documented shape (string); verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", displayName: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "description_wrong_type_number_errors"
+      why: "claude-skills-253 — a bare number is invalid under description's only documented shape (string); verified accepted with 0 errors before this fix (the presence check above only warns when description is MISSING, never checked the type of a present value)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: 42, license: "MIT" }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "homepage_string_accepted"
+      why: "claude-skills-253 — upstream documents homepage as string; no prior fixture in this suite ever set it"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", homepage: "https://docs.example.com" }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "homepage_wrong_type_number_errors"
+      why: "claude-skills-253 — a bare number is invalid under homepage's only documented shape (string); verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", homepage: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "repository_string_accepted"
+      why: "claude-skills-253 — upstream documents repository as string; no prior fixture in this suite ever set it"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", repository: "https://github.com/user/plugin" }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "repository_wrong_type_number_errors"
+      why: "claude-skills-253 — a bare number is invalid under repository's only documented shape (string); verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", repository: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "license_wrong_type_number_errors"
+      why: "claude-skills-253 — a bare number is invalid under license's only documented shape (string); verified accepted with 0 errors before this fix (the presence check above only warns when license is MISSING, never checked the type of a present value)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "default_enabled_wrong_type_string_errors"
+      why: "claude-skills-253 — a bare string ('yes') is invalid under defaultEnabled's only documented shape (boolean); verified accepted with 0 errors before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", defaultEnabled: "yes" }
       expect_errors: 1
       expect_warnings: 0
     }
