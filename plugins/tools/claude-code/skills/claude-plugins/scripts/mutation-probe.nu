@@ -184,15 +184,13 @@ def main [] {
 
   print ($results | select name status | table)
 
-  # Fail-closed by construction: every append site above sets `ok` explicitly
-  # (true only on a clean, attributed catch), so this filter only relies on
-  # `== false` matching those five known values, not on how nushell treats a
-  # missing column. A result record that somehow lacked `ok` would still be
-  # selected here — nushell's null-comparison semantics make `null == false`
-  # true — so a future append site that forgets to set `ok` fails the run
-  # rather than silently passing, but that safety net is not what this
-  # filter is written to depend on.
-  let gaps = ($results | where ok == false)
+  # `ok? != true` (not `ok == false`) so a result missing the `ok` column or
+  # carrying `ok: null` both count as a gap, the same as an explicit
+  # `ok: false` — every append site above does set `ok` to a literal bool
+  # today, but only `!= true` fails closed for all three "not clearly ok"
+  # shapes; `== false` only catches an explicit `false` and lets `null`
+  # (which `== false` treats as not-equal, not as a match) through.
+  let gaps = ($results | where ok? != true)
   if ($gaps | length) > 0 {
     print $"\n(ansi red_bold)($gaps | length) of (($probes | length)) probes did not cleanly confirm coverage — see non-ok rows above.(ansi reset)"
     exit 1
