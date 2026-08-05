@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.132",
+      "version": "0.4.133",
       "category": "meta",
       "keywords": [
         "skills",
@@ -85,7 +85,7 @@
       "source": "./plugins/tools/ansible",
       "strict": true,
       "description": "Ansible automation skills: playbooks, inventory, roles, vault secrets, and Molecule testing",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "category": "tools",
       "keywords": [
         "ansible",
@@ -180,7 +180,7 @@
       "source": "./plugins/design",
       "strict": true,
       "description": "Framework-agnostic standards and design systems: accessibility (WCAG) and Material Design 3 — what you review an implementation against, and plan a compliant new one from",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "category": "frontend",
       "keywords": [
         "design",
@@ -433,7 +433,7 @@
       "source": "./plugins/tools/slidev",
       "strict": true,
       "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
-      "version": "0.2.7",
+      "version": "0.2.8",
       "category": "tools",
       "keywords": [
         "slidev",

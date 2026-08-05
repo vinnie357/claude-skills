@@ -99,7 +99,7 @@ After applying a theme, validate compliance by:
 4. Checking all colors against the brand palette within a tolerance of ±5 hex units per channel
 5. Confirming logo placement and sizing
 
-WCAG 2.1 AA requirements (per `design:accessibility`):
+WCAG 2.2 AA requirements (per `design:accessibility`) — these contrast success criteria (1.4.3, 1.4.11) are unchanged from 2.1:
 - Normal text (< 18pt): minimum contrast ratio **4.5:1**
 - Large text (≥ 18pt or ≥ 14pt bold): minimum contrast ratio **3:1**
 - UI components and graphical objects: minimum contrast ratio **3:1**

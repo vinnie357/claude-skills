@@ -3,27 +3,47 @@
 
 [meta]
 plugin = "design"
-reviewed_at_plugin_version = "0.1.0"
-last_full_check = "2026-07-30"
+reviewed_at_plugin_version = "0.1.2"
+last_full_check = "2026-08-05"
+# claude-skills-223 tier 3: claim-by-claim verification pass for both skills
+# (the last slice under this bee). accessibility: WCAG version currency
+# resolved (see wai source note below) and one ARIA APG attribution error
+# fixed — "skip links" is not one of the APG's 30 named design patterns
+# (verified via the APG patterns index), it's a WCAG technique. material-design:
+# tonal palette tone count was wrong (claimed "50-99 tones per color";
+# actually 13 tones: 0,10,20...90,95,99,100 per material-color-utilities'
+# commonTones — verified against that first-party source, not m3.material.io's
+# prose, which lists 95/98/99 and would total 14), the typography type-scale
+# structure was garbled ("5 display sizes and 9 text sizes" doesn't match any
+# real structure — actual is 5 categories x 3 sizes = 15 styles; the specific
+# sp values quoted (57/32/16/11) were independently confirmed correct), and
+# the layout breakpoints section was incomplete for the current spec (MD3 now
+# has 5 window-size classes, not 3 — Expanded is capped at 1199dp, with Large
+# and Extra-large added above it). Four resource URLs were dead-link-checked:
+# m3.material.io/theme-builder and the Jetpack Compose / Flutter Material 3
+# doc links have all moved (301 redirects, in Flutter's case a 3-hop chain);
+# updated to their live destinations. Component/button/chip/dialog names,
+# the HCT color space and dynamic-color Compose code samples, and the 48dp
+# touch target all independently confirmed correct — no changes needed there.
 
 # ----------------------------------------------------------------------------
 # W3C Web Accessibility Initiative (WAI) — foundation for the accessibility
 # skill (POUR principles, ARIA). sources.md cites the WAI fundamentals
 # overview page (undated spec); the skill body's own Resources section
-# separately cites the WCAG 2.1 quickref, which is what current_version
-# pins to (see notes for a live-check drift finding).
+# separately cites the WCAG 2.2 quickref, which is what current_version
+# pins to (see notes — the prior 2.1 drift finding is resolved).
 # ----------------------------------------------------------------------------
 [[sources]]
 skills = ["accessibility"]
 name = "wai"
 url = "https://www.w3.org/WAI/fundamentals/accessibility-principles/"
 check_method = "manual"
-current_version = "2.1"
+current_version = "2.2"
 version_constraint = "stable"
-last_checked = "2026-07-30"
+last_checked = "2026-08-05"
 update_priority = "medium"
 breaking_changes_likely = false
-notes = "sources.md's foundational URL is the W3C WAI accessibility-principles overview (POUR principles, ARIA), Date Accessed 2025-11-15. The accessibility SKILL.md's own Resources section (line ~166) separately cites the WCAG 2.1 quickref (https://www.w3.org/WAI/WCAG21/quickref/) — that citation is what current_version='2.1' verifies against, not the undated WAI overview page. Live check 2026-07-30: the WCAG21 quickref URL now 301-redirects to https://www.w3.org/WAI/WCAG22/quickref/?versions=2.1 — W3C's current recommendation has moved to WCAG 2.2 (WCAG 3.0 still in draft). NOT bumping current_version to 2.2: no verification was done that the skill's POUR/ARIA content reflects 2.2-specific additions (e.g. new SC for accessible authentication, dragging movements). Recorded as drift only."
+notes = "sources.md's foundational URL is the W3C WAI accessibility-principles overview (POUR principles, ARIA), Date Accessed 2025-11-15. The accessibility SKILL.md's own Resources section separately cites the WCAG quickref — that citation is what current_version verifies against, not the undated WAI overview page. claude-skills-223 (2026-08-05): bumped current_version from '2.1' to '2.2' and updated the SKILL.md Resources line to the WCAG22 quickref URL, resolving the drift the 2026-07-30 pass recorded but left unfixed. Confirmed via live fetch of w3.org/TR/WCAG22/: WCAG 2.2 became a W3C Recommendation 2023-10-05, and its own text states 'Content that conforms to WCAG 2.2 also conforms to WCAG 2.0 and WCAG 2.1' — compatibility runs 2.2-to-2.1, not the reverse (a 2.1-conformant page can fail 2.2's 9 new success criteria, e.g. Target Size Minimum). Also corrected: the skill's claim that ARIA Authoring Practices patterns cover 'skip links' — verified against the APG's own patterns index (30 named patterns: Tabs, Accordion, Dialog (Modal), Menu Button, Menu and Menubar among them) and skip links are NOT one of them; they're a WCAG technique (a bypass-blocks link), not an APG pattern. Fixed in SKILL.md."
 
 # ----------------------------------------------------------------------------
 # Material Design 3 (Material You) — Google's living design-system docs.
@@ -38,10 +58,10 @@ url = "https://m3.material.io/"
 check_method = "manual"
 current_version = "3"
 version_constraint = "rolling"
-last_checked = "2026-07-30"
+last_checked = "2026-08-05"
 update_priority = "medium"
 breaking_changes_likely = false
-notes = "current_version='3' reflects the design-system generation (Material Design 2 vs 3 per sources.md's 'Key Differences' section) — m3.material.io has no independent semver release, it is continuously updated. Covers the typography, color (HCT), layout, and foundations sub-pages sources.md lists individually under 'Key Resources'; not tracked as separate entries since they share one upstream and one update cadence."
+notes = "current_version='3' reflects the design-system generation (Material Design 2 vs 3 per sources.md's 'Key Differences' section) — m3.material.io has no independent semver release, it is continuously updated. Covers the typography, color (HCT), layout, and foundations sub-pages sources.md lists individually under 'Key Resources'; not tracked as separate entries since they share one upstream and one update cadence. claude-skills-223 (2026-08-05): claim-by-claim pass against the live site plus corroborating secondary sources (site is a JS SPA that WebFetch cannot render, so most values were confirmed via targeted web search against m3.material.io content rather than direct fetch — noted for anyone re-verifying). 3 corrections in material-design/SKILL.md: tonal palette tone count ('50-99 tones per color' -> 13 tones: 0,10,20...90,95,99,100, per material-color-utilities' commonTones — m3.material.io's own prose lists 95/98/99 for a 14-tone count, but the first-party source code is the checkable citation); typography type-scale structure ('5 display sizes and 9 text sizes' -> 5 categories x 3 sizes = 15 styles total; the sp values 57/32/16/11 were already correct); layout breakpoints ('Expanded: 840dp+' -> MD3 now documents 5 window-size classes, Expanded capped at 1199dp with Large 1200-1599dp and Extra-large 1600dp+ added above it). Also dead-link-checked (curl -sIL) and fixed 3 resource URLs: m3.material.io/theme-builder now redirects to material-foundation.github.io/material-theme-builder/; developer.android.com/jetpack/compose/designsystems/material3 redirects to /develop/ui/compose/designsystems/material3; flutter.dev/docs/development/ui/material redirects (3 hops) to docs.flutter.dev/ui/design/material. sources.md's own 'Layout' key-resource link (m3.material.io/foundations/layout/understanding-layout/overview) 404s live; repointed to breakpoints/overview, which is the page these values were verified against. Confirmed correct, no changes: color roles list, button/card/text-field/navigation/chip/dialog names and counts, the Jetpack Compose dynamic-color and component code samples, and the 48dp x 48dp touch target minimum."
 
 # ----------------------------------------------------------------------------
 # Third-party supplementary blog — MD2-vs-MD3 breakdown, not a first-party

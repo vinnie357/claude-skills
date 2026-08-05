@@ -27,7 +27,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Key Resources**:
   - Typography: https://m3.material.io/styles/typography/overview
   - Color System: https://m3.material.io/styles/color/system/overview
-  - Layout: https://m3.material.io/foundations/layout/understanding-layout/overview
+  - Layout: https://m3.material.io/foundations/layout/breakpoints/overview (old `understanding-layout/overview` path now 404s)
   - Foundations: https://m3.material.io/foundations
 - **Key Topics**:
   - Dynamic color system with HCT color space

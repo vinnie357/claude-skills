@@ -154,10 +154,10 @@ Two skills have no section of their own because they draw on sources cited elsew
 - **Date Accessed**: 2026-04-04
 - **Key Topics**: browser_navigate, browser_evaluate, browser_take_screenshot, CSS extraction
 
-### WCAG 2.1 Contrast Requirements
-- **URL**: https://www.w3.org/WAI/WCAG21/quickref/#contrast-minimum
+### WCAG 2.2 Contrast Requirements
+- **URL**: https://www.w3.org/WAI/WCAG22/quickref/#contrast-minimum
 - **Purpose**: Accessibility contrast ratio requirements for slide validation
-- **Date Accessed**: 2026-04-04
+- **Date Accessed**: 2026-04-04; version updated 2026-08-05 to match `design:accessibility`'s WCAG 2.2 citation — the contrast success criteria (1.4.3, 1.4.11) are unchanged from 2.1
 - **Key Topics**: 4.5:1 normal text, 3:1 large text, 3:1 UI components
 
 ### Slidev UnoCSS Theming

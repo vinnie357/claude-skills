@@ -3,7 +3,7 @@
 
 [meta]
 plugin = "slidev"
-reviewed_at_plugin_version = "0.2.6"
+reviewed_at_plugin_version = "0.2.8"
 last_full_check = "2026-07-30"
 # claude-skills-223 tier 2, 2026-08-04: PARTIAL pass, not a full check — kept
 # last_full_check unchanged rather than claiming full coverage. Verified
@@ -168,6 +168,14 @@ last_full_check = "2026-07-30"
 #    a fresh full sweep of the six skills — it is a targeted fix pass over
 #    the five findings and nits above, not a reason to bump last_full_check
 #    on its own.
+#
+# claude-skills-223 cross-plugin fix, 2026-08-05: design:accessibility's WCAG
+# citation moved from 2.1 to 2.2 in this same bee. Repointed styles/SKILL.md,
+# styles/references/validation-checklist.md (3 mentions), sources.md, and the
+# wcag-contrast-requirements entry below to WCAG 2.2 to match. Citation-only —
+# the 1.4.3/1.4.11 contrast success criteria and ratio values this skill
+# relies on (4.5:1/3:1/3:1) are identical between 2.1 and 2.2, so no content
+# claim changed. Not a reason to bump last_full_check on its own.
 
 # ----------------------------------------------------------------------------
 # Slidev Syntax Guide — slide separators, frontmatter, headmatter, block
@@ -493,14 +501,14 @@ notes = "claude-skills-220: the old URL github.com/anthropics/claude-code/tree/m
 [[sources]]
 skills = ["styles"]
 name = "wcag-contrast-requirements"
-url = "https://www.w3.org/WAI/WCAG21/quickref/#contrast-minimum"
+url = "https://www.w3.org/WAI/WCAG22/quickref/#contrast-minimum"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-04-04"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-04-04. 4.5:1 normal text, 3:1 large text, 3:1 UI components. WCAG 2.1 is a finalized W3C recommendation — not re-verified live in this pass, but stable by nature (superseded by 2.2/3.0 rather than revised in place)."
+notes = "sources.md Date Accessed 2026-04-04. 4.5:1 normal text, 3:1 large text, 3:1 UI components. claude-skills-223 (2026-08-05): repointed from the WCAG 2.1 quickref to WCAG 2.2 (current W3C Recommendation since 2023-10-05) to match design:accessibility's citation, which this pass also updated. The 1.4.3/1.4.11 contrast success criteria and their ratio values are unchanged between 2.1 and 2.2 — this is a citation-currency update, not a content correction."
 
 [[sources]]
 skills = ["styles"]

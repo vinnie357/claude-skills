@@ -80,13 +80,17 @@ plugin: azure.azcollection.azure_rm
 
 # Authentication — prefer environment variables:
 # AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_SECRET, AZURE_TENANT
-auth_source: auto                       # tries env vars, then CLI credentials
+auth_source: auto                       # precedence: module params, then env, then ~/.azure/credentials, then an Azure CLI session
 
 include_vm_resource_groups:
   - my-app-rg
   - my-db-rg
-# exclude_vm_resource_groups:
-#   - staging-rg
+# There is no exclude_vm_resource_groups option (verified against azure.azcollection 3.21.0's
+# ansible-doc — no such parameter exists). Exclude a resource group with an exact host-var match instead
+# (resource_group is a real, lowercased host var — see azure_rm.py — so this won't over-match
+# a similarly-named group like staging-rg2 the way an `id` substring check would):
+# exclude_host_filters:
+#   - "resource_group == 'staging-rg'"
 
 # Build groups from Azure tags
 keyed_groups:
@@ -97,7 +101,9 @@ keyed_groups:
 
 # Use private IP for connection
 hostnames:
-  - default                             # uses the VM name
+  - default                             # NOT the plain VM name — a globally-unique name with hashing
+                                         # appended to the VM host name. Set plain_host_names: true for
+                                         # the unhashed name (verified against azure.azcollection 3.21.0)
 
 compose:
   ansible_host: private_ipv4_addresses[0]
@@ -123,13 +129,18 @@ zones:
   - us-central1-a
   - us-central1-b
 
-# Authenticate via service account key or application default credentials
+# auth_kind is required — it has no default (verified: google.cloud 1.14.0's GcpModule marks it
+# required=True). Two common choices:
 # auth_kind: serviceaccount
 # service_account_file: /path/to/key.json
-# Or set GOOGLE_APPLICATION_CREDENTIALS env var
+# — or, to use Application Default Credentials —
+# auth_kind: application                # reads GOOGLE_APPLICATION_CREDENTIALS via google.auth.default()
 
 filters:
   - status = RUNNING
+  # String label filters may need the value quoted, e.g. labels.environment = "production" — not
+  # verified against a live GCP project; confirm against the aggregatedList filter syntax
+  # (https://cloud.google.com/compute/docs/reference/rest/v1/instances/aggregatedList) before relying on it.
   - labels.environment = production
 
 keyed_groups:

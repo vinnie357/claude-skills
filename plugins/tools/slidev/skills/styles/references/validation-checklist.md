@@ -1,6 +1,6 @@
 # Validation Checklist
 
-Compliance validation for Slidev presentations against brand standards and WCAG 2.1 AA contrast requirements.
+Compliance validation for Slidev presentations against brand standards and WCAG 2.2 AA contrast requirements (the contrast success criteria are unchanged from 2.1).
 
 ## Table of Contents
 
@@ -35,7 +35,7 @@ Capture at least the cover slide, a content slide, and a code slide to cover the
 
 ## Contrast Ratio Calculation
 
-Use `browser_evaluate` to calculate WCAG 2.1 contrast ratios programmatically.
+Use `browser_evaluate` to calculate WCAG 2.2 contrast ratios programmatically (SC 1.4.3/1.4.11 values, unchanged from 2.1).
 
 ### WCAG AA Requirements
 
@@ -321,7 +321,7 @@ Load `design:accessibility` when:
 - Slides contain charts, diagrams, or images that may need alt text
 - Reviewing keyboard navigation for interactive slide components
 
-WCAG 2.1 AA requirements enforced by this checklist align with `design:accessibility` guidelines. For remediation steps when contrast checks fail:
+WCAG 2.2 AA requirements enforced by this checklist align with `design:accessibility` guidelines (the contrast criteria are identical to 2.1 — 2.2 only adds unrelated new success criteria). For remediation steps when contrast checks fail:
 
 1. Darken the foreground color until the ratio meets the threshold
 2. Or lighten the background color until the ratio meets the threshold

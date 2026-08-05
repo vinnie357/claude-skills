@@ -1,6 +1,6 @@
 {
   "name": "ansible",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Ansible automation skills: playbooks, inventory, roles, vault secrets, and Molecule testing",
   "author": {
     "name": "rginnow"

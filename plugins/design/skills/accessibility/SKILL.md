@@ -121,7 +121,7 @@ Content must work reliably across user agents and assistive technologies.
 - Use semantic HTML first; add ARIA only when no native element fits
 - Keep ARIA states (`aria-expanded`, `aria-selected`) in sync with component state
 - Announce dynamic content with live regions (`aria-live`, `role="status"`)
-- Follow the ARIA Authoring Practices patterns (linked under Resources) for tabs, accordions, modals, dropdown menus, and skip links
+- Follow the ARIA Authoring Practices patterns (linked under Resources) for tabs, accordions, modals, and dropdown menus. Skip links are a WCAG technique (a "skip to main content" link as the first focusable element), not an ARIA APG design pattern — the APG's pattern index has no skip-link entry
 
 ### Testing for Accessibility
 
@@ -163,7 +163,7 @@ Content must work reliably across user agents and assistive technologies.
 
 ## Resources
 
-- **WCAG 2.1 Guidelines**: https://www.w3.org/WAI/WCAG21/quickref/
+- **WCAG 2.2 Guidelines**: https://www.w3.org/WAI/WCAG22/quickref/ (current W3C Recommendation since 2023-10-05; backward-compatible — content conforming to 2.2 also conforms to 2.1 and 2.0)
 - **ARIA Authoring Practices**: https://www.w3.org/WAI/ARIA/apg/
 - **WebAIM**: https://webaim.org/
 - **MDN Accessibility**: https://developer.mozilla.org/en-US/docs/Web/Accessibility
