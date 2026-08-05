@@ -140,6 +140,46 @@ def main [] {
       replace: "print $\"(ansi red_bold)Error:(ansi reset) Unsupported external source format: ($source)\"\n    print \"   Supported formats: github:owner/repo\"\n    exit 0"
       expect_case_substring: "cli_marketplace_unsupported_external_source_exit_1"
     }
+    {
+      # claude-skills-258 — validate-user-config-option's new
+      # sensitive/required/multiple boolean checks. Neuters the whole
+      # for-loop body (all three fields share it), so any of the three
+      # reject fixtures could be the one that surfaces first; 'sensitive'
+      # is picked because its fixture is defined first among the three.
+      name: "validate-user-config-option_bool_fields_never_checked"
+      find: "  for field in [\"sensitive\", \"required\", \"multiple\"] {\n    let value = ($option | get -o $field)\n    if ($value != null) and (($value | describe) != \"bool\") {\n      $errs = ($errs | append $\"($context) option '($key)' '($field)' must be a boolean, got ($value | describe)\")\n    }\n  }"
+      replace: "  for field in [\"sensitive\", \"required\", \"multiple\"] {\n    let value = ($option | get -o $field)\n    if false {\n      $errs = ($errs | append $\"($context) option '($key)' '($field)' must be a boolean, got ($value | describe)\")\n    }\n  }"
+      expect_case_substring: "user_config_option_sensitive_wrong_type_errors"
+    }
+    {
+      # claude-skills-258 — validate-user-config-option's new min/max
+      # number checks. Same neuter-the-loop-body shape as the boolean
+      # probe above; 'min' fixture is defined first among the two.
+      name: "validate-user-config-option_number_fields_never_checked"
+      find: "  for field in [\"min\", \"max\"] {\n    let value = ($option | get -o $field)\n    if ($value != null) and not (is-number $value) {\n      $errs = ($errs | append $\"($context) option '($key)' '($field)' must be a number, got ($value | describe)\")\n    }\n  }"
+      replace: "  for field in [\"min\", \"max\"] {\n    let value = ($option | get -o $field)\n    if false {\n      $errs = ($errs | append $\"($context) option '($key)' '($field)' must be a number, got ($value | describe)\")\n    }\n  }"
+      expect_case_substring: "user_config_option_min_wrong_type_errors"
+    }
+    {
+      # claude-skills-258 — proves the unknown-fixture-key guard actively
+      # fires on a real typo, not just that the guard function exists. This
+      # is a FIXTURE mutation, not an implementation mutation (unlike every
+      # other probe above): it renames a pre-existing, long-lived fixture's
+      # 'expect_error_contains' key to the exact typo the bee reported
+      # ('expect_errors_contains'). Deliberately targets a fixture that
+      # predates claude-skills-258 (user_config_option_missing_type_errors,
+      # from claude-skills-256) rather than one of this fix's own new
+      # fixtures, so the probe keeps working even if those are ever edited.
+      # Non-vacuousness was verified separately (not re-checked by this
+      # harness on every run): the identical typo applied to the
+      # pre-claude-skills-258 file passes --self-test silently at exit 0
+      # (199 cases, 0 failures) — the guard is what turns that silent pass
+      # into the failure this probe expects.
+      name: "fixture_typo_expect_error_contains_to_expect_errors_contains"
+      find: "      expect_error_contains: \"missing required 'type' field\""
+      replace: "      expect_errors_contains: \"missing required 'type' field\""
+      expect_case_substring: "user_config_option_missing_type_errors: unknown fixture key"
+    }
   ]
 
   mut results = []
@@ -155,7 +195,7 @@ def main [] {
       # No timeout here: a mutation that makes --self-test hang (rather
       # than fail or crash) would hang this harness indefinitely too.
       # Accepted for a curated, on-demand, human-run tool — not worth
-      # timeout machinery for a failure mode none of the 10 probes below
+      # timeout machinery for a failure mode none of the probes below
       # exhibit. If this ever hangs, that IS the finding: Ctrl+C, then look
       # at what the most recently added/changed probe touches.
       let run = (do { ^nu $temp_target --self-test } | complete)
