@@ -126,6 +126,24 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
 
   let source = ($plugin_entry | get -o source | default "./")
   let source_type = ($source | describe)
+  # claude-skills-249 — a `source` field that's PRESENT but wrong-typed
+  # crashes uncaught below: verified directly, `source: 42` raises
+  # nu::shell::only_supports_this_input_type ("input type: int") at the
+  # `str replace` deriving source_dir further down. Another instance of
+  # the same crash class the marketplace `plugins` guards above close —
+  # an operation assuming well-formed input, run against input this
+  # validator never checked. A MISSING `source` is already safe (`get -o
+  # source | default "./"` above yields the string "./", and a JSON
+  # `null` source loads as nushell `nothing`, which `default` also
+  # replaces). schema-specification.md documents `source` as `string |
+  # object` (github/url/git-subdir/npm object forms); a record already
+  # routes to `setup-external-plugin` via `is_external` below, so the gap
+  # is only non-record-non-string types (int, bool, list). Reject those
+  # cleanly before either branch touches `source`.
+  if not (($source_type | str starts-with "record") or ($source_type == "string")) {
+    print $"(ansi red_bold)Error:(ansi reset) Plugin '($plugin_name)' has an invalid 'source' type in marketplace: ($source_type) \(expected string or object\)"
+    exit 1
+  }
   let is_external = ($source_type | str starts-with "record")
 
   # Set up validation context
@@ -518,8 +536,47 @@ def validate-plugin-content [
     # "✓ Plugin is valid!". Deleted rather than fixtured, since a fixture
     # for unreachable code would pass for a reason unrelated to what it
     # claims to test.
-    if not ($skills_type | str starts-with "list") {
-      $errors = ($errors | append $"skills must be an array, got ($skills_type)")
+    if $skills_type == "string" {
+      # claude-skills-248 — verified directly at code.claude.com/docs/en/
+      # plugins-reference before writing this: the manifest field table
+      # documents `skills` as `string | array` too, same as commands/
+      # agents below, but with a DIFFERENT runtime semantic the doc states
+      # explicitly, which this comment keeps separate from #246's
+      # reasoning rather than reusing it verbatim: a `skills` string "Adds
+      # to the default `skills/` scan" (plural sources, merged), while a
+      # `commands`/`agents` string "Replaces the default" (single source,
+      # swapped in). That distinction doesn't change what THIS validator
+      # does with the string — existence-checked as a single path, same as
+      # commands/agents — but it does rule out #246's stated reason for
+      # not coercing into the array-entry loop ("the loop enforces
+      # must-be-a-file"). Restated for skills that reasoning would be
+      # wrong: a single skill dir IS a directory, so the loop is already
+      # directory-shaped. The loop's actual complaint about a coerced
+      # `"./custom/skills/"` (upstream's own string-form example) is that
+      # it treats each array ENTRY as one skill directory and looks for
+      # `<entry>/SKILL.md` directly underneath — but `"./custom/skills/"`
+      # names a PARENT of one-or-more skill directories, not a skill
+      # directory itself. Coercing it into the loop would check
+      # `./custom/skills/SKILL.md`, find it missing, and wrongly emit
+      # "Skill directory './custom/skills/' missing SKILL.md file" for a
+      # perfectly valid manifest. This validator does not implement
+      # directory-content scanning for any of the three fields — that is
+      # the Claude Code loader's job at install time, not this validator's
+      # at author time.
+      let skill_path = if $plugin_name == "all-skills" {
+        ($plugin_root | path join $plugin.skills)
+      } else if $is_external {
+        ($plugin_root | path join $plugin.skills)
+      } else {
+        ($plugin_root | path join $source_dir $plugin.skills)
+      }
+      if not ($skill_path | path exists) {
+        $warnings = ($warnings | append $"Skill path not found: ($plugin.skills)")
+      } else if $verbose {
+        print $"  ✓ ($plugin.skills)"
+      }
+    } else if not ($skills_type | str starts-with "list") {
+      $errors = ($errors | append $"skills must be a string or an array, got ($skills_type)")
     } else {
       for skill in $plugin.skills {
         let skill_path = if $plugin_name == "all-skills" {
@@ -1785,13 +1842,30 @@ def self-test [] {
       why: "claude-skills-244 — 'keywords' must be an array had zero reject-direction coverage; a string value isolates the type-check dimension alone. plugin-schema.md documents keywords as array-only, so no doc divergence here (unlike commands/agents below)"
     }
     {
-      name: "skills_not_array_errors"
+      name: "skills_string_form_accepted"
       root: $root_b
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: "not-an-array" }
+      expect_errors: 0
+      expect_warnings: 1
+      expect_warning_contains: "Skill path not found: not-an-array"
+      why: "claude-skills-248 — this fixture (formerly skills_not_array_errors, which asserted a bare string errors) had the SAME wrong premise as commands/agents pre-#246: plugin-schema.md and this validator both treated skills as array-only, but code.claude.com/docs/en/plugins-reference documents `skills` as `string|array` too (with the bare-string example \"./custom/skills/\", and the explicit statement that unlike commands/agents a skills string ADDS to the default skills/ scan rather than replacing it). Reversed the same way #246 reversed commands/agents: the validator now ACCEPTS a string, existence-checked as a single path (not coerced into the array-entry loop, which expects each entry to itself be a skill directory containing SKILL.md — see skills_string_form_resolves_cleanly below and the code comment at the guard for why that reasoning differs from commands/agents' own). 'not-an-array' is a syntactically valid but non-resolving path, so this proves acceptance-as-a-type (0 errors) with the expected not-found warning, not a clean pass"
+    }
+    {
+      name: "skills_string_form_resolves_cleanly"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: "skills" }
+      expect_errors: 0
+      expect_warnings: 0
+      why: "claude-skills-248 — the actual restored feature: a string pointing at a real, existing directory (root_b/my-plugin/skills, already on disk from the skill-path fixtures elsewhere in this block) must pass cleanly with zero errors/warnings, proving the string form isn't just type-accepted but genuinely usable. Deliberately does NOT assert anything about SKILL.md content under that directory — the string form is existence-checked only, never content-scanned, matching commands/agents"
+    }
+    {
+      name: "skills_wrong_type_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: 42 }
       expect_errors: 1
       expect_warnings: 0
-      expect_error_contains: "skills must be an array"
-      why: "claude-skills-244 — skills must be an array had zero reject-direction coverage. (The sibling 'skills field must be an array or omitted entirely (not null)' null-branch this comment used to distinguish itself from was deleted in claude-skills-245 as unreachable dead code — the outer `!= null` guard already skips it for any file-loaded manifest.) plugin-schema.md documents skills as array-only, so no doc divergence here (unlike commands/agents below)"
+      expect_error_contains: "skills must be a string or an array"
+      why: "claude-skills-248 — with strings now accepted, the type check needs a value invalid under BOTH accepted shapes to isolate the reject direction; a bare number is neither a string nor a list/table. Mirrors commands_wrong_type_errors/agents_wrong_type_errors below"
     }
     {
       name: "commands_string_form_accepted"
@@ -2194,6 +2268,17 @@ def self-test [] {
   mkdir ($cli_nameless_then_valid_plugin_dir | path join ".claude-plugin")
   { name: "target-plugin", version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_nameless_then_valid_plugin_dir | path join ".claude-plugin" "plugin.json")
 
+  # claude-skills-249 — a `plugins` entry that IS a genuine, name-matching
+  # record but carries a wrong-typed `source` (here, a bare int) crashed
+  # uncaught below source resolution, on the `str replace` deriving
+  # source_dir — verified directly against pre-fix code before writing
+  # this fixture: nu::shell::only_supports_this_input_type, "input type:
+  # int". Flat file, same as the other marketplace-shape fixtures above —
+  # the fix exits before marketplace_dir/plugin_root are ever dereferenced,
+  # so no plugin subtree is needed.
+  let cli_plugins_wrong_type_source_marketplace_path = ($cli_temp_dir | path join "plugins-wrong-type-source-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ name: "bad-source-plugin", source: 42 }] } | save --force $cli_plugins_wrong_type_source_marketplace_path
+
   let cli_cases = [
     {
       name: "cli_valid_plugin_file_exit_0"
@@ -2346,6 +2431,13 @@ def self-test [] {
       args: ["target-plugin", "--marketplace", $cli_plugins_nameless_then_valid_marketplace_path]
       expect_exit: 0
       why: "claude-skills-247 Gate 3 round 2 — proves the filter genuinely SKIPS the nameless record and keeps evaluating the rest of the list, rather than aborting on the first bad entry: a nameless record ({foo: 1}) is followed by a valid, matching target-plugin entry (self-contained fixture, own plugin dir), and the whole marketplace lookup must still succeed end to end"
+    }
+    {
+      name: "cli_marketplace_wrong_type_source_exit_1"
+      args: ["bad-source-plugin", "--marketplace", $cli_plugins_wrong_type_source_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "invalid 'source' type"
+      why: "claude-skills-249 — a matching plugin entry with a wrong-typed `source` (bare int 42, matched by name so the lookup itself succeeds) crashed uncaught on the pre-fix `str replace` deriving source_dir, reproduced directly before writing this fixture. Neither the record branch (is_external) nor the string branch protected against it; the new guard rejects any non-record-non-string source cleanly before either branch runs"
     }
     {
       name: "cli_marketplace_plugin_not_found_exit_1"

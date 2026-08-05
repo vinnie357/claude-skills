@@ -47,7 +47,7 @@ A manifest lives at `.claude-plugin/plugin.json` inside the plugin directory.
 
 Relative to the plugin root, `./`-prefixed. Each has a dedicated skill for its own file format:
 
-- `skills` — array of directories, each containing a `SKILL.md` (see `claude-skills`)
+- `skills` — string or array of directories, each containing a `SKILL.md`, ADDING to (not replacing) the default `skills/` scan — except for a marketplace entry whose `source` resolves to the marketplace root (e.g. `"./"`), where it REPLACES the default scan instead (see `claude-skills`)
 - `commands` — string or array of `.md` files or directories, replacing the default `commands/` scan (see `claude-commands`)
 - `agents` — string or array of files, replacing the default `agents/` scan (see `claude-agents`)
 - `workflows` — string or array of workflow script files or directories, replacing the default `workflows/` scan
