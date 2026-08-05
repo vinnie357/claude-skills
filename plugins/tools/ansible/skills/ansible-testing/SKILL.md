@@ -19,7 +19,7 @@ Molecule provides a framework to spin up a test environment, run your role again
 
 ## Molecule Test Phases
 
-Molecule runs these phases in order when you execute `molecule test` — verified live against molecule 26.6.0's own `molecule test --help`, which prints its phase list directly: `Test (dependency, cleanup, destroy, syntax, create, prepare, converge, idempotence, side_effect, verify, cleanup, destroy)`. There is no standalone `lint` phase or `molecule lint` command in current Molecule — `ansible-lint`/`yamllint` are no longer a first-class Molecule action; run them directly (see "Linting" below) or wire them into CI alongside `molecule test`.
+Molecule runs these phases in order when you execute `molecule test`. `molecule test --help` states the same list (`Test (dependency, cleanup, destroy, syntax, create, prepare, converge, idempotence, side_effect, verify, cleanup, destroy)`), but help text is a claim about behavior, not the behavior itself (this exact gap shipped a broken `bd diff` example in claude-skills-219) — the phase order below is instead cited to molecule 26.6.0's installed `molecule/constants.py`, whose `DEFAULT["scenario"]["test_sequence"]` list matches token-for-token. There is no standalone `lint` phase or `molecule lint` command in current Molecule — `ansible-lint`/`yamllint` are no longer a first-class Molecule action; run them directly (see "Linting" below) or wire them into CI alongside `molecule test`.
 
 | Phase | What it does |
 |-------|-------------|
@@ -331,4 +331,4 @@ Some tasks behave differently in check mode. Mark tasks that must always run reg
 
 ## References
 
-- **[molecule-scenarios.md](references/molecule-scenarios.md)** — Complete annotated `molecule.yml` for Docker, Podman, and delegated drivers; multi-platform test matrix; Testinfra assertion patterns; GitHub Actions CI workflow
+- **[molecule-scenarios.md](references/molecule-scenarios.md)** — Multi-platform test matrix, Testinfra assertion patterns, and GitHub Actions CI workflow examples; its `molecule.yml`/driver/`--driver-name`/`lint:` content documents an older Molecule schema and is stale for 26.6.0 (see the file's own caveat) — use "molecule.yml Structure" above for the current schema

@@ -24,7 +24,13 @@ last_full_check = "2026-08-04"
 # inventory-plugin option tables in dynamic-inventory.md were NOT
 # independently verified this pass (would need azure.azcollection/
 # google.cloud installed) — treat those two sections as carried over from the
-# prior pass, not re-confirmed.
+# prior pass, not re-confirmed. Gate 3 round 2: ansible-testing/references/
+# molecule-scenarios.md was ALSO not touched or re-verified this pass — it
+# still documents the pre-26.6.0 driver:/platforms:/provisioner:/verifier:/
+# lint: molecule.yml schema and the removed `--driver-name`/`molecule lint`
+# commands. Flagged with its own caveat at the top of the file and softened
+# in SKILL.md's References line rather than rewritten (out of scope, same as
+# the SKILL.md schema section itself) or silently left uncaveated.
 
 # ----------------------------------------------------------------------------
 # Ansible core documentation (docs.ansible.com/ansible/latest/) — the shared
