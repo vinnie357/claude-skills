@@ -432,7 +432,18 @@ def validate-plugin-content [
           $warnings = ($warnings | append $"Skill path not found: ($skill)")
         } else {
           let skill_md = ($skill_path | path join "SKILL.md")
-          if not ($skill_md | path exists) {
+          if ($skill_md | path type) != "file" {
+            # claude-skills-244 Gate 3 round 2 — same crash class as the
+            # agents branch above, independently found and confirmed by
+            # team-lead's reviewer: validate-skill-md's `open $skill_md_path
+            # --raw` crashes with an uncaught nu shell I/O error whenever
+            # this guard wrongly believes SKILL.md exists. `!= "file"`
+            # (not `not (path exists)`) on purpose — `path dirname` of
+            # skill_md is skill_path itself, ALREADY confirmed to exist by
+            # the outer branch, so a mutation checking the dirname instead
+            # of skill_md leaves the ORIGINAL `not (path exists)` guard
+            # permanently inert (every missing-SKILL.md case would crash,
+            # not just a contrived one) — reproduced and verified directly.
             $errors = ($errors | append $"Skill directory '($skill)' missing SKILL.md file")
           } else {
             # Validate SKILL.md content
