@@ -89,26 +89,36 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
   # entirely now falls through to the existing "not found in marketplace"
   # branch below instead of crashing on `column_not_found`.
   #
-  # claude-skills-247 Gate 3 — a FIFTH crash shape, on this exact line: a
-  # `plugins` key that's PRESENT but wrong-typed. Reproduced with zero
-  # mutation before this fix: `{"plugins": "hi"}` crashed at `open`
-  # itself, describe "string", `only_supports_this_input_type` when
-  # piped into `where`; `{"plugins": [42, "x"]}` passed the list-type
-  # check but crashed inside `where name == ...` on the first non-record
-  # entry (`incompatible_path_access: int doesn't support cell paths`,
-  # verified directly — `where` does not silently skip mistyped entries,
-  # it raises on the first one it can't apply the comparison to). Two
-  # separate guards: reject a non-list/table `plugins` outright, then
-  # pre-filter to record entries BEFORE the name comparison so a
-  # malformed entry is tolerated (skipped), not crashed on or rejected
-  # wholesale — "consider per-entry record tolerance" per Gate 3.
+  # claude-skills-247 Gate 3 — a `plugins` key that's PRESENT but
+  # wrong-typed crashes in (at least) three distinct sub-shapes, all
+  # reproduced with zero mutation before fixing:
+  #   1. `{"plugins": "hi"}` — describe "string", crashes piped into
+  #      `where` (only_supports_this_input_type).
+  #   2. `{"plugins": [42, "x"]}` — passes the list-type check, but
+  #      crashes on the first non-record entry
+  #      (incompatible_path_access: int doesn't support cell paths).
+  #   3. `{"plugins": [{"foo": 1}]}` — a genuine RECORD, but missing the
+  #      `name` column. This one is NOT caught by filtering to records
+  #      alone: nushell's `where name == ...` does not silently skip a
+  #      record lacking the compared column, it raises
+  #      column_not_found — verified directly and independently of the
+  #      shape-1/shape-2 cases above, which is why an earlier version of
+  #      this guard's own comment (and this PR's body) claiming "a
+  #      malformed entry is tolerated (skipped)" was WRONG for this
+  #      specific sub-shape: a pre-filter that only checks "is this a
+  #      record" does not protect the subsequent `.name` access at all.
+  # Two guards: reject a non-list/table `plugins` outright (closes shape
+  # 1), then a SINGLE closure that checks record-ness AND safely reads
+  # `name` via `get -o` (not bare `.name`) before comparing — closes
+  # shapes 2 and 3 together, since `get -o` returns null rather than
+  # raising for a missing column.
   let plugins_value = ($marketplace | get -o plugins | default [])
   let plugins_type = ($plugins_value | describe)
   if not (($plugins_type | str starts-with "list") or ($plugins_type | str starts-with "table")) {
     print $"(ansi red_bold)Error:(ansi reset) Marketplace 'plugins' must be an array: ($marketplace_path)"
     exit 1
   }
-  let plugin_entry = ($plugins_value | where {|p| ($p | describe | str starts-with "record") } | where name == $plugin_name | first)
+  let plugin_entry = ($plugins_value | where {|p| (($p | describe | str starts-with "record") and (($p | get -o name) == $plugin_name)) } | first)
   if ($plugin_entry | is-empty) {
     print $"(ansi red_bold)Error:(ansi reset) Plugin '($plugin_name)' not found in marketplace"
     exit 1
@@ -2150,6 +2160,40 @@ def self-test [] {
   let cli_plugins_non_record_entries_marketplace_path = ($cli_temp_dir | path join "plugins-non-record-entries-marketplace.json")
   { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [42, "x"] } | save --force $cli_plugins_non_record_entries_marketplace_path
 
+  # claude-skills-247 Gate 3 round 2 — a SIXTH shape, found on the exact
+  # line the round-1 fix rewrote: a `plugins` entry that IS a record but
+  # has no `name` key. Filtering to "is this a record" alone (round 1's
+  # guard) does NOT protect against this — nushell's `where name == ...`
+  # raises column_not_found on a record missing the compared column
+  # rather than skipping it, verified directly and independently of the
+  # non-record shapes above. Two fixtures: the nameless-record-alone case
+  # (must not crash, falls through to not-found), and a nameless record
+  # FOLLOWED BY a valid, matching entry (proves the filter genuinely
+  # skips the bad entry and keeps evaluating, rather than aborting the
+  # whole list on the first bad one).
+  let cli_plugins_nameless_record_marketplace_path = ($cli_temp_dir | path join "plugins-nameless-record-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ foo: 1 }] } | save --force $cli_plugins_nameless_record_marketplace_path
+
+  # `cli_plugins_nameless_then_valid_marketplace_path` needs a REAL local
+  # source lookup to succeed, unlike the other marketplace fixtures above
+  # (which all fail before ever reaching source resolution). marketplace
+  # source resolution derives marketplace_dir as
+  # `dirname(dirname(marketplace_path))`, expecting the file at
+  # `<root>/.claude-plugin/marketplace.json` — a flat file directly under
+  # $cli_temp_dir (like the other marketplace fixtures) resolves
+  # marketplace_dir one level too high and the lookup silently fails. Self-
+  # contained subtree, mirroring cli_marketplace_dir/cli_plugin_dir's own
+  # structure, to avoid that trap (caught directly: this fixture initially
+  # used a flat path and failed with "not found" for the wrong reason).
+  let cli_nameless_then_valid_root = ($cli_temp_dir | path join "nameless-then-valid-mkt")
+  let cli_nameless_then_valid_marketplace_dir = ($cli_nameless_then_valid_root | path join ".claude-plugin")
+  mkdir $cli_nameless_then_valid_marketplace_dir
+  let cli_plugins_nameless_then_valid_marketplace_path = ($cli_nameless_then_valid_marketplace_dir | path join "marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [{ foo: 1 }, { name: "target-plugin", source: "./target-plugin", description: "test fixture" }] } | save --force $cli_plugins_nameless_then_valid_marketplace_path
+  let cli_nameless_then_valid_plugin_dir = ($cli_nameless_then_valid_root | path join "target-plugin")
+  mkdir ($cli_nameless_then_valid_plugin_dir | path join ".claude-plugin")
+  { name: "target-plugin", version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_nameless_then_valid_plugin_dir | path join ".claude-plugin" "plugin.json")
+
   let cli_cases = [
     {
       name: "cli_valid_plugin_file_exit_0"
@@ -2288,7 +2332,20 @@ def self-test [] {
       args: ["somename", "--marketplace", $cli_plugins_non_record_entries_marketplace_path]
       expect_exit: 1
       expect_output_contains: "not found in marketplace"
-      why: "claude-skills-247 Gate 3 — {\"plugins\": [42, \"x\"]} passes the list-type check but the pre-fix code crashed inside `where name == ...` on the first non-record entry (verified directly: incompatible_path_access, int doesn't support cell paths). Per-entry record tolerance (filter to records before the name comparison) means mistyped entries are skipped, not crashed on — this falls through to the same 'not found in marketplace' message as an empty plugins list, since no record matches"
+      why: "claude-skills-247 Gate 3 — {\"plugins\": [42, \"x\"]} passes the list-type check but the pre-fix code crashed inside `where name == ...` on the first non-record entry (verified directly: incompatible_path_access, int doesn't support cell paths). The single closure (record-check AND safe `get -o name` read, combined) tolerates non-record entries by short-circuiting the `and` before ever reading `.name` on them — falls through to the same 'not found in marketplace' message as an empty plugins list, since no record matches"
+    }
+    {
+      name: "cli_marketplace_plugins_nameless_record_exit_1"
+      args: ["somename", "--marketplace", $cli_plugins_nameless_record_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "not found in marketplace"
+      why: "claude-skills-247 Gate 3 ROUND 2 — a SIXTH crash shape, found on the exact line round 1 rewrote: {\"plugins\": [{\"foo\": 1}]} is a genuine RECORD (round 1's record-only filter would have let it through), but has no 'name' key. Verified directly, independent of the non-record shapes: `[{foo: 1}] | where name == \"x\"` raises column_not_found — nushell does NOT silently skip a record missing the compared column. The fix reads `name` via `get -o` (returns null, doesn't raise) INSIDE the same closure that checks record-ness, so a nameless record is excluded by the comparison itself rather than by a separate pre-filter that only checked the wrong thing"
+    }
+    {
+      name: "cli_marketplace_plugins_nameless_then_valid_exit_0"
+      args: ["target-plugin", "--marketplace", $cli_plugins_nameless_then_valid_marketplace_path]
+      expect_exit: 0
+      why: "claude-skills-247 Gate 3 round 2 — proves the filter genuinely SKIPS the nameless record and keeps evaluating the rest of the list, rather than aborting on the first bad entry: a nameless record ({foo: 1}) is followed by a valid, matching target-plugin entry (self-contained fixture, own plugin dir), and the whole marketplace lookup must still succeed end to end"
     }
     {
       name: "cli_marketplace_plugin_not_found_exit_1"
