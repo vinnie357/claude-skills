@@ -6,11 +6,19 @@
 # Usage: nu sources-check.nu [--plugin <name>]
 #        nu sources-check.nu --self-test
 #
-# Output: table with columns: plugin | skill | source | current | latest | stale | priority | notes
+# Output: table with columns: plugin | skill | source | current | latest | stale | eol | priority | notes
 #
 # On-demand, network-dependent operator tool (claude-skills-176). Deliberately
 # NOT wired into `mise test`/`mise run ci` — CI has no credentials and must
 # pass with zero external dependencies. Run manually via `mise sources:check`.
+#
+# claude-skills-237: `eol` is a SEPARATE column from `stale`, deliberately.
+# claude-skills-174 decided "behind latest" is not itself a finding worth
+# flagging (a pin can be intentionally behind); claude-skills-226 added
+# check-endoflife-status specifically to answer a different question — "is
+# this release LINE still supported at all" — which claude-skills-237 exists
+# to surface. Folding eol into stale would quietly reverse the 174 policy by
+# making "not latest" read as a problem again. They stay two columns.
 
 use sources-lib.nu *
 # Also imported module-qualified (below, unstarred) so the local
@@ -59,6 +67,22 @@ def find-sources-toml [plugin_dir: string] {
 # fetch-latest, and classify-staleness live in sources-lib.nu (claude-skills-211)
 # — imported above via `use sources-lib.nu *`.
 
+# Pure: render check-endoflife-status's `eol` field (bool | "unknown") into
+# the display string for this script's `eol` column, or "n/a" for any
+# check_method other than endoflife-date (the only method with an EOL
+# concept at all — a github-releases/crates-io/etc. source was never asked
+# this question, so "n/a" reads honestly as "not applicable" rather than
+# silently defaulting to a value that looks like a real answer).
+export def format-eol-column [method: string, eol: any]: nothing -> string {
+    if $method != "endoflife-date" {
+        "n/a"
+    } else if ($eol | describe) == "bool" {
+        if $eol { "yes" } else { "no" }
+    } else {
+        "unknown"
+    }
+}
+
 # Process a single sources.toml file and return rows
 def process-sources-toml [toml_path: string, plugin_name: string] {
     let data = try {
@@ -84,8 +108,23 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
 
         print $"  Checking ($plugin_name)/($skill)/($name) via ($method)..."
 
-        let latest = fetch-latest $src
+        # claude-skills-237: endoflife-date sources get their EOL sentinel
+        # from the SAME network call fetch-latest would otherwise make via
+        # check-endoflife-date (which discards it) — calling
+        # check-endoflife-status directly here, instead of ALSO calling
+        # fetch-latest, keeps this at one HTTP request per source, matching
+        # the "one network call serves both" contract check-endoflife-status
+        # documents in sources-lib.nu.
+        let eol_product = $src.eol_product? | default ""
+        let latest_and_eol = if $method == "endoflife-date" and ($eol_product | is-not-empty) {
+            let status = check-endoflife-status $eol_product
+            {latest: $status.latest, eol: $status.eol}
+        } else {
+            {latest: (fetch-latest $src), eol: "n/a"}
+        }
+        let latest = $latest_and_eol.latest
         let stale = classify-staleness $current $latest
+        let eol = format-eol-column $method $latest_and_eol.eol
 
         {
             plugin:   $plugin_name
@@ -94,6 +133,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
             current:  $current
             latest:   $latest
             stale:    $stale
+            eol:      $eol
             priority: $priority
             method:   $method
             notes:    $notes
@@ -102,14 +142,38 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     }
 }
 
-# Delegates to sources-lib.nu's shared case table (claude-skills-211) — this
-# script has no cases of its own beyond what the shared module covers.
+# Delegates to sources-lib.nu's shared case table (claude-skills-211) and
+# folds in this script's own format-eol-column cases (claude-skills-237) —
+# same pattern sources-stale.nu uses for its version_stale derivation.
 def run-self-test [] {
-    let result = (sources-lib run-self-test)
-    if $result.failed {
+    let shared = (sources-lib run-self-test)
+    mut failed = $shared.failed
+    mut count = $shared.count
+
+    # claude-skills-237: format-eol-column cases. centos/nodejs shapes match
+    # check-endoflife-status's own documented live-verified behavior
+    # (centos eol=true, nodejs eol=false) — reused here as the true/false
+    # fixture pair rather than re-deriving new ones.
+    let eol_column_cases = [
+        {label: "a fully-EOL cycle (centos-shaped) reports yes" method: "endoflife-date" eol: true want: "yes"}
+        {label: "a supported cycle (nodejs-shaped) reports no" method: "endoflife-date" eol: false want: "no"}
+        {label: "an unparseable eol date reports unknown, not a silent false" method: "endoflife-date" eol: "unknown" want: "unknown"}
+        {label: "a non-endoflife-date method reports n/a regardless of eol value" method: "github-releases" eol: true want: "n/a"}
+        {label: "a manual method reports n/a" method: "manual" eol: "unknown" want: "n/a"}
+    ]
+    for c in $eol_column_cases {
+        $count += 1
+        let got = format-eol-column $c.method $c.eol
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ format-eol-column: ($c.label): want ($c.want), got ($got)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    if $failed {
         exit 1
     }
-    print $"(ansi green_bold)✅ sources-check self-test passed \(($result.count) cases\)(ansi reset)"
+    print $"(ansi green_bold)✅ sources-check self-test passed \(($count) cases\)(ansi reset)"
     exit 0
 }
 
@@ -174,5 +238,5 @@ def main [--plugin: string = "", --self-test] {
     }
 
     # Render results table
-    $all_rows | select plugin skill source current latest stale priority notes
+    $all_rows | select plugin skill source current latest stale eol priority notes
 }

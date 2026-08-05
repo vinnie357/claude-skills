@@ -986,14 +986,30 @@ fi
 '''
 
 [tasks."sources:validate"]
-description = "Validate all source URLs are accessible"
+description = "Validate all source URLs are accessible (usage: mise sources:validate [plugin] [line|json|table], or mise sources:validate [line|json|table] for the full repo, default line)"
 run = '''
 #!/usr/bin/env bash
 SCRIPT="plugins/tools/claude-code/skills/skill-update/scripts/sources-validate-urls.nu"
-if [ -n "$1" ]; then
-    nu "$SCRIPT" --plugin "$1"
+# claude-skills-241 Gate 3 nit: $1 is ambiguous between "plugin name" and
+# "format" (a bare `mise sources:validate json` used to read "json" as a
+# plugin, leaving no shorthand for full-repo JSON — only direct script
+# invocation reached it). If $1 is exactly one of the three known formats,
+# treat it as the format with no plugin filter; otherwise $1 is the plugin
+# and $2 is the format.
+case "$1" in
+    line|json|table)
+        PLUGIN=""
+        FORMAT="$1"
+        ;;
+    *)
+        PLUGIN="$1"
+        FORMAT="${2:-line}"
+        ;;
+esac
+if [ -n "$PLUGIN" ]; then
+    nu "$SCRIPT" --plugin "$PLUGIN" --format "$FORMAT"
 else
-    nu "$SCRIPT"
+    nu "$SCRIPT" --format "$FORMAT"
 fi
 '''
 
