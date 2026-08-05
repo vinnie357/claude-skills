@@ -18,8 +18,8 @@ Complete JSON schema for Claude Code plugin.json files.
   "repository": "string (optional, URL)",
   "license": "string (optional, SPDX identifier)",
   "keywords": ["array of strings (optional)"],
-  "commands": "array (optional, paths)",
-  "agents": "array (optional, paths)",
+  "commands": "string | array (optional, paths)",
+  "agents": "string | array (optional, paths)",
   "hooks": "string | object (optional, path or config)",
   "mcpServers": "string | object (optional, path or config)",
   "skills": ["array of strings (optional, paths)"]
@@ -82,16 +82,20 @@ Complete JSON schema for Claude Code plugin.json files.
 - **Examples**: `["./skills/git", "./skills/documentation"]`
 
 ### commands (Optional)
-- **Type**: Array of strings
-- **Description**: Paths to individual command files or directories
-- **Format**: `["./commands/cmd1.md", "./commands/cmd2.md"]`
-- claude-skills-246: a bare string was previously documented here as a directory-to-scan shorthand, but `validate-plugin.nu` never implemented that scanning behavior for `commands` (unlike `skills`, whose array entries are each an exact path, not a directory scanned for members either) — narrowed to match actual validator behavior rather than adding an unrequested scanning feature.
+- **Type**: String or Array of strings
+- **Description**: Paths to command files or directories, replacing the default `commands/` scan
+- **Formats**:
+  - String: `"./custom/cmd.md"` (a single file or directory)
+  - Array: `["./commands/cmd1.md", "./commands/cmd2.md"]`
+- claude-skills-246: upstream (code.claude.com/docs/en/plugins-reference) documents this as `string | array`; the validator accepts the string form as a single path, checked for existence exactly like an array entry — it does not scan a directory's contents (that's the Claude Code loader's job, not this validator's).
 
 ### agents (Optional)
-- **Type**: Array of strings
-- **Description**: Paths to individual agent files
-- **Format**: `["./agents/agent1.md", "./agents/agent2.md"]`
-- claude-skills-246: same correction as `commands` above — the previously documented bare-string directory form was never implemented.
+- **Type**: String or Array of strings
+- **Description**: Paths to agent files, replacing the default `agents/` scan
+- **Formats**:
+  - String: `"./custom/agents/reviewer.md"` (a single file or directory)
+  - Array: `["./agents/agent1.md", "./agents/agent2.md"]`
+- claude-skills-246: same string|array acceptance as `commands` above.
 
 ### hooks (Optional)
 - **Type**: String or Object

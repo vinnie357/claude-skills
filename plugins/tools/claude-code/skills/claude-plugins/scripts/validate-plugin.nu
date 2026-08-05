@@ -88,7 +88,27 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
   # `.plugins` cell-path access above — a marketplace.json missing the key
   # entirely now falls through to the existing "not found in marketplace"
   # branch below instead of crashing on `column_not_found`.
-  let plugin_entry = (($marketplace | get -o plugins | default []) | where name == $plugin_name | first)
+  #
+  # claude-skills-247 Gate 3 — a FIFTH crash shape, on this exact line: a
+  # `plugins` key that's PRESENT but wrong-typed. Reproduced with zero
+  # mutation before this fix: `{"plugins": "hi"}` crashed at `open`
+  # itself, describe "string", `only_supports_this_input_type` when
+  # piped into `where`; `{"plugins": [42, "x"]}` passed the list-type
+  # check but crashed inside `where name == ...` on the first non-record
+  # entry (`incompatible_path_access: int doesn't support cell paths`,
+  # verified directly — `where` does not silently skip mistyped entries,
+  # it raises on the first one it can't apply the comparison to). Two
+  # separate guards: reject a non-list/table `plugins` outright, then
+  # pre-filter to record entries BEFORE the name comparison so a
+  # malformed entry is tolerated (skipped), not crashed on or rejected
+  # wholesale — "consider per-entry record tolerance" per Gate 3.
+  let plugins_value = ($marketplace | get -o plugins | default [])
+  let plugins_type = ($plugins_value | describe)
+  if not (($plugins_type | str starts-with "list") or ($plugins_type | str starts-with "table")) {
+    print $"(ansi red_bold)Error:(ansi reset) Marketplace 'plugins' must be an array: ($marketplace_path)"
+    exit 1
+  }
+  let plugin_entry = ($plugins_value | where {|p| ($p | describe | str starts-with "record") } | where name == $plugin_name | first)
   if ($plugin_entry | is-empty) {
     print $"(ansi red_bold)Error:(ansi reset) Plugin '($plugin_name)' not found in marketplace"
     exit 1
@@ -575,8 +595,37 @@ def validate-plugin-content [
     # claude-skills-245 — same unreachable-dead-code shape as skills above:
     # this block is gated by `$commands_value != null`, so a `nothing` type
     # (JSON null) never reaches an inner check. Deleted, verified directly.
-    if not ($commands_type | str starts-with "list") {
-      $errors = ($errors | append $"commands must be an array, got ($commands_type)")
+    if $commands_type == "string" {
+      # claude-skills-246 Gate 3 (team-lead's reviewer, corrected against
+      # the actual upstream docs — verified directly at
+      # code.claude.com/docs/en/plugins-reference before writing this:
+      # the manifest field table documents `commands`/`agents` as
+      # `string | array`, with bare-string examples, and "Replaces the
+      # default: commands, agents..." for the string form). Existence-
+      # check the string as a single path, exactly like an array entry's
+      # path — NOT via the array-entry loop below, which enforces "must
+      # be a file" and calls into content validation. The string form may
+      # legitimately be a directory (it replaces the default commands/
+      # scan), and this validator does not implement directory-content
+      # scanning — that's the Claude Code loader's job at install time,
+      # not this validator's at author time. Naively coercing the string
+      # into a one-element list and reusing the array-entry loop would
+      # wrongly flag a valid directory as an invalid single file entry —
+      # the exact defect class claude-skills-244 fixed elsewhere.
+      let command_path = if $plugin_name == "all-skills" {
+        ($plugin_root | path join $commands_value)
+      } else if $is_external {
+        ($plugin_root | path join $commands_value)
+      } else {
+        ($plugin_root | path join $source_dir $commands_value)
+      }
+      if not ($command_path | path exists) {
+        $warnings = ($warnings | append $"Command path not found: ($commands_value)")
+      } else if $verbose {
+        print $"  ✓ ($commands_value)"
+      }
+    } else if not ($commands_type | str starts-with "list") {
+      $errors = ($errors | append $"commands must be a string or an array, got ($commands_type)")
     } else {
       print $"\n(ansi cyan)Validating commands...(ansi reset)"
       for command in $plugin.commands {
@@ -605,8 +654,25 @@ def validate-plugin-content [
     # commands above: this block is gated by `$agents_value != null`, so a
     # `nothing` type (JSON null) never reaches an inner check. Deleted,
     # verified directly.
-    if not ($agents_type | str starts-with "list") {
-      $errors = ($errors | append $"agents must be an array, got ($agents_type)")
+    if $agents_type == "string" {
+      # claude-skills-246 — same string|array acceptance as commands
+      # above, same reasoning: existence-check only, no file-type
+      # enforcement and no content validation for the string form (it may
+      # legitimately be a directory this validator does not scan).
+      let agent_path = if $plugin_name == "all-skills" {
+        ($plugin_root | path join $agents_value)
+      } else if $is_external {
+        ($plugin_root | path join $agents_value)
+      } else {
+        ($plugin_root | path join $source_dir $agents_value)
+      }
+      if not ($agent_path | path exists) {
+        $warnings = ($warnings | append $"Agent path not found: ($agents_value)")
+      } else if $verbose {
+        print $"  ✓ ($agents_value)"
+      }
+    } else if not ($agents_type | str starts-with "list") {
+      $errors = ($errors | append $"agents must be a string or an array, got ($agents_type)")
     } else {
       print $"\n(ansi cyan)Validating agents...(ansi reset)"
       for agent in $plugin.agents {
@@ -1718,22 +1784,56 @@ def self-test [] {
       why: "claude-skills-244 — skills must be an array had zero reject-direction coverage. (The sibling 'skills field must be an array or omitted entirely (not null)' null-branch this comment used to distinguish itself from was deleted in claude-skills-245 as unreachable dead code — the outer `!= null` guard already skips it for any file-loaded manifest.) plugin-schema.md documents skills as array-only, so no doc divergence here (unlike commands/agents below)"
     }
     {
-      name: "commands_not_array_errors"
+      name: "commands_string_form_accepted"
       root: $root_b
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: "not-an-array" }
-      expect_errors: 1
-      expect_warnings: 0
-      expect_error_contains: "commands must be an array"
-      why: "claude-skills-244 — commands must be an array had zero reject-direction coverage. RESOLVED in claude-skills-246 (was: KNOWN VALIDATOR/DOC DIVERGENCE from Gate 3): references/plugin-schema.md and SKILL.md:51 used to document 'commands' as also accepting a bare STRING (a directory to scan, e.g. './commands'), which the validator never implemented — nothing in this file scans directories, including the skills field, which is often assumed to but is actually a fixed-name join per array entry. Rather than build unrequested directory-scan semantics, claude-skills-246 narrowed the docs to array-only, making this fixture's assertion (a bare string is rejected) correct per both validator AND docs now, not merely per validator."
+      expect_errors: 0
+      expect_warnings: 1
+      expect_warning_contains: "Command path not found: not-an-array"
+      why: "claude-skills-244/246/Gate-3 history: this fixture (formerly commands_not_array_errors) originally asserted a bare string errors. claude-skills-246 tried narrowing the docs to array-only to match that behavior — WRONG per Gate 3's independent upstream verification (code.claude.com/docs/en/plugins-reference documents commands/agents as string|array, with bare-string examples, and explicitly: a string 'Replaces the default: commands, agents...'). Reversed: the validator now ACCEPTS a string, existence-checked as a single path (not coerced into the array-entry loop, which would wrongly demand it be a file). 'not-an-array' is a syntactically valid but non-resolving path, so this proves acceptance-as-a-type (0 errors) with the expected not-found warning, not a clean pass — see commands_string_form_resolves_cleanly below for that"
     }
     {
-      name: "agents_not_array_errors"
+      name: "agents_string_form_accepted"
       root: $root_b
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: "not-an-array" }
+      expect_errors: 0
+      expect_warnings: 1
+      expect_warning_contains: "Agent path not found: not-an-array"
+      why: "claude-skills-246/Gate-3 — same reversal as commands_string_form_accepted above, for agents (formerly agents_not_array_errors)"
+    }
+    {
+      name: "commands_string_form_resolves_cleanly"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: "commands" }
+      expect_errors: 0
+      expect_warnings: 0
+      why: "claude-skills-246 Gate 3 — the actual restored feature: a string pointing at a real, existing directory (root_b/my-plugin/commands, already on disk from the path-not-found fixtures above) must pass cleanly with zero errors/warnings, proving the string form isn't just type-accepted but genuinely usable"
+    }
+    {
+      name: "agents_string_form_resolves_cleanly"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: "agents" }
+      expect_errors: 0
+      expect_warnings: 0
+      why: "claude-skills-246 Gate 3 — same as commands_string_form_resolves_cleanly above, for agents (root_b/my-plugin/agents already exists on disk)"
+    }
+    {
+      name: "commands_wrong_type_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", commands: 42 }
       expect_errors: 1
       expect_warnings: 0
-      expect_error_contains: "agents must be an array"
-      why: "claude-skills-244 — agents must be an array had zero reject-direction coverage. RESOLVED in claude-skills-246, same as commands_not_array_errors above — plugin-schema.md and SKILL.md:52 used to document 'agents' as accepting a bare STRING directory too; narrowed to array-only rather than implementing unrequested directory-scan semantics."
+      expect_error_contains: "commands must be a string or an array"
+      why: "claude-skills-246 Gate 3 — with strings now accepted, the type check needs a value invalid under BOTH accepted shapes to isolate the reject direction; a bare number is neither a string nor a list/table"
+    }
+    {
+      name: "agents_wrong_type_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: 42 }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "agents must be a string or an array"
+      why: "claude-skills-246 Gate 3 — same reasoning as commands_wrong_type_errors above, for agents"
     }
     {
       name: "missing_description_warns"
@@ -2010,17 +2110,45 @@ def self-test [] {
   let cli_empty_marketplace_path = ($cli_temp_dir | path join "empty-marketplace.json")
   { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [] } | save --force $cli_empty_marketplace_path
 
-  # claude-skills-247 — two more crash shapes for validate-from-marketplace,
-  # both reproduced with zero mutation against pre-fix code: a
-  # marketplace.json that parses to a bare scalar (nu's `from json`
-  # leniency, claude-skills-243's defect in this third `open` call site
-  # #227 never covered), and a syntactically valid marketplace.json
-  # missing the 'plugins' key entirely (bare `.plugins` cell-path access
-  # crashed with column_not_found).
+  # claude-skills-247 — several more crash shapes for
+  # validate-from-marketplace, each reproduced with zero mutation against
+  # pre-fix code before being written here.
+  #
+  # "not json {{{" parses LENIENTLY to a bare string (verified:
+  # `"not json {{{" | from json | describe` => "string") — it exercises
+  # ONLY the record-type check, never the try/catch's raise path. Gate 3
+  # caught that neutering just the try/catch (leaving the record check
+  # intact) left the suite green with only this fixture in place —
+  # genuinely malformed content that `from json` cannot parse leniently
+  # at all is needed too (`{"name": }` — verified directly: raises
+  # `nu::shell::error`, "found a punctuator character when expecting a
+  # quoteless string").
   let cli_malformed_marketplace_path = ($cli_temp_dir | path join "malformed-marketplace.json")
   "not json {{{" | save --force $cli_malformed_marketplace_path
+  let cli_unparseable_marketplace_path = ($cli_temp_dir | path join "unparseable-marketplace.json")
+  "{\"name\": }" | save --force $cli_unparseable_marketplace_path
+
+  # A syntactically valid marketplace.json missing the 'plugins' key
+  # entirely (bare `.plugins` cell-path access crashed with
+  # column_not_found). Carries `owner` matching the valid fixtures above
+  # so it differs from them in exactly the one dimension under test
+  # (Gate 3 nit — the first version of this fixture omitted `owner` too,
+  # a second, inert difference).
   let cli_no_plugins_key_marketplace_path = ($cli_temp_dir | path join "no-plugins-key-marketplace.json")
-  { name: "fixture-marketplace" } | save --force $cli_no_plugins_key_marketplace_path
+  { name: "fixture-marketplace", owner: { name: "fixture" } } | save --force $cli_no_plugins_key_marketplace_path
+
+  # claude-skills-247 Gate 3 — a fifth shape, found on the exact line this
+  # PR rewrote: a `plugins` key that IS present but wrong-typed. Both
+  # sub-shapes reproduced with zero mutation before this fix:
+  # `{"plugins": "hi"}` crashes when the string is piped into `where`;
+  # `{"plugins": [42, "x"]}` passes the list-type check but crashes
+  # inside `where name == ...` on the first non-record entry (verified
+  # directly: `where` raises on the first element it can't apply the
+  # comparison to, it does not silently skip mistyped entries).
+  let cli_plugins_wrong_type_marketplace_path = ($cli_temp_dir | path join "plugins-wrong-type-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: "hi" } | save --force $cli_plugins_wrong_type_marketplace_path
+  let cli_plugins_non_record_entries_marketplace_path = ($cli_temp_dir | path join "plugins-non-record-entries-marketplace.json")
+  { name: "fixture-marketplace", owner: { name: "fixture" }, plugins: [42, "x"] } | save --force $cli_plugins_non_record_entries_marketplace_path
 
   let cli_cases = [
     {
@@ -2135,11 +2263,32 @@ def self-test [] {
       why: "claude-skills-247 — a FOURTH instance of the lenient-scalar-parse defect (claude-skills-243), in this third `open` call site that #227's record guards never covered. 'not json {{{' parses leniently to a bare string (verified: `\"not json {{{\" | from json | describe` => \"string\"), and the pre-fix code's bare `$marketplace.plugins` cell-path access crashed with incompatible_path_access instead of ever reaching this message"
     }
     {
+      name: "cli_marketplace_unparseable_json_exit_1"
+      args: ["somename", "--marketplace", $cli_unparseable_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "Failed to parse marketplace.json"
+      why: "claude-skills-247 Gate 3 — the try/catch's actual raise path, distinct from cli_marketplace_malformed_json_exit_1 above which only exercises the record-type check. '{\"name\": }' genuinely cannot be parsed leniently (verified: raises nu::shell::error, 'found a punctuator character when expecting a quoteless string'). Gate 3 found that neutering ONLY the try/catch (keeping the record check) left the suite green with just the lenient-scalar fixture in place — this one closes that gap"
+    }
+    {
       name: "cli_marketplace_no_plugins_key_exit_1"
       args: ["somename", "--marketplace", $cli_no_plugins_key_marketplace_path]
       expect_exit: 1
       expect_output_contains: "not found in marketplace"
       why: "claude-skills-247 — a syntactically valid marketplace.json missing the 'plugins' key entirely crashed with column_not_found on the pre-fix bare `.plugins` access. `get -o plugins | default []` routes this into the EXISTING plugin-not-found message rather than a new one — reproduced against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_marketplace_plugins_wrong_type_exit_1"
+      args: ["somename", "--marketplace", $cli_plugins_wrong_type_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "Marketplace 'plugins' must be an array"
+      why: "claude-skills-247 Gate 3 — a fifth crash shape found on the exact line this PR rewrote: {\"plugins\": \"hi\"} crashed the pre-fix `where` filter with only_supports_this_input_type. Reproduced directly before writing this fixture"
+    }
+    {
+      name: "cli_marketplace_plugins_non_record_entries_exit_1"
+      args: ["somename", "--marketplace", $cli_plugins_non_record_entries_marketplace_path]
+      expect_exit: 1
+      expect_output_contains: "not found in marketplace"
+      why: "claude-skills-247 Gate 3 — {\"plugins\": [42, \"x\"]} passes the list-type check but the pre-fix code crashed inside `where name == ...` on the first non-record entry (verified directly: incompatible_path_access, int doesn't support cell paths). Per-entry record tolerance (filter to records before the name comparison) means mistyped entries are skipped, not crashed on — this falls through to the same 'not found in marketplace' message as an empty plugins list, since no record matches"
     }
     {
       name: "cli_marketplace_plugin_not_found_exit_1"

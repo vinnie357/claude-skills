@@ -48,8 +48,8 @@ A manifest lives at `.claude-plugin/plugin.json` inside the plugin directory.
 Relative to the plugin root, `./`-prefixed. Each has a dedicated skill for its own file format:
 
 - `skills` — array of directories, each containing a `SKILL.md` (see `claude-skills`)
-- `commands` — array of `.md` files or directories (see `claude-commands`). A bare string was previously documented as a directory-to-scan shorthand; `validate-plugin.nu` never implemented that scan (claude-skills-246), so this is array-only.
-- `agents` — array of files (see `claude-agents`). Same correction as `commands` above.
+- `commands` — string or array of `.md` files or directories, replacing the default `commands/` scan (see `claude-commands`)
+- `agents` — string or array of files, replacing the default `agents/` scan (see `claude-agents`)
 - `workflows` — string or array of workflow script files or directories, replacing the default `workflows/` scan
 - `hooks` — string path to a hooks.json, or an inline hooks object (see `claude-hooks`)
 - `mcpServers` — string path to an MCP config, or an inline object
