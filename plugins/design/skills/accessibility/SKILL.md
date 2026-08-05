@@ -163,7 +163,7 @@ Content must work reliably across user agents and assistive technologies.
 
 ## Resources
 
-- **WCAG 2.2 Guidelines**: https://www.w3.org/WAI/WCAG22/quickref/ (current W3C Recommendation since 2023-10-05; backward-compatible with WCAG 2.1 — every 2.1-conformant page also conforms to 2.2)
+- **WCAG 2.2 Guidelines**: https://www.w3.org/WAI/WCAG22/quickref/ (current W3C Recommendation since 2023-10-05; backward-compatible — content conforming to 2.2 also conforms to 2.1 and 2.0)
 - **ARIA Authoring Practices**: https://www.w3.org/WAI/ARIA/apg/
 - **WebAIM**: https://webaim.org/
 - **MDN Accessibility**: https://developer.mozilla.org/en-US/docs/Web/Accessibility

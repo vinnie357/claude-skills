@@ -43,7 +43,7 @@ Material Design 3 uses HCT (Hue, Chroma, Tone) color space for perceptually accu
 
 **Key concepts:**
 - Color roles (primary, secondary, tertiary, error, neutral)
-- Tonal palettes (13 tones per color, ranging 0-100: 0, 10, 20...90, 95, 98, 99, 100)
+- Tonal palettes (13 tones per color: 0, 10, 20...90, 95, 99, 100 — per material-color-utilities' `commonTones`)
 - Automatic light/dark theme generation
 - User-driven personalization from wallpaper/system
 

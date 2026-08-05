@@ -80,15 +80,17 @@ plugin: azure.azcollection.azure_rm
 
 # Authentication — prefer environment variables:
 # AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_SECRET, AZURE_TENANT
-auth_source: auto                       # tries env vars, then ~/.azure/credentials, then an Azure CLI session
+auth_source: auto                       # precedence: module params, then env, then ~/.azure/credentials, then an Azure CLI session
 
 include_vm_resource_groups:
   - my-app-rg
   - my-db-rg
 # There is no exclude_vm_resource_groups option (verified against azure.azcollection 3.21.0's
-# ansible-doc — no such parameter exists). Exclude a resource group with an id-matching filter instead:
+# ansible-doc — no such parameter exists). Exclude a resource group with an exact host-var match instead
+# (resource_group is a real, lowercased host var — see azure_rm.py — so this won't over-match
+# a similarly-named group like staging-rg2 the way an `id` substring check would):
 # exclude_host_filters:
-#   - "'staging-rg' in id"
+#   - "resource_group == 'staging-rg'"
 
 # Build groups from Azure tags
 keyed_groups:
