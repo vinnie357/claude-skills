@@ -492,11 +492,23 @@ def validate-plugin-content [
   if ($plugin | get -o version) == null {
     $warnings = ($warnings | append "Missing recommended field: version")
   } else if not (is-string $plugin.version) {
-    # claude-skills-251 — a wrong-typed `version` (e.g. `42`) crashed
-    # uncaught inside is-semver's typed `string` param. Same severity as an
-    # unparseable-but-string version below (a warning, not an error) —
-    # `version` is a recommended, not required, field.
-    $warnings = ($warnings | append $"version should be a string, got ($plugin.version | describe)")
+    # claude-skills-251 fixed a crash here (a wrong-typed `version`, e.g.
+    # `42`, crashed uncaught inside is-semver's typed `string` param) but
+    # kept the guard's severity a warning, reasoning that `version` is
+    # recommended rather than required. claude-skills-254: that reasoning
+    # conflates two separate questions. Required-ness governs whether a
+    # MISSING field warns (still true, above) — it says nothing about
+    # whether a PRESENT-but-wrong-typed value errors. Every sibling scalar
+    # metadata field (license, description, homepage, repository,
+    # displayName, $schema — all equally recommended, not required) treats
+    # a wrong-typed value as an error via the loop below, matching
+    # upstream's stated rule that a wrong-typed field is a load error
+    # regardless of the field's own required-ness ("a keywords value that
+    # is a string instead of an array is a load error, and claude plugin
+    # validate reports it as one" — see the loop's comment). `version` was
+    # the sole holdout; aligned to error here for consistency with its
+    # siblings. Missing-version stays a warning, untouched.
+    $errors = ($errors | append $"'version' must be a string, got ($plugin.version | describe)")
   } else {
     if not (is-semver $plugin.version) {
       $warnings = ($warnings | append $"version should use semantic versioning: ($plugin.version)")
@@ -507,7 +519,12 @@ def validate-plugin-content [
 
   if ($plugin | get -o description) == null {
     $warnings = ($warnings | append "Missing recommended field: description")
-  } else if $verbose {
+  } else if $verbose and (is-string $plugin.description) {
+    # claude-skills-254 — gated on is-string so a wrong-typed description
+    # doesn't print this affirmative checkmark ahead of the type-check
+    # loop below appending its error for the same field. The loop still
+    # owns the actual error; this only withholds the premature "looks
+    # fine" line.
     print $"  ✓ description: ($plugin.description)"
   }
 
@@ -540,7 +557,10 @@ def validate-plugin-content [
 
   if ($plugin | get -o license) == null {
     $warnings = ($warnings | append "Missing recommended field: license")
-  } else if $verbose {
+  } else if $verbose and (is-string $plugin.license) {
+    # claude-skills-254 — same ordering fix as description above: gated on
+    # is-string so a wrong-typed license doesn't print the affirmative
+    # checkmark ahead of the type-check loop's error for the same field.
     print $"  ✓ license: ($plugin.license)"
   }
 
@@ -556,9 +576,9 @@ def validate-plugin-content [
   # the same dynamic `get -o $field` idiom as the invalid_fields loop above.
   # `author` is deliberately excluded — upstream documents it as `object`,
   # not `string` (the claude-skills-250/253 trap already handled below).
-  # `version` is also excluded: it already has its own type guard above (a
-  # warning, since version is a recommended, not required, field) — a second
-  # check here would be a duplicate.
+  # `version` is also excluded: it already has its own type guard above
+  # (claude-skills-254: now an error, consistent with these six siblings —
+  # a second check here would be a duplicate, not a severity difference).
   for field in ["$schema", "displayName", "description", "homepage", "repository", "license"] {
     let value = ($plugin | get -o $field)
     if ($value != null) and not (is-string $value) {
@@ -2946,12 +2966,37 @@ def self-test [] {
   mkdir ($cli_name_wrong_type_mkt_plugin_dir | path join ".claude-plugin")
   { name: 42, version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_name_wrong_type_mkt_plugin_dir | path join ".claude-plugin" "plugin.json")
 
-  # Shape 2 — plugin.json 'version' present but wrong-typed. Exit 0: this
-  # field is recommended, not required, so the guard reports a warning
-  # (same severity as an unparseable-but-string version), not an error.
+  # Shape 2 — plugin.json 'version' present but wrong-typed. Exit 1
+  # (claude-skills-254): required-ness governs whether a MISSING field
+  # warns, not whether a WRONG-TYPED one errors — those are separate
+  # questions. Every sibling scalar metadata field (license, description,
+  # homepage, repository, displayName, $schema — all equally recommended,
+  # not required) already treats a wrong-typed value as an error via the
+  # loop below; version was the sole holdout, still a warning here before
+  # this fix. Still exit 0 for a MISSING version (untouched — see the
+  # missing-field warning fixtures elsewhere in this suite).
   let cli_version_wrong_type_dir = ($cli_temp_dir | path join "version-wrong-type-plugin")
   mkdir ($cli_version_wrong_type_dir | path join ".claude-plugin")
   { name: "version-wrong-type-plugin", version: 42, description: "test fixture", license: "MIT" } | save --force ($cli_version_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  # claude-skills-254 shape B — plugin.json 'description' present but
+  # wrong-typed, run with --verbose. Before this fix, the presence check
+  # at the top of validate-plugin-content prints the "✓ description: ..."
+  # affirmative line unconditionally whenever the field is non-null,
+  # BEFORE the type-check loop further down appends the error — so a
+  # wrong-typed description produced both a green checkmark AND an error
+  # for the same field in one run. Reproduced directly against pre-fix
+  # code before writing this fixture. license base value kept valid (MIT)
+  # so the description check is isolated to one dimension.
+  let cli_description_wrong_type_verbose_dir = ($cli_temp_dir | path join "description-wrong-type-verbose-plugin")
+  mkdir ($cli_description_wrong_type_verbose_dir | path join ".claude-plugin")
+  { name: "description-wrong-type-verbose-plugin", version: "1.0.0", description: 42, license: "MIT" } | save --force ($cli_description_wrong_type_verbose_dir | path join ".claude-plugin" "plugin.json")
+
+  # claude-skills-254 shape B — same ordering defect, license half. version
+  # and description kept valid so this fixture isolates to license alone.
+  let cli_license_wrong_type_verbose_dir = ($cli_temp_dir | path join "license-wrong-type-verbose-plugin")
+  mkdir ($cli_license_wrong_type_verbose_dir | path join ".claude-plugin")
+  { name: "license-wrong-type-verbose-plugin", version: "1.0.0", description: "test fixture", license: 42 } | save --force ($cli_license_wrong_type_verbose_dir | path join ".claude-plugin" "plugin.json")
 
   # Shape 3 — plugin.json 'author' present but not an object. The
   # npm-style bare-string author ("author": "someone") is the shape most
@@ -3278,11 +3323,27 @@ def self-test [] {
       why: "claude-skills-251 shape 1b — the SAME defect reached through a DIFFERENT call site: marketplace mode calls validate-plugin-content directly (bypassing validate-plugin-file's copy of the guard), and `$plugin.name` there is re-read fresh from the file, reaching is-kebab-case unguarded. An untested variant of shape 1a until this fixture — the marketplace entry's own name (used for the lookup) is a valid string, only the target plugin.json's 'name' field is wrong-typed"
     }
     {
-      name: "cli_version_wrong_type_exit_0"
+      name: "cli_version_wrong_type_exit_1"
       args: [($cli_version_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
-      expect_exit: 0
-      expect_output_contains: "version should be a string, got int"
-      why: "claude-skills-251 shape 2 — a plugin.json 'version' present but wrong-typed crashed uncaught inside is-semver's typed string param. Same severity as an unparseable-but-string version (a warning, not an error) — version is recommended, not required, so overall validation still exits 0"
+      expect_exit: 1
+      expect_output_contains: "'version' must be a string, got int"
+      why: "claude-skills-254 — a plugin.json 'version' present but wrong-typed now errors, matching every sibling scalar metadata field (license, description, homepage, repository, displayName, $schema). Required-ness governs whether a MISSING field warns, not whether a WRONG-TYPED one errors; version was the sole holdout before this fix (previously a warning, exit 0 — see claude-skills-251, which fixed the crash but kept the old severity)"
+    }
+    {
+      name: "cli_description_wrong_type_verbose_no_checkmark"
+      args: [($cli_description_wrong_type_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 1
+      expect_output_contains: "'description' must be a string, got int"
+      expect_output_not_contains: "✓ description"
+      why: "claude-skills-254 shape B — before this fix, --verbose printed the '✓ description: ...' affirmative line unconditionally whenever description was present, before the type-check loop ran, so a wrong-typed description produced a green checkmark alongside its own error. Reproduced directly against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_license_wrong_type_verbose_no_checkmark"
+      args: [($cli_license_wrong_type_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 1
+      expect_output_contains: "'license' must be a string, got int"
+      expect_output_not_contains: "✓ license"
+      why: "claude-skills-254 shape B — same ordering defect as description above, license half. Reproduced directly against pre-fix code before writing this fixture"
     }
     {
       name: "cli_author_wrong_type_exit_1"
@@ -3385,6 +3446,14 @@ def self-test [] {
     let expect_contains = ($c | get -o expect_output_contains)
     if ($expect_contains != null) and not ($result.stdout | str contains $expect_contains) {
       $failures = ($failures | append $"($c.name): expected stdout to contain '($expect_contains)', got: ($result.stdout) -- ($c.why)")
+    }
+    # claude-skills-254 — negative counterpart to expect_output_contains
+    # above, needed to pin "this line must NOT appear" (the print-ordering
+    # fix: an affirmative checkmark must not print for a field that also
+    # fails its type check).
+    let expect_not_contains = ($c | get -o expect_output_not_contains)
+    if ($expect_not_contains != null) and ($result.stdout | str contains $expect_not_contains) {
+      $failures = ($failures | append $"($c.name): expected stdout to NOT contain '($expect_not_contains)', got: ($result.stdout) -- ($c.why)")
     }
   }
 
