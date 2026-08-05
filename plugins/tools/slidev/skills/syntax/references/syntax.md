@@ -324,7 +324,7 @@ Content
 
 Required for features like code groups. The deprecated `mdc: true` key still enables this
 too — see the `mdc` row in the Headmatter table above — but new decks should use
-`comark: true`. This section previously said `mdc: true` uncaveated, contradicting that row.
+`comark: true`.
 
 ## LaTeX Math
 

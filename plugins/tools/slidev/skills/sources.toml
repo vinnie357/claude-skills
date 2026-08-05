@@ -134,12 +134,16 @@ last_full_check = "2026-07-30"
 # via cli.ts/export.ts in the main pass). All three hold; see "Remaining
 # uncovered" below for what in presentations is still genuinely unverified.
 #
-# Also corrected an overreach in this file's own slidev-code-blocks note:
-# it had asserted "no 'finally' keyword found" for the at/finally line-
-# highlighting terminology; docs/features/latex.md references "the at and
-# finally options of code blocks" by name, so "does not exist" was too
-# strong a claim from a search that came up empty — restated as genuinely
-# unresolved rather than confirmed absent.
+# This file's own slidev-code-blocks note went through two wrong states
+# before settling: first asserted "no 'finally' keyword found" (a docs-only
+# search came up empty, read as "does not exist"), then softened to
+# "genuinely unresolved" without going to source. Verified against source on
+# the second Gate 3 pass — CodeBlockWrapper.vue declares `finally` as a real
+# prop, reachable via the fence's second `{...}` group — see the
+# slidev-code-blocks entry for the full citation. Documented upstream only
+# via a cross-reference in latex.md; that is an upstream docs gap, not an
+# uncertainty on our side, and is no longer listed under "Remaining
+# uncovered" below.
 #
 # Remaining uncovered (why last_full_check is still not bumped):
 # 1. presentations skill's core content (Pyramid Principle, SCQA, Assertion-
@@ -157,9 +161,9 @@ last_full_check = "2026-07-30"
 #    `@slidev/theme-seriph`; left as a generic naming-convention example
 #    rather than asserting an unscoped package of that name exists); the
 #    `--download` flag's possible `'auto'` value seen in build.ts (narrow,
-#    not clearly relevant to the documented boolean default); the "at/finally"
-#    terminology's defining page (referenced by docs/features/latex.md but
-#    not located — see the slidev-code-blocks source note above).
+#    not clearly relevant to the documented boolean default). The "at/finally"
+#    terminology was resolved this round (see the slidev-code-blocks source
+#    note) and is no longer on this list.
 # 3. This Gate 3 round re-verified everything it touched, but was not itself
 #    a fresh full sweep of the six skills — it is a targeted fix pass over
 #    the five findings and nits above, not a reason to bump last_full_check
@@ -170,8 +174,10 @@ last_full_check = "2026-07-30"
 # frontmatter. Also underpins the main `slidev` overview skill's Quick Start
 # (frontmatter example) and troubleshooting's "Frontmatter Not Recognized" /
 # "MDC Syntax Not Working" entries (verified: troubleshooting/references/
-# troubleshooting.md lines 144-162 cite frontmatter separators and `mdc: true`
-# headmatter directly).
+# troubleshooting.md lines 144-165 cite frontmatter separators and
+# `comark: true` headmatter directly — `mdc: true` is documented there as a
+# deprecated alias, not the primary instruction; this comment previously
+# cited stale line numbers and the pre-comark wording).
 # ----------------------------------------------------------------------------
 [[sources]]
 skills = ["syntax", "slidev", "troubleshooting"]
@@ -243,10 +249,12 @@ notes = "sources.md Date Accessed 2026-02-21, filed under the Export heading in 
 
 # ----------------------------------------------------------------------------
 # Slidev Code Blocks family — Shiki highlighting, line highlighting/numbers,
-# max-height, code groups, Monaco editor, import snippets, LaTeX, Mermaid,
-# PlantUML. Code Groups and Monaco Editor are also cited by troubleshooting
-# (verified: troubleshooting/references/troubleshooting.md lines 164-179 cover
-# "Code Groups Not Rendering" and "Monaco Editor Not Appearing").
+# max-height, code groups, Monaco editor, import snippets. LaTeX, Mermaid,
+# and PlantUML live in the syntax skill, not here — see the re-attributed
+# slidev-latex/slidev-mermaid/slidev-plantuml entries below. Code Groups and
+# Monaco Editor are also cited by troubleshooting (verified: troubleshooting/
+# references/troubleshooting.md lines 166-197 cover "Code Groups Not
+# Rendering" and "Monaco Editor Not Appearing").
 # ----------------------------------------------------------------------------
 [[sources]]
 skills = ["code"]
@@ -258,7 +266,7 @@ version_constraint = "rolling"
 last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/line-highlighting.md and docs/features/shiki-magic-move.md on the slidevjs/slidev GitHub repo. Line ranges, click-based `|` highlighting, and Magic Move's 4-backtick fence all confirmed. Added: {hide}/{none} line values and Magic Move's {at:}/duration/title-bar, previously undocumented. On 'at/finally': {at:N} and the {*} placeholder are confirmed present; 'finally' is referenced by name in docs/features/latex.md ('The at and finally options of code blocks are also available for LaTeX blocks') but its own defining page was not found in line-highlighting.md, code-block-max-height.md, code-block-line-numbers.md, guide/syntax.md, docs/features/click-marker.md, or guide/animations.md — genuinely unresolved rather than confirmed absent; correcting an overreach in an earlier revision of this note that asserted it does not exist."
+notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/line-highlighting.md and docs/features/shiki-magic-move.md on the slidevjs/slidev GitHub repo. Line ranges, click-based `|` highlighting, and Magic Move's 4-backtick fence all confirmed. Added: {hide}/{none} line values and Magic Move's {at:}/duration/title-bar, previously undocumented. On 'at/finally': both are real, implemented, user-reachable options — verified against source, not just docs. `finally` is a declared prop on packages/client/builtin/CodeBlockWrapper.vue (`finally: {type:[String,Number], default:'last'}`; semantics: the highlight range applied once the click sequence exhausts `ranges`, defaulting to the last range) and also on KaTexBlockWrapper.vue. It reaches the user via the fence's second `{...}` options group, which packages/slidev/node/syntax/codeblock/wrapper.ts v-binds directly onto CodeBlockWrapper — so ```ts {1|2}{finally:'none'}``` works. It is documented upstream only via a cross-reference in docs/features/latex.md ('The at and finally options of code blocks are also available for LaTeX blocks'), with no defining page of its own in line-highlighting.md/code-block-max-height.md/code-block-line-numbers.md/guide/syntax.md — an upstream docs gap, not an uncertainty on our side. Two earlier revisions of this note first wrongly asserted 'finally' does not exist, then wrongly called it merely unresolved after a docs-only search; both corrected once verified against source."
 
 [[sources]]
 skills = ["code"]

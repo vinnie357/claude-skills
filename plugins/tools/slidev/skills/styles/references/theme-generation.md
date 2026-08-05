@@ -261,14 +261,13 @@ slidev-theme-brand/
 
 The `keywords` array must include both `"slidev-theme"` and `"slidev"` — verified against
 `docs/guide/write-theme.md` on the slidevjs/slidev GitHub repo ("Add `slidev-theme` and
-`slidev` in the `keywords` field"); the skill previously listed only `slidev-theme`.
+`slidev` in the `keywords` field").
 
 Both `colorSchema` and `highlighter` under `slidev` are real, consumed theme metadata —
 verified against the `SlidevThemeMeta` interface (`packages/types/src/types.ts`: "Metadata
 for 'slidev' field in themes' package.json") and its use in `resolveConfig`
 (`packages/parser/src/config.ts`), which reads `themeMeta.highlighter` directly to set the
-config's highlighter. This field is real but undocumented in `write-theme.md` itself — an
-earlier pass in this PR incorrectly called it fabricated and removed it; restored.
+config's highlighter. `highlighter` is real but undocumented in `write-theme.md` itself.
 
 `slidev.colorSchema` here (valid values: `light`, `dark`, `both`) is a different field from
 the per-presentation `colorSchema` frontmatter option (valid values: `auto`, `light`, `dark`,
