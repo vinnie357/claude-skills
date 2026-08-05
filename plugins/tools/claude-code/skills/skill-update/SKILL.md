@@ -12,9 +12,9 @@ Structured workflow for keeping skills current with upstream sources. Execute al
 
 | Command | Purpose |
 |---|---|
-| `mise sources:check` | Compare current vs latest for all plugins |
+| `mise sources:check` | Compare current vs latest for all plugins; `eol` column flags an end-of-life release line for `endoflife-date` sources (claude-skills-237) |
 | `mise sources:stale` | List only stale sources |
-| `mise sources:validate` | Validate that all source URLs resolve (HTTP HEAD) |
+| `mise sources:validate [plugin] [line\|json\|table]` | Validate that all source URLs resolve (HTTP HEAD, GET fallback on 405); default `line` format is one grep-able row per URL, `json` pipes straight to `jq` |
 | `mise test:sources` | Validate sources.toml schema + plugin.json/sources.md agreement |
 | `mise sources:report` | Full freshness report with priorities |
 | `mise sources:init <plugin>` | Print a DRAFT sources.toml for a plugin (never trusted; `--write` to save) |
@@ -86,7 +86,7 @@ Docker Hub tags are not semver in general — `check-docker-hub` reports "is a n
 
 Setting `docker_tag` switches the check to `check-docker-hub-tag`, which queries the per-tag endpoint (`https://hub.docker.com/v2/repositories/{namespace}/{repository}/tags/{tag}/` — reads that tag's own `digest` field) instead of the newest-tag-name endpoint above. This answers a narrower, genuinely answerable question for a realistically pinned image: has THIS exact tag been re-pushed since I last checked, not merely does a differently-named tag exist. `current_version` stores the last-observed digest; drift means the base image was rebuilt (security patch, layer update) under the same tag name. See `plugins/tools/agent-sandboxing/skills/sources.toml`'s `debian-13-slim-base-image` entry for a worked, live example (claude-skills-225).
 
-`check-endoflife-status` (in `scripts/sources-lib.nu`) is the EOL-aware counterpart to the `endoflife-date` check_method above: one call to the same `https://endoflife.date/api/{product}.json` endpoint returns the newest cycle's `latest` patch, that cycle's own `eol` state, and its `cycle` identifier, rather than only the string `fetch-latest`/`classify-staleness` consume. `check-endoflife-date` (the schema-facing function) calls it and returns just `.latest`, preserving `current_version`/`stale` semantics unchanged — call `check-endoflife-status` directly when the EOL sentinel itself is needed (claude-skills-226).
+`check-endoflife-status` (in `scripts/sources-lib.nu`) is the EOL-aware counterpart to the `endoflife-date` check_method above: one call to the same `https://endoflife.date/api/{product}.json` endpoint returns the newest cycle's `latest` patch, that cycle's own `eol` state, and its `cycle` identifier, rather than only the string `fetch-latest`/`classify-staleness` consume. `check-endoflife-date` (the schema-facing function) calls it and returns just `.latest`, preserving `current_version`/`stale` semantics unchanged (claude-skills-226). `mise sources:check` now surfaces the sentinel automatically as a separate `eol` column (yes/no/unknown/n/a), kept distinct from `stale` per claude-skills-174's "behind latest is not itself a finding" policy — no manual call needed (claude-skills-237).
 
 See `references/version-check-methods.md` for Nushell parsing examples.
 

@@ -4,10 +4,21 @@
 # Uses HTTP HEAD requests (falling back to GET on a 405) and reports a
 # classified status per URL.
 #
-# Usage: nu sources-validate-urls.nu [--plugin <name>]
+# Usage: nu sources-validate-urls.nu [--plugin <name>] [--format line|json|table]
 #        nu sources-validate-urls.nu --self-test
 #
-# Output: table with columns: plugin | skill | source | url | status | notes
+# Output columns (all formats): plugin | skill | source | url | status | notes
+#   --format line   (default) one grep-able line per row: "[status] plugin/
+#                    skill source: url — notes". Fixes claude-skills-241 —
+#                    nu's table auto-formatter truncates url/status/notes to
+#                    "..." in non-interactive runs, and COLUMNS has no
+#                    effect on it.
+#   --format json    machine-consumable; progress/header/summary print to
+#                    stderr so stdout carries ONLY the JSON array — pipe
+#                    straight to jq (claude-skills-241 Gate 3, F1: an
+#                    earlier revision left progress lines on stdout ahead
+#                    of the JSON, which `jq` then failed to parse).
+#   --format table   the original nu-table rendering, for interactive use.
 #
 # claude-skills-220: the summary line used to bucket every non-2xx/3xx result
 # into one undifferentiated "error" count. Two independent agents both read
@@ -146,6 +157,18 @@ export def is-crates-io-url [url: string]: nothing -> bool {
     ($url | str starts-with "https://crates.io/") or ($url == "https://crates.io")
 }
 
+# Pure: format one result row as a single grep/scan-able line (claude-skills-
+# 241). nu's auto-rendered table truncates url/status/notes to "..." when
+# stdout isn't a tty — confirmed live during PR #220 (COLUMNS had no
+# effect), and both the PR author and its Gate 3 reviewer independently hit
+# it and had to work around it with --plugin scoping + ANSI-stripped
+# post-processing. Status leads in brackets so a specific classification is
+# `grep`-able directly off raw output — `grep '^\[dead\]'` finds every dead
+# link with no post-processing, satisfying the bee's acceptance criterion.
+export def format-row-line [row: record]: nothing -> string {
+    $"[($row.status)] ($row.plugin)/($row.skill) ($row.source): ($row.url) — ($row.notes)"
+}
+
 # Resolve the repo root relative to this script's location
 def repo-root [] {
     $env.FILE_PWD | path join ".." ".." ".." ".." ".." ".." | path expand
@@ -170,14 +193,46 @@ def resolve-plugin-path [repo: string, source: any] {
     }
 }
 
+# Pure: classify a FAILED crates.io API cross-check's caught error text into
+# a final status (claude-skills-242). The catch block used to discard WHY
+# the API call failed, so a genuine API 404 (affirmative evidence the crate
+# does not exist) and a transient API failure (DNS, timeout, connection
+# reset) both read identically as "blocked — cannot confirm either way".
+# The API is proven reliable from this egress (see the F1 note above this
+# function's caller) — an API 404 is real signal, not noise, and throwing it
+# away under-claims. Reuses classify-fetch-error rather than re-deriving the
+# (404) pattern match — same reasoning as classify-url-error above.
+#
+# TRADEOFF ON THE RECORD (claude-skills-242 Gate 3, F2): this call has no
+# retry. A genuinely LIVE crate whose single API request happens to fail
+# with a transient 404 (rare, but the website tier's own 404-to-automation
+# behavior shows crates.io's edge is not always well-behaved) would be
+# misread as "confirmed dead" here, because a 404 IS treated as affirmative
+# with no second attempt to rule out a fluke. This is deliberate, not an
+# oversight: the website check that got us here already 404d, and the
+# alternative — treating every API 404 as merely transient — would silently
+# revert to the pre-242 "blocked" under-claim for the one case (a truly
+# dead crate) this function exists to catch. A future retry-before-dead
+# would remove this tradeoff at the cost of a second network call; not done
+# here per restraint (no report has hit this edge in practice yet).
+export def classify-crates-io-api-failure [err_text: string, api_url: string]: nothing -> record<status: string, notes: string> {
+    if (classify-fetch-error $err_text) == "no-releases" {
+        { status: "dead", notes: $"crates.io website 404; API cross-check at ($api_url) ALSO 404d — API-confirmed: this crate does not exist" }
+    } else {
+        { status: "blocked", notes: $"crates.io website 404; API cross-check at ($api_url) also failed \(not a 404 — transient\) — cannot confirm either way" }
+    }
+}
+
 # Cross-check a "dead" crates.io result before it's final (claude-skills-220
 # Gate 3, F1). Returns an overriding {status, notes} record, or null when no
 # override applies (leaves the caller's original classification alone).
 #   - crate-name URL, API confirms it live -> pass (bypassed the bot-gated
 #     website check)
-#   - crate-name URL, API check ALSO fails -> blocked (still can't confirm,
-#     but crates.io's website tier is proven unreliable to automation, so
-#     "dead" would overstate what we know)
+#   - crate-name URL, API ALSO 404s -> dead (claude-skills-242: an affirmed
+#     API 404 is real evidence the crate doesn't exist, not noise)
+#   - crate-name URL, API fails for any OTHER reason -> blocked (still can't
+#     confirm — crates.io's website tier is proven unreliable to automation,
+#     so "dead" would overstate what a non-404 failure tells us)
 #   - any other crates.io URL (e.g. /policies, no crate name to check) ->
 #     blocked, same reasoning, no cross-check possible
 def crates-io-dead-override [url: string, headers: list]: nothing -> any {
@@ -195,8 +250,9 @@ def crates-io-dead-override [url: string, headers: list]: nothing -> any {
             } else {
                 { status: "blocked", notes: $"crates.io website 404; API cross-check returned an unexpected body from ($api_url)" }
             }
-        } catch {
-            { status: "blocked", notes: $"crates.io website 404; API cross-check at ($api_url) also failed — cannot confirm either way" }
+        } catch { |err|
+            let api_err_text = ($err.debug? | default ($err.msg? | default ""))
+            classify-crates-io-api-failure $api_err_text $api_url
         }
     } else if (is-crates-io-url $url) {
         { status: "blocked", notes: "crates.io website 404 with no crate name to cross-check via the API (e.g. a policy/docs page) — host is known-unreliable to automated clients, cannot confirm content status" }
@@ -268,7 +324,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     let data = try {
         open $toml_path
     } catch {
-        print $"(ansi yellow)Warning: could not parse ($toml_path)(ansi reset)"
+        print -e $"(ansi yellow)Warning: could not parse ($toml_path)(ansi reset)"
         return []
     }
 
@@ -282,7 +338,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
         let releases_url = $src.releases_url? | default ""
 
         if not ($url | is-empty) {
-            print $"  CHECK ($url)"
+            print -e $"  CHECK ($url)"
             let row = check-url $plugin_name $skill $name $url
             if $row != null {
                 $rows = ($rows | append $row)
@@ -290,7 +346,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
         }
 
         if not ($releases_url | is-empty) {
-            print $"  CHECK ($releases_url)"
+            print -e $"  CHECK ($releases_url)"
             let row = check-url $plugin_name $skill $"($name) [releases]" $releases_url
             if $row != null {
                 $rows = ($rows | append $row)
@@ -301,12 +357,18 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     $rows
 }
 
-def run-checks [plugin_filter: string] {
+def run-checks [plugin_filter: string, format: string] {
     let repo = repo-root
 
-    print $"(ansi cyan_bold)Source URL Validation(ansi reset)"
-    print $"Repo root: ($repo)"
-    print ""
+    # claude-skills-241 Gate 3 (F1): every print in this function that isn't
+    # the actual result payload uses `-e` (stderr) so `--format json | jq`
+    # sees ONLY the JSON on stdout. Verified live: before this fix, these
+    # headers/progress lines printed to stdout ahead of the JSON array,
+    # which is exactly what made `jq` fail with "Invalid numeric literal at
+    # line 1, column 2" — the payload was there, just not alone on stdout.
+    print -e $"(ansi cyan_bold)Source URL Validation(ansi reset)"
+    print -e $"Repo root: ($repo)"
+    print -e ""
 
     let marketplace = load-marketplace $repo
     let plugins = $marketplace.plugins? | default []
@@ -319,10 +381,10 @@ def run-checks [plugin_filter: string] {
 
     if ($filtered | is-empty) {
         if not ($plugin_filter | is-empty) {
-            print $"(ansi red)No plugin found with name: ($plugin_filter)(ansi reset)"
+            print -e $"(ansi red)No plugin found with name: ($plugin_filter)(ansi reset)"
             exit 1
         }
-        print $"(ansi yellow)No plugins found in marketplace.(ansi reset)"
+        print -e $"(ansi yellow)No plugins found in marketplace.(ansi reset)"
         exit 0
     }
 
@@ -341,15 +403,15 @@ def run-checks [plugin_filter: string] {
             continue
         }
 
-        print $"(ansi green)Plugin: ($pl_name)(ansi reset)"
+        print -e $"(ansi green)Plugin: ($pl_name)(ansi reset)"
         let rows = process-sources-toml $toml_path $pl_name
         $all_rows = ($all_rows | append $rows)
     }
 
-    print ""
+    print -e ""
 
     if ($all_rows | is-empty) {
-        print $"(ansi yellow)No sources.toml files found with URL entries.(ansi reset)"
+        print -e $"(ansi yellow)No sources.toml files found with URL entries.(ansi reset)"
         exit 0
     }
 
@@ -369,11 +431,25 @@ def run-checks [plugin_filter: string] {
     let private      = $all_rows | where status == "private"      | length
     let errors       = $all_rows | where status == "error"        | length
 
-    print $"(ansi cyan_bold)Summary:(ansi reset) ($total) URLs checked — (ansi green)($passing) pass(ansi reset) | (ansi red)($dead) dead(ansi reset) | (ansi magenta)($blocked) blocked \(unconfirmed\)(ansi reset) | (ansi yellow)($rate_limited) rate-limited(ansi reset) | (ansi cyan)($private) private \(expected\)(ansi reset) | (ansi red)($errors) error(ansi reset)"
-    print ""
+    print -e $"(ansi cyan_bold)Summary:(ansi reset) ($total) URLs checked — (ansi green)($passing) pass(ansi reset) | (ansi red)($dead) dead(ansi reset) | (ansi magenta)($blocked) blocked \(unconfirmed\)(ansi reset) | (ansi yellow)($rate_limited) rate-limited(ansi reset) | (ansi cyan)($private) private \(expected\)(ansi reset) | (ansi red)($errors) error(ansi reset)"
+    print -e ""
 
-    # Full table
-    $all_rows | select plugin skill source url status notes
+    # claude-skills-241: three output shapes. "line" is the default — one
+    # scannable, ungrepped-by-nu's-table-renderer line per row, immune to
+    # the non-tty truncation this bee reports (verified below: nu's table
+    # formatter is never invoked on this path, so there is no width to
+    # truncate). "json" is for scripts/jq. "table" keeps the original
+    # nu-table rendering for anyone running this interactively and wanting
+    # the auto-fit columns.
+    match $format {
+        "json" => { print ($all_rows | select plugin skill source url status notes | to json) }
+        "table" => { $all_rows | select plugin skill source url status notes }
+        _ => {
+            for row in $all_rows {
+                print (format-row-line $row)
+            }
+        }
+    }
 }
 
 # ---- self-test (pure functions only; no network) ---------------------------
@@ -508,6 +584,93 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
         }
     }
 
+    # claude-skills-242: when the crates.io API cross-check ITSELF fails,
+    # was the failure a real 404 (affirmative "this crate doesn't exist") or
+    # something else (transient — DNS, timeout, connection reset)? Both
+    # fixtures below are captured live text, not invented shapes.
+    let api_failure_cases = [
+        # captured: `http get
+        # "https://crates.io/api/v1/crates/this-crate-definitely-does-not-exist-zz9plural"`
+        # with the shared UA header (nu 0.113.1, 2026-08-04) — a name chosen
+        # to be implausible as a real crate.
+        {
+            label: "a real API 404 for a nonexistent crate reports dead, API-confirmed"
+            text: "Requested file not found (404): \"https://crates.io/api/v1/crates/this-crate-definitely-does-not-exist-zz9plural\""
+            api_url: "https://crates.io/api/v1/crates/this-crate-definitely-does-not-exist-zz9plural"
+            want_status: "dead"
+        }
+        # captured: `http head` against the dead butunclebob.com host
+        # (2026-08-04) — reused as a generic non-404 failure shape;
+        # classify-fetch-error's pattern matching is host-agnostic, so this
+        # exercises the same "not a 404" branch a transient crates.io API
+        # failure (DNS, timeout, connection reset) would take.
+        {
+            label: "a non-404 API failure (transient) still reports blocked, not dead"
+            text: "Io(IoError { kind: Std(ConnectionRefused, Sealed), span: Span[160087..160096], path: None, additional_context: None, location: None })"
+            api_url: "https://crates.io/api/v1/crates/serde"
+            want_status: "blocked"
+        }
+        # claude-skills-241 Gate 3: constructed (not a live capture — a real
+        # timeout with a controlled URL isn't reliably reproducible on
+        # demand), modeled on the "Cannot make request to ... Error is ..."
+        # shape sources-lib.nu's own self-test already verified live for
+        # 401/429/500. Closes a mutation the delegation-only fixtures above
+        # couldn't: sources-lib.nu:60-62 documents that a bare "404" can
+        # appear inside a URL's crate NAME (a crate literally named "x404")
+        # with no parens around it — a naive `str contains "404"` classifier
+        # would misread this transient timeout as an affirmed 404 and
+        # wrongly report "dead" for a crate that might well exist. Real
+        # delegation to classify-fetch-error requires the PARENTHESISED
+        # `(404)` form, so a bare "404" substring inside the api_url/text
+        # must NOT trip the dead branch.
+        {
+            label: "a transient timeout whose URL happens to contain a bare '404' (no parens) stays blocked, not dead"
+            text: "Cannot make request to \"https://crates.io/api/v1/crates/x404\". Error is \"timeout\""
+            api_url: "https://crates.io/api/v1/crates/x404"
+            want_status: "blocked"
+        }
+    ]
+    for c in $api_failure_cases {
+        $count += 1
+        let got = classify-crates-io-api-failure $c.text $c.api_url
+        if $got.status != $c.want_status {
+            print $"(ansi red_bold)❌ classify-crates-io-api-failure: ($c.label): want ($c.want_status), got ($got.status)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    # claude-skills-241: format-row-line is the line-per-row bypass around
+    # nu's table truncation. Fixtures use real row shapes check-url produces
+    # (all fields present, including a multi-skill comma-joined list and a
+    # notes value carrying an em dash of its own — the exact byte the line
+    # format's own separator uses, proving the format doesn't get confused
+    # by a notes value that happens to look like a delimiter).
+    let row_line_cases = [
+        {
+            label: "a passing row formats with all fields, status bracketed first"
+            row: {plugin: "rust" skill: "rust" source: "serde" url: "https://crates.io/crates/serde" status: "pass" notes: "OK (crates.io website 404s automated clients; confirmed live via https://crates.io/api/v1/crates/serde)"}
+            want: "[pass] rust/rust serde: https://crates.io/crates/serde — OK (crates.io website 404s automated clients; confirmed live via https://crates.io/api/v1/crates/serde)"
+        }
+        {
+            label: "a comma-joined multi-skill list passes through unchanged"
+            row: {plugin: "claude-code" skill: "claude-skills,claude-skills-benchmark" source: "improving-skill-creator-blog" url: "https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills" status: "pass" notes: "OK"}
+            want: "[pass] claude-code/claude-skills,claude-skills-benchmark improving-skill-creator-blog: https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills — OK"
+        }
+        {
+            label: "a notes value containing its own em dash does not break the line"
+            row: {plugin: "core" skill: "tdd" source: "three-laws-of-tdd" url: "http://web.archive.org/web/20260719201717/http://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd" status: "dead" notes: "host unreachable — connection refused, not a 404"}
+            want: "[dead] core/tdd three-laws-of-tdd: http://web.archive.org/web/20260719201717/http://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd — host unreachable — connection refused, not a 404"
+        }
+    ]
+    for c in $row_line_cases {
+        $count += 1
+        let got = format-row-line $c.row
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ format-row-line: ($c.label): want '($c.want)', got '($got)'(ansi reset)"
+            $failed = true
+        }
+    }
+
     # captured: `http head "https://m3.material.io/"` (nu 0.113.1, 2026-08-04)
     let fallback_cases = [
         {label: "405 Method Not Allowed triggers a GET fallback" text: "Cannot make request to \"https://m3.material.io/\". Error is \"405 Method Not Allowed\"" want: true}
@@ -526,7 +689,7 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
     {failed: $failed, count: $count}
 }
 
-def main [--plugin: string = "", --self-test] {
+def main [--plugin: string = "", --format: string = "line", --self-test] {
     if $self_test {
         let result = run-self-test
         if $result.failed {
@@ -535,5 +698,9 @@ def main [--plugin: string = "", --self-test] {
         print $"(ansi green_bold)✅ sources-validate-urls self-test passed \(($result.count) cases\)(ansi reset)"
         exit 0
     }
-    run-checks $plugin
+    if $format not-in ["line" "json" "table"] {
+        print $"(ansi red)Unknown --format '($format)' — expected line, json, or table(ansi reset)"
+        exit 1
+    }
+    run-checks $plugin $format
 }
