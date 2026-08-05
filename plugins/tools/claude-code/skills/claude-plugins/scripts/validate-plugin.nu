@@ -1550,6 +1550,13 @@ def is-array-type [type_desc: string] {
   ($type_desc | str starts-with "list") or ($type_desc | str starts-with "table")
 }
 
+# claude-skills-258 — number type check for userConfig 'min'/'max', same
+# shape as is-string above. A JSON number loads as nushell "int" (`3`) or
+# "float" (`3.5`) depending on the literal; accept both.
+def is-number [value: any] {
+  ($value | describe) in ["int", "float"]
+}
+
 # claude-skills-256 — reusable validator for one userConfig option record.
 # Serves BOTH call sites: the top-level `userConfig` field and each
 # `channels[].userConfig` entry, which upstream states "uses the same
@@ -1560,14 +1567,27 @@ def is-array-type [type_desc: string] {
 # (Required), description (Required), sensitive/required/default/multiple/
 # min/max (all optional)."
 #
-# restraint: only the three required fields plus the 'type' enum are
-# checked here. sensitive/required/default/multiple/min/max are optional
-# per upstream, and claude-skills-256's AC scopes this validator to the
-# required-field-plus-enum machinery those four items actually need —
-# type-checking every optional field (bool for sensitive/required/
-# multiple, number for min/max) would be the general schema engine this
-# fix was explicitly told not to build. Extend here if a future issue
-# needs it, not preemptively.
+# claude-skills-258 — re-verified live against the same anchor before
+# extending this function. Upstream's field table gives each optional
+# field an unambiguous type: "sensitive | No | If true, masks input...",
+# "required | No | If true, validation fails when the field is empty",
+# "multiple | No | For string type, allow an array of strings" (bool, all
+# three), "min / max | No | Bounds for number type" (number, both).
+# sensitive/required/multiple/min/max are now checked below, ONLY when
+# present — they stay optional per upstream, so absence is not an error.
+#
+# 'default' is deliberately NOT type-checked, decided rather than swept in
+# per claude-skills-258's AC. Upstream's row for it — "default | No | Value
+# used when the user provides nothing" — states no type constraint at all,
+# unlike min/max's explicit "Bounds for number type": it never says
+# default's type must mirror the sibling 'type' field. Enforcing that
+# correspondence would need a type_value -> nushell-shape mapping this
+# validator has no other reason to build, including two shapes upstream
+# never documents for 'directory'/'file' (presumably a path string, but
+# that's inference, not documentation). That cross-field mapping is exactly
+# the general schema engine claude-skills-256's own restraint note (and
+# claude-skills-258's brief) declined to build preemptively — revisit only
+# if a future issue documents the constraint from upstream, not inference.
 #
 # The leading record-type check on `option` is load-bearing, not
 # defensive-for-its-own-sake: `$option | get -o type` on a non-record `any`
@@ -1605,6 +1625,24 @@ def validate-user-config-option [key: string, option: any, context: string] {
     $errs = ($errs | append $"($context) option '($key)' missing required 'description' field")
   } else if not (is-string $description_value) {
     $errs = ($errs | append $"($context) option '($key)' 'description' must be a string, got ($description_value | describe)")
+  }
+
+  # claude-skills-258 — sensitive/required/multiple are documented booleans.
+  for field in ["sensitive", "required", "multiple"] {
+    let value = ($option | get -o $field)
+    if ($value != null) and (($value | describe) != "bool") {
+      $errs = ($errs | append $"($context) option '($key)' '($field)' must be a boolean, got ($value | describe)")
+    }
+  }
+
+  # claude-skills-258 — min/max are documented numbers ("Bounds for number
+  # type"). is-number accepts both nushell numeric describes ("int" and
+  # "float"), same JSON-load ambiguity is-string's own doc comment notes.
+  for field in ["min", "max"] {
+    let value = ($option | get -o $field)
+    if ($value != null) and not (is-number $value) {
+      $errs = ($errs | append $"($context) option '($key)' '($field)' must be a number, got ($value | describe)")
+    }
   }
 
   $errs
@@ -1813,6 +1851,25 @@ def is-semver-range-group [group: string] {
 def is-semver-range [constraint: string] {
   let groups = ($constraint | split row '||')
   ($groups | all {|g| is-semver-range-group $g })
+}
+
+# claude-skills-258 — guards against a typo'd fixture assertion field
+# silently no-op'ing. Every optional assertion field below (expect_success,
+# expect_error_contains, expect_warning_contains, expect_output_contains,
+# ...) is read with `get -o`, which returns null for a KEY THAT DOESN'T
+# EXIST the same way it does for one that's genuinely absent by design —
+# a fixture that writes 'expect_errors_contains' instead of
+# 'expect_error_contains' compiles, runs, and passes on its remaining
+# assertions with the intended assertion silently never checked. This is
+# exactly the fallthrough-masking risk expect_error_contains itself was
+# added (claude-skills-256) to close, restored by a single typo. Each
+# self-test loop below calls this once per case against that loop's own
+# known-key set (structural fields the loop reads directly, like 'name',
+# PLUS every optional field it reads via `get -o`) and records a failure
+# for any key outside it — cheap, and it protects every future fixture
+# rather than one rule.
+def unknown-fixture-keys [record: record, known: list<string>] {
+  $record | columns | where {|k| $k not-in $known }
 }
 
 # Fixture-based self-test suite for claude-skills-218 / claude-skills-219.
@@ -2383,6 +2440,53 @@ def self-test [] {
       expect_warnings: 0
     }
     {
+      name: "user_config_option_sensitive_wrong_type_errors"
+      why: "claude-skills-258 — upstream: 'sensitive' is 'If true, masks input...' (a documented boolean). Differs from the all-required-fields-accepted base in exactly one dimension: 'sensitive' is a string, not a bool. is-string is not called on this field's own value so a wrong-type string here can't accidentally satisfy some sibling check; expect_error_contains pins the MESSAGE so a mutation that deletes this check's error but still errors on some other branch by coincidence is still caught"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "string", title: "API token", description: "Authentication token", sensitive: "yes" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "'sensitive' must be a boolean, got string"
+    }
+    {
+      name: "user_config_option_required_wrong_type_errors"
+      why: "claude-skills-258 — upstream: 'required' is 'If true, validation fails when the field is empty' (a documented boolean). Isolates the required-type dimension from sensitive/multiple/min/max, each pinned by its own fixture"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "string", title: "API token", description: "Authentication token", required: "yes" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "'required' must be a boolean, got string"
+    }
+    {
+      name: "user_config_option_multiple_wrong_type_errors"
+      why: "claude-skills-258 — upstream: 'multiple' is 'For string type, allow an array of strings' (a documented boolean flag, not the array itself). Isolates the multiple-type dimension"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "string", title: "API token", description: "Authentication token", multiple: "yes" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "'multiple' must be a boolean, got string"
+    }
+    {
+      name: "user_config_option_min_wrong_type_errors"
+      why: "claude-skills-258 — upstream: 'min / max' are 'Bounds for number type' (documented numbers). is-number accepts both nushell 'int' and 'float' describes, so a string is the unambiguous reject case regardless of that ambiguity"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { retry_count: { type: "number", title: "Retry count", description: "Retries before giving up", min: "3" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "'min' must be a number, got string"
+    }
+    {
+      name: "user_config_option_max_wrong_type_errors"
+      why: "claude-skills-258 — same upstream basis as min above ('Bounds for number type'); isolates 'max' as its own dimension since min and max are checked by the same for-loop and a neutered loop body could silently drop one field's check while leaving the other's message intact"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { retry_count: { type: "number", title: "Retry count", description: "Retries before giving up", max: "10" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "'max' must be a number, got string"
+    }
+    {
+      name: "user_config_option_sensitive_required_multiple_min_max_all_correct_accepted"
+      why: "claude-skills-258 — regression guard for the accept direction: every optional field this fix now type-checks (sensitive/required/multiple as booleans, min/max as numbers) present at once and correctly typed must produce zero errors, proving the new checks don't false-reject a genuinely valid manifest"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { retry_count: { type: "number", title: "Retry count", description: "Retries before giving up", sensitive: false, required: true, multiple: false, min: 1, max: 10, default: 3 } } }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
       name: "user_config_multiple_options_upstream_example_accepted"
       why: "claude-skills-256 — upstream's own User configuration doc example verbatim (api_endpoint + api_token, the latter carrying the optional 'sensitive: true'), reproduced as this fixture's plugin. Proves multiple options in one userConfig all validate independently AND that a present optional field (sensitive) does not trigger a spurious error under this fix's restraint-scoped validator"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_endpoint: { type: "string", title: "API endpoint", description: "Your team's API endpoint" }, api_token: { type: "string", title: "API token", description: "API authentication token", sensitive: true } } }
@@ -2533,7 +2637,13 @@ def self-test [] {
 
   let temp_dir = (mktemp -d)
 
+  let known_case_keys = ["name", "plugin", "expect_errors", "expect_warnings", "why", "strict", "expect_success", "expect_error_contains"]
   for c in $cases {
+    let unknown_keys = (unknown-fixture-keys $c $known_case_keys)
+    if ($unknown_keys | length) > 0 {
+      $failures = ($failures | append $"($c.name): unknown fixture key\(s\) ($unknown_keys | to nuon) -- typo in a case field name?")
+    }
+
     let plugin_path = ($temp_dir | path join $"($c.name).json")
     $c.plugin | save --force $plugin_path
 
@@ -2584,7 +2694,13 @@ def self-test [] {
     { model: "gpt-4", expect_warnings: 1, why: "not a documented value in any form — must still warn" }
   ]
   let agent_temp_dir = (mktemp -d)
+  let known_agent_model_keys = ["model", "expect_warnings", "why"]
   for c in $agent_model_cases {
+    let unknown_keys = (unknown-fixture-keys $c $known_agent_model_keys)
+    if ($unknown_keys | length) > 0 {
+      $failures = ($failures | append $"agent_model_($c.model): unknown fixture key\(s\) ($unknown_keys | to nuon) -- typo in a case field name?")
+    }
+
     let agent_path = ($agent_temp_dir | path join $"model-($c.model | str replace -a '.' '-').md")
     $"---\nname: fixture-agent\ndescription: test fixture\nmodel: ($c.model)\n---\n\nbody\n" | save --force $agent_path
     let result = (validate-agent-md $agent_path "fixture-agent" false)
@@ -2684,7 +2800,13 @@ def self-test [] {
     # PARENT self-test process instead of crashing it.
   ]
   let skill_md_temp_dir = (mktemp -d)
+  let known_skill_md_keys = ["name", "content", "expect_errors", "expect_warnings", "why", "expect_error_contains"]
   for c in $skill_md_cases {
+    let unknown_keys = (unknown-fixture-keys $c $known_skill_md_keys)
+    if ($unknown_keys | length) > 0 {
+      $failures = ($failures | append $"skill_md_($c.name): unknown fixture key\(s\) ($unknown_keys | to nuon) -- typo in a case field name?")
+    }
+
     let skill_md_path = ($skill_md_temp_dir | path join $"($c.name).md")
     $c.content | save --force $skill_md_path
     let result = (validate-skill-md $skill_md_path "fixture-skill" false)
@@ -2762,7 +2884,13 @@ def self-test [] {
     # failing one case cleanly.
   ]
   let agent_md_temp_dir = (mktemp -d)
+  let known_agent_md_keys = ["name", "content", "expect_errors", "why", "expect_error_contains"]
   for c in $agent_md_cases {
+    let unknown_keys = (unknown-fixture-keys $c $known_agent_md_keys)
+    if ($unknown_keys | length) > 0 {
+      $failures = ($failures | append $"agent_md_($c.name): unknown fixture key\(s\) ($unknown_keys | to nuon) -- typo in a case field name?")
+    }
+
     let agent_md_path = ($agent_md_temp_dir | path join $"($c.name).md")
     $c.content | save --force $agent_md_path
     let result = (validate-agent-md $agent_md_path "fixture-agent" false)
@@ -2784,7 +2912,13 @@ def self-test [] {
     { is_ext: true, expect_removed: true, why: "external plugin's temp clone dir must be removed after use" }
     { is_ext: false, expect_removed: false, why: "a non-external validation never allocated a temp dir — cleanup must be a no-op, not delete an unrelated path" }
   ]
+  let known_cleanup_temp_keys = ["is_ext", "expect_removed", "why"]
   for c in $cleanup_temp_cases {
+    let unknown_keys = (unknown-fixture-keys $c $known_cleanup_temp_keys)
+    if ($unknown_keys | length) > 0 {
+      $failures = ($failures | append $"cleanup_temp_is_ext_($c.is_ext): unknown fixture key\(s\) ($unknown_keys | to nuon) -- typo in a case field name?")
+    }
+
     let probe_dir = (mktemp -d)
     cleanup-temp $probe_dir $c.is_ext
     let still_exists = ($probe_dir | path exists)
@@ -3061,7 +3195,13 @@ def self-test [] {
     }
   ]
 
+  let known_array_path_keys = ["name", "root", "plugin", "expect_errors", "expect_warnings", "why", "expect_error_contains", "expect_warning_contains"]
   for c in $array_path_cases {
+    let unknown_keys = (unknown-fixture-keys $c $known_array_path_keys)
+    if ($unknown_keys | length) > 0 {
+      $failures = ($failures | append $"array_path_($c.name): unknown fixture key\(s\) ($unknown_keys | to nuon) -- typo in a case field name?")
+    }
+
     let plugin_path = ($array_path_temp_dir | path join $"($c.name).json")
     $c.plugin | save --force $plugin_path
     let result = (validate-plugin-content $plugin_path $c.root "my-plugin" "my-plugin" false false false)
@@ -4066,7 +4206,13 @@ def self-test [] {
     }
   ]
 
+  let known_cli_keys = ["name", "args", "expect_exit", "why", "expect_output_contains", "expect_output_not_contains"]
   for c in $cli_cases {
+    let unknown_keys = (unknown-fixture-keys $c $known_cli_keys)
+    if ($unknown_keys | length) > 0 {
+      $failures = ($failures | append $"($c.name): unknown fixture key\(s\) ($unknown_keys | to nuon) -- typo in a case field name?")
+    }
+
     let result = (do { ^nu $self_path ...$c.args } | complete)
     if $result.exit_code != $c.expect_exit {
       $failures = ($failures | append $"($c.name): expected exit ($c.expect_exit), got ($result.exit_code) -- ($c.why)")
