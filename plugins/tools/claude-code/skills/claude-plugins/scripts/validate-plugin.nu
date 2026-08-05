@@ -47,6 +47,21 @@ def validate-from-marketplace [plugin_name: string, marketplace_path: string, ve
     exit 1
   }
 
+  # claude-skills-244 Gate 3 round 3 — a THIRD instance of the same crash
+  # class #223/#224 already fixed for agents/skills, and the simplest to
+  # trigger: `path exists` is true for directories too, and the `open`
+  # below has no try/catch (unlike the two other `open $plugin_path` call
+  # sites in this file, which ARE wrapped and verified to catch
+  # is_a_directory cleanly). A plain CLI typo — `--marketplace` pointed at
+  # a directory instead of marketplace.json — crashed with an uncaught
+  # nu::shell::io::is_a_directory, reproduced with zero mutation and no
+  # plugin.json involved at all. `path expand` before `path type` for the
+  # same symlink-safety reason as the agents/skills guards above.
+  if ($marketplace_path | path expand | path type) != "file" {
+    print $"(ansi red_bold)Error:(ansi reset) Marketplace path is not a file: ($marketplace_path)"
+    exit 1
+  }
+
   let marketplace = (open $marketplace_path)
   let marketplace_dir = ($marketplace_path | path dirname | path dirname)
 
@@ -432,8 +447,47 @@ def validate-plugin-content [
           $warnings = ($warnings | append $"Skill path not found: ($skill)")
         } else {
           let skill_md = ($skill_path | path join "SKILL.md")
+          # claude-skills-244 Gate 3 rounds 2-4 — validate-skill-md's `open
+          # $skill_md_path --raw` crashes with an uncaught nu shell I/O
+          # error whenever this code believes SKILL.md is a readable file
+          # but it isn't. Two DISTINCT unsafe shapes, both reproduced with
+          # ZERO mutation on real pre-fix code (not just under a contrived
+          # mutation):
+          #   1. SKILL.md is a directory (e.g. `mkdir .../SKILL.md`) — the
+          #      original `not (path exists)` guard alone is TRUE-passing
+          #      (a directory exists), so it falls straight into `open` and
+          #      crashes. No mutation needed — round 4's Gate 3 finding.
+          #   2. A guard MUTATED to check the wrong thing (e.g. skill_md's
+          #      dirname, which is skill_path itself, already confirmed to
+          #      exist by the outer branch) makes a bare `not (path
+          #      exists)` guard permanently inert for every genuinely
+          #      missing SKILL.md — round 2's finding.
+          # Both are covered by requiring `path type == "file"` (after
+          # `path expand`, for symlink-safety — round 3's finding: bare
+          # `path type` reports "symlink" regardless of target, so a
+          # symlinked SKILL.md that `open` reads fine would be
+          # false-positive rejected without the expand) BEFORE calling
+          # validate-skill-md, structured as two checks on purpose rather
+          # than one `!= "file"` branch: the outer `not (path exists)`
+          # keeps the existing "missing SKILL.md file" message for the
+          # common case (genuinely absent), and the inner type check is a
+          # SEPARATE, more specific "is a directory" message — reported
+          # distinct on purpose (team-lead's Gate 3 round 4 finding: a
+          # vaguer shared message sends someone looking for an absent file
+          # when the real problem is a directory). The inner check also
+          # means this is safe in depth: even a mutated outer guard still
+          # can't reach `open` with a non-file path, because `path expand |
+          # path type` on a path that doesn't really exist resolves to
+          # empty (not "file"), same as it does for a genuine directory.
+          # A broken/dangling symlink never reaches either branch — `path
+          # exists` is already `false` for it, caught as "not found", not
+          # "wrong type"; don't "fix" that as a gap.
           if not ($skill_md | path exists) {
             $errors = ($errors | append $"Skill directory '($skill)' missing SKILL.md file")
+          } else if ($skill_md | path expand | path type) != "file" {
+            let skill_md_type = ($skill_md | path expand | path type)
+            let type_desc = if $skill_md_type == "dir" { "a directory" } else { $"an unexpected path type \(($skill_md_type)\)" }
+            $errors = ($errors | append $"Skill directory '($skill)' has a SKILL.md that is ($type_desc), not a file")
           } else {
             # Validate SKILL.md content
             let validation = (validate-skill-md $skill_md $skill $verbose)
@@ -498,7 +552,7 @@ def validate-plugin-content [
 
         if not ($agent_path | path exists) {
           $warnings = ($warnings | append $"Agent path not found: ($agent)")
-        } else if ($agent_path | path type) != "file" {
+        } else if ($agent_path | path expand | path type) != "file" {
           # claude-skills-244 Gate 3 — validate-agent-md calls `open
           # $agent_path --raw`, which crashes the WHOLE self-test (and a
           # real `claude plugin validate` run) with an uncaught
@@ -515,7 +569,15 @@ def validate-plugin-content [
           # file — the shape a broken/mutated existence check produces, not
           # just a genuine directory. `!= "file"` catches both without a
           # second crash-prone branch.
-          let agent_path_type = ($agent_path | path type)
+          # `path expand` BEFORE `path type` on purpose (Gate 3 round 3):
+          # bare `path type` reports "symlink" for a symlink regardless of
+          # what it points at, so a symlinked agent file that `open` reads
+          # perfectly well would be false-positive rejected without the
+          # expand — verified against all 6 relevant states before applying
+          # this. A broken/dangling symlink never reaches this branch —
+          # `path exists` above is already `false` for it, caught as "not
+          # found", not "wrong type"; don't "fix" that as a gap.
+          let agent_path_type = ($agent_path | path expand | path type)
           let type_desc = if $agent_path_type == "dir" { "a directory" } else { $"an unexpected path type \(($agent_path_type)\)" }
           $errors = ($errors | append $"Agent path is ($type_desc), not a file: ($agent)")
         } else {
@@ -1482,6 +1544,39 @@ def self-test [] {
   mkdir ($root_b | path join "my-plugin" "commands")
   mkdir ($root_b | path join "my-plugin" "agents")
 
+  # claude-skills-244 Gate 3 round 4 — a skill whose "SKILL.md" is itself a
+  # DIRECTORY, not just absent. This is the regression guard #223 had (via
+  # agent_path_is_directory_errors) but this file's skills branch lacked:
+  # team-lead's reviewer proved `skill_dir_exists_no_skill_md_errors` above
+  # (SKILL.md simply absent) passes under BOTH the pre-#224 `not (path
+  # exists)` guard AND the fixed guard — reverting the fix left the whole
+  # 83-case suite green, because that fixture never distinguished which
+  # guard shape was running. This one does: a directory literally named
+  # "SKILL.md" passes `path exists` under the OLD guard (a directory
+  # exists) and crashes on real, unmutated pre-fix code with zero
+  # mutation — reproduced directly against the merged pre-#224 file before
+  # writing this fixture, same as the agents twin.
+  mkdir ($root_b | path join "my-plugin" "skills" "skill-md-is-dir" "SKILL.md")
+
+  # claude-skills-244 Gate 3 round 3 — regression fixtures for the symlink
+  # false-positive team-lead's reviewer flagged: bare `path type` reports
+  # "symlink" regardless of what it points at, so a symlinked SKILL.md or
+  # agent file that `open` reads perfectly well would have been wrongly
+  # rejected as missing/not-a-file by the pre-`path expand` guards. Real
+  # on-disk symlinks, not mutations — these prove the ACCEPT direction,
+  # complementing the reject-direction fixtures the rest of this block
+  # covers. A broken/dangling symlink is deliberately NOT covered here — it
+  # never reaches the type guard at all, since `path exists` is already
+  # `false` for it (verified separately; see the guards' own comments).
+  mkdir ($root_b | path join "my-plugin" "skills" "symlink-target")
+  "---\nname: symlink-target\ndescription: Use when testing.\n---\n\nbody\n" | save --force ($root_b | path join "my-plugin" "skills" "symlink-target" "SKILL.md")
+  mkdir ($root_b | path join "my-plugin" "skills" "symlinked-skill")
+  ^ln -sf ($root_b | path join "my-plugin" "skills" "symlink-target" "SKILL.md") ($root_b | path join "my-plugin" "skills" "symlinked-skill" "SKILL.md")
+
+  mkdir ($root_b | path join "my-plugin" "agents-real-target")
+  "---\nname: symlinked-agent\ndescription: test fixture\ntools: Bash\nmodel: opus\n---\n\nbody\n" | save --force ($root_b | path join "my-plugin" "agents-real-target" "real-agent.md")
+  ^ln -sf ($root_b | path join "my-plugin" "agents-real-target" "real-agent.md") ($root_b | path join "my-plugin" "agents" "symlinked-agent.md")
+
   let array_path_cases = [
     {
       name: "keywords_not_array_errors"
@@ -1547,6 +1642,15 @@ def self-test [] {
       why: "claude-skills-244 — 'Skill directory ... missing SKILL.md file' had zero coverage; skills/present-without-md genuinely EXISTS under root_b (so the path-not-found warning can't be what's firing) but has no SKILL.md, and root_b carries sources.md so that warning doesn't leak in"
     }
     {
+      name: "skill_md_is_directory_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/skill-md-is-dir"] }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "SKILL.md that is a directory, not a file"
+      why: "claude-skills-244 Gate 3 round 4 — team-lead's reviewer found skill_dir_exists_no_skill_md_errors above passes under BOTH the pre-#224 `not (path exists)` guard and the fixed one, so it never pinned the fix: reverting the fix left the whole 83-case suite green. This fixture distinguishes them: skills/skill-md-is-dir/SKILL.md (created above) is a real on-disk DIRECTORY, which DOES pass a bare `path exists` check, so the old guard would fall straight into `open` and crash with zero mutation — reproduced directly against the merged pre-#224 file. Also pins the message-wording fix (team-lead's nit): a directory gets a distinct 'is a directory, not a file' message instead of the generic 'missing SKILL.md file', matching the agents branch's existing wording. Verified BOTH revert directions directly: fully reverting to bare `not (path exists)` (no type check at all) crashes this case with an uncaught nu::shell::io::is_a_directory, exit 1; reverting only the message split (keeping the `!= 'file'` type check but the old generic message) fails this case by an ordinary self-test assertion mismatch — expected an error containing 'SKILL.md that is a directory, not a file', got 'missing SKILL.md file' — exit 0 for the suite run itself but a reported self-test failure. Neither revert direction passes silently"
+    }
+    {
       name: "skill_path_missing_warns"
       root: $root_b
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/does-not-exist"] }
@@ -1590,6 +1694,22 @@ def self-test [] {
       expect_warnings: 0
       expect_error_contains: "Agent path is a directory, not a file"
       why: "claude-skills-244 Gate 3 finding — reachable with ZERO mutation on real production code: an agents array entry resolving to a directory (root_b/my-plugin/agents, empty, created above) hit validate-agent-md's `open $agent_path --raw` and crashed the entire self-test run with an uncaught nu::shell::io::is_a_directory error, silently discarding every already-recorded failure and every case queued after it. Fixed with a `path type` guard reporting a clean error instead of crashing; this fixture is the regression guard for that fix, not just a coverage gap"
+    }
+    {
+      name: "skill_symlink_to_real_file_accepts"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/symlinked-skill"] }
+      expect_errors: 0
+      expect_warnings: 0
+      why: "claude-skills-244 Gate 3 round 3 — regression guard for the symlink false-positive team-lead's reviewer found: skills/symlinked-skill/SKILL.md (created above) is a REAL on-disk symlink pointing at a real, valid SKILL.md. Before the `path expand` fix, bare `path type` reported 'symlink' (not 'file') and this would have been wrongly rejected as missing. Must accept cleanly with zero errors/warnings — proves the ACCEPT direction the reject-direction fixtures above don't cover. If the `path expand` guard is reverted to bare `path type`, this case fails by an ordinary assertion mismatch (expected 0 errors, got 1), not a crash — verified directly"
+    }
+    {
+      name: "agent_symlink_to_real_file_accepts"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", agents: ["agents/symlinked-agent.md"] }
+      expect_errors: 0
+      expect_warnings: 0
+      why: "claude-skills-244 Gate 3 round 3 — same regression guard as skill_symlink_to_real_file_accepts, for the agents path. agents/symlinked-agent.md (created above) is a REAL on-disk symlink to a valid agent .md file. Same revert behavior verified: reverting to bare `path type` fails this case by ordinary assertion mismatch, not a crash"
     }
   ]
 
@@ -1728,6 +1848,13 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "Marketplace not found"
       why: "validate-from-marketplace's marketplace-file-missing branch"
+    }
+    {
+      name: "cli_marketplace_path_is_directory_exit_1"
+      args: ["somename", "--marketplace", $cli_plugin_dir]
+      expect_exit: 1
+      expect_output_contains: "Marketplace path is not a file"
+      why: "claude-skills-244 Gate 3 round 3 finding — a THIRD reachable open() crash, found by sweeping every `open` call site in this file after #223/#224 fixed the first two. `path exists` is true for directories, and this open() had no try/catch (unlike the two safe `open $plugin_path` sites, verified separately to catch is_a_directory via try/catch). Reused cli_plugin_dir (already a real directory from the earlier fixtures) as the --marketplace argument — reproduces with zero mutation and no plugin.json involved: a plain CLI typo pointing --marketplace at a directory instead of marketplace.json"
     }
     {
       name: "cli_marketplace_plugin_not_found_exit_1"
