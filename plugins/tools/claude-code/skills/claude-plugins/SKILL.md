@@ -145,6 +145,12 @@ nu <CLAUDE_SKILL_DIR>/scripts/validate-plugin.nu --self-test   # fixture suite f
 
 With `--marketplace`, it also checks that `description` and `keywords` agree with the plugin's marketplace entry, when that entry's `source` is a local path. **`plugin.json` is authoritative.** Entries whose `source` is a GitHub object are skipped — there is no local manifest to compare. When plugin.json defines a field, the marketplace entry must carry it too: an entry that omits `description` or `keywords` while plugin.json defines them is flagged as missing, not treated as agreement (`marketplace.json entry is missing '<field>' that plugin.json defines`). A field plugin.json itself omits is not compared at all. `keywords` compares as a sorted list, so reordering the array alone is not a mismatch — only a genuine difference in members is.
 
+### Verifying self-test coverage against always-pass mutations
+
+`--strict` (above) makes every check in `validate-plugin.nu` load-bearing, which means a check that regresses to always-pass — or has its reject branch quietly removed — stays invisible to `mise run test:plugins` (that task only catches a check mutated to always FAIL, since it runs the marketplace path against 30 real, currently-valid plugins). This exact shape shipped once already (claude-skills-234/238): the agent `model` allowlist had zero fixture coverage and only became a CI blocker the moment `--strict` landed.
+
+Run `nu <CLAUDE_SKILL_DIR>/scripts/mutation-probe.nu` on demand (not wired into `mise test` — each probe reruns the full `--self-test` suite as a subprocess) to verify `--self-test` still catches a curated set of known-dangerous mutations: neuter a check function to always-pass, or flip one of its `exit 1` branches to `exit 0`, in a **temp copy** of `validate-plugin.nu` — the real file is opened read-only and never mutated in place, so an interrupt mid-run cannot leave it changed. An interrupt (or a CRASHED probe, even uninterrupted) can still leave temp directories behind — the probe's own copy dir, plus whatever fixture dirs the killed child `--self-test` had open — since their cleanup never gets a chance to run; these are OS-purged, not cleaned up by this script. Each probe also asserts self-test's own failure banner (`self-test failed:`) appears — not just a nonzero exit, which a crash also produces without any fixture having caught anything — AND that the specific expected case name is among the printed failures, so a different, unrelated fixture masking the real gap doesn't read as a pass. A stale probe (its `find` text no longer present) fails the run rather than silently reporting a hollow "all caught." Add a new probe (a `find`/`replace`/`expect_case_substring` triple in the script's `$probes` list) whenever a new check ships.
+
 What each message means, and the install-time failures no script detects, is in `references/validation-and-troubleshooting.md`.
 
 ## Creating a plugin
@@ -181,6 +187,7 @@ Bundled in this skill's `scripts/` directory, run as `nu <CLAUDE_SKILL_DIR>/scri
 | `validate-plugin.nu` | Complete plugin.json validation |
 | `init-plugin.nu` | Generate a plugin.json template |
 | `format-plugin.nu` | Format and sort plugin.json |
+| `mutation-probe.nu` | On-demand check that `--self-test` catches always-pass/reject-neutered mutations of `validate-plugin.nu`'s own checks |
 
 ## References
 
