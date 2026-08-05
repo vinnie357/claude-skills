@@ -479,9 +479,17 @@ def validate-plugin-content [
           # can't reach `open` with a non-file path, because `path expand |
           # path type` on a path that doesn't really exist resolves to
           # empty (not "file"), same as it does for a genuine directory.
-          # A broken/dangling symlink never reaches either branch — `path
-          # exists` is already `false` for it, caught as "not found", not
-          # "wrong type"; don't "fix" that as a gap.
+          # A broken/dangling symlink IS caught here, but by THIS check
+          # specifically, not by the type check below (correction to an
+          # earlier draft of this comment, which wrongly attributed it to
+          # the type check — that claim was accurate for a prior, single-
+          # condition version of this guard, not this one). Bare `path
+          # exists` (unlike `path expand | path type`) follows a symlink to
+          # its target and reports whether the TARGET exists, so a dangling
+          # SKILL.md symlink makes `not ($skill_md | path exists)` true —
+          # verified directly. It lands here as "missing SKILL.md file",
+          # never reaching the `path expand | path type` branch at all;
+          # don't "fix" that as a gap.
           if not ($skill_md | path exists) {
             $errors = ($errors | append $"Skill directory '($skill)' missing SKILL.md file")
           } else if ($skill_md | path expand | path type) != "file" {
