@@ -447,29 +447,47 @@ def validate-plugin-content [
           $warnings = ($warnings | append $"Skill path not found: ($skill)")
         } else {
           let skill_md = ($skill_path | path join "SKILL.md")
-          if ($skill_md | path expand | path type) != "file" {
-            # claude-skills-244 Gate 3 round 2 — same crash class as the
-            # agents branch above, independently found and confirmed by
-            # team-lead's reviewer: validate-skill-md's `open $skill_md_path
-            # --raw` crashes with an uncaught nu shell I/O error whenever
-            # this guard wrongly believes SKILL.md exists. `!= "file"`
-            # (not `not (path exists)`) on purpose — `path dirname` of
-            # skill_md is skill_path itself, ALREADY confirmed to exist by
-            # the outer branch, so a mutation checking the dirname instead
-            # of skill_md leaves the ORIGINAL `not (path exists)` guard
-            # permanently inert (every missing-SKILL.md case would crash,
-            # not just a contrived one) — reproduced and verified directly.
-            # `path expand` BEFORE `path type` on purpose (Gate 3 round 3):
-            # bare `path type` reports "symlink" for a symlink regardless of
-            # what it points at, so a symlinked SKILL.md that `open` reads
-            # perfectly well would be false-positive rejected as "missing"
-            # without the expand — verified against all 6 relevant states
-            # (real file, real dir, symlink-to-file, symlink-to-dir, broken
-            # symlink, nonexistent) before applying this. A broken/dangling
-            # symlink never reaches this branch at all — `path exists`
-            # above is already `false` for it, so it's caught as "not
-            # found", not "wrong type"; don't "fix" that as a gap.
+          # claude-skills-244 Gate 3 rounds 2-4 — validate-skill-md's `open
+          # $skill_md_path --raw` crashes with an uncaught nu shell I/O
+          # error whenever this code believes SKILL.md is a readable file
+          # but it isn't. Two DISTINCT unsafe shapes, both reproduced with
+          # ZERO mutation on real pre-fix code (not just under a contrived
+          # mutation):
+          #   1. SKILL.md is a directory (e.g. `mkdir .../SKILL.md`) — the
+          #      original `not (path exists)` guard alone is TRUE-passing
+          #      (a directory exists), so it falls straight into `open` and
+          #      crashes. No mutation needed — round 4's Gate 3 finding.
+          #   2. A guard MUTATED to check the wrong thing (e.g. skill_md's
+          #      dirname, which is skill_path itself, already confirmed to
+          #      exist by the outer branch) makes a bare `not (path
+          #      exists)` guard permanently inert for every genuinely
+          #      missing SKILL.md — round 2's finding.
+          # Both are covered by requiring `path type == "file"` (after
+          # `path expand`, for symlink-safety — round 3's finding: bare
+          # `path type` reports "symlink" regardless of target, so a
+          # symlinked SKILL.md that `open` reads fine would be
+          # false-positive rejected without the expand) BEFORE calling
+          # validate-skill-md, structured as two checks on purpose rather
+          # than one `!= "file"` branch: the outer `not (path exists)`
+          # keeps the existing "missing SKILL.md file" message for the
+          # common case (genuinely absent), and the inner type check is a
+          # SEPARATE, more specific "is a directory" message — reported
+          # distinct on purpose (team-lead's Gate 3 round 4 finding: a
+          # vaguer shared message sends someone looking for an absent file
+          # when the real problem is a directory). The inner check also
+          # means this is safe in depth: even a mutated outer guard still
+          # can't reach `open` with a non-file path, because `path expand |
+          # path type` on a path that doesn't really exist resolves to
+          # empty (not "file"), same as it does for a genuine directory.
+          # A broken/dangling symlink never reaches either branch — `path
+          # exists` is already `false` for it, caught as "not found", not
+          # "wrong type"; don't "fix" that as a gap.
+          if not ($skill_md | path exists) {
             $errors = ($errors | append $"Skill directory '($skill)' missing SKILL.md file")
+          } else if ($skill_md | path expand | path type) != "file" {
+            let skill_md_type = ($skill_md | path expand | path type)
+            let type_desc = if $skill_md_type == "dir" { "a directory" } else { $"an unexpected path type \(($skill_md_type)\)" }
+            $errors = ($errors | append $"Skill directory '($skill)' has a SKILL.md that is ($type_desc), not a file")
           } else {
             # Validate SKILL.md content
             let validation = (validate-skill-md $skill_md $skill $verbose)
@@ -1526,6 +1544,20 @@ def self-test [] {
   mkdir ($root_b | path join "my-plugin" "commands")
   mkdir ($root_b | path join "my-plugin" "agents")
 
+  # claude-skills-244 Gate 3 round 4 — a skill whose "SKILL.md" is itself a
+  # DIRECTORY, not just absent. This is the regression guard #223 had (via
+  # agent_path_is_directory_errors) but this file's skills branch lacked:
+  # team-lead's reviewer proved `skill_dir_exists_no_skill_md_errors` above
+  # (SKILL.md simply absent) passes under BOTH the pre-#224 `not (path
+  # exists)` guard AND the fixed guard — reverting the fix left the whole
+  # 83-case suite green, because that fixture never distinguished which
+  # guard shape was running. This one does: a directory literally named
+  # "SKILL.md" passes `path exists` under the OLD guard (a directory
+  # exists) and crashes on real, unmutated pre-fix code with zero
+  # mutation — reproduced directly against the merged pre-#224 file before
+  # writing this fixture, same as the agents twin.
+  mkdir ($root_b | path join "my-plugin" "skills" "skill-md-is-dir" "SKILL.md")
+
   # claude-skills-244 Gate 3 round 3 — regression fixtures for the symlink
   # false-positive team-lead's reviewer flagged: bare `path type` reports
   # "symlink" regardless of what it points at, so a symlinked SKILL.md or
@@ -1608,6 +1640,15 @@ def self-test [] {
       expect_warnings: 0
       expect_error_contains: "missing SKILL.md file"
       why: "claude-skills-244 — 'Skill directory ... missing SKILL.md file' had zero coverage; skills/present-without-md genuinely EXISTS under root_b (so the path-not-found warning can't be what's firing) but has no SKILL.md, and root_b carries sources.md so that warning doesn't leak in"
+    }
+    {
+      name: "skill_md_is_directory_errors"
+      root: $root_b
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/skill-md-is-dir"] }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "SKILL.md that is a directory, not a file"
+      why: "claude-skills-244 Gate 3 round 4 — team-lead's reviewer found skill_dir_exists_no_skill_md_errors above passes under BOTH the pre-#224 `not (path exists)` guard and the fixed one, so it never pinned the fix: reverting the fix left the whole 83-case suite green. This fixture distinguishes them: skills/skill-md-is-dir/SKILL.md (created above) is a real on-disk DIRECTORY, which DOES pass a bare `path exists` check, so the old guard would fall straight into `open` and crash with zero mutation — reproduced directly against the merged pre-#224 file. Also pins the message-wording fix (team-lead's nit): a directory gets a distinct 'is a directory, not a file' message instead of the generic 'missing SKILL.md file', matching the agents branch's existing wording. Verified BOTH revert directions directly: fully reverting to bare `not (path exists)` (no type check at all) crashes this case with an uncaught nu::shell::io::is_a_directory, exit 1; reverting only the message split (keeping the `!= 'file'` type check but the old generic message) fails this case by an ordinary self-test assertion mismatch — expected an error containing 'SKILL.md that is a directory, not a file', got 'missing SKILL.md file' — exit 0 for the suite run itself but a reported self-test failure. Neither revert direction passes silently"
     }
     {
       name: "skill_path_missing_warns"
