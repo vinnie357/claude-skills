@@ -389,14 +389,24 @@ def validate-plugin-content [
       $errors = ($errors | append $"'name' must be a string, got ($name | describe)")
     } else {
       # Validate kebab-case
-      if not (is-kebab-case $name) {
+      let is_kebab = (is-kebab-case $name)
+      if not $is_kebab {
         $errors = ($errors | append $"Invalid name format: '($name)' \(must be kebab-case\)")
       }
 
       # Verify name matches expected
       if $name != $plugin_name {
         $errors = ($errors | append $"Name mismatch - expected '($plugin_name)', got '($name)'")
-      } else if $verbose {
+      } else if $verbose and $is_kebab {
+        # claude-skills-255 Gate 3 F1 — previously gated ONLY on the
+        # mismatch branch, not on $is_kebab. In direct-file mode
+        # $plugin_name is derived FROM $plugin.name (line ~242), so
+        # $name != $plugin_name can never be true here — the mismatch
+        # branch is dead in that mode, and the checkmark printed
+        # unconditionally for every string-typed name, including
+        # non-kebab ones, alongside the kebab-case error appended just
+        # above. Reproduced directly against pre-fix code
+        # ({"name":"bad_name",...} --verbose, exit 1) before this fix.
         print $"  ✓ name: ($name)"
       }
     }
@@ -539,39 +549,54 @@ def validate-plugin-content [
 
   if ($plugin | get -o description) == null {
     $warnings = ($warnings | append "Missing recommended field: description")
-  } else if $verbose and (is-string $plugin.description) {
-    # claude-skills-254 — gated on is-string so a wrong-typed description
-    # doesn't print this affirmative checkmark ahead of the type-check
-    # loop below appending its error for the same field. The loop still
-    # owns the actual error; this only withholds the premature "looks
-    # fine" line.
-    print $"  ✓ description: ($plugin.description)"
-  }
+  } else {
+    # claude-skills-255 Gate 3 item 3 — the marketplace-agreement check
+    # below MUST run before the affirmative checkmark decision, not after.
+    # Previously the checkmark (gated only on is-string) printed
+    # unconditionally ahead of this block, so a plugin.json description
+    # that disagreed with the marketplace entry produced BOTH
+    # '✓ description: ...' and the mismatch error for the same field in
+    # one --verbose --marketplace run. Reproduced directly against pre-fix
+    # code (desc-mismatch-plugin fixture, --marketplace --verbose, exit 1)
+    # before writing this fix.
+    let description_errors_before = ($errors | length)
 
-  # Description agreement with the marketplace entry — plugin.json is
-  # authoritative, the marketplace entry is the copy, and only when the
-  # caller actually has a marketplace entry to compare against (see
-  # --has-marketplace-context above and the caller for the gate). Within
-  # that scope, gated on plugin.json defining the field, not on the
-  # marketplace side: when plugin.json HAS a description, the marketplace
-  # entry omitting it is itself a failure (Level 1 discovery text silently
-  # disappearing from the marketplace listing), not a valid "both sides
-  # agree to omit it" state — a bare deletion of the marketplace field used
-  # to pass this check silently (claude-skills-170). plugin.json omitting
-  # the field entirely stays a soft warning above; nothing here.
-  # NOTE: `mise update-all-skills` does NOT maintain the all-skills
-  # description, so that one entry can drift again after this check passes.
-  if $has_marketplace_context {
-    let pj_description = ($plugin | get -o description)
-    if ($pj_description | is-not-empty) {
-      if ($mkt_description | is-empty) {
-        $errors = ($errors | append $"marketplace.json entry is missing 'description' that plugin.json defines: '($pj_description)'")
-      } else if ($pj_description != $mkt_description) {
-        let regen_note = if ($plugin | get -o name) == "all-skills" {
-          " \(mise update-all-skills does not maintain this description, so it can drift again\)"
-        } else { "" }
-        $errors = ($errors | append $"description mismatch — plugin.json is authoritative: plugin.json='($pj_description)' marketplace.json='($mkt_description)'($regen_note)")
+    # Description agreement with the marketplace entry — plugin.json is
+    # authoritative, the marketplace entry is the copy, and only when the
+    # caller actually has a marketplace entry to compare against (see
+    # --has-marketplace-context above and the caller for the gate). Within
+    # that scope, gated on plugin.json defining the field, not on the
+    # marketplace side: when plugin.json HAS a description, the marketplace
+    # entry omitting it is itself a failure (Level 1 discovery text silently
+    # disappearing from the marketplace listing), not a valid "both sides
+    # agree to omit it" state — a bare deletion of the marketplace field used
+    # to pass this check silently (claude-skills-170). plugin.json omitting
+    # the field entirely stays a soft warning above; nothing here.
+    # NOTE: `mise update-all-skills` does NOT maintain the all-skills
+    # description, so that one entry can drift again after this check passes.
+    if $has_marketplace_context {
+      let pj_description = ($plugin | get -o description)
+      if ($pj_description | is-not-empty) {
+        if ($mkt_description | is-empty) {
+          $errors = ($errors | append $"marketplace.json entry is missing 'description' that plugin.json defines: '($pj_description)'")
+        } else if ($pj_description != $mkt_description) {
+          let regen_note = if ($plugin | get -o name) == "all-skills" {
+            " \(mise update-all-skills does not maintain this description, so it can drift again\)"
+          } else { "" }
+          $errors = ($errors | append $"description mismatch — plugin.json is authoritative: plugin.json='($pj_description)' marketplace.json='($mkt_description)'($regen_note)")
+        }
       }
+    }
+
+    if $verbose and (is-string $plugin.description) and (($errors | length) == $description_errors_before) {
+      # claude-skills-254 — gated on is-string so a wrong-typed description
+      # doesn't print this affirmative checkmark ahead of the type-check
+      # loop below appending its error for the same field. The loop still
+      # owns the actual error; this only withholds the premature "looks
+      # fine" line. claude-skills-255 — ALSO gated on the errors-delta
+      # above so a marketplace mismatch (appended just above, same field)
+      # withholds it too.
+      print $"  ✓ description: ($plugin.description)"
     }
   }
 
@@ -1125,6 +1150,26 @@ def validate-plugin-content [
     let channels_type = ($plugin.channels | describe)
     if not (is-array-type $channels_type) {
       $errors = ($errors | append $"'channels' must be an array, got ($channels_type)")
+    } else {
+      # claude-skills-255 Gate 3 — cheap subset of the channels class check:
+      # upstream documents each channel entry's 'server' field as a
+      # required string ("must match a key in the plugin's mcpServers").
+      # This validator checks TYPE only when present, same is-string idiom
+      # as author/dependencies above — not presence, and not the
+      # cross-field match against mcpServers keys (both would need new
+      # machinery and stay deferred). Before this fix, 'channels:
+      # [{server: 42}]' passed with 0 errors; reproduced directly against
+      # pre-fix code before writing this fix. Non-record entries are
+      # skipped here — validating entry-shape itself is the same deferred
+      # scope as the cross-field check.
+      for channel in $plugin.channels {
+        if ($channel | describe | str starts-with "record") {
+          let server = ($channel | get -o server)
+          if ($server != null) and not (is-string $server) {
+            $errors = ($errors | append $"channels entry 'server' must be a string, got ($server | describe)")
+          }
+        }
+      }
     }
   }
 
@@ -2110,6 +2155,20 @@ def self-test [] {
       expect_errors: 1
       expect_warnings: 0
     }
+    {
+      name: "channels_entry_server_wrong_type_errors"
+      why: "claude-skills-255 Gate 3 — channels entry 'server' (upstream: required string matching an mcpServers key) was entirely unvalidated; a bare number passed with 0 errors before this fix. Cheap subset: type-checked when present, not presence itself and not the mcpServers cross-field match (both deferred, need new machinery)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: 42 }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "channels_entry_server_string_accepted"
+      why: "claude-skills-255 Gate 3 — a correctly-typed 'server' string must produce zero errors"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: "telegram" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
     # claude-skills-253 — seven scalar metadata fields ($schema, displayName,
     # description, homepage, repository, license, defaultEnabled) had NO
     # type checking at all before this fix (Gate 3 finding on PR #231): a
@@ -3055,6 +3114,19 @@ def self-test [] {
   mkdir ($cli_name_wrong_type_dir | path join ".claude-plugin")
   { name: 42, version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_name_wrong_type_dir | path join ".claude-plugin" "plugin.json")
 
+  # claude-skills-255 Gate 3 F1 — a valid-typed but non-kebab-case 'name',
+  # run with --verbose, direct-file mode. Before this fix, the '✓ name:'
+  # checkmark was gated ONLY on the name-mismatch branch below the
+  # kebab-case check, not on the kebab-case result itself. In direct-file
+  # mode plugin_name is derived FROM plugin.name (line ~242), so the
+  # mismatch branch can never fire and the checkmark printed for every
+  # string-typed name, including this one, alongside its own kebab-case
+  # error. Reproduced directly against pre-fix code before writing this
+  # fixture.
+  let cli_name_bad_kebab_verbose_dir = ($cli_temp_dir | path join "name-bad-kebab-verbose-plugin")
+  mkdir ($cli_name_bad_kebab_verbose_dir | path join ".claude-plugin")
+  { name: "bad_name", version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_name_bad_kebab_verbose_dir | path join ".claude-plugin" "plugin.json")
+
   # Shape 1b — marketplace mode reaches the SAME defect through a DIFFERENT
   # call site (validate-plugin-content's own is-kebab-case call, only
   # reachable when this function is invoked directly by
@@ -3459,6 +3531,21 @@ def self-test [] {
       why: "claude-skills-238 Gate 3 finding — the description-agreement check (claude-skills-170, validate-plugin.nu's has_marketplace_context block around the pj_description comparison) had zero reject-direction coverage; neutering that block to `if false` left the pre-fix suite green"
     }
     {
+      name: "cli_marketplace_description_mismatch_verbose_no_checkmark"
+      args: ["desc-mismatch-plugin", "--marketplace", $cli_marketplace_path, "--verbose"]
+      expect_exit: 1
+      expect_output_contains: "description mismatch"
+      expect_output_not_contains: "✓ description"
+      why: "claude-skills-255 Gate 3 item 3 — before this fix, the '✓ description: ...' checkmark (gated only on is-string) printed unconditionally BEFORE the marketplace-agreement block ran, so a description disagreement produced both the checkmark and the mismatch error for the same field in one --verbose --marketplace run. Reproduced directly against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_marketplace_valid_local_plugin_verbose_shows_description_checkmark"
+      args: ["my-plugin", "--marketplace", $cli_marketplace_path, "--verbose"]
+      expect_exit: 0
+      expect_output_contains: "✓ description:"
+      why: "claude-skills-255 Gate 3 item 3, positive counterpart — reuses the marketplace success-path fixture (plugin.json and marketplace.json descriptions already agree) to pin that the checkmark still prints when there is no mismatch, not just that it's suppressed when there is one"
+    }
+    {
       name: "cli_marketplace_keywords_mismatch_exit_1"
       args: ["keywords-mismatch-plugin", "--marketplace", $cli_marketplace_path]
       expect_exit: 1
@@ -3478,6 +3565,21 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "'name' must be a string, got int"
       why: "claude-skills-251 shape 1a — a plugin.json 'name' present but wrong-typed crashed uncaught at the call into validate-plugin-content: default \"unknown\" only replaces null/missing, so the raw int reaches a `string`-typed positional param and nushell raises cant_convert at the call boundary, before validate-plugin-content's own body ever runs. Reproduced directly against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_name_bad_kebab_verbose_no_checkmark"
+      args: [($cli_name_bad_kebab_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 1
+      expect_output_contains: "Invalid name format: 'bad_name' (must be kebab-case)"
+      expect_output_not_contains: "✓ name"
+      why: "claude-skills-255 Gate 3 F1 — before this fix, the '✓ name:' checkmark was gated ONLY on the name-mismatch branch, not on the kebab-case result sitting right next to it. In direct-file mode plugin_name is derived FROM plugin.name, so the mismatch branch is dead code and the checkmark printed for every string-typed name including non-kebab ones. Reproduced directly against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_valid_verbose_shows_name_checkmark"
+      args: [($cli_valid_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 0
+      expect_output_contains: "✓ name: valid-verbose-plugin"
+      why: "claude-skills-255 Gate 3 F1, positive counterpart — reuses the defect-1 valid-verbose-plugin fixture (already a fully valid, kebab-case name) to pin that the checkmark still prints when is_kebab is true, not just that it's suppressed when false"
     }
     {
       name: "cli_name_wrong_type_marketplace_exit_1"
