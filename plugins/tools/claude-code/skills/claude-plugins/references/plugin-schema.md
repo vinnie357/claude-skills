@@ -77,12 +77,12 @@ Complete JSON schema for Claude Code plugin.json files.
 
 ### skills (Optional)
 - **Type**: String or Array of strings
-- **Description**: Paths to skill directories (relative to plugin root). Unlike `commands`/`agents`, a string value ADDS to the default `skills/` scan rather than replacing it — the default `skills/` directory is always scanned, and directories listed here are loaded alongside it
+- **Description**: Paths to skill directories (relative to plugin root). Unlike `commands`/`agents`, a string value ADDS to the default `skills/` scan rather than replacing it — the default `skills/` directory is always scanned, and directories listed here are loaded alongside it. Exception: for a marketplace entry whose `source` resolves to the marketplace root (e.g. `"source": "./"`, as this repo's own `all-skills` plugin uses), declaring specific subdirectories REPLACES the default `skills/` scan instead of adding to it
 - **Format**: Each path should point to a directory containing SKILL.md
 - **Formats**:
   - String: `"./custom/skills/"` (a single directory, merged with the default scan)
   - Array: `["./skills/git", "./skills/documentation"]`
-- claude-skills-248: upstream (code.claude.com/docs/en/plugins-reference) documents this as `string | array`, same shape as `commands`/`agents`, but explicitly states the different ADD-vs-REPLACE semantic. The validator accepts the string form as a single path, existence-checked exactly like an array entry — same as `commands`/`agents`, it does not scan a directory's contents (that's the Claude Code loader's job, not this validator's).
+- claude-skills-248: upstream (code.claude.com/docs/en/plugins-reference) documents this as `string | array`, same shape as `commands`/`agents`, but explicitly states the different ADD-vs-REPLACE semantic (plus the marketplace-root exception above). The validator accepts the string form, existence-checked as a single path; unlike array entries, no SKILL.md check applies — the string names a parent of skill directories, not a skill directory itself, so this validator does not scan its contents (that's the Claude Code loader's job, not this validator's). An array entry, by contrast, IS treated as one skill directory: it gets existence, `<entry>/SKILL.md` presence, and frontmatter validation — verified directly, the two forms are not equivalent checks.
 
 ### commands (Optional)
 - **Type**: String or Array of strings
