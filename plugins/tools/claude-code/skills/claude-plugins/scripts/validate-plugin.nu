@@ -1164,10 +1164,24 @@ def self-test [] {
       expect_warnings: 1
     }
     {
+      name: "top_level_version_two_segment_warns"
+      why: "claude-skills-238 Gate 3 (team-lead's independent review) — a stub is-semver reading '^[0-9]' (starts-with-digit) survived the pre-fix 66-case suite unchanged, because both existing reject fixtures ('not-a-version', 'v1.0.0') start with a non-digit and every accept fixture is a full 'X.Y.Z'. A two-segment version like '1.0' starts with a digit (so the stub wrongly accepts it) but is missing the required patch component (so the real check must still warn) — this is the one dimension ('has three dot-separated numeric segments', not merely 'starts with a digit') the prior fixtures never isolated"
+      plugin: { name: "my-plugin", version: "1.0", description: "test fixture", license: "MIT" }
+      expect_errors: 0
+      expect_warnings: 1
+    }
+    {
       name: "plugin_name_bad_kebab_case_errors"
       why: "claude-skills-238 — is-kebab-case (the plugin.json top-level 'name' field) had zero fixture coverage of the reject direction; every existing case uses a valid kebab-case name. Also exercises the is-kebab-case helper now that it's wired into this call site instead of a duplicated inline regex"
       plugin: { name: "My_Plugin", version: "1.0.0", description: "test fixture", license: "MIT" }
       expect_errors: 2  # invalid name format, AND name mismatch (fixture always passes plugin_name="my-plugin" as expected — see the loop below)
+      expect_warnings: 0
+    }
+    {
+      name: "plugin_name_snake_case_errors"
+      why: "claude-skills-238 Gate 3 (team-lead's independent review) — a stub is-kebab-case reading '^[a-z0-9_]+(-[a-z0-9_]+)*\$' (accepting underscores) survived the pre-fix 66-case suite unchanged, because the only reject fixture, 'My_Plugin', carries BOTH an uppercase letter AND an underscore — the uppercase alone is enough to fail it under the stub too, so the fixture never isolated which rule actually rejected it. 'my_plugin' is lowercase (so the stub's uppercase-tolerant claim is moot) and differs from valid kebab-case in exactly the underscore dimension"
+      plugin: { name: "my_plugin", version: "1.0.0", description: "test fixture", license: "MIT" }
+      expect_errors: 2  # invalid name format, AND name mismatch (same shape as plugin_name_bad_kebab_case_errors above — fixture always passes plugin_name="my-plugin" as expected)
       expect_warnings: 0
     }
   ]
@@ -1358,7 +1372,8 @@ def self-test [] {
       name: "tools_as_yaml_list"
       content: "---\nname: my-agent\ndescription: test fixture\ntools:\n  - Bash\n  - Read\n---\n\nbody\n"
       expect_errors: 1
-      why: "tools must be a comma-separated string, not a YAML array — the bee's own 'tools given as a YAML list' example"
+      expect_error_contains: "comma-separated string, not YAML array"
+      why: "tools must be a comma-separated string, not a YAML array — the bee's own 'tools given as a YAML list' example. Message-specificity is pinned (not just the count) because the list branch and the wrong-type branch below both error, so an error-count-only assertion can't tell them apart — a claude-skills-238 Gate 3 finding on this exact PR (team-lead's independent review): neutering the list branch to `if false` left this case's count-only assertion green since the else-if wrong-type fallback still fired"
     }
     {
       name: "tools_wrong_type"
@@ -1374,6 +1389,10 @@ def self-test [] {
     let result = (validate-agent-md $agent_md_path "fixture-agent" false)
     if ($result.errors | length) != $c.expect_errors {
       $failures = ($failures | append $"agent_md_($c.name): expected ($c.expect_errors) errors, got (($result.errors | length)): ($result.errors | to nuon) -- ($c.why)")
+    }
+    let expect_error_contains = ($c | get -o expect_error_contains)
+    if ($expect_error_contains != null) and not ($result.errors | any {|e| $e | str contains $expect_error_contains }) {
+      $failures = ($failures | append $"agent_md_($c.name): expected an error containing '($expect_error_contains)', got: ($result.errors | to nuon) -- ($c.why)")
     }
   }
   rm -rf $agent_md_temp_dir
