@@ -26,7 +26,8 @@
 {{ list | sort }}                     {# sort ascending #}
 {{ list | reverse | list }}           {# reverse order #}
 {{ list | unique }}                   {# remove duplicates #}
-{{ list | flatten }}                  {# flatten nested lists one level #}
+{{ list | flatten }}                  {# flatten ALL levels of nesting (unbounded) — verified live: [[1,2],[3,[4,5]]] | flatten → [1,2,3,4,5] #}
+{{ list | flatten(levels=1) }}        {# flatten only 1 level — [[1,2],[3,[4,5]]] | flatten(levels=1) → [1,2,3,[4,5]] #}
 {{ list | flatten(levels=2) }}        {# flatten 2 levels deep #}
 {{ list | min }}                      {# smallest value #}
 {{ list | max }}                      {# largest value #}
@@ -80,7 +81,7 @@
 {{ "nginx.conf" | splitext }}                 {# ["nginx", ".conf"] #}
 {{ path | expanduser }}                       {# expand ~ #}
 {{ path | realpath }}                         {# resolve symlinks #}
-{{ "/etc" | path_join("nginx", "conf.d") }}   {# "/etc/nginx/conf.d" #}
+{{ ['/etc', 'nginx', 'conf.d'] | path_join }} {# "/etc/nginx/conf.d" — path_join takes ONE piped-in list (not filter args); verified live that "/etc" | path_join("nginx","conf.d") errors: "path_join() takes 1 positional argument but 3 were given" #}
 ```
 
 ## Type Conversion Filters
@@ -101,10 +102,13 @@
 ## Default and Fallback Filters
 
 ```jinja
-{# Return default if variable is undefined or empty #}
+{# Return default ONLY if variable is undefined — an empty string stays empty.
+   Verified live: '' | default('fallback') → '' (not 'fallback') #}
 {{ my_var | default('fallback') }}
 
-{# Return default only if variable is undefined (not if empty string) #}
+{# With boolean=true, return default if variable is undefined OR falsy
+   (empty string, 0, false, [], {}) — the OPPOSITE of the no-arg form above.
+   Verified live: '' | default('fallback', true) → 'fallback' #}
 {{ my_var | default('fallback', boolean=true) }}
 
 {# Omit the key entirely from a module call if variable is undefined #}

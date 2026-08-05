@@ -41,16 +41,16 @@ The first frontmatter block configures the entire presentation:
 | `author` | string | — | Author name for exported files |
 | `info` | string | `false` | Presentation description (Markdown) |
 | `download` | boolean/string | `false` | Enable PDF download in SPA |
-| `exportFilename` | string | `slidev-exported` | Export file name |
+| `exportFilename` | string \| null | `''` (empty) | Export file name — verified against `packages/types/src/frontmatter.ts` on the slidevjs/slidev GitHub repo: default is an empty string (auto-derived filename), not a literal `"slidev-exported"` |
 | `highlighter` | string | `shiki` | Code highlighter |
 | `lineNumbers` | boolean | `false` | Show line numbers in code blocks |
 | `monaco` | boolean/string | `true` | Enable Monaco editor |
 | `twoslash` | boolean/string | `true` | Enable TwoSlash syntax |
-| `mdc` | boolean | `false` | Enable MDC (Markdown Components) syntax |
-| `colorSchema` | string | `auto` | Color scheme: `auto`, `light`, `dark` |
+| `mdc` | boolean | `false` | **Deprecated** — verified against the same source file (`@deprecated MDC is now Comark. Use the \`comark\` option instead`); the key still works but new decks should use `comark: true` |
+| `colorSchema` | string | `auto` | Color scheme: `auto`, `light`, `dark`, `all` (verified against `packages/types/src/frontmatter.ts`: 4 choices, `all` was missing here) |
 | `aspectRatio` | string | `16/9` | Slide aspect ratio |
 | `canvasWidth` | number | `980` | Canvas width in pixels |
-| `routerMode` | string | `history` | Vue Router mode: `history`, `hash` |
+| `routerMode` | string | `history` | Vue Router mode: `history`, `hash`, `memory` (verified against `packages/types/src/frontmatter.ts`: 3 choices, `memory` — routing kept in memory, URL never reflects slide number, for kiosk/follower decks — was missing here) |
 | `selectable` | boolean | `true` | Allow text selection |
 | `record` | boolean/string | `dev` | Enable slide recording |
 | `presenter` | boolean/string | `true` | Enable presenter mode |
@@ -76,10 +76,10 @@ clicks: 3
 |----------|------|---------|-------------|
 | `layout` | string | `cover`/`default` | Layout component name |
 | `transition` | string/object | — | Slide transition |
-| `clicks` | number | `0` | Custom click animation count |
+| `clicks` | number | auto-calculated | Total clicks needed on this slide — verified against `packages/types/src/frontmatter.ts` on the slidevjs/slidev GitHub repo: there is no fixed default of `0`; when omitted, Slidev calculates it from the `v-click`/`v-clicks` usage on the slide |
 | `clicksStart` | number | `0` | Custom starting click count |
-| `disabled` | boolean | `false` | Disable and hide slide |
-| `hide` | boolean | `false` | Alias for `disabled` |
+| `disabled` | boolean | `false` | Disable and hide slide — same source documents `disabled` as "same as `hide`", i.e. `disabled` is the alias, not the other way around (functionally interchangeable either way) |
+| `hide` | boolean | `false` | Disable and hide slide |
 | `hideInToc` | boolean | `false` | Hide from table of contents |
 | `level` | number | `1` | Title level for TOC |
 | `preload` | boolean | `true` | Pre-mount slide before entry |

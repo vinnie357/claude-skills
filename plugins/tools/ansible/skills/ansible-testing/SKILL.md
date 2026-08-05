@@ -19,16 +19,19 @@ Molecule provides a framework to spin up a test environment, run your role again
 
 ## Molecule Test Phases
 
-Molecule runs these phases in order when you execute `molecule test`:
+Molecule runs these phases in order when you execute `molecule test` — verified live against molecule 26.6.0's own `molecule test --help`, which prints its phase list directly: `Test (dependency, cleanup, destroy, syntax, create, prepare, converge, idempotence, side_effect, verify, cleanup, destroy)`. There is no standalone `lint` phase or `molecule lint` command in current Molecule — `ansible-lint`/`yamllint` are no longer a first-class Molecule action; run them directly (see "Linting" below) or wire them into CI alongside `molecule test`.
 
 | Phase | What it does |
 |-------|-------------|
-| `lint` | Run `ansible-lint` and `yamllint` on your role |
+| `dependency` | Install role/collection dependencies (per `dependency:` config) |
+| `cleanup` | Optional: cleanup tasks before destroy |
 | `destroy` | Remove any leftover test instances |
+| `syntax` | Syntax-check the converge playbook |
 | `create` | Spin up fresh test instances (containers or VMs) |
 | `prepare` | Optional: run a prepare playbook before converge |
 | `converge` | Apply your role to the test instances |
-| `idempotency` | Run converge again — assert zero changes |
+| `idempotence` | Run converge again — assert zero changes |
+| `side_effect` | Optional: apply changes to test failure/recovery scenarios |
 | `verify` | Run your test assertions against live instances |
 | `cleanup` | Optional: cleanup tasks before destroy |
 | `destroy` | Tear down all test instances |
@@ -40,7 +43,7 @@ molecule converge     # apply role (keep instance running)
 molecule verify       # run assertions only
 molecule login        # SSH into the test instance
 molecule destroy      # tear down
-molecule test         # full cycle: destroy → create → converge → verify → destroy
+molecule test         # full cycle above: dependency → cleanup → destroy → syntax → create → prepare → converge → idempotence → side_effect → verify → cleanup → destroy
 ```
 
 ## Install Molecule
@@ -57,9 +60,11 @@ From inside an existing role directory:
 
 ```bash
 cd roles/my_role
-molecule init scenario --driver-name docker         # default scenario
-molecule init scenario staging --driver-name podman  # named scenario
+molecule init scenario           # default scenario
+molecule init scenario staging   # named scenario
 ```
+
+`molecule init scenario` takes only an optional scenario-name argument — verified live against molecule 26.6.0 (`molecule init scenario --help` shows no other options) and by running it: `--driver-name docker` errors `Error: No such option '--driver-name'.` The driver is no longer chosen at scaffold time; it's configured (or auto-selected) separately — see "molecule.yml Structure" below.
 
 This creates:
 
@@ -67,53 +72,78 @@ This creates:
 roles/my_role/
 └── molecule/
     └── default/             # scenario name
-        ├── molecule.yml     # driver, platforms, verifier config
+        ├── molecule.yml     # scenario config (see below)
+        ├── create.yml       # playbook that provisions test instances
         ├── converge.yml     # playbook Molecule runs against instances
-        ├── verify.yml       # assertions (if using ansible verifier)
-        └── prepare.yml      # optional: pre-role setup
+        ├── destroy.yml      # playbook that tears instances down
+        └── verify.yml       # assertions (if using the ansible verifier)
 ```
+
+Verified live via `molecule init scenario` with molecule 26.6.0 + molecule-plugins[docker] installed — exactly these 5 files are generated, no `prepare.yml` (the running scenario's `molecule.yml` references a `prepare.yml` playbook path but does not create the file; add it by hand if your role needs a prepare step).
 
 ## molecule.yml Structure
 
+**This schema changed from the classic `driver:`/`platforms:`/`provisioner:`/`verifier:`/`lint:` top-level keys documented in older Molecule guides.** Verified live (molecule 26.6.0, both with and without `molecule-plugins[docker]` installed — same result either way) — `molecule init scenario`'s actual default output is:
+
 ```yaml
-# molecule/default/molecule.yml
+# molecule/default/molecule.yml — captured verbatim from a live `molecule init scenario` run, molecule 26.6.0
 ---
 dependency:
   name: galaxy
   options:
-    requirements-file: requirements.yml   # install Galaxy deps before testing
+    ignore-certs: false
+    ignore-errors: false
+    role-file: requirements.yml
+    requirements-file: requirements.yml
 
-driver:
-  name: docker                            # docker, podman, delegated
-
-platforms:
-  - name: instance                        # container name
-    image: geerlingguy/docker-ubuntu2204-ansible  # pre-built image with systemd+Python
-    pre_build_image: true
-    command: /lib/systemd/systemd         # init system (for service tests)
-    privileged: true                      # needed for systemd inside Docker
-
-provisioner:
-  name: ansible
-  playbooks:
-    converge: converge.yml
-    prepare: prepare.yml                  # optional
-  config_options:
+ansible:
+  cfg:
     defaults:
-      interpreter_python: auto_silent
-  inventory:
-    group_vars:
-      all:
-        ansible_user: root
+      host_key_checking: false
+      verbosity: 1
+    ssh_connection:
+      pipelining: true
+  env:
+    ANSIBLE_FORCE_COLOR: "1"
+    ANSIBLE_LOAD_CALLBACK_PLUGINS: "1"
+  executor:
+    backend: ansible-playbook
+    args:
+      ansible_playbook:
+        - --diff
+        - --force-handlers
+        - --inventory=/path/to/inventory.yml
+      ansible_navigator:
+        - --mode stdout
+        - --pull-policy missing
+        - --execution-environment-image ghcr.io/ansible/community-ansible-dev-tools:latest
+  playbooks:
+    create: create.yml
+    converge: converge.yml
+    destroy: destroy.yml
+    cleanup: cleanup.yml
+    prepare: prepare.yml
+    side_effect: side_effect.yml
+    verify: verify.yml
 
-verifier:
-  name: ansible                           # or: testinfra
-
-lint: |
-  set -e
-  yamllint .
-  ansible-lint
+scenario:
+  name: default
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - side_effect
+    - verify
+    - cleanup
+    - destroy
 ```
+
+There is no `driver:`, `platforms:`, `provisioner:`, `verifier:`, or `lint:` top-level key in this generated template — driver/platform selection and verifier choice now live elsewhere (the `ansible.executor` block above shows both an `ansible-playbook` and an `ansible-navigator`/execution-environment path). **Out of scope for this verification pass**: the exact current mechanism for pinning a specific driver (Docker/Podman) and platform image under this new schema needs a dedicated follow-up — `molecule drivers` (verified live) lists `gce, azure, docker, ec2, containers, openstack, podman, vagrant, default` as installed drivers, but reproducing a full worked docker-platform example against this schema is more than a factual correction and hasn't been re-authored here. Treat the `driver:`/`platforms:` example previously in this section as unverified for molecule 26.6.0 rather than trusting it.
 
 ## converge.yml
 
@@ -196,10 +226,13 @@ Write a playbook of assertion tasks:
 Testinfra is a Python testing library with a pytest interface. More expressive for complex assertions.
 
 ```yaml
-# molecule.yml — switch verifier
+# molecule.yml — switch verifier (same schema caveat as "molecule.yml Structure"
+# above: `verifier:` was not present in a live 26.6.0 scaffold, unverified)
 verifier:
   name: testinfra
 ```
+
+The Testinfra assertion API itself below (module names, properties) IS independently verified — confirmed live against pytest-testinfra 10.2.2's actual source (`package`, `service`, `file`, `socket`, `command` modules; `is_installed`, `is_running`, `is_enabled`, `exists`, `mode`, `user`, `is_listening`, `stdout` all present).
 
 ```python
 # molecule/default/tests/test_nginx.py
@@ -232,10 +265,10 @@ def test_nginx_responds(host):
 ## Linting
 
 ```bash
-# Run all linting (yamllint + ansible-lint)
-molecule lint
-
-# Run ansible-lint directly
+# There is no `molecule lint` command in current Molecule (26.6.0) — verified
+# live: `molecule lint --help` errors "No such command 'lint'." Run the
+# linters directly instead:
+yamllint .
 ansible-lint roles/my_role/
 
 # yamllint config
@@ -257,7 +290,7 @@ profile: production      # safety, shared, production (strictest)
 
 ## Multiple Platforms
 
-Test across OS versions with multiple platform entries:
+Test across OS versions with multiple platform entries. **Same caveat as "molecule.yml Structure" above: this `platforms:` key was not present in a live molecule 26.6.0 scaffold — unverified against the current schema, kept here as the multi-platform intent to preserve rather than a confirmed-working example:**
 
 ```yaml
 platforms:
