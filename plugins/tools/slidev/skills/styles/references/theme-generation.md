@@ -248,18 +248,27 @@ slidev-theme-brand/
 {
   "name": "slidev-theme-brand",
   "version": "0.1.0",
-  "keywords": ["slidev-theme"],
+  "keywords": ["slidev-theme", "slidev"],
   "exports": {
     ".": "./styles/index.css"
   },
   "slidev": {
-    "colorSchema": "light",
-    "highlighter": "shiki"
+    "colorSchema": "light"
   }
 }
 ```
 
-The `keywords` array must include `"slidev-theme"` for Slidev to recognize the package.
+The `keywords` array must include both `"slidev-theme"` and `"slidev"` — verified against
+`docs/guide/write-theme.md` on the slidevjs/slidev GitHub repo ("Add `slidev-theme` and
+`slidev` in the `keywords` field"); the skill previously listed only `slidev-theme`.
+
+The `slidev.colorSchema` field here is theme metadata declaring which color schemes the
+theme supports (valid values: `light`, `dark`, `both`) — a different field from the
+per-presentation `colorSchema` frontmatter option (valid values: `auto`, `light`, `dark`,
+`all`), which is documented separately in the `syntax` skill. There is no documented
+`slidev.highlighter` package.json field; `highlighter` is a frontmatter/headmatter option
+set in `slides.md`, not theme metadata — the skill previously showed it (incorrectly) as a
+`package.json` key.
 
 Reference the local package in a presentation:
 

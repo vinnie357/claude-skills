@@ -23,6 +23,85 @@ last_full_check = "2026-07-30"
 # Monaco/LaTeX/Mermaid/PlantUML syntax details, the presentation-strategy
 # citations, WCAG/UnoCSS/Vue3 sources) — see the individual [[sources]]
 # entries below, most still marked "Not re-verified live in this pass."
+#
+# claude-skills-223 tier 2 continuation, 2026-08-05: the six skills the note
+# above left unchecked (code, export, interactive, presentations, styles,
+# troubleshooting) now got a claim-by-claim pass against live slidevjs/slidev
+# source (packages/types/src/{frontmatter,cli,config}.ts; packages/slidev/
+# node/{cli,commands/export,commands/build}.ts; packages/client/{context.ts,
+# composables/useNav.ts,layouts/iframe*.vue,internals/SlideWrapper.vue}; and
+# docs/{features/{code-groups,comark,line-highlighting,code-block-*,monaco-
+# editor,import-snippet,twoslash,shiki-magic-move}.md, guide/write-theme.md,
+# custom/directory-structure.md}, all fetched live from GitHub). STILL NOT
+# bumping last_full_check — see "Remaining uncovered" below.
+#
+# Corrections (code, troubleshooting): both still required only `mdc: true`
+# for code groups / MDC syntax, uncaveated — same deprecated-in-favor-of-
+# comark issue the July 30 pass fixed in syntax.md, left unfixed here.
+#
+# Corrections (interactive) — the highest-value find of this pass: SKILL.md,
+# vue-components.md (x2), and animation-patterns.md all called a nav-context
+# property `$slidev.nav.isExporting` to detect export/print rendering. That
+# property does not exist — verified against useNav.ts, the real property is
+# `isPrintMode`. SKILL.md separately conflated `isPresenter` (presenter
+# dual-window view) with export detection on the same line — a second,
+# distinct error. Both are the "inverted/wrong API name" class of finding
+# the bee's method flags as highest-value.
+#
+# Correction (interactive, iframe-mocks.md): "add class: 'border-0' to
+# remove the default iframe border" does not work — verified against
+# iframe.vue and SlideWrapper.vue that frontmatter `class` binds to the
+# slide's root wrapper, not the nested `<iframe id="frame">`, and CSS
+# border does not inherit through descendants. Corrected to global CSS
+# targeting `#frame` directly.
+#
+# Corrections (styles, theme-generation.md): package.json `keywords` example
+# listed only `"slidev-theme"` — write-theme.md requires both `"slidev-
+# theme"` and `"slidev"`. The same package.json sample also showed a
+# `slidev.highlighter` field, which does not exist in write-theme.md's
+# documented `slidev.*` package.json schema (`defaults`, `colorSchema`,
+# `engines.slidev`) — highlighter is a frontmatter/headmatter option, not
+# theme metadata; removed. Also flagged that `slidev.colorSchema` (theme
+# metadata: light/dark/both) and the per-slide `colorSchema` frontmatter
+# option (auto/light/dark/all) are different fields with different value
+# sets — easy to conflate, worth the explicit note in-file.
+#
+# Additions (export.md) — real, verified CLI surface the skill omitted
+# entirely: the `export-notes` command; `--per-slide` and `--scale` for
+# `slidev export`; `--router-mode` for `slidev build`; `--base`, `--log`,
+# `--inspect`, `--tunnel` for the dev server. `--wait`'s documented default
+# was `—` (blank); actual default is `0`, corrected.
+#
+# Additions (code.md) — verified against source, previously undocumented:
+# line-highlighting's `{hide}`/`{none}` special values; Magic Move's
+# `{at:N}`, per-block `duration`/headmatter `magicMoveDuration` (default
+# 800ms), and the filename title-bar syntax (since v0.52.0).
+#
+# Remaining uncovered (why last_full_check is still not bumped):
+# 1. sources.toml cites slidev-latex/slidev-mermaid/slidev-plantuml against
+#    the "code" skill, but code.md contains no Mermaid/PlantUML/LaTeX content
+#    at all — grepped the whole plugin; that syntax only appears as generic
+#    diagram usage in interactive/ and presentations/, never as a documented
+#    feature. These three sources' claims were never actually written into
+#    any skill, so "verifying" them found nothing to verify. Flagging as a
+#    content gap, not fixing by writing new sections — out of scope for a
+#    verification pass.
+# 2. presentations skill's core content (Pyramid Principle, SCQA, Assertion-
+#    Evidence, Duarte Sparkline, Presentation Zen, 10/20/30, Rule of Three)
+#    is author/book citations external to the slidevjs/slidev repo — no live
+#    source to check them against beyond what the six [[sources]] entries
+#    below already record (manual, rolling, not re-verified this pass either).
+# 3. Deferred as lower-value / not re-verified: code-groups' icon `~icon~`
+#    safelist requirement in uno.config.ts (undocumented in code.md, not
+#    added); Magic Move's copy-button and full title-bar option set (only
+#    `{at:}`/duration/filename added, not magicMoveCopy); the `--with-toc`
+#    "v0.36.10+" and browser-exporter "v0.50.0" version-gate claims (plausible,
+#    not checked against changelog/tags); troubleshooting.md's "slidev-theme-
+#    seriph" example package name (ambiguous — real official theme is scoped
+#    `@slidev/theme-seriph`; left as a generic naming-convention example
+#    rather than asserting an unscoped package of that name exists); the
+#    `--download` flag's possible `'auto'` value seen in build.ts (narrow,
+#    not clearly relevant to the documented boolean default).
 
 # ----------------------------------------------------------------------------
 # Slidev Syntax Guide — slide separators, frontmatter, headmatter, block
@@ -114,10 +193,10 @@ url = "https://sli.dev/features/code-blocks"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. Line ranges, click animations, at/finally, placeholder syntax. Not re-verified live in this pass."
+notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/line-highlighting.md and docs/features/shiki-magic-move.md on the slidevjs/slidev GitHub repo. Line ranges, click-based `|` highlighting, and Magic Move's 4-backtick fence all confirmed. Added: {hide}/{none} line values and Magic Move's {at:}/duration/title-bar, previously undocumented. 'at/finally' terminology in this entry's own Key Topics does not match live docs (no 'finally' keyword found) — the actual mechanism is {at:N} plus the {*} placeholder, both confirmed present."
 
 [[sources]]
 skills = ["code"]
@@ -126,10 +205,10 @@ url = "https://sli.dev/features/code-block-line-numbers"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. Not re-verified live in this pass."
+notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/code-block-line-numbers.md on the slidevjs/slidev GitHub repo. lines/startLine syntax and startLine default of 1 confirmed exact match."
 
 [[sources]]
 skills = ["code"]
@@ -138,10 +217,10 @@ url = "https://sli.dev/features/code-block-max-height"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. maxHeight property, scroll behavior. Not re-verified live in this pass."
+notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/code-block-max-height.md on the slidevjs/slidev GitHub repo. maxHeight syntax and the {*} placeholder confirmed."
 
 [[sources]]
 skills = ["code", "troubleshooting"]
@@ -150,10 +229,10 @@ url = "https://sli.dev/features/code-groups"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. MDC syntax, tab labels. troubleshooting/references/troubleshooting.md:164-173 ('Code Groups Not Rendering') requires mdc: true — verified direct dependency."
+notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/code-groups.md on the slidevjs/slidev GitHub repo. CORRECTION — the doc states code groups require Comark Syntax (comark: true), not mdc: true; mdc is a deprecated alias that still works (packages/types/src/frontmatter.ts). Fixed in code/references/code.md and troubleshooting/references/troubleshooting.md, both of which previously said mdc: true uncaveated."
 
 [[sources]]
 skills = ["code", "troubleshooting"]
@@ -162,10 +241,10 @@ url = "https://sli.dev/features/monaco-editor"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. Monaco syntax, diff mode, height configuration. troubleshooting/references/troubleshooting.md:175-179 ('Monaco Editor Not Appearing') — verified direct dependency."
+notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/monaco-editor.md and packages/types/src/frontmatter.ts on the slidevjs/slidev GitHub repo. {monaco}, {monaco-diff} with ~~~ separator, {height:'auto'|'300px'|'100%'}, monaco default true, monacoTypesSource default 'local' with cdn/local/none choices — all confirmed exact match, no corrections needed."
 
 [[sources]]
 skills = ["code"]
@@ -174,10 +253,10 @@ url = "https://sli.dev/features/import-snippet"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. <<< syntax, VS Code regions, language override. Not re-verified live in this pass."
+notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/import-snippet.md on the slidevjs/slidev GitHub repo. <<< syntax, @ alias, #region-name, language override, and the 'since v0.47.0' version claim all confirmed exact match (doc frontmatter: since: v0.47.0)."
 
 [[sources]]
 skills = ["code"]
@@ -189,7 +268,7 @@ version_constraint = "rolling"
 last_checked = "2026-02-21"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. KaTeX, inline/block math, chemical equations. Not re-verified live in this pass."
+notes = "sources.md Date Accessed 2026-02-21. KaTeX, inline/block math, chemical equations. Not re-verified live in this pass. claude-skills-223 tier 2 continuation, 2026-08-05: grepped the whole code skill (SKILL.md + references/code.md) for latex/katex content — none exists. This source's claims were never actually written into the skill; see [meta] 'Remaining uncovered' note. Content gap, not a false claim."
 
 [[sources]]
 skills = ["code"]
@@ -201,7 +280,7 @@ version_constraint = "rolling"
 last_checked = "2026-02-21"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. Mermaid syntax, theme configuration. Not re-verified live in this pass."
+notes = "sources.md Date Accessed 2026-02-21. Mermaid syntax, theme configuration. Not re-verified live in this pass. claude-skills-223 tier 2 continuation, 2026-08-05: grepped the whole code skill for mermaid content — none exists (Mermaid only appears as generic diagram usage in interactive/ and presentations/, not as documented slidev syntax). Content gap, not a false claim — see [meta] 'Remaining uncovered' note."
 
 [[sources]]
 skills = ["code"]
@@ -213,7 +292,7 @@ version_constraint = "rolling"
 last_checked = "2026-02-21"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. PlantUML syntax, server configuration. Not re-verified live in this pass."
+notes = "sources.md Date Accessed 2026-02-21. PlantUML syntax, server configuration. Not re-verified live in this pass. claude-skills-223 tier 2 continuation, 2026-08-05: grepped the whole code skill for plantuml content — none exists. Content gap, not a false claim — see [meta] 'Remaining uncovered' note."
 
 # ----------------------------------------------------------------------------
 # Slidev Export family — export CLI (PDF/PPTX/PNG/SPA) and the full CLI
@@ -230,10 +309,10 @@ url = "https://sli.dev/guide/exporting"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. Export formats, CLI flags, Playwright dependency, dark mode, click animations. troubleshooting/references/troubleshooting.md:1-73 (Export Issues section) verified as direct dependent."
+notes = "sources.md Date Accessed 2026-02-21. Export formats, CLI flags, Playwright dependency, dark mode, click animations. troubleshooting/references/troubleshooting.md:1-73 (Export Issues section) verified as direct dependent. claude-skills-223 tier 2 continuation, 2026-08-05: re-verified against packages/slidev/node/commands/export.ts (getExportOptions) on the slidevjs/slidev GitHub repo instead of the doc site. All existing CLI flag defaults confirmed (output, format=pdf, timeout=30000, dark=false, omit-background=false, wait-until=networkidle). Corrected --wait's documented default from blank to 0. Added --per-slide and --scale, both real flags absent from the table."
 
 [[sources]]
 skills = ["export", "slidev", "troubleshooting"]
@@ -242,10 +321,10 @@ url = "https://sli.dev/builtin/cli"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. dev, build, export, format commands with all flags and defaults. slidev/SKILL.md Quick Start section (npm init slidev@latest, npx slidev) and troubleshooting's --port / --force flags both verified as direct dependents."
+notes = "sources.md Date Accessed 2026-02-21. dev, build, export, format commands with all flags and defaults. slidev/SKILL.md Quick Start section (npm init slidev@latest, npx slidev) and troubleshooting's --port / --force flags both verified as direct dependents. claude-skills-223 tier 2 continuation, 2026-08-05: re-verified against packages/slidev/node/cli.ts on the slidevjs/slidev GitHub repo instead of the doc site. Dev server (--port/-p, --open/-o default false, --remote, --bind default 0.0.0.0, --force/-f default false, --theme/-t) and eject (--dir default 'theme') flags all confirmed. Added dev-server --base/--log/--inspect/--tunnel, build's --router-mode, and the entirely undocumented `export-notes` command — all real, all verified against this file, all previously missing from export/references/export.md."
 
 # ----------------------------------------------------------------------------
 # Presentation Strategy frameworks — six distinct authors/methodologies, each
@@ -365,6 +444,18 @@ update_priority = "low"
 breaking_changes_likely = false
 notes = "sources.md Date Accessed 2026-04-04. Theme shortcuts, CSS variables, custom rules. Not re-verified live in this pass."
 
+[[sources]]
+skills = ["styles"]
+name = "slidev-write-theme"
+url = "https://sli.dev/guide/write-theme"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-08-05"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "claude-skills-223 tier 2 continuation, 2026-08-05: new entry, verified live against docs/guide/write-theme.md and docs/custom/directory-structure.md on the slidevjs/slidev GitHub repo — the package.json theme-publishing conventions underpinning styles/references/theme-generation.md's 'Package Structure for Reusable Themes' and 'Slidev Theme File Structure' sections. CORRECTIONS: package.json keywords must include BOTH 'slidev-theme' and 'slidev' (skill previously listed only 'slidev-theme'); the skill's package.json sample showed a 'slidev.highlighter' field that does not exist in the documented slidev.* schema (defaults, colorSchema light/dark/both, engines.slidev) — highlighter is a frontmatter/headmatter option, removed from the package.json sample. Confirmed correct: styles/index.{css,js,ts} and uno.config.ts auto-loading, components/ auto-import, public/ served at root."
+
 # ----------------------------------------------------------------------------
 # Interactive Demos — Vue 3 reactivity, Slidev custom component integration,
 # iframe layouts.
@@ -388,10 +479,10 @@ url = "https://sli.dev/custom/vue-context"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-04-04"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-04-04. $slidev context, useSlideContext(), v-click integration, auto-import from components/. Not re-verified live in this pass."
+notes = "sources.md Date Accessed 2026-04-04. $slidev context, useSlideContext(), v-click integration, auto-import from components/. claude-skills-223 tier 2 continuation, 2026-08-05: re-verified against packages/client/context.ts and packages/client/composables/useNav.ts on the slidevjs/slidev GitHub repo instead of the doc site. useSlideContext() export and its {$slidev, $nav, $clicks, ...} return shape confirmed; $slidev.nav.{currentPage,clicks,total,isPresenter,next} all confirmed present. CORRECTION (highest-value find this pass): $slidev.nav.isExporting does not exist anywhere in the nav context — the real property is isPrintMode. Wrong in SKILL.md, vue-components.md (x2), and animation-patterns.md; SKILL.md separately conflated isPresenter with export detection on the same line. All four fixed."
 
 [[sources]]
 skills = ["interactive"]
@@ -400,7 +491,7 @@ url = "https://sli.dev/builtin/layouts#iframe"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-04-04"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-04-04. iframe, iframe-left, iframe-right layouts, URL property. Not re-verified live in this pass."
+notes = "sources.md Date Accessed 2026-04-04. iframe, iframe-left, iframe-right layouts, URL property. claude-skills-223 tier 2 continuation, 2026-08-05: re-verified against packages/client/layouts/iframe{,-left,-right}.vue and packages/client/internals/SlideWrapper.vue on the slidevjs/slidev GitHub repo instead of the doc site. iframe/iframe-left/iframe-right and the url prop confirmed (plus an undocumented scale prop, not added — out of scope). CORRECTION: 'add class: border-0 to remove the default iframe border' does not work — frontmatter class binds to the slide's outer wrapper div, not the nested <iframe id=\"frame\">, and CSS border does not inherit through descendants. Fixed in iframe-mocks.md with a global-CSS #frame alternative."

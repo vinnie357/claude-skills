@@ -164,7 +164,20 @@ url: /mocks/dashboard/index.html
 ---
 ```
 
-The slide body is replaced entirely by the iframe. Add `class: "border-0"` to remove the default iframe border.
+The slide body is replaced entirely by the iframe.
+
+The frontmatter `class` option applies to the slide's root wrapper element, not to the
+`<iframe id="frame">` element itself — verified against `packages/client/layouts/iframe.vue`
+and `packages/client/internals/SlideWrapper.vue` on the slidevjs/slidev GitHub repo. Since
+`border` does not inherit through descendant elements in CSS, setting `class: "border-0"` in
+frontmatter has no effect on the iframe's border. To remove it, add global CSS targeting the
+iframe by its fixed id (applies to every `iframe`/`iframe-left`/`iframe-right` slide in the
+deck, since the layouts all use `id="frame"`):
+
+```css
+/* styles/index.css */
+#frame { border: none; }
+```
 
 ### iframe on the Right
 

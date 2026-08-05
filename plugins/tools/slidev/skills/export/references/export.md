@@ -68,8 +68,14 @@ slidev export --format md
 | `--theme` | `-t` | string | — | Override theme |
 | `--omit-background` | — | boolean | `false` | Remove default browser background |
 | `--executable-path` | — | string | — | Custom Chromium executable path |
-| `--wait` | — | number | — | Wait time in ms after page load |
+| `--wait` | — | number | `0` | Wait time in ms after page load |
 | `--wait-until` | — | string | `networkidle` | Page load event to wait for |
+| `--per-slide` | — | boolean | `false` | Render slide by slide instead of one continuous page — needed for global components, breaks cross-slide links and TOC in PDF |
+| `--scale` | — | number | `2` | Device scale factor for image export |
+
+`--per-slide` and `--scale` were missing from this table — verified against
+`packages/slidev/node/commands/export.ts` (`getExportOptions`) and the `exportOptions()` yargs
+definitions in `packages/slidev/node/cli.ts` on the slidevjs/slidev GitHub repo.
 
 ### `--wait-until` Values
 
@@ -121,6 +127,22 @@ export:
 ---
 ```
 
+## Export Notes
+
+Export speaker notes to a separate PDF — a command missing from this reference until now,
+verified against the `export-notes` command in `packages/slidev/node/cli.ts`:
+
+```bash
+slidev export-notes [entry]
+# Output: <exportFilename>-notes.pdf (or [entry]-export-notes.pdf)
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--output` | string | — | Path to the output |
+| `--timeout` | number | `30000` | Rendering timeout in ms |
+| `--wait` | number | `0` | Wait time in ms before exporting |
+
 ## SPA Build
 
 Build a hostable single-page application:
@@ -139,6 +161,9 @@ slidev build
 | `--download` | — | boolean | `false` | Enable PDF download in SPA |
 | `--theme` | `-t` | string | — | Override theme |
 | `--without-notes` | — | boolean | `false` | Exclude speaker notes |
+| `--router-mode` | — | `hash`/`history`/`memory` | — (inherits `routerMode`) | Override router mode in the built output — `hash` for subdirectory deploys like GitHub Pages, `memory` for kiosk/follower decks |
+
+`--router-mode` was missing from this table — verified against the `build` command definition in `packages/slidev/node/cli.ts` on the slidevjs/slidev GitHub repo.
 
 ### Build Examples
 
@@ -172,6 +197,14 @@ slidev [entry]
 | `--bind` | — | string | `0.0.0.0` | IP for remote mode |
 | `--force` | `-f` | boolean | `false` | Ignore cache |
 | `--theme` | `-t` | string | — | Override theme |
+| `--base` | — | string | `/` | Base URL, e.g. `/demo/` |
+| `--log` | — | `error`/`warn`/`info`/`silent` | `warn` | Log level |
+| `--inspect` | — | boolean | `false` | Enable the Vite inspect plugin for debugging |
+| `--tunnel` | — | boolean | `false` | Open a Cloudflare Quick Tunnel (requires `--remote`) |
+
+`--base`, `--log`, `--inspect`, and `--tunnel` were missing from this table — verified against
+the default command's yargs option definitions in `packages/slidev/node/cli.ts` on the
+slidevjs/slidev GitHub repo.
 
 ### Format Slides
 

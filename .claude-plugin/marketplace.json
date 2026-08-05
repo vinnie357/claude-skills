@@ -433,7 +433,7 @@
       "source": "./plugins/tools/slidev",
       "strict": true,
       "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
-      "version": "0.2.6",
+      "version": "0.2.7",
       "category": "tools",
       "keywords": [
         "slidev",
