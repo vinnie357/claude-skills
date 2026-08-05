@@ -18,8 +18,8 @@ Complete JSON schema for Claude Code plugin.json files.
   "repository": "string (optional, URL)",
   "license": "string (optional, SPDX identifier)",
   "keywords": ["array of strings (optional)"],
-  "commands": "string | array (optional, paths)",
-  "agents": "string | array (optional, paths)",
+  "commands": "array (optional, paths)",
+  "agents": "array (optional, paths)",
   "hooks": "string | object (optional, path or config)",
   "mcpServers": "string | object (optional, path or config)",
   "skills": ["array of strings (optional, paths)"]
@@ -82,18 +82,16 @@ Complete JSON schema for Claude Code plugin.json files.
 - **Examples**: `["./skills/git", "./skills/documentation"]`
 
 ### commands (Optional)
-- **Type**: String or Array of strings
-- **Description**: Paths to command files or directories
-- **Formats**:
-  - String: `"./commands"` (directory containing .md files)
-  - Array: `["./commands/cmd1.md", "./commands/cmd2.md"]`
+- **Type**: Array of strings
+- **Description**: Paths to individual command files or directories
+- **Format**: `["./commands/cmd1.md", "./commands/cmd2.md"]`
+- claude-skills-246: a bare string was previously documented here as a directory-to-scan shorthand, but `validate-plugin.nu` never implemented that scanning behavior for `commands` (unlike `skills`, whose array entries are each an exact path, not a directory scanned for members either) — narrowed to match actual validator behavior rather than adding an unrequested scanning feature.
 
 ### agents (Optional)
-- **Type**: String or Array of strings
-- **Description**: Paths to agent files or directories
-- **Formats**:
-  - String: `"./agents"` (directory)
-  - Array: `["./agents/agent1.md", "./agents/agent2.md"]`
+- **Type**: Array of strings
+- **Description**: Paths to individual agent files
+- **Format**: `["./agents/agent1.md", "./agents/agent2.md"]`
+- claude-skills-246: same correction as `commands` above — the previously documented bare-string directory form was never implemented.
 
 ### hooks (Optional)
 - **Type**: String or Object
