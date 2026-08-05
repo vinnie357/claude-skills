@@ -3,8 +3,26 @@
 
 [meta]
 plugin = "slidev"
-reviewed_at_plugin_version = "0.2.0"
+reviewed_at_plugin_version = "0.2.6"
 last_full_check = "2026-07-30"
+# claude-skills-223 tier 2, 2026-08-04: PARTIAL pass, not a full check — kept
+# last_full_check unchanged rather than claiming full coverage. Verified
+# claim-by-claim against slidevjs/slidev's actual TypeScript source
+# (packages/types/src/{config,frontmatter}.ts, and the layouts/ and
+# builtin/ component directory listings, all fetched live from GitHub) —
+# the headmatter/frontmatter schema and built-in layout/component NAMES
+# that underpin every other slidev skill. 5 corrections made in
+# syntax/references/syntax.md: exportFilename's real default is an empty
+# string, not "slidev-exported"; mdc is deprecated in favor of comark
+# (undocumented before this pass); clicks has no fixed default of 0 — it's
+# auto-calculated from v-click/v-clicks usage; colorSchema and routerMode
+# were both missing a valid option (`all` and `memory` respectively). NOT
+# independently re-verified this pass: the code/export/interactive/
+# presentations/styles/troubleshooting skills' own detailed claims (export
+# CLI flag behavior, individual layout prop schemas beyond name-existence,
+# Monaco/LaTeX/Mermaid/PlantUML syntax details, the presentation-strategy
+# citations, WCAG/UnoCSS/Vue3 sources) — see the individual [[sources]]
+# entries below, most still marked "Not re-verified live in this pass."
 
 # ----------------------------------------------------------------------------
 # Slidev Syntax Guide — slide separators, frontmatter, headmatter, block

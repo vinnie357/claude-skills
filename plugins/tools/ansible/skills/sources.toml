@@ -3,8 +3,34 @@
 
 [meta]
 plugin = "ansible"
-reviewed_at_plugin_version = "0.1.0"
-last_full_check = "2026-07-30"
+reviewed_at_plugin_version = "0.1.5"
+last_full_check = "2026-08-04"
+# claude-skills-223 tier 2: claim-by-claim verification pass for ansible,
+# ansible-roles (+jinja2-filters.md), ansible-vault (+secret-backends.md),
+# and ansible-testing/SKILL.md, using live-installed tools (ansible-core
+# 2.21.2, molecule 26.6.0, ansible-lint 26.6.0, pytest-testinfra 10.2.2,
+# community.hashi_vault 7.1.0, amazon.aws 11.4.0 — all pipx/ansible-galaxy
+# installed at their current-latest versions, matching the "unknown pin,
+# always-latest docs" shape every source below already used). 8 corrections
+# made (default() filter boolean semantics were exactly backwards, flatten's
+# default-level claim was backwards, path_join's filter-args syntax errors
+# live, molecule's phase order/`molecule lint` command/`molecule.yml` schema/
+# `init scenario --driver-name` flag are all stale for molecule 26.6.0, and
+# amazon.aws.aws_ssm's `errors=` param doesn't exist — real params are
+# `on_missing`/`on_denied`). ansible-inventory/SKILL.md + dynamic-inventory.md
+# got a partial pass: CLI flags, --limit pattern syntax (intersection/
+# exclusion/wildcard), connection-vars table, and the aws_ec2/constructed
+# inventory plugin schemas were verified live; the Azure RM and GCP Compute
+# inventory-plugin option tables in dynamic-inventory.md were NOT
+# independently verified this pass (would need azure.azcollection/
+# google.cloud installed) — treat those two sections as carried over from the
+# prior pass, not re-confirmed. Gate 3 round 2: ansible-testing/references/
+# molecule-scenarios.md was ALSO not touched or re-verified this pass — it
+# still documents the pre-26.6.0 driver:/platforms:/provisioner:/verifier:/
+# lint: molecule.yml schema and the removed `--driver-name`/`molecule lint`
+# commands. Flagged with its own caveat at the top of the file and softened
+# in SKILL.md's References line rather than rewritten (out of scope, same as
+# the SKILL.md schema section itself) or silently left uncaveated.
 
 # ----------------------------------------------------------------------------
 # Ansible core documentation (docs.ansible.com/ansible/latest/) — the shared
@@ -19,12 +45,12 @@ url = "https://docs.ansible.com/ansible/latest/"
 releases_url = "https://github.com/ansible/ansible/releases"
 check_method = "github-releases"
 github_repo = "ansible/ansible"
-current_version = "unknown"
+current_version = "2.21.2"
 version_constraint = "semver"
-last_checked = "2026-07-30"
+last_checked = "2026-08-04"
 update_priority = "medium"
 breaking_changes_likely = false
-notes = "Covers docs.ansible.com/ansible/latest/{getting_started/index.html, playbook_guide/playbooks_intro.html, reference_appendices/general_precedence.html} for the ansible skill; {inventory_guide/index.html, inventory_guide/intro_dynamic_inventory.html} for ansible-inventory; {playbook_guide/playbooks_reuse_roles.html, playbook_guide/playbooks_templating.html} for ansible-roles; {vault_guide/index.html} for ansible-vault. All accessed 2026-05-06 per sources.md, no version pinned there. Live GitHub check 2026-07-30: latest ansible/ansible release tag v2.21.2 — not compared against a pinned baseline since none exists."
+notes = "Covers docs.ansible.com/ansible/latest/{getting_started/index.html, playbook_guide/playbooks_intro.html, reference_appendices/general_precedence.html} for the ansible skill; {inventory_guide/index.html, inventory_guide/intro_dynamic_inventory.html} for ansible-inventory; {playbook_guide/playbooks_reuse_roles.html, playbook_guide/playbooks_templating.html} for ansible-roles; {vault_guide/index.html} for ansible-vault. claude-skills-223: current_version now pinned to 2.21.2, the actual live-installed ansible-core version claim-by-claim verified against (pipx install ansible-core, 2026-08-04) — CLI flags (ansible-playbook, ansible-vault, ansible-inventory, ansible-galaxy), ~25 ansible.builtin module/param names, variable precedence order (role defaults < host_vars < play vars < vars_files < extra-vars, confirmed by 4 live adjacent-pair test playbooks), when: list ANDing, and check_mode: false all confirmed correct."
 
 # ----------------------------------------------------------------------------
 # Ansible Galaxy hub docs — separate hosted site from ansible-core docs,
@@ -53,12 +79,12 @@ url = "https://docs.ansible.com/ansible/latest/collections/community/hashi_vault
 releases_url = "https://github.com/ansible-collections/community.hashi_vault/releases"
 check_method = "github-releases"
 github_repo = "ansible-collections/community.hashi_vault"
-current_version = "unknown"
+current_version = "7.1.0"
 version_constraint = "semver"
-last_checked = "2026-07-30"
+last_checked = "2026-08-04"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "Lookup plugin configuration, token auth, AppRole auth for the ansible-vault skill's HashiCorp Vault integration section. Repo confirmed via GitHub API 2026-07-30 (ansible-collections/community.hashi_vault, latest tag v7.1.0); sources.md pins no verified-against version."
+notes = "Lookup plugin configuration, token auth, AppRole auth for the ansible-vault skill's HashiCorp Vault integration section. claude-skills-223: installed live via `ansible-galaxy collection install community.hashi_vault` (7.1.0) and verified via `ansible-doc -t lookup -j` that url/token/auth_method/role_id/secret_id/return_format options and the auth_method choices (token/userpass/ldap/approle/aws_iam/azure/jwt/cert/gcp/none) all exist as documented."
 
 # ----------------------------------------------------------------------------
 # Molecule — standalone testing framework for Ansible roles/collections,
@@ -71,12 +97,12 @@ url = "https://molecule.readthedocs.io/en/latest/"
 releases_url = "https://github.com/ansible/molecule/releases"
 check_method = "github-releases"
 github_repo = "ansible/molecule"
-current_version = "unknown"
+current_version = "26.6.0"
 version_constraint = "semver"
-last_checked = "2026-07-30"
-update_priority = "medium"
-breaking_changes_likely = false
-notes = "Scenarios, drivers, phases, verify, lint, CI integration for ansible-testing. Repo confirmed via GitHub API 2026-07-30 (ansible/molecule, latest tag v26.6.0, calendar-versioned); sources.md pins no verified-against version."
+last_checked = "2026-08-04"
+update_priority = "high"
+breaking_changes_likely = true
+notes = "Scenarios, drivers, phases, verify, lint, CI integration for ansible-testing. claude-skills-223: installed live via `pipx install molecule` (26.6.0) and found substantial drift from the skill's documented content — the classic `driver:`/`platforms:`/`provisioner:`/`verifier:`/`lint:` top-level molecule.yml schema is GONE (verified via a real `molecule init scenario` run, both with and without molecule-plugins[docker] installed: the generated file now has `dependency:`/`ansible:`(cfg/env/executor/playbooks)/`scenario:`(name/test_sequence) keys instead), the standalone `molecule lint` command no longer exists (`Error: No such command 'lint'.`), the default test-phase order changed (now dependency→cleanup→destroy→syntax→create→prepare→converge→idempotence→side_effect→verify→cleanup→destroy per `molecule test --help`'s own docstring), and `molecule init scenario --driver-name` errors live (`Error: No such option '--driver-name'.`). update_priority raised to high / breaking_changes_likely set true given this drift. The Testinfra assertion API section (module/property names) was independently verified correct and NOT affected by the schema change."
 
 # ----------------------------------------------------------------------------
 # ansible-lint — standalone linter, backs the ansible-testing skill's rule
@@ -89,12 +115,12 @@ url = "https://ansible-lint.readthedocs.io/"
 releases_url = "https://github.com/ansible/ansible-lint/releases"
 check_method = "github-releases"
 github_repo = "ansible/ansible-lint"
-current_version = "unknown"
+current_version = "26.6.0"
 version_constraint = "semver"
-last_checked = "2026-07-30"
+last_checked = "2026-08-04"
 update_priority = "medium"
 breaking_changes_likely = false
-notes = "Rule profiles, configuration, CI integration for ansible-testing. Repo confirmed via GitHub API 2026-07-30 (ansible/ansible-lint, latest tag v26.6.0, calendar-versioned, shares release cadence with molecule); sources.md pins no verified-against version."
+notes = "Rule profiles, configuration, CI integration for ansible-testing. claude-skills-223: installed live via `pipx install ansible-lint` (26.6.0) and verified via `ansible-lint --list-profiles` that the 6 profiles are min/basic/moderate/safety/shared/production (each extending the previous), confirming the skill's claim that safety/shared/production are valid profile names with production being strictest."
 
 # ----------------------------------------------------------------------------
 # Testinfra (pytest-testinfra) — standalone assertion library used in
@@ -107,9 +133,9 @@ url = "https://testinfra.readthedocs.io/en/latest/"
 releases_url = "https://github.com/pytest-dev/pytest-testinfra/releases"
 check_method = "github-releases"
 github_repo = "pytest-dev/pytest-testinfra"
-current_version = "unknown"
+current_version = "10.2.2"
 version_constraint = "semver"
-last_checked = "2026-07-30"
+last_checked = "2026-08-04"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "Built-in modules (file, service, package, command) and assertion patterns for ansible-testing. Repo confirmed via GitHub API 2026-07-30 (pytest-dev/pytest-testinfra, latest tag 10.2.2); sources.md pins no verified-against version."
+notes = "Built-in modules (file, service, package, command) and assertion patterns for ansible-testing. claude-skills-223: installed live via `pipx install --include-deps pytest-testinfra` (10.2.2) and verified directly against source (testinfra/modules/*.py) that package/service/file/socket/command modules and is_installed/is_running/is_enabled/exists/mode/user/is_listening/stdout properties all exist as documented in the skill's Testinfra example."

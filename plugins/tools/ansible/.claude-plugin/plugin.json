@@ -1,13 +1,22 @@
 {
   "name": "ansible",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Ansible automation skills: playbooks, inventory, roles, vault secrets, and Molecule testing",
   "author": {
     "name": "rginnow"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["ansible", "automation", "configuration-management", "devops", "playbooks", "molecule", "roles", "vault"],
+  "keywords": [
+    "ansible",
+    "automation",
+    "configuration-management",
+    "devops",
+    "playbooks",
+    "molecule",
+    "roles",
+    "vault"
+  ],
   "skills": [
     "./skills/ansible",
     "./skills/ansible-inventory",

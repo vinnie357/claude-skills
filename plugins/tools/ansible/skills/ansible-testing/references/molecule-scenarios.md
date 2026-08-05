@@ -1,5 +1,7 @@
 # Molecule Scenario Reference
 
+**Schema-drift caveat (claude-skills-223 Gate 3, carried over from SKILL.md's "molecule.yml Structure" section): this file was NOT rewritten for molecule 26.6.0 and was out of scope for that verification pass.** Everything below — the `driver:`/`platforms:`/`provisioner:`/`verifier:`/`lint:` top-level molecule.yml keys, the `lint: |` blocks, and `molecule init scenario --driver-name docker`/`--driver-name delegated` — is confirmed STALE the same way SKILL.md's old content was: `--driver-name` errors live (`Error: No such option '--driver-name'.`) and there is no standalone `molecule lint` command in 26.6.0 (`Error: No such command 'lint'.`). Treat this reference as documenting an OLDER Molecule schema, not the current one. SKILL.md's own "molecule.yml Structure" section has the verified-live current schema.
+
 ## Docker Driver — Full Annotated molecule.yml
 
 ```yaml

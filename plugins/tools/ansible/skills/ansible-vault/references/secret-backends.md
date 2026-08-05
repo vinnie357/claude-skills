@@ -118,14 +118,14 @@ By default a failed lookup raises an error and stops the play. Handle failures g
 # Provide a fallback default (empty string if secret not found)
 db_password: "{{ lookup('amazon.aws.aws_ssm', '/myapp/db_pass',
     region='us-east-1',
-    errors='warn') | default('') }}"
+    on_missing='warn') | default('') }}"
 
 # Use default() filter to provide a fallback
 api_key: "{{ lookup('env', 'API_KEY') | default(lookup('community.hashi_vault.hashi_vault',
     'secret/data/api api_key'), true) }}"
 ```
 
-Use `errors='warn'` (warn and continue) instead of the default `errors='fatal'` (stop play) when a missing secret is acceptable.
+There is no `errors=` keyword parameter on `amazon.aws.aws_ssm` — verified via `ansible-doc -t lookup -j amazon.aws.aws_ssm` (amazon.aws 11.4.0): it is not in the module's `options`. The real parameters are `on_missing` (action when the named parameter doesn't exist) and `on_denied` (action when access is denied), each with `choices: [error, skip, warn]` and default `error`. Use `on_missing='warn'` (skip the missing parameter and warn, letting `default()` supply the fallback) instead of the default `on_missing='error'` (raises a fatal error and stops the play) when a missing secret is acceptable. For an access-denied case specifically, use `on_denied` instead.
 
 ## Caching Lookup Results
 
