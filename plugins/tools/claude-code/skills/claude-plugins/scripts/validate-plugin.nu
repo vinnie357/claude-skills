@@ -411,13 +411,23 @@ def validate-plugin-content [
   # {name, version} objects): https://code.claude.com/docs/en/plugins-reference#plugin-manifest-schema
   print $"\n(ansi cyan)Checking for invalid fields...(ansi reset)"
   let invalid_fields = ["category", "strict", "source", "tags"]
+  # claude-skills-255 — track this loop's own error count separately from
+  # $errors overall. Gating the summary below on $errors being globally
+  # empty would also suppress it when an EARLIER, unrelated check (e.g.
+  # the name validation above) already appended an error — too broad. The
+  # delta isolates the summary to what this loop itself found.
+  let errors_before_invalid_check = ($errors | length)
   for field in $invalid_fields {
     if ($plugin | get -o $field) != null {
       $errors = ($errors | append $"Invalid field '($field)' - this belongs in marketplace.json, not plugin.json")
     }
   }
 
-  if $verbose {
+  if $verbose and (($errors | length) == $errors_before_invalid_check) {
+    # claude-skills-255 — previously unconditional: printed even when the
+    # loop above had just appended an invalid-field error for the same
+    # manifest, producing a contradictory "✗ Invalid field 'category'..."
+    # followed by "✓ No invalid fields found" in one --verbose run.
     print "  ✓ No invalid fields found"
   }
 
@@ -460,8 +470,18 @@ def validate-plugin-content [
         if $dep_type == "string" {
           # valid: bare plugin name
         } else if ($dep_type | str starts-with "record") {
-          if ($dep | get -o name) == null {
+          let dep_name = ($dep | get -o name)
+          if $dep_name == null {
             $errors = ($errors | append $"dependencies entry missing required 'name' field: ($dep | to nuon)")
+          } else if not (is-string $dep_name) {
+            # claude-skills-255 class check — same defect-2 family as
+            # 'author' above, a different call site: this entry's own
+            # record-ness was checked (the branch above), but 'name' itself
+            # was checked for presence only, never for type — a
+            # dependencies entry '{name: 42, version: "1.0.0"}' passed with
+            # 0 errors and exited 0 before this fix. Reproduced directly
+            # against pre-fix code before writing this fix.
+            $errors = ($errors | append $"dependencies entry 'name' must be a string, got ($dep_name | describe): ($dep | to nuon)")
           }
           # claude-skills-235: validate `version` as a node-semver RANGE
           # expression, not an exact version — upstream: "The version field
@@ -608,14 +628,28 @@ def validate-plugin-content [
     if not ($author | describe | str starts-with "record") {
       $errors = ($errors | append $"'author' must be an object, got ($author | describe)")
     } else {
-      if ($author | get -o name) != null and $verbose {
-        print $"  ✓ author.name: ($author.name)"
-      }
-      if ($author | get -o email) != null and $verbose {
-        print $"  ✓ author.email: ($author.email)"
-      }
-      if ($author | get -o url) != null and $verbose {
-        print $"  ✓ author.url: ($author.url)"
+      # claude-skills-255 — author.name, author.email, author.url were
+      # entirely unvalidated: an `author: {name: 42}` printed the
+      # affirmative "✓ author.name: 42" checkmark and exited 0 with zero
+      # errors and zero warnings. Upstream documents author as an object
+      # example `{"name": "Dev Team", "email": "dev@company.com"}` —
+      # string subfields, same as the description/license siblings above.
+      # Same is-string idiom and same print-gating fix as claude-skills-254
+      # applied there: the checkmark only fires when the type check passes,
+      # so a wrong-typed subfield can no longer be reported as correct.
+      # None of the three is individually required — `author` itself is a
+      # recommended, not required, top-level field, and upstream states no
+      # subfield-level requirement — so a missing subfield stays silent,
+      # matching the pre-fix behavior for absence.
+      for subfield in ["name", "email", "url"] {
+        let value = ($author | get -o $subfield)
+        if $value != null {
+          if not (is-string $value) {
+            $errors = ($errors | append $"'author.($subfield)' must be a string, got ($value | describe)")
+          } else if $verbose {
+            print $"  ✓ author.($subfield): ($value)"
+          }
+        }
       }
     }
   }
@@ -1221,7 +1255,20 @@ def validate-skill-md [skill_md_path: string, skill_name: string, verbose: bool]
       $warnings = ($warnings | append $"SKILL.md 'description' missing 'Use when' trigger: ($skill_name)")
     }
 
-    if $verbose {
+    # claude-skills-255 class check — same defect-1 family as the top-level
+    # invalid-fields summary, a different call site: this checkmark printed
+    # unconditionally under --verbose even when the length check just above
+    # had appended an over-1024 error for the SAME skill, producing "✗ ...
+    # exceeds 1024 characters" and "✓ skill - N chars" together in one run.
+    # Reproduced directly against pre-fix code before writing this fix.
+    # Gated on desc_len, not on $errors overall, for the same reason as the
+    # invalid-fields delta above: $errors here is validate-skill-md's own
+    # accumulator (not shared with sibling skills), but gating on its total
+    # length would also suppress this checkmark for an unrelated error this
+    # function might append elsewhere (e.g. an 'allowed-tools' error below,
+    # which fires after this block) — the length check is the only one this
+    # checkmark should be contingent on.
+    if $verbose and $desc_len <= 1024 {
       print $"  ✓ ($skill_name) - ($desc_len) chars"
     }
   }
@@ -1622,6 +1669,13 @@ def self-test [] {
       name: "dependencies_entry_missing_name_errors"
       why: "a dependency object without 'name' is malformed regardless of the upstream shape fix"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ version: "~2.1.0" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "dependencies_entry_name_wrong_type_errors"
+      why: "claude-skills-255 class check — same defect-2 family as author.name/email/url, a different call site: a dependencies entry's own record-ness was checked, but 'name' was checked for presence only, never for type. A dependencies entry '{name: 42, version: \"1.0.0\"}' passed with 0 errors and exited 0 before this fix"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: 42, version: "1.0.0" }] }
       expect_errors: 1
       expect_warnings: 0
     }
@@ -2145,6 +2199,41 @@ def self-test [] {
       why: "claude-skills-253 — a bare string ('yes') is invalid under defaultEnabled's only documented shape (boolean); verified accepted with 0 errors before this fix"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", defaultEnabled: "yes" }
       expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "author_name_wrong_type_errors"
+      why: "claude-skills-255 defect 2 — author.name was entirely unvalidated before this fix; a bare number passed with 0 errors (see cli_cases for the accompanying false-checkmark-under---verbose assertion). email/url absent so this fixture isolates to author.name alone"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { name: 42 } }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "author_email_wrong_type_errors"
+      why: "claude-skills-255 defect 2 — same defect, author.email half. name/url absent so this fixture isolates to author.email alone"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { email: 42 } }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "author_url_wrong_type_errors"
+      why: "claude-skills-255 defect 2 — same defect, author.url half. name/email absent so this fixture isolates to author.url alone"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { url: 42 } }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "author_all_subfields_valid_accepted"
+      why: "claude-skills-255 — all three author subfields correctly typed (strings) must produce zero errors and zero warnings, matching upstream's documented shape"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { name: "Dev Team", email: "dev@company.com", url: "https://github.com/author" } }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "author_empty_object_accepted"
+      why: "claude-skills-255 — no author subfield is individually required (author itself is a recommended, not required, top-level field, and upstream states no subfield-level requirement), so an author object present but with all three subfields absent must not warn or error"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: {} }
+      expect_errors: 0
       expect_warnings: 0
     }
   ]
@@ -2735,6 +2824,30 @@ def self-test [] {
   mkdir ($cli_scalar_yaml_plugin_dir | path join "scalar-yaml-plugin" "skills" "bad-skill")
   "---\nhello\n---\n\nbody\n" | save --force ($cli_scalar_yaml_plugin_dir | path join "scalar-yaml-plugin" "skills" "bad-skill" "SKILL.md")
 
+  # claude-skills-255 class check — SKILL.md 'description' over 1024 chars,
+  # run with --verbose. Same defect-1 family as the invalid-fields summary
+  # (a different call site): before this fix, the per-skill "✓ ... - N
+  # chars" checkmark printed unconditionally, even when the length check
+  # just above it had appended an over-1024 error for the SAME skill.
+  # Doubled-nesting layout (root/<plugin-name>/skills/<skill>/SKILL.md)
+  # matches scalar-yaml-plugin above — this validator resolves skill paths
+  # relative to a source_dir equal to the plugin's own name subdirectory.
+  let cli_skill_desc_too_long_verbose_dir = ($cli_temp_dir | path join "skill-desc-too-long-plugin")
+  mkdir ($cli_skill_desc_too_long_verbose_dir | path join ".claude-plugin")
+  { name: "skill-desc-too-long-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/long-desc-skill"] } | save --force ($cli_skill_desc_too_long_verbose_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_skill_desc_too_long_verbose_dir | path join "skill-desc-too-long-plugin" "skills" "long-desc-skill")
+  $"---\nname: long-desc-skill\ndescription: Use when ('a' | fill -c 'a' -w 1100)\n---\n\nbody\n" | save --force ($cli_skill_desc_too_long_verbose_dir | path join "skill-desc-too-long-plugin" "skills" "long-desc-skill" "SKILL.md")
+
+  # Positive counterpart — a valid-length description (under 1024 chars),
+  # same skills-array plugin shape, run with --verbose. Pins that the
+  # $desc_len <= 1024 gate still lets the affirmative checkmark through on
+  # the clean path, not just that an over-length one suppresses it.
+  let cli_skill_desc_valid_verbose_dir = ($cli_temp_dir | path join "skill-desc-valid-plugin")
+  mkdir ($cli_skill_desc_valid_verbose_dir | path join ".claude-plugin")
+  { name: "skill-desc-valid-plugin", version: "1.0.0", description: "test fixture", license: "MIT", skills: ["skills/short-desc-skill"] } | save --force ($cli_skill_desc_valid_verbose_dir | path join ".claude-plugin" "plugin.json")
+  mkdir ($cli_skill_desc_valid_verbose_dir | path join "skill-desc-valid-plugin" "skills" "short-desc-skill")
+  "---\nname: short-desc-skill\ndescription: Use when testing skill validation.\n---\n\nbody\n" | save --force ($cli_skill_desc_valid_verbose_dir | path join "skill-desc-valid-plugin" "skills" "short-desc-skill" "SKILL.md")
+
   # Same doubled-nesting layout as scalar-yaml-plugin above, for the
   # remaining three YAML-guard shapes (skill malformed, agent scalar,
   # agent malformed).
@@ -3005,6 +3118,42 @@ def self-test [] {
   mkdir ($cli_author_wrong_type_dir | path join ".claude-plugin")
   { name: "author-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: "someone" } | save --force ($cli_author_wrong_type_dir | path join ".claude-plugin" "plugin.json")
 
+  # claude-skills-255 defect 1 — a manifest with exactly one invalid
+  # (marketplace-only) field, run with --verbose. Before this fix, the
+  # "✓ No invalid fields found" summary printed unconditionally, so this
+  # manifest produced both "✗ Invalid field 'category'..." AND the
+  # affirmative summary in the same run. license/description/version kept
+  # valid so the fixture isolates to the single invalid field.
+  let cli_invalid_field_verbose_dir = ($cli_temp_dir | path join "invalid-field-verbose-plugin")
+  mkdir ($cli_invalid_field_verbose_dir | path join ".claude-plugin")
+  { name: "invalid-field-verbose-plugin", version: "1.0.0", description: "test fixture", license: "MIT", category: "tools" } | save --force ($cli_invalid_field_verbose_dir | path join ".claude-plugin" "plugin.json")
+
+  # claude-skills-255 defect 1, positive counterpart — a fully valid
+  # manifest with zero invalid fields, run with --verbose. Without this
+  # fixture, gating the summary print could be satisfied by a lazy "never
+  # print it" change; this pins that the checkmark still fires on the
+  # clean path.
+  let cli_valid_verbose_dir = ($cli_temp_dir | path join "valid-verbose-plugin")
+  mkdir ($cli_valid_verbose_dir | path join ".claude-plugin")
+  { name: "valid-verbose-plugin", version: "1.0.0", description: "test fixture", license: "MIT" } | save --force ($cli_valid_verbose_dir | path join ".claude-plugin" "plugin.json")
+
+  # claude-skills-255 defect 2 — plugin.json 'author.name' present but
+  # wrong-typed, run with --verbose. Before this fix, author subfields
+  # were entirely unvalidated: this printed "✓ author.name: 42" and
+  # exited 0 with zero errors. email/url left absent (no subfield is
+  # individually required) so the fixture isolates to author.name alone.
+  let cli_author_name_wrong_type_verbose_dir = ($cli_temp_dir | path join "author-name-wrong-type-verbose-plugin")
+  mkdir ($cli_author_name_wrong_type_verbose_dir | path join ".claude-plugin")
+  { name: "author-name-wrong-type-verbose-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { name: 42 } } | save --force ($cli_author_name_wrong_type_verbose_dir | path join ".claude-plugin" "plugin.json")
+
+  # claude-skills-255 defect 2, positive counterpart — all three author
+  # subfields present and correctly typed, run with --verbose. Pins that
+  # the is-string gate still lets the affirmative checkmark through on the
+  # clean path (not just that a wrong-typed one suppresses it).
+  let cli_author_valid_verbose_dir = ($cli_temp_dir | path join "author-valid-verbose-plugin")
+  mkdir ($cli_author_valid_verbose_dir | path join ".claude-plugin")
+  { name: "author-valid-verbose-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { name: "Dev Team", email: "dev@company.com", url: "https://github.com/author" } } | save --force ($cli_author_valid_verbose_dir | path join ".claude-plugin" "plugin.json")
+
   # Shape 4 — a 'dependencies' entry's 'version' present but wrong-typed
   # (a YAML/JSON list, not a string).
   let cli_dep_version_wrong_type_dir = ($cli_temp_dir | path join "dep-version-wrong-type-plugin")
@@ -3127,6 +3276,21 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "malformed YAML frontmatter"
       why: "claude-skills-247 — subprocess-isolated regression guard for validate-skill-md's record-type check, reached through the full CLI + skills-array path rather than a direct function call, so a reverted guard fails THIS case by clean assertion (stdout mismatch) instead of crashing the whole self-test — verified directly by reverting the guard and observing the crash happens in the CHILD process only"
+    }
+    {
+      name: "cli_skill_desc_too_long_verbose_no_checkmark"
+      args: [($cli_skill_desc_too_long_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 1
+      expect_output_contains: "exceeds 1024 characters"
+      expect_output_not_contains: "✓ skills/long-desc-skill"
+      why: "claude-skills-255 class check — defect-1 family, a different call site: before this fix, --verbose printed the '✓ skills/long-desc-skill - N chars' checkmark unconditionally (the checkmark uses the skill's manifest-array entry path, not the bare directory name), even though the length check just above had appended an over-1024 error for the same skill. Reproduced directly against pre-fix code (skill dir 'skills/my-skill', 1109 chars) before writing this fixture"
+    }
+    {
+      name: "cli_skill_desc_valid_verbose_shows_checkmark"
+      args: [($cli_skill_desc_valid_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 0
+      expect_output_contains: "✓ skills/short-desc-skill"
+      why: "claude-skills-255 class check, positive counterpart — pins that the $desc_len <= 1024 gate still lets the affirmative checkmark through for a correctly-sized description (checkmark uses the skill's manifest-array entry path, not the bare directory name — verified directly against real output before fixing this assertion string)"
     }
     {
       name: "cli_malformed_yaml_skill_exit_1"
@@ -3351,6 +3515,36 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "'author' must be an object, got string"
       why: "claude-skills-251 shape 3 — an 'author' present but not an object crashed uncaught: `get -o name` on a bare string raises only_supports_this_input_type. The npm-style bare-string author (\"author\": \"someone\") is the shape most likely to appear in a real user manifest of everything in this sweep"
+    }
+    {
+      name: "cli_invalid_field_verbose_no_summary_checkmark"
+      args: [($cli_invalid_field_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 1
+      expect_output_contains: "Invalid field 'category'"
+      expect_output_not_contains: "✓ No invalid fields found"
+      why: "claude-skills-255 defect 1 — before this fix, --verbose printed the '✓ No invalid fields found' summary unconditionally, even when the loop immediately above it had just appended an invalid-field error for the same manifest. Reproduced directly against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_valid_verbose_shows_summary_checkmark"
+      args: [($cli_valid_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 0
+      expect_output_contains: "✓ No invalid fields found"
+      why: "claude-skills-255 defect 1, positive counterpart — pins that the summary checkmark still prints on a manifest with zero invalid fields, so the fix is a gate on this loop's own errors, not a blanket suppression of the line"
+    }
+    {
+      name: "cli_author_name_wrong_type_verbose_no_checkmark"
+      args: [($cli_author_name_wrong_type_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 1
+      expect_output_contains: "'author.name' must be a string, got int"
+      expect_output_not_contains: "✓ author.name"
+      why: "claude-skills-255 defect 2 — before this fix, author.name/email/url were entirely unvalidated: --verbose printed '✓ author.name: 42' and exited 0 with zero errors for a bare-number author.name. Reproduced directly against pre-fix code before writing this fixture"
+    }
+    {
+      name: "cli_author_valid_verbose_shows_checkmarks"
+      args: [($cli_author_valid_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 0
+      expect_output_contains: "✓ author.name: Dev Team"
+      why: "claude-skills-255 defect 2, positive counterpart — pins that the is-string gate still lets the affirmative checkmark through for a correctly-typed author.name (email/url exercised together in the same fixture but only name's checkmark is asserted here, matching this suite's one-assertion-per-case convention)"
     }
     {
       name: "cli_dependency_version_wrong_type_exit_1"
