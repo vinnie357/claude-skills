@@ -70,7 +70,7 @@ slidev export --format md
 | `--executable-path` | — | string | — | Custom Chromium executable path |
 | `--wait` | — | number | `0` | Wait time in ms after page load |
 | `--wait-until` | — | string | `networkidle` | Page load event to wait for |
-| `--per-slide` | — | boolean | `false` | Render slide by slide instead of one continuous page — needed for global components, breaks cross-slide links and TOC in PDF |
+| `--per-slide` | — | boolean | `false` | Render slide by slide instead of one continuous page — works better with global components, breaks cross-slide links and TOC in PDF |
 | `--scale` | — | number | `2` | Device scale factor for image export |
 
 `--per-slide` and `--scale` were missing from this table — verified against

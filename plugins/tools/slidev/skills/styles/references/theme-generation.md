@@ -253,7 +253,8 @@ slidev-theme-brand/
     ".": "./styles/index.css"
   },
   "slidev": {
-    "colorSchema": "light"
+    "colorSchema": "light",
+    "highlighter": "shiki"
   }
 }
 ```
@@ -262,13 +263,17 @@ The `keywords` array must include both `"slidev-theme"` and `"slidev"` — verif
 `docs/guide/write-theme.md` on the slidevjs/slidev GitHub repo ("Add `slidev-theme` and
 `slidev` in the `keywords` field"); the skill previously listed only `slidev-theme`.
 
-The `slidev.colorSchema` field here is theme metadata declaring which color schemes the
-theme supports (valid values: `light`, `dark`, `both`) — a different field from the
-per-presentation `colorSchema` frontmatter option (valid values: `auto`, `light`, `dark`,
-`all`), which is documented separately in the `syntax` skill. There is no documented
-`slidev.highlighter` package.json field; `highlighter` is a frontmatter/headmatter option
-set in `slides.md`, not theme metadata — the skill previously showed it (incorrectly) as a
-`package.json` key.
+Both `colorSchema` and `highlighter` under `slidev` are real, consumed theme metadata —
+verified against the `SlidevThemeMeta` interface (`packages/types/src/types.ts`: "Metadata
+for 'slidev' field in themes' package.json") and its use in `resolveConfig`
+(`packages/parser/src/config.ts`), which reads `themeMeta.highlighter` directly to set the
+config's highlighter. This field is real but undocumented in `write-theme.md` itself — an
+earlier pass in this PR incorrectly called it fabricated and removed it; restored.
+
+`slidev.colorSchema` here (valid values: `light`, `dark`, `both`) is a different field from
+the per-presentation `colorSchema` frontmatter option (valid values: `auto`, `light`, `dark`,
+`all`), which is documented separately in the `syntax` skill — easy to conflate since both
+are named `colorSchema`.
 
 Reference the local package in a presentation:
 

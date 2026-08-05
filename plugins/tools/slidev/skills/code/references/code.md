@@ -216,7 +216,7 @@ monacoTypesSource: local  # 'cdn', 'local', or 'none'
 
 Animate code transitions between states. Shows smooth morphing between code blocks:
 
-````markdown
+`````markdown
 ````md magic-move
 ```ts
 const greeting = 'hello'
@@ -231,13 +231,13 @@ const name = 'world'
 console.log(`${greeting}, ${name}!`)
 ```
 ````
-````
+`````
 
 Each code block represents a step. Slidev animates the transition between steps on click.
 
 Combine with line highlighting/numbers and control timing:
 
-````markdown
+`````markdown
 ````md magic-move {at:4, lines: true}
 ```js {*|1|2-5}
 let count = 1
@@ -246,7 +246,7 @@ function add() {
 }
 ```
 ````
-````
+`````
 
 - `{duration:500}` overrides the animation duration (ms) for that block; the headmatter default is `magicMoveDuration: 800`.
 - A filename in the opening fence (`` ````md magic-move [app.js] ``) adds a title bar with an auto-matched icon (available since Slidev v0.52.0).

@@ -57,14 +57,7 @@ last_full_check = "2026-07-30"
 #
 # Corrections (styles, theme-generation.md): package.json `keywords` example
 # listed only `"slidev-theme"` — write-theme.md requires both `"slidev-
-# theme"` and `"slidev"`. The same package.json sample also showed a
-# `slidev.highlighter` field, which does not exist in write-theme.md's
-# documented `slidev.*` package.json schema (`defaults`, `colorSchema`,
-# `engines.slidev`) — highlighter is a frontmatter/headmatter option, not
-# theme metadata; removed. Also flagged that `slidev.colorSchema` (theme
-# metadata: light/dark/both) and the per-slide `colorSchema` frontmatter
-# option (auto/light/dark/all) are different fields with different value
-# sets — easy to conflate, worth the explicit note in-file.
+# theme"` and `"slidev"`. Fixed and held up under Gate 3 re-review.
 #
 # Additions (export.md) — real, verified CLI surface the skill omitted
 # entirely: the `export-notes` command; `--per-slide` and `--scale` for
@@ -77,21 +70,84 @@ last_full_check = "2026-07-30"
 # `{at:N}`, per-block `duration`/headmatter `magicMoveDuration` (default
 # 800ms), and the filename title-bar syntax (since v0.52.0).
 #
+# Gate 3 (adversarial review) round, 2026-08-05 — REJECT, 5 findings, all
+# independently re-verified against a fresh clone before acting (not taken on
+# the reviewer's word):
+#
+# F1 — `slidev.highlighter` is NOT fabricated; my first pass wrongly removed
+# it from theme-generation.md's package.json sample and called it fake in
+# this file's own notes and the PR body. It is real, undocumented-by-
+# write-theme.md-but-real theme metadata: `SlidevThemeMeta` interface
+# (packages/types/src/types.ts: "Metadata for 'slidev' field in themes'
+# package.json" — defaults/colorSchema/highlighter), consumed directly in
+# `resolveConfig` (packages/parser/src/config.ts, `themeMeta.highlighter`).
+# Restored, with an accurate note instead of "fabricated."
+# F2 — the `#frame { border: none }` replacement I gave for the debunked
+# `class: "border-0"` claim fixed a border that doesn't exist: every Slidev
+# deck loads `@unocss/reset/tailwind.css` first (packages/client/styles/
+# index.ts), which zeroes border-width deck-wide, and no slidev stylesheet
+# re-adds one to the iframe. Corrected to state plainly that there is
+# nothing to remove, and reframed the CSS snippet as how to ADD a border if
+# wanted, not "remove" one. Also fixed the citation for the class-binding
+# mechanism — SlideWrapper.vue's class comes from getSlideClass (utils.ts),
+# which never touches frontmatter `class` at all; the real path is `class`
+# absent from FRONTMATTER_FIELDS/HEADMATTER_FIELDS (constants.ts) →
+# frontmatterToProps (context.ts) passes it through unresolved → Vue
+# attribute fallthrough lands it on the layout component's own root element.
+# F3 — the comark fix was incomplete and my PR body overclaimed it as done.
+# Grep-for-mdc-true was not enough; three sites still taught plain `mdc:
+# true` uncaveated and one of them (syntax/references/syntax.md's own "##
+# MDC Syntax" section) directly contradicted that same file's headmatter
+# table three lines up. Fixed: syntax.md's MDC section (renamed to Comark,
+# caveated), slidev/SKILL.md's example headmatter (mdc→comark plus a note),
+# sources.md's prose description. Re-grepped `mdc\b` case-insensitively
+# across the whole plugin after fixing to confirm no more uncaveated
+# instructions remain (topic-name mentions like a heading titled "MDC
+# syntax" as the feature's historical name are not claims and were left).
+# F4 — the "latex/mermaid/plantuml were never written into any skill"
+# content-gap claim was false. That content lives in syntax/references/
+# syntax.md:327-370 ("## LaTeX Math", "### Mermaid", "### PlantUML") — I had
+# only grepped the code skill, not the whole plugin, before declaring the
+# gap. Re-attributed all three sources' `skills` arrays from ["code"] to
+# ["syntax"] and re-verified each against live docs/features/{latex,mermaid,
+# plantuml}.md (inline/block math, `{theme,scale}` options object,
+# `plantUmlServer` default/override — all confirmed exact match).
+# F5 — stale version bump: PR #232 merged all-skills to 0.4.131 on main
+# after this branch forked, so this branch's 0.4.130→0.4.131 bump was a
+# no-op that would ship content changes under an unchanged version. Rebased
+# onto origin/main, re-read live versions, bumped all-skills to 0.4.132.
+# slidev 0.2.6→0.2.7 was unaffected (still 0.2.6 on main) and unchanged.
+#
+# Nits fixed in the same round: code.md's Magic Move examples used a
+# pre-existing (not introduced by me, but copied into my addition) 4-
+# backtick-outer-fence-wrapping-4-backtick-inner-fence idiom that GitHub
+# renders as one dangling code block instead of nested examples — bumped
+# both outer fences to 5 backticks, matching docs/features/shiki-magic-
+# move.md's own fencing. export.md's `--per-slide` description said "needed
+# for global components"; upstream's own comment (cli.ts) hedges with
+# "works better with" — softened to match, don't strengthen upstream's claim.
+# Verified three previously-unchecked presentations claims flagged in
+# review: `<v-click at="0">` (VClick.ts declares `at: {type: [Number,
+# String], default: '+1'}` — confirmed), `layout: full` (full.vue exists in
+# packages/client/layouts/ — confirmed), and one-pagers.md's `npx slidev
+# export ... --format pdf --output ...`/`--timeout` flags (already verified
+# via cli.ts/export.ts in the main pass). All three hold; see "Remaining
+# uncovered" below for what in presentations is still genuinely unverified.
+#
+# Also corrected an overreach in this file's own slidev-code-blocks note:
+# it had asserted "no 'finally' keyword found" for the at/finally line-
+# highlighting terminology; docs/features/latex.md references "the at and
+# finally options of code blocks" by name, so "does not exist" was too
+# strong a claim from a search that came up empty — restated as genuinely
+# unresolved rather than confirmed absent.
+#
 # Remaining uncovered (why last_full_check is still not bumped):
-# 1. sources.toml cites slidev-latex/slidev-mermaid/slidev-plantuml against
-#    the "code" skill, but code.md contains no Mermaid/PlantUML/LaTeX content
-#    at all — grepped the whole plugin; that syntax only appears as generic
-#    diagram usage in interactive/ and presentations/, never as a documented
-#    feature. These three sources' claims were never actually written into
-#    any skill, so "verifying" them found nothing to verify. Flagging as a
-#    content gap, not fixing by writing new sections — out of scope for a
-#    verification pass.
-# 2. presentations skill's core content (Pyramid Principle, SCQA, Assertion-
+# 1. presentations skill's core content (Pyramid Principle, SCQA, Assertion-
 #    Evidence, Duarte Sparkline, Presentation Zen, 10/20/30, Rule of Three)
 #    is author/book citations external to the slidevjs/slidev repo — no live
 #    source to check them against beyond what the six [[sources]] entries
 #    below already record (manual, rolling, not re-verified this pass either).
-# 3. Deferred as lower-value / not re-verified: code-groups' icon `~icon~`
+# 2. Deferred as lower-value / not re-verified: code-groups' icon `~icon~`
 #    safelist requirement in uno.config.ts (undocumented in code.md, not
 #    added); Magic Move's copy-button and full title-bar option set (only
 #    `{at:}`/duration/filename added, not magicMoveCopy); the `--with-toc`
@@ -101,7 +157,13 @@ last_full_check = "2026-07-30"
 #    `@slidev/theme-seriph`; left as a generic naming-convention example
 #    rather than asserting an unscoped package of that name exists); the
 #    `--download` flag's possible `'auto'` value seen in build.ts (narrow,
-#    not clearly relevant to the documented boolean default).
+#    not clearly relevant to the documented boolean default); the "at/finally"
+#    terminology's defining page (referenced by docs/features/latex.md but
+#    not located — see the slidev-code-blocks source note above).
+# 3. This Gate 3 round re-verified everything it touched, but was not itself
+#    a fresh full sweep of the six skills — it is a targeted fix pass over
+#    the five findings and nits above, not a reason to bump last_full_check
+#    on its own.
 
 # ----------------------------------------------------------------------------
 # Slidev Syntax Guide — slide separators, frontmatter, headmatter, block
@@ -196,7 +258,7 @@ version_constraint = "rolling"
 last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/line-highlighting.md and docs/features/shiki-magic-move.md on the slidevjs/slidev GitHub repo. Line ranges, click-based `|` highlighting, and Magic Move's 4-backtick fence all confirmed. Added: {hide}/{none} line values and Magic Move's {at:}/duration/title-bar, previously undocumented. 'at/finally' terminology in this entry's own Key Topics does not match live docs (no 'finally' keyword found) — the actual mechanism is {at:N} plus the {*} placeholder, both confirmed present."
+notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/line-highlighting.md and docs/features/shiki-magic-move.md on the slidevjs/slidev GitHub repo. Line ranges, click-based `|` highlighting, and Magic Move's 4-backtick fence all confirmed. Added: {hide}/{none} line values and Magic Move's {at:}/duration/title-bar, previously undocumented. On 'at/finally': {at:N} and the {*} placeholder are confirmed present; 'finally' is referenced by name in docs/features/latex.md ('The at and finally options of code blocks are also available for LaTeX blocks') but its own defining page was not found in line-highlighting.md, code-block-max-height.md, code-block-line-numbers.md, guide/syntax.md, docs/features/click-marker.md, or guide/animations.md — genuinely unresolved rather than confirmed absent; correcting an overreach in an earlier revision of this note that asserted it does not exist."
 
 [[sources]]
 skills = ["code"]
@@ -259,40 +321,40 @@ breaking_changes_likely = false
 notes = "claude-skills-223 tier 2 continuation: re-verified against docs/features/import-snippet.md on the slidevjs/slidev GitHub repo. <<< syntax, @ alias, #region-name, language override, and the 'since v0.47.0' version claim all confirmed exact match (doc frontmatter: since: v0.47.0)."
 
 [[sources]]
-skills = ["code"]
+skills = ["syntax"]
 name = "slidev-latex"
 url = "https://sli.dev/features/latex"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. KaTeX, inline/block math, chemical equations. Not re-verified live in this pass. claude-skills-223 tier 2 continuation, 2026-08-05: grepped the whole code skill (SKILL.md + references/code.md) for latex/katex content — none exists. This source's claims were never actually written into the skill; see [meta] 'Remaining uncovered' note. Content gap, not a false claim."
+notes = "sources.md Date Accessed 2026-02-21. KaTeX, inline/block math, chemical equations. claude-skills-223 tier 2 continuation, 2026-08-05: CORRECTED attribution from code to syntax — Gate 3 review found this content live at syntax/references/syntax.md:327-346 ('## LaTeX Math'), not in the code skill at all. An earlier pass in this PR wrongly declared it an unwritten content gap after grepping only the code skill. Re-verified against docs/features/latex.md on the slidevjs/slidev GitHub repo: inline/block math syntax and the KaTeX line-highlighting note confirmed exact match. Chemical equations (mhchem extension, vite.config.ts setup) are documented upstream but not in syntax.md — not added, out of scope for this pass."
 
 [[sources]]
-skills = ["code"]
+skills = ["syntax"]
 name = "slidev-mermaid"
 url = "https://sli.dev/features/mermaid"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. Mermaid syntax, theme configuration. Not re-verified live in this pass. claude-skills-223 tier 2 continuation, 2026-08-05: grepped the whole code skill for mermaid content — none exists (Mermaid only appears as generic diagram usage in interactive/ and presentations/, not as documented slidev syntax). Content gap, not a false claim — see [meta] 'Remaining uncovered' note."
+notes = "sources.md Date Accessed 2026-02-21. Mermaid syntax, theme configuration. claude-skills-223 tier 2 continuation, 2026-08-05: CORRECTED attribution from code to syntax — this content lives at syntax/references/syntax.md:350-358 ('### Mermaid'), not in the code skill. Re-verified against docs/features/mermaid.md on the slidevjs/slidev GitHub repo: the `{theme: 'neutral', scale: 0.8}` options-object syntax confirmed exact match."
 
 [[sources]]
-skills = ["code"]
+skills = ["syntax"]
 name = "slidev-plantuml"
 url = "https://sli.dev/features/plantuml"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2026-02-21"
+last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-02-21. PlantUML syntax, server configuration. Not re-verified live in this pass. claude-skills-223 tier 2 continuation, 2026-08-05: grepped the whole code skill for plantuml content — none exists. Content gap, not a false claim — see [meta] 'Remaining uncovered' note."
+notes = "sources.md Date Accessed 2026-02-21. PlantUML syntax, server configuration. claude-skills-223 tier 2 continuation, 2026-08-05: CORRECTED attribution from code to syntax — this content lives at syntax/references/syntax.md:360-370 ('### PlantUML'), not in the code skill. Re-verified against docs/features/plantuml.md on the slidevjs/slidev GitHub repo: default plantuml.com server and the `plantUmlServer` headmatter override confirmed exact match."
 
 # ----------------------------------------------------------------------------
 # Slidev Export family — export CLI (PDF/PPTX/PNG/SPA) and the full CLI
@@ -454,7 +516,7 @@ version_constraint = "rolling"
 last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "claude-skills-223 tier 2 continuation, 2026-08-05: new entry, verified live against docs/guide/write-theme.md and docs/custom/directory-structure.md on the slidevjs/slidev GitHub repo — the package.json theme-publishing conventions underpinning styles/references/theme-generation.md's 'Package Structure for Reusable Themes' and 'Slidev Theme File Structure' sections. CORRECTIONS: package.json keywords must include BOTH 'slidev-theme' and 'slidev' (skill previously listed only 'slidev-theme'); the skill's package.json sample showed a 'slidev.highlighter' field that does not exist in the documented slidev.* schema (defaults, colorSchema light/dark/both, engines.slidev) — highlighter is a frontmatter/headmatter option, removed from the package.json sample. Confirmed correct: styles/index.{css,js,ts} and uno.config.ts auto-loading, components/ auto-import, public/ served at root."
+notes = "claude-skills-223 tier 2 continuation, 2026-08-05: new entry, verified live against docs/guide/write-theme.md and docs/custom/directory-structure.md on the slidevjs/slidev GitHub repo — the package.json theme-publishing conventions underpinning styles/references/theme-generation.md's 'Package Structure for Reusable Themes' and 'Slidev Theme File Structure' sections. CORRECTION: package.json keywords must include BOTH 'slidev-theme' and 'slidev' (skill previously listed only 'slidev-theme'). Confirmed correct: styles/index.{css,js,ts} and uno.config.ts auto-loading, components/ auto-import, public/ served at root. Gate 3 follow-up: this note originally also claimed the sample's 'slidev.highlighter' field was fabricated and removed it — that was wrong. highlighter is real, undocumented-by-write-theme.md-but-real theme metadata (packages/types/src/types.ts's SlidevThemeMeta interface, consumed in packages/parser/src/config.ts's resolveConfig). Restored to the sample."
 
 # ----------------------------------------------------------------------------
 # Interactive Demos — Vue 3 reactivity, Slidev custom component integration,
@@ -494,4 +556,4 @@ version_constraint = "rolling"
 last_checked = "2026-08-05"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "sources.md Date Accessed 2026-04-04. iframe, iframe-left, iframe-right layouts, URL property. claude-skills-223 tier 2 continuation, 2026-08-05: re-verified against packages/client/layouts/iframe{,-left,-right}.vue and packages/client/internals/SlideWrapper.vue on the slidevjs/slidev GitHub repo instead of the doc site. iframe/iframe-left/iframe-right and the url prop confirmed (plus an undocumented scale prop, not added — out of scope). CORRECTION: 'add class: border-0 to remove the default iframe border' does not work — frontmatter class binds to the slide's outer wrapper div, not the nested <iframe id=\"frame\">, and CSS border does not inherit through descendants. Fixed in iframe-mocks.md with a global-CSS #frame alternative."
+notes = "sources.md Date Accessed 2026-04-04. iframe, iframe-left, iframe-right layouts, URL property. claude-skills-223 tier 2 continuation, 2026-08-05: re-verified against packages/client/layouts/iframe{,-left,-right}.vue on the slidevjs/slidev GitHub repo instead of the doc site. iframe/iframe-left/iframe-right and the url prop confirmed (plus an undocumented scale prop, not added — out of scope). CORRECTION: 'add class: border-0 to remove the default iframe border' does not work, but not for the reason first written here — there is no default iframe border to remove at all (every deck loads @unocss/reset/tailwind.css, zeroing border-width deck-wide per packages/client/styles/index.ts). The class-binding-to-the-wrong-element analysis also stands but SlideWrapper.vue does not support it (its class comes from getSlideClass/utils.ts, unrelated to frontmatter class) — the real path is class's absence from FRONTMATTER_FIELDS (constants.ts) through frontmatterToProps (context.ts) to Vue's attribute-fallthrough onto the layout's own root element. Fixed in iframe-mocks.md: states plainly there is nothing to remove, gives the correct citation, and reframes any #frame CSS as adding a border if wanted, not removing one."
