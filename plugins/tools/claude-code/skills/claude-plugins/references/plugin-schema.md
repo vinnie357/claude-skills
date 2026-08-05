@@ -22,7 +22,7 @@ Complete JSON schema for Claude Code plugin.json files.
   "agents": "string | array (optional, paths)",
   "hooks": "string | object (optional, path or config)",
   "mcpServers": "string | object (optional, path or config)",
-  "skills": ["array of strings (optional, paths)"]
+  "skills": "string | array (optional, paths, adds to the default skills/ scan)"
 }
 ```
 
@@ -76,10 +76,13 @@ Complete JSON schema for Claude Code plugin.json files.
 - **Recommendations**: Use lowercase, be specific, 3-10 keywords ideal
 
 ### skills (Optional)
-- **Type**: Array of strings
-- **Description**: Paths to skill directories (relative to plugin root)
+- **Type**: String or Array of strings
+- **Description**: Paths to skill directories (relative to plugin root). Unlike `commands`/`agents`, a string value ADDS to the default `skills/` scan rather than replacing it — the default `skills/` directory is always scanned, and directories listed here are loaded alongside it
 - **Format**: Each path should point to a directory containing SKILL.md
-- **Examples**: `["./skills/git", "./skills/documentation"]`
+- **Formats**:
+  - String: `"./custom/skills/"` (a single directory, merged with the default scan)
+  - Array: `["./skills/git", "./skills/documentation"]`
+- claude-skills-248: upstream (code.claude.com/docs/en/plugins-reference) documents this as `string | array`, same shape as `commands`/`agents`, but explicitly states the different ADD-vs-REPLACE semantic. The validator accepts the string form as a single path, existence-checked exactly like an array entry — same as `commands`/`agents`, it does not scan a directory's contents (that's the Claude Code loader's job, not this validator's).
 
 ### commands (Optional)
 - **Type**: String or Array of strings
