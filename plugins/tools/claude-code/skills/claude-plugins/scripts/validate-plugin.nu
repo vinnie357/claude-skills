@@ -1137,10 +1137,27 @@ def validate-plugin-content [
   # Validate userConfig (claude-skills-250): upstream documents `userConfig`
   # as `object` only — no string/array alternative like the path-based
   # fields above.
+  #
+  # claude-skills-256 — extends this guard with a drill into each option
+  # record via validate-user-config-option (defined below, near
+  # is-array-type). This is a NEW crash exposure on the pre-existing
+  # record-type check just below: before this change, a reverted guard here
+  # just silently accepted a wrong-typed userConfig (no further drilling
+  # existed downstream); after this change, a reverted guard falls into
+  # `.columns()` on a non-record value and crashes
+  # (nu::shell::only_supports_this_input_type, reproduced directly against
+  # `42 | columns` before writing this fix). The
+  # 'user_config_wrong_type_number_errors' fixture pinning this guard moved
+  # from `cases` to `cli_cases` in this same change for that reason — same
+  # discipline this file already applies to the 'experimental' guard above.
   if ($plugin | get -o userConfig) != null {
     let user_config_type = ($plugin.userConfig | describe)
     if not ($user_config_type | str starts-with "record") {
       $errors = ($errors | append $"'userConfig' must be an object, got ($user_config_type)")
+    } else {
+      for key in ($plugin.userConfig | columns) {
+        $errors = ($errors | append (validate-user-config-option $key ($plugin.userConfig | get $key) "userConfig"))
+      }
     }
   }
 
@@ -1151,22 +1168,75 @@ def validate-plugin-content [
     if not (is-array-type $channels_type) {
       $errors = ($errors | append $"'channels' must be an array, got ($channels_type)")
     } else {
-      # claude-skills-255 Gate 3 — cheap subset of the channels class check:
-      # upstream documents each channel entry's 'server' field as a
-      # required string ("must match a key in the plugin's mcpServers").
-      # This validator checks TYPE only when present, same is-string idiom
-      # as author/dependencies above — not presence, and not the
-      # cross-field match against mcpServers keys (both would need new
-      # machinery and stay deferred). Before this fix, 'channels:
-      # [{server: 42}]' passed with 0 errors; reproduced directly against
-      # pre-fix code before writing this fix. Non-record entries are
-      # skipped here — validating entry-shape itself is the same deferred
-      # scope as the cross-field check.
+      # claude-skills-256 — the plugin's mcpServers keys, computed once for
+      # the channels[].server cross-field check below, and scoped INSIDE
+      # this channels-array-confirmed branch deliberately — not hoisted
+      # above the channels guard. A first version computed this whenever
+      # mcpServers was merely present, regardless of channels; that crashed
+      # the in-process self-test on the PRE-EXISTING mcp_servers_string_
+      # accepted / mcp_servers_array_accepted fixtures (mcpServers set,
+      # channels absent) the moment the is-record gate below was reverted —
+      # reproduced directly while mutation-testing this fix, before
+      # narrowing the scope to here. Upstream (Channels section): "The
+      # server field is required and must match a key in the plugin's
+      # mcpServers." mcpServers is separately documented `string | array |
+      # object` (Metadata fields table) — a config file path, an array of
+      # paths, or an inline config record — and only the inline OBJECT
+      # shape has resolvable keys without reading an external file. `null`
+      # here means "cross-check cannot be performed" (mcpServers absent, a
+      # string, or an array), NOT "no servers declared" — the loop below
+      # skips the check silently in that case rather than false-reject a
+      # documented, valid manifest (e.g. mcpServers as an external config
+      # path). This is a separate guard from mcpServers' own
+      # string|array|object type check above: that check already fires its
+      # own error for a genuinely wrong-typed mcpServers (e.g. a bare
+      # bool); this guard only decides whether THIS cross-check can run,
+      # never appends its own error for mcpServers' shape.
+      let mcp_server_keys = if ($plugin | get -o mcpServers) != null {
+        let mcp_type = ($plugin.mcpServers | describe)
+        if ($mcp_type | str starts-with "record") {
+          ($plugin.mcpServers | columns)
+        } else {
+          null
+        }
+      } else {
+        null
+      }
+
+      # claude-skills-256 — closes the two items claude-skills-255 Gate 3
+      # deferred: 'server' PRESENCE (upstream: "The server field is
+      # required...") and the cross-field match against 'mcpServers' keys
+      # ("...and must match a key in the plugin's mcpServers"). Before this
+      # fix, a channel entry with no 'server' at all, or a 'server' naming
+      # a key absent from mcpServers, passed with 0 errors — reproduced
+      # directly against pre-fix code before writing this fix. The
+      # cross-field check only fires when mcp_server_keys (computed above)
+      # is non-null — mcpServers absent, a string, or an array all skip it
+      # silently. Non-record entries are still skipped entirely —
+      # validating entry-shape itself stays out of scope, same as before
+      # this fix. Each channel's own userConfig (upstream: "uses the same
+      # schema as the top-level field") reuses validate-user-config-option,
+      # the same function the top-level userConfig block above calls.
       for channel in $plugin.channels {
         if ($channel | describe | str starts-with "record") {
           let server = ($channel | get -o server)
-          if ($server != null) and not (is-string $server) {
+          if $server == null {
+            $errors = ($errors | append "channels entry missing required 'server' field")
+          } else if not (is-string $server) {
             $errors = ($errors | append $"channels entry 'server' must be a string, got ($server | describe)")
+          } else if ($mcp_server_keys != null) and ($server not-in $mcp_server_keys) {
+            $errors = ($errors | append $"channels entry 'server' \(($server)\) does not match any key in 'mcpServers'")
+          }
+
+          let channel_user_config = ($channel | get -o userConfig)
+          if $channel_user_config != null {
+            if not ($channel_user_config | describe | str starts-with "record") {
+              $errors = ($errors | append $"channels entry 'userConfig' must be an object, got ($channel_user_config | describe)")
+            } else {
+              for key in ($channel_user_config | columns) {
+                $errors = ($errors | append (validate-user-config-option $key ($channel_user_config | get $key) "channels entry userConfig"))
+              }
+            }
           }
         }
       }
@@ -1478,6 +1548,66 @@ def is-string [value: any] {
 # times over.
 def is-array-type [type_desc: string] {
   ($type_desc | str starts-with "list") or ($type_desc | str starts-with "table")
+}
+
+# claude-skills-256 — reusable validator for one userConfig option record.
+# Serves BOTH call sites: the top-level `userConfig` field and each
+# `channels[].userConfig` entry, which upstream states "uses the same
+# schema as the top-level field" (Channels section). Verified live against
+# https://code.claude.com/docs/en/plugins-reference#user-configuration
+# before writing this fix — "Each option supports these fields: type
+# (Required — one of string, number, boolean, directory, or file), title
+# (Required), description (Required), sensitive/required/default/multiple/
+# min/max (all optional)."
+#
+# restraint: only the three required fields plus the 'type' enum are
+# checked here. sensitive/required/default/multiple/min/max are optional
+# per upstream, and claude-skills-256's AC scopes this validator to the
+# required-field-plus-enum machinery those four items actually need —
+# type-checking every optional field (bool for sensitive/required/
+# multiple, number for min/max) would be the general schema engine this
+# fix was explicitly told not to build. Extend here if a future issue
+# needs it, not preemptively.
+#
+# The leading record-type check on `option` is load-bearing, not
+# defensive-for-its-own-sake: `$option | get -o type` on a non-record `any`
+# crashes uncaught (nu::shell::only_supports_this_input_type — "only
+# list<any>, table, record, and nothing input data is supported"),
+# reproduced directly before writing this fix. Both call sites already
+# guard their OWN container (userConfig / channels[].userConfig) before
+# reaching here, but the per-OPTION value (e.g. `userConfig: {api_token:
+# "oops"}`) is still caller-supplied and unchecked at this point.
+def validate-user-config-option [key: string, option: any, context: string] {
+  mut errs = []
+  if not ($option | describe | str starts-with "record") {
+    return ($errs | append $"($context) option '($key)' must be an object, got ($option | describe)")
+  }
+
+  let valid_types = ["string", "number", "boolean", "directory", "file"]
+  let type_value = ($option | get -o type)
+  if $type_value == null {
+    $errs = ($errs | append $"($context) option '($key)' missing required 'type' field")
+  } else if not (is-string $type_value) {
+    $errs = ($errs | append $"($context) option '($key)' 'type' must be a string, got ($type_value | describe)")
+  } else if $type_value not-in $valid_types {
+    $errs = ($errs | append $"($context) option '($key)' has invalid 'type' '($type_value)' \(expected one of: string, number, boolean, directory, file\)")
+  }
+
+  let title_value = ($option | get -o title)
+  if $title_value == null {
+    $errs = ($errs | append $"($context) option '($key)' missing required 'title' field")
+  } else if not (is-string $title_value) {
+    $errs = ($errs | append $"($context) option '($key)' 'title' must be a string, got ($title_value | describe)")
+  }
+
+  let description_value = ($option | get -o description)
+  if $description_value == null {
+    $errs = ($errs | append $"($context) option '($key)' missing required 'description' field")
+  } else if not (is-string $description_value) {
+    $errs = ($errs | append $"($context) option '($key)' 'description' must be a string, got ($description_value | describe)")
+  }
+
+  $errs
 }
 
 # Check if string is kebab-case
@@ -2135,16 +2265,16 @@ def self-test [] {
       expect_warnings: 0
     }
     {
-      name: "user_config_wrong_type_number_errors"
-      why: "claude-skills-250 — a bare number is invalid under userConfig's only documented shape (object); verified accepted with 0 errors before this fix"
-      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: 42 }
-      expect_errors: 1
-      expect_warnings: 0
-    }
-    {
+      # claude-skills-256 — 'user_config_wrong_type_number_errors' moved
+      # from here to cli_cases: the else-branch this fix adds right after
+      # the record-type check (drilling into each option via
+      # validate-user-config-option) means a reverted guard now crashes via
+      # `.columns()` on a non-record value instead of failing cleanly. See
+      # the comment on that guard in validate-plugin-content for the
+      # reproduction. It is NOT duplicated here — moved, not copied.
       name: "channels_array_of_objects_accepted"
-      why: "claude-skills-250 — closing the class: channels is documented as array only. Upstream's own shape ('channel declarations') is an array of objects, which nushell describes as table<type: string>, not list<...> — reproduced directly while writing this fixture (a str-starts-with-list-only check false-rejects this exact upstream-documented shape); is-array-type accepts both"
-      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ type: "telegram" }] }
+      why: "claude-skills-250 — closing the class: channels is documented as array only. Upstream's own shape ('channel declarations') is an array of objects, which nushell describes as table<server: string>, not list<...> — reproduced directly while writing this fixture (a str-starts-with-list-only check false-rejects this exact upstream-documented shape); is-array-type accepts both. claude-skills-256 — corrected in the SAME change as the 'server' presence check below: the original fixture used {type: \"telegram\"}, a shape upstream never documents (no 'type' field on a channel entry) and with no valid 'server' at all; it only ever exercised the array-shape check, not entry content. Two entries here (not one) keep this fixture meaningfully distinct from channels_entry_server_string_accepted below, both now using the upstream-documented {server: ...} shape"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: "telegram" }, { server: "slack" }] }
       expect_errors: 0
       expect_warnings: 0
     }
@@ -2157,16 +2287,120 @@ def self-test [] {
     }
     {
       name: "channels_entry_server_wrong_type_errors"
-      why: "claude-skills-255 Gate 3 — channels entry 'server' (upstream: required string matching an mcpServers key) was entirely unvalidated; a bare number passed with 0 errors before this fix. Cheap subset: type-checked when present, not presence itself and not the mcpServers cross-field match (both deferred, need new machinery)"
+      why: "claude-skills-255 Gate 3 / claude-skills-256 — channels entry 'server' (upstream: required string matching an mcpServers key) was entirely unvalidated before claude-skills-255; a bare number passed with 0 errors. claude-skills-255 added the type check when present; claude-skills-256 (this fix) added presence and the mcpServers cross-field match, closing the class"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: 42 }] }
       expect_errors: 1
       expect_warnings: 0
     }
     {
       name: "channels_entry_server_string_accepted"
-      why: "claude-skills-255 Gate 3 — a correctly-typed 'server' string must produce zero errors"
+      why: "claude-skills-255 Gate 3 — a correctly-typed 'server' string, with no 'mcpServers' field present at all, must produce zero errors. Also the 'mcpServers absent' branch of claude-skills-256's cross-field check: mcp_server_keys is null, so the check is skipped rather than false-rejecting a channel that simply doesn't declare mcpServers inline"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: "telegram" }] }
       expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "channels_entry_server_missing_errors"
+      why: "claude-skills-256 — upstream: \"The server field is required\". A channel entry with no 'server' key at all passed with 0 errors before this fix (claude-skills-255 only type-checked 'server' WHEN present, deferring presence itself). Differs from the valid base ({server: \"telegram\"}) in exactly the one dimension: 'server' is absent, not merely wrong-typed (channels_entry_server_wrong_type_errors above already pins the wrong-type case separately). expect_error_contains pins the MESSAGE, not just the count: is-string(null) is false, so neutering the dedicated presence branch falls through to the 'must be a string' branch and still produces exactly 1 error — reproduced directly by mutation before adding this assertion"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{}] }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "missing required 'server' field"
+    }
+    {
+      name: "channels_entry_server_mcp_servers_object_match_accepted"
+      why: "claude-skills-256 — the cross-field check's positive case: mcpServers given as an inline OBJECT (the one shape with resolvable keys) containing exactly the key the channel's 'server' names. Proves the match path doesn't false-reject a genuinely valid manifest"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: { telegram: {} }, channels: [{ server: "telegram" }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "channels_entry_server_mcp_servers_object_mismatch_errors"
+      why: "claude-skills-256 — the cross-field check's negative case: mcpServers given as an inline OBJECT whose only key ('slack') does not match the channel's 'server' ('telegram'). Upstream: \"must match a key in the plugin's mcpServers\". Verified accepted with 0 errors before this fix (the cross-field match was entirely unvalidated, deferred at claude-skills-255 Gate 3). 'server' is correctly typed and present here — isolates the cross-field dimension from the presence/type dimensions pinned by the fixtures above"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: { slack: {} }, channels: [{ server: "telegram" }] }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "user_config_option_all_required_fields_accepted"
+      why: "claude-skills-256 — upstream's own documented required trio (type/title/description) all present and correctly typed must produce zero errors"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "string", title: "API token", description: "Authentication token" } } }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "user_config_option_missing_type_errors"
+      why: "claude-skills-256 — upstream: 'type' is Required. Differs from the accepted base fixture in exactly one dimension: 'type' is absent, title and description both present and valid. expect_error_contains pins the MESSAGE: is-string(null) is false, so neutering the dedicated presence branch falls through to the 'must be a string' branch and still produces exactly 1 error — reproduced directly by mutation before adding this assertion"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { title: "API token", description: "Authentication token" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "missing required 'type' field"
+    }
+    {
+      name: "user_config_option_missing_title_errors"
+      why: "claude-skills-256 — upstream: 'title' is Required. Isolates the title dimension: type and description both present and valid. Same fallthrough-masking risk and same expect_error_contains reasoning as user_config_option_missing_type_errors above"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "string", description: "Authentication token" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "missing required 'title' field"
+    }
+    {
+      name: "user_config_option_missing_description_errors"
+      why: "claude-skills-256 — upstream: 'description' is Required. Isolates the description dimension: type and title both present and valid. Same fallthrough-masking risk and same expect_error_contains reasoning as user_config_option_missing_type_errors above"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "string", title: "API token" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "missing required 'description' field"
+    }
+    {
+      name: "user_config_option_type_wrong_scalar_type_errors"
+      why: "claude-skills-256 — a wrong-TYPED 'type' (a bare number) fails differently from an invalid-but-string enum value (user_config_option_type_invalid_enum_value_errors below): this must report a type mismatch, not an enum-membership error, so the two fixtures pin distinct branches of the enum check rather than one proving the other. expect_error_contains pins the MESSAGE: '42 not-in [string list]' evaluates true at runtime (an int is trivially not-in a list of strings — verified directly), so neutering the wrong-type branch falls through to the enum-membership branch and still produces exactly 1 error"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: 42, title: "API token", description: "Authentication token" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "'type' must be a string, got int"
+    }
+    {
+      name: "user_config_option_type_invalid_enum_value_errors"
+      why: "claude-skills-256 — upstream: 'type' is 'One of string, number, boolean, directory, or file'. A correctly-STRING-typed value outside that enum ('integer' is not a documented option type) must still error — the enum-membership branch, distinct from the wrong-type branch above. expect_error_contains distinguishes it from user_config_option_type_wrong_scalar_type_errors's message"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "integer", title: "API token", description: "Authentication token" } } }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "has invalid 'type'"
+    }
+    {
+      name: "user_config_option_title_wrong_type_errors"
+      why: "claude-skills-256 — 'title' present but wrong-typed (a bare number). Isolates the title-type dimension: type and description both valid"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "string", title: 42, description: "Authentication token" } } }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "user_config_option_description_wrong_type_errors"
+      why: "claude-skills-256 — 'description' present but wrong-typed (a bare number). Isolates the description-type dimension: type and title both valid"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: { type: "string", title: "API token", description: 42 } } }
+      expect_errors: 1
+      expect_warnings: 0
+    }
+    {
+      name: "user_config_multiple_options_upstream_example_accepted"
+      why: "claude-skills-256 — upstream's own User configuration doc example verbatim (api_endpoint + api_token, the latter carrying the optional 'sensitive: true'), reproduced as this fixture's plugin. Proves multiple options in one userConfig all validate independently AND that a present optional field (sensitive) does not trigger a spurious error under this fix's restraint-scoped validator"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_endpoint: { type: "string", title: "API endpoint", description: "Your team's API endpoint" }, api_token: { type: "string", title: "API token", description: "API authentication token", sensitive: true } } }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "channels_user_config_all_required_fields_accepted"
+      why: "claude-skills-256 — upstream's own Channels doc example verbatim (bot_token + owner_id under a telegram channel's userConfig). Proves validate-user-config-option is correctly reused at the nested channels[].userConfig call site, upstream: 'uses the same schema as the top-level field'"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: "telegram", userConfig: { bot_token: { type: "string", title: "Bot token", description: "Telegram bot token", sensitive: true }, owner_id: { type: "string", title: "Owner ID", description: "Your Telegram user ID" } } }] }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "channels_user_config_missing_title_errors"
+      why: "claude-skills-256 — one representative missing-required-field case at the NESTED channels[].userConfig call site, isolating that the reused validator actually fires there (the full missing-type/missing-title/missing-description/wrong-type/enum matrix is already exhaustively pinned at the top-level userConfig call site above; duplicating all of it here would test the same shared function twice, not new code)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: "telegram", userConfig: { bot_token: { type: "string", description: "Telegram bot token" } } }] }
+      expect_errors: 1
       expect_warnings: 0
     }
     # claude-skills-253 — seven scalar metadata fields ($schema, displayName,
@@ -2320,6 +2554,18 @@ def self-test [] {
       let expect_success = ($c | get -o expect_success)
       if ($expect_success != null) and ($result.success != $expect_success) {
         $failures = ($failures | append $"($c.name): expected success=($expect_success), got ($result.success) -- ($c.why)")
+      }
+      # claude-skills-256 — optional message-content assertion, same shape
+      # as expect_success above. Needed because expect_errors alone counts
+      # errors, not which one fired: several of this fix's checks sit in an
+      # if/else-if chain sharing a field with a SIBLING check (e.g. a
+      # missing value is also "not a string"), so neutering the intended
+      # branch can fall through to the sibling and still produce the same
+      # error COUNT — reproduced directly for the 'server' presence check
+      # and the userConfig required-field checks before adding this field.
+      let expect_error_contains = ($c | get -o expect_error_contains)
+      if ($expect_error_contains != null) and not ($result.errors | any {|e| $e | str contains $expect_error_contains }) {
+        $failures = ($failures | append $"($c.name): expected an error containing '($expect_error_contains)', got errors=($result.errors | to nuon) -- ($c.why)")
       }
     }
   }
@@ -3335,6 +3581,59 @@ def self-test [] {
   mkdir ($cli_experimental_wrong_type_dir | path join ".claude-plugin")
   { name: "experimental-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", experimental: 42 } | save --force ($cli_experimental_wrong_type_dir | path join ".claude-plugin" "plugin.json")
 
+  # claude-skills-256 shape 13 — plugin.json 'userConfig' present but
+  # wrong-typed (a bare number). MOVED here from the in-process `cases`
+  # list in this same change: this fix adds an else-branch right after the
+  # pre-existing record-type check (drilling into each option via
+  # validate-user-config-option), so a reverted guard now crashes via
+  # `.columns()` on a non-record value instead of failing cleanly — same
+  # crash class and same isolation reasoning as 'experimental' above.
+  let cli_user_config_wrong_type_dir = ($cli_temp_dir | path join "user-config-wrong-type-plugin")
+  mkdir ($cli_user_config_wrong_type_dir | path join ".claude-plugin")
+  { name: "user-config-wrong-type-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: 42 } | save --force ($cli_user_config_wrong_type_dir | path join ".claude-plugin" "plugin.json")
+
+  # claude-skills-256 shape 14 — validate-user-config-option's own leading
+  # record-type check on the OPTION value (not the userConfig container,
+  # already covered by shape 13 above). A userConfig option value that
+  # isn't an object (e.g. a bare string) would crash `.get -o type` inside
+  # validate-user-config-option if that leading guard were removed. Pins
+  # ONE guard shared by both call sites (top-level userConfig and
+  # channels[].userConfig both call the same function) — not duplicated for
+  # the nested call site, since reverting the shared function's guard
+  # breaks both identically.
+  let cli_user_config_option_not_object_dir = ($cli_temp_dir | path join "user-config-option-not-object-plugin")
+  mkdir ($cli_user_config_option_not_object_dir | path join ".claude-plugin")
+  { name: "user-config-option-not-object-plugin", version: "1.0.0", description: "test fixture", license: "MIT", userConfig: { api_token: "not-an-object" } } | save --force ($cli_user_config_option_not_object_dir | path join ".claude-plugin" "plugin.json")
+
+  # claude-skills-256 shape 15 — the NESTED channels[].userConfig
+  # container's own record-type check (distinct guard from shape 13/14:
+  # this one guards the per-channel userConfig object itself, before
+  # iterating its columns). A channel's userConfig present but wrong-typed
+  # (e.g. a bare string) would crash `.columns()` if this guard were
+  # removed.
+  let cli_channels_user_config_not_object_dir = ($cli_temp_dir | path join "channels-user-config-not-object-plugin")
+  mkdir ($cli_channels_user_config_not_object_dir | path join ".claude-plugin")
+  { name: "channels-user-config-not-object-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: "telegram", userConfig: "not-an-object" }] } | save --force ($cli_channels_user_config_not_object_dir | path join ".claude-plugin" "plugin.json")
+
+  # claude-skills-256 shape 16/17 — the channels[].server-vs-mcpServers
+  # cross-field check's is-record gate (computed once, before the channels
+  # loop). mcpServers as a STRING (an external config file path) or an
+  # ARRAY (a list of config paths) are both documented, valid shapes whose
+  # keys are NOT resolvable from the manifest alone — the cross-check must
+  # skip them silently. If the is-record gate were reverted (always
+  # treating mcpServers as if its keys were readable), `.columns()` on
+  # either shape crashes (list<string> input, only_supports_this_input_type
+  # — verified directly for both shapes before writing these fixtures).
+  # Both shapes fixtured, not just one, per this issue's own instruction
+  # that a skip never exercised is a skip nobody has verified.
+  let cli_channels_mcp_servers_string_skip_dir = ($cli_temp_dir | path join "channels-mcp-servers-string-skip-plugin")
+  mkdir ($cli_channels_mcp_servers_string_skip_dir | path join ".claude-plugin")
+  { name: "channels-mcp-servers-string-skip-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: "./mcp-config.json", channels: [{ server: "anything" }] } | save --force ($cli_channels_mcp_servers_string_skip_dir | path join ".claude-plugin" "plugin.json")
+
+  let cli_channels_mcp_servers_array_skip_dir = ($cli_temp_dir | path join "channels-mcp-servers-array-skip-plugin")
+  mkdir ($cli_channels_mcp_servers_array_skip_dir | path join ".claude-plugin")
+  { name: "channels-mcp-servers-array-skip-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: ["./mcp-a.json"], channels: [{ server: "anything" }] } | save --force ($cli_channels_mcp_servers_array_skip_dir | path join ".claude-plugin" "plugin.json")
+
   let cli_cases = [
     {
       name: "cli_valid_plugin_file_exit_0"
@@ -3731,6 +4030,39 @@ def self-test [] {
       expect_exit: 1
       expect_output_contains: "'experimental' must be an object, got int"
       why: "claude-skills-250 shape 12 — 'experimental' present but wrong-typed (a bare int) would crash uncaught inside the new experimental.themes/experimental.monitors checks' `get -o` calls if the record-type guard were removed; CLI-subprocess isolated so a reverted guard fails THIS case by clean stdout assertion instead of crashing the whole self-test run"
+    }
+    {
+      name: "cli_user_config_wrong_type_exit_1"
+      args: [($cli_user_config_wrong_type_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "'userConfig' must be an object, got int"
+      why: "claude-skills-256 — moved from the in-process `cases` list: the new else-branch (drilling into each option) makes a reverted record-type guard here crash via `.columns()` on a non-record value; CLI-subprocess isolated so a reverted guard fails THIS case by clean stdout assertion instead of crashing the whole self-test run"
+    }
+    {
+      name: "cli_user_config_option_not_object_exit_1"
+      args: [($cli_user_config_option_not_object_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "userConfig option 'api_token' must be an object, got string"
+      why: "claude-skills-256 — validate-user-config-option's own leading record-type check on the per-option value; reverting it crashes `.get -o type` on a non-record 'any' at runtime (only_supports_this_input_type), reproduced directly before writing this fixture. Shared by both call sites (top-level userConfig and channels[].userConfig), so pinned once here rather than duplicated for the nested site"
+    }
+    {
+      name: "cli_channels_user_config_not_object_exit_1"
+      args: [($cli_channels_user_config_not_object_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 1
+      expect_output_contains: "channels entry 'userConfig' must be an object, got string"
+      why: "claude-skills-256 — the nested channels[].userConfig CONTAINER's own record-type check, distinct from validate-user-config-option's per-option guard above: this one guards `.columns()` over the container itself, before ever reaching an individual option"
+    }
+    {
+      name: "cli_channels_mcp_servers_string_skip_exit_0"
+      args: [($cli_channels_mcp_servers_string_skip_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 0
+      why: "claude-skills-256 — mcpServers as a STRING (external config path) must skip the channels[].server cross-field check silently rather than false-reject. Reverting the is-record gate that decides this crashes `.columns()` on a string; CLI-subprocess isolated so the crash is contained to the child process and this case fails cleanly (exit code mismatch, not a whole-suite crash) if that gate is reverted"
+    }
+    {
+      name: "cli_channels_mcp_servers_array_skip_exit_0"
+      args: [($cli_channels_mcp_servers_array_skip_dir | path join ".claude-plugin" "plugin.json")]
+      expect_exit: 0
+      why: "claude-skills-256 — the ARRAY half of the same is-record gate as cli_channels_mcp_servers_string_skip_exit_0 above (mcpServers as a list of config paths). Fixtured separately, not assumed to be covered by the string case, since list<string> and string are different input shapes at the `.columns()` call site that would crash if the gate were reverted"
     }
   ]
 
