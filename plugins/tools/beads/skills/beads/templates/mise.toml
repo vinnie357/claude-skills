@@ -121,15 +121,15 @@ def main [task_id: string] {
 '''
 
 [tasks."beads:sync"]
-description = "Sync beads changes to git remote"
-run = "bd sync"
+description = "Push local Dolt commits to the configured remote (bd sync does not exist; this is bd dolt push)"
+run = "bd dolt push"
 
 [tasks."beads:pull"]
-description = "Pull beads changes from git remote"
-run = "bd pull"
+description = "Pull commits from the configured Dolt remote (bd pull does not exist; this is bd dolt pull)"
+run = "bd dolt pull"
 
 [tasks."beads:status"]
-description = "Show beads sync status"
+description = "Show issue count/status overview (not sync status — see 'bd dolt status' for Dolt sync state)"
 run = "bd status"
 
 [tasks."beads:dep:add"]
@@ -159,8 +159,13 @@ def main [
 '''
 
 [tasks."beads:dep:graph"]
-description = "Show dependency graph"
-run = "bd dep graph"
+description = "Show dependency tree rooted at an issue (bd dep graph does not exist; this is bd dep tree)"
+run = '''
+#!/usr/bin/env nu
+def main [task_id: string] {
+    bd dep tree $task_id
+}
+'''
 
 [tasks."beads:comment"]
 description = "Add a comment to a task"
@@ -196,24 +201,24 @@ def main [
     task_id: string # Task ID
     labels: string  # Comma-separated labels to add
 ] {
-    bd label $task_id --add $labels
+    # bd label --add does not exist; bd label add takes one label per call,
+    # and does not split a comma-separated string, so loop per label.
+    for label in ($labels | split row ",") {
+        bd label add $task_id $label
+    }
     print $"(ansi cyan)Added labels to ($task_id): ($labels)(ansi reset)"
 }
 '''
 
 [tasks."beads:tree"]
-description = "Show task hierarchy tree"
+description = "List child tasks of a parent task (bd tree does not exist; this is bd children --pretty)"
 run = '''
 #!/usr/bin/env nu
-def main [task_id?: string] {
-    if ($task_id | is-empty) {
-        bd tree
-    } else {
-        bd tree $task_id
-    }
+def main [task_id: string] {
+    bd children $task_id --pretty
 }
 '''
 
-[tasks."beads:rebuild"]
-description = "Rebuild SQLite cache from JSONL files"
-run = "bd rebuild"
+# beads:rebuild removed — bd rebuild does not exist in 1.1.2 and has no
+# equivalent. The Dolt-backed release has no SQLite cache to rebuild from
+# JSONL; Dolt is the source of truth and .beads/issues.jsonl is export-only.
