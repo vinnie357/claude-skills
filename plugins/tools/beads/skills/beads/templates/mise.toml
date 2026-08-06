@@ -203,7 +203,10 @@ def main [
 ] {
     # bd label --add does not exist; bd label add takes one label per call,
     # and does not split a comma-separated string, so loop per label.
-    for label in ($labels | split row ",") {
+    # Empty elements (trailing/double commas) are filtered out — bd label
+    # add rejects an empty label ("label cannot be empty") and aborts the
+    # loop, which would leave the issue partially labelled.
+    for label in ($labels | split row "," | where $it != "") {
         bd label add $task_id $label
     }
     print $"(ansi cyan)Added labels to ($task_id): ($labels)(ansi reset)"
@@ -219,6 +222,11 @@ def main [task_id: string] {
 }
 '''
 
-# beads:rebuild removed — bd rebuild does not exist in 1.1.2 and has no
-# equivalent. The Dolt-backed release has no SQLite cache to rebuild from
-# JSONL; Dolt is the source of truth and .beads/issues.jsonl is export-only.
+# beads:rebuild removed — bd rebuild does not exist in 1.1.2, and there is
+# no SQLite cache to rebuild from JSONL in the Dolt-backed release (Dolt is
+# the source of truth; .beads/issues.jsonl is export-only). SKILL.md maps
+# the troubleshooting role to `bd doctor` ("Check and fix beads installation
+# health"). Verified live: `bd doctor` exists, but as of 1.1.2 it errors
+# "not yet supported in embedded mode" under this template's default init
+# mode (beads:init), so no beads:doctor task is added here — run it
+# directly (or use --server mode) when troubleshooting is needed.
