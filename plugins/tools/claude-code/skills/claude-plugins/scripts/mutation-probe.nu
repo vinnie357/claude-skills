@@ -161,6 +161,48 @@ def main [] {
       expect_case_substring: "user_config_option_min_wrong_type_errors"
     }
     {
+      # claude-skills-257 — dependencies[].name empty-string rejection.
+      # Neuters just the new empty-check branch; the sibling null/type
+      # branches above it don't fire for '', so a neutered branch here
+      # falls all the way through to an accepted (0-error) result.
+      name: "dependencies_entry_name_empty_never_checked"
+      find: "} else if ($dep_name | is-empty) {"
+      replace: "} else if false {"
+      expect_case_substring: "dependencies_entry_name_empty_errors"
+    }
+    {
+      # claude-skills-257 Gate 3 — the bare-string dependencies[] form's
+      # empty-string rejection, added after Gate 3 review found the object
+      # form ({name: ""}) was guarded but the sibling bare-string form
+      # (dependencies: [""]) was not, same field, two syntactic forms.
+      name: "dependencies_entry_bare_string_empty_never_checked"
+      find: "if ($dep | is-empty) {"
+      replace: "if false {"
+      expect_case_substring: "dependencies_entry_bare_string_empty_errors"
+    }
+    {
+      # claude-skills-257 — channels[].server empty-string rejection. Same
+      # neuter-one-branch shape as the dependencies probe above; the
+      # empty-check branch sits ahead of the mcpServers cross-field match,
+      # so neutering it alone (leaving the cross-field check intact) still
+      # exposes the gap when mcpServers is absent (mcp_server_keys null),
+      # matching the fixture's own shape.
+      name: "channels_entry_server_empty_never_checked"
+      find: "} else if ($server | is-empty) {"
+      replace: "} else if false {"
+      expect_case_substring: "channels_entry_server_empty_errors"
+    }
+    {
+      # claude-skills-257 — author.*'s affirmative-checkmark gate. Reverts
+      # the is-not-empty condition this fix added, restoring the pre-fix
+      # unconditional-under---verbose print so an empty author.name prints
+      # '✓ author.name: ' again.
+      name: "author_checkmark_prints_for_empty_value"
+      find: "else if $verbose and ($value | is-not-empty) {"
+      replace: "else if $verbose {"
+      expect_case_substring: "cli_author_name_empty_verbose_no_checkmark"
+    }
+    {
       # claude-skills-258 — proves the unknown-fixture-key guard actively
       # fires on a real typo, not just that the guard function exists. This
       # is a FIXTURE mutation, not an implementation mutation (unlike every

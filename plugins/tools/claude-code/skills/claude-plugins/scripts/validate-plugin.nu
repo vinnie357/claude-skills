@@ -478,7 +478,19 @@ def validate-plugin-content [
       for dep in $plugin.dependencies {
         let dep_type = ($dep | describe)
         if $dep_type == "string" {
-          # valid: bare plugin name
+          # claude-skills-257 Gate 3 — upstream's own documented shape mixes
+          # bare plugin-name strings with {name, version} objects in the
+          # SAME array (["helper-lib", {name: "secrets-vault", ...}]), and
+          # both forms carry the identical 'name' identifier semantics: an
+          # empty string resolves against nothing either way. The object
+          # form's 'name' subfield got an empty-string check below in this
+          # same fix; this bare-string form did not, and '""' entry in
+          # dependencies silently passed with 0 errors — reproduced
+          # directly against pre-fix code before writing this guard, found
+          # by Gate 3 review of this exact PR, not a new/unrelated defect.
+          if ($dep | is-empty) {
+            $errors = ($errors | append "dependencies entry must not be an empty string")
+          }
         } else if ($dep_type | str starts-with "record") {
           let dep_name = ($dep | get -o name)
           if $dep_name == null {
@@ -492,6 +504,18 @@ def validate-plugin-content [
             # 0 errors and exited 0 before this fix. Reproduced directly
             # against pre-fix code before writing this fix.
             $errors = ($errors | append $"dependencies entry 'name' must be a string, got ($dep_name | describe): ($dep | to nuon)")
+          } else if ($dep_name | is-empty) {
+            # claude-skills-257 — 'name' is a required IDENTIFIER (the
+            # plugin name a dependency resolves against), not descriptive
+            # text: an empty string is a string, so it passed the is-string
+            # check above and exited 0 with 0 errors before this fix, same
+            # as a missing 'name' but silently instead of with the
+            # dedicated presence error two branches up. Scoped to this
+            # field deliberately — see the per-field decision table in this
+            # PR's description for why sibling optional/descriptive fields
+            # (author.*, plugin.json description/license) are NOT given the
+            # same treatment.
+            $errors = ($errors | append $"dependencies entry 'name' must not be empty: ($dep | to nuon)")
           }
           # claude-skills-235: validate `version` as a node-semver RANGE
           # expression, not an exact version — upstream: "The version field
@@ -671,7 +695,16 @@ def validate-plugin-content [
         if $value != null {
           if not (is-string $value) {
             $errors = ($errors | append $"'author.($subfield)' must be a string, got ($value | describe)")
-          } else if $verbose {
+          } else if $verbose and ($value | is-not-empty) {
+            # claude-skills-257 — NOT a strictness call: author.* stays
+            # accept-empty (none of the three subfields is individually
+            # required, per the comment above), but printing '✓
+            # author.name: ' for an empty string affirmed a value that was
+            # never actually verified as meaningful. Before this fix an
+            # empty string satisfied is-string and printed the checkmark
+            # unconditionally — reproduced directly against pre-fix code.
+            # Gating on is-not-empty withholds the checkmark without
+            # turning the empty value into an error or warning.
             print $"  ✓ author.($subfield): ($value)"
           }
         }
@@ -1224,6 +1257,18 @@ def validate-plugin-content [
             $errors = ($errors | append "channels entry missing required 'server' field")
           } else if not (is-string $server) {
             $errors = ($errors | append $"channels entry 'server' must be a string, got ($server | describe)")
+          } else if ($server | is-empty) {
+            # claude-skills-257 — same identifier reasoning as
+            # dependencies[].name above: upstream states 'server' "is
+            # required and must match a key in the plugin's mcpServers", so
+            # an empty string can never legitimately match a real key. Was
+            # silently accepted before this fix WHEN mcpServers was absent,
+            # a string, or an array (mcp_server_keys null below, so the
+            # cross-field check never ran) — reproduced directly. Placed
+            # ahead of the cross-field check so the message is always
+            # 'must not be empty', not the less precise 'does not match any
+            # key', regardless of whether mcpServers happens to be present.
+            $errors = ($errors | append "channels entry 'server' must not be empty")
           } else if ($mcp_server_keys != null) and ($server not-in $mcp_server_keys) {
             $errors = ($errors | append $"channels entry 'server' \(($server)\) does not match any key in 'mcpServers'")
           }
@@ -1912,6 +1957,22 @@ def self-test [] {
       expect_warnings: 0
     }
     {
+      name: "dependencies_entry_name_empty_errors"
+      why: "claude-skills-257 — 'name' is a required identifier (the plugin name a dependency resolves against): an empty string is a string, so it satisfied the is-string check above and passed with 0 errors before this fix, differing from the accepted base ({name: 'secrets-vault', version: '~2.1.0'}) in exactly one dimension. expect_error_contains pins the MESSAGE, not just the count: is-string('') is true, so neutering only the dedicated empty-check branch falls through to the two prior branches (neither of which fires for '') and would silently pass — reproduced directly by mutation before adding this assertion"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [{ name: "", version: "1.0.0" }] }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "dependencies entry 'name' must not be empty"
+    }
+    {
+      name: "dependencies_entry_bare_string_empty_errors"
+      why: "claude-skills-257 Gate 3 — the bare-string dependency form (dependencies_array_of_bare_names_accepted's shape) carries the identical 'name' identifier semantics as the {name, version} object form above, but had no emptiness check: dependencies: [''] passed with 0 errors before this fix, found by Gate 3 review of this same PR. Differs from the accepted base (['helper-lib']) in exactly one dimension. expect_error_contains pins the MESSAGE: neutering the dedicated empty-check branch falls through to the 'valid: bare plugin name' no-op and would silently pass — reproduced directly by mutation before adding this assertion"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: [""] }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "dependencies entry must not be an empty string"
+    }
+    {
       name: "dependencies_not_an_array_errors"
       why: "a lone string instead of an array is a type error, not a shape variant"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", dependencies: "helper-lib" }
@@ -2365,6 +2426,14 @@ def self-test [] {
       expect_error_contains: "missing required 'server' field"
     }
     {
+      name: "channels_entry_server_empty_errors"
+      why: "claude-skills-257 — same identifier reasoning as dependencies_entry_name_empty_errors: upstream states 'server' \"is required and must match a key in the plugin's mcpServers\", and an empty string can never match a real key. No mcpServers field here, so mcp_server_keys is null and the cross-field check (which would have accidentally caught non-null cases via 'does not match') never ran — this is the confirmed silent-pass shape, differing from the accepted base ({server: 'telegram'}) in exactly one dimension. expect_error_contains pins the MESSAGE: is-string('') is true, so neutering only the dedicated empty-check branch falls through past it — reproduced directly by mutation before adding this assertion"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", channels: [{ server: "" }] }
+      expect_errors: 1
+      expect_warnings: 0
+      expect_error_contains: "channels entry 'server' must not be empty"
+    }
+    {
       name: "channels_entry_server_mcp_servers_object_match_accepted"
       why: "claude-skills-256 — the cross-field check's positive case: mcpServers given as an inline OBJECT (the one shape with resolvable keys) containing exactly the key the channel's 'server' names. Proves the match path doesn't false-reject a genuinely valid manifest"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", mcpServers: { telegram: {} }, channels: [{ server: "telegram" }] }
@@ -2630,6 +2699,13 @@ def self-test [] {
       name: "author_empty_object_accepted"
       why: "claude-skills-255 — no author subfield is individually required (author itself is a recommended, not required, top-level field, and upstream states no subfield-level requirement), so an author object present but with all three subfields absent must not warn or error"
       plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: {} }
+      expect_errors: 0
+      expect_warnings: 0
+    }
+    {
+      name: "author_name_empty_string_accepted"
+      why: "claude-skills-257 — deliberately the OPPOSITE decision from dependencies[].name/channels[].server above: author.name is optional descriptive metadata, not an identifier another field resolves against, and none of the three author subfields is individually required. An empty string must not become an error or warning here — only the affirmative checkmark is withheld (see cli_cases for that assertion, since the checkmark is CLI --verbose output, not part of errors/warnings)"
+      plugin: { name: "my-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { name: "" } }
       expect_errors: 0
       expect_warnings: 0
     }
@@ -3612,6 +3688,19 @@ def self-test [] {
   mkdir ($cli_author_valid_verbose_dir | path join ".claude-plugin")
   { name: "author-valid-verbose-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { name: "Dev Team", email: "dev@company.com", url: "https://github.com/author" } } | save --force ($cli_author_valid_verbose_dir | path join ".claude-plugin" "plugin.json")
 
+  # claude-skills-257 — plugin.json 'author.name' present, correctly typed
+  # (a string), but empty, run with --verbose. Before this fix an empty
+  # string satisfied the is-string gate the same as any other string and
+  # printed "✓ author.name: " unconditionally — an affirmative for a value
+  # that was never actually verified as meaningful. Not a strictness call
+  # (author.name stays accept-empty, exit 0, 0 errors — see
+  # author_name_empty_string_accepted in the main cases list); this
+  # fixture isolates the checkmark-suppression half of the fix, which
+  # `expect_errors`/`expect_warnings` counts alone cannot see.
+  let cli_author_name_empty_verbose_dir = ($cli_temp_dir | path join "author-name-empty-verbose-plugin")
+  mkdir ($cli_author_name_empty_verbose_dir | path join ".claude-plugin")
+  { name: "author-name-empty-verbose-plugin", version: "1.0.0", description: "test fixture", license: "MIT", author: { name: "" } } | save --force ($cli_author_name_empty_verbose_dir | path join ".claude-plugin" "plugin.json")
+
   # Shape 4 — a 'dependencies' entry's 'version' present but wrong-typed
   # (a YAML/JSON list, not a string).
   let cli_dep_version_wrong_type_dir = ($cli_temp_dir | path join "dep-version-wrong-type-plugin")
@@ -4086,6 +4175,14 @@ def self-test [] {
       expect_exit: 0
       expect_output_contains: "✓ author.name: Dev Team"
       why: "claude-skills-255 defect 2, positive counterpart — pins that the is-string gate still lets the affirmative checkmark through for a correctly-typed author.name (email/url exercised together in the same fixture but only name's checkmark is asserted here, matching this suite's one-assertion-per-case convention)"
+    }
+    {
+      name: "cli_author_name_empty_verbose_no_checkmark"
+      args: [($cli_author_name_empty_verbose_dir | path join ".claude-plugin" "plugin.json"), "--verbose"]
+      expect_exit: 0
+      expect_output_contains: "✓ Plugin is valid!"
+      expect_output_not_contains: "✓ author.name"
+      why: "claude-skills-257 — before this fix, --verbose printed '✓ author.name: ' (empty value) unconditionally, since '' satisfies is-string like any other string. Reproduced directly against pre-fix code before writing this fixture. expect_exit: 0 and the valid-plugin banner confirm this stays an accept-empty field (no error, no warning) — only the false affirmative is withheld, distinguishing this from the reject fixtures above"
     }
     {
       name: "cli_dependency_version_wrong_type_exit_1"
