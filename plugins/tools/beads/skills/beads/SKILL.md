@@ -357,7 +357,7 @@ bd dolt pull
 
 # Inspect Dolt-level state/diffs directly if a pull reports conflicts
 bd dolt status
-bd diff main HEAD      # two required refs; despite --help advertising HEAD~N, that form errors live in bd 1.1.0 (claude-skills-240)
+bd diff main HEAD      # two required refs; despite --help advertising HEAD~N, that form still errors live in bd 1.1.2 (re-verified claude-skills-240; "invalid fromRef: invalid ref format: HEAD~1")
 ```
 
 ## Workflow Examples
