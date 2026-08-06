@@ -18,6 +18,19 @@ Activate when:
 - Building plugin systems with WebAssembly sandboxing
 - Optimizing wasm module size or runtime performance
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Wasmtime ships major-version bumps roughly
+monthly, so pinned versions and API paths are high-risk. Verified against wasmtime
+47.0.3 (crates.io, claude-skills-204): the host/guest Rust examples were pinned to a
+stale "29" and used the pre-reorg `wasmtime_wasi` API — corrected to the `p1::`/`p2::`
+submodule layout confirmed against docs.rs/wasmtime-wasi/latest, and `WasiView::ctx()`
+was corrected to return a single `WasiCtxView<'_>` rather than separate `ctx()`/`table()`
+methods. WASI 0.3.0 native-async coverage (stream/future in the Component Model,
+requires Wasmtime 46+) was added, confirmed against wasi.dev and bytecodealliance.org.
+Re-verify against `docs.rs/wasmtime/latest` before asserting an API this skill doesn't
+cover — this crate changes fast enough that a stale example compiles against nothing.
+
 ## Core Concepts
 
 | Concept | Purpose |

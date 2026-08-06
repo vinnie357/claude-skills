@@ -21,6 +21,16 @@ Activate when:
 - Structuring packages and namespaces for wasm components
 - Composing components via shared interfaces
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The claim area is the WIT type system and
+package syntax (packages, interfaces, worlds, records/variants/enums/flags, resources,
+`use` declarations, `result<T,E>`, `borrow<T>`), shared with wasmtime under the same
+Bytecode Alliance umbrella. Re-verified live 2026-08-04 (claude-skills-204) against
+component-model.bytecodealliance.org's design/wit.html: no drift found in the documented
+syntax. Re-verify against that page, or `wasm-tools component wit`, before asserting a
+type-system feature this skill doesn't cover — the Component Model is still evolving.
+
 ## WIT File Structure
 
 A WIT file contains one or more of: package declaration, interfaces, worlds, and use declarations.

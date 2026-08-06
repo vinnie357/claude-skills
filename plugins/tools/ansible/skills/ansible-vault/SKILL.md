@@ -8,6 +8,18 @@ license: MIT
 
 Activate when encrypting secrets, managing vault passwords, configuring vault IDs, or applying security hardening to Ansible playbooks and variable files.
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The `ansible-vault` CLI commands are stable
+core-Ansible surface, low risk. The real claim area is `references/secret-backends.md`'s
+HashiCorp Vault lookup plugin options (`url`, `token`, `auth_method`, `role_id`,
+`secret_id`, `return_format`). Verified against community.hashi_vault 7.1.0
+(ansible-galaxy-installed live, claude-skills-223) via `ansible-doc -t lookup -j`: those
+option names and the `auth_method` choices (token/userpass/ldap/approle/aws_iam/azure/
+jwt/cert/gcp/none) all exist as documented. Re-verify against a current
+`ansible-doc community.hashi_vault.hashi_vault` before asserting an option this skill
+doesn't cover — the collection version-pins independently of ansible-core.
+
 ## Why Vault Exists
 
 Secrets (passwords, API keys, certificates) must never be committed to version control in plaintext. Ansible Vault encrypts secrets at rest using AES-256 so they can be safely committed to git while remaining usable by Ansible at runtime.

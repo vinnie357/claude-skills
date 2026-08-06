@@ -1,36 +1,8 @@
 {
-  "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths; syntax-vs-usage vocabulary findings use syntax/<format>:vocab_disjoint for the formats commands/agents/hooks — the validator prints both vocabularies), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block/vocab_disjoint/fm_schema; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes.",
+  "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths; syntax-vs-usage vocabulary findings use syntax/<format>:vocab_disjoint for the formats commands/agents/hooks — the validator prints both vocabularies), class (BUG | DEBT | CHECK_DEFECT | ACCEPTED — CHECK_DEFECT means the check itself is defective, entry's issue field names the tracker item for the check fix; ACCEPTED means a reviewed, closed verdict that the finding stays permanently by design rather than outstanding debt, entry's issue field names the tracker item the verdict was decided under — both are excluded from the burn-down total and reported separately so neither exclusion reads as progress), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block/vocab_disjoint/fm_schema; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes.",
   "allowed_failures": [
     {
-      "key": "ansible/ansible-inventory:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "ansible/ansible-roles:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "ansible/ansible-testing:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "ansible/ansible-vault:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "ansible/ansible:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
@@ -79,22 +51,8 @@
       "detail_count": null
     },
     {
-      "key": "design/accessibility:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "design/material-design:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
       "key": "dupe/28ccd32d:duplicate_block",
-      "class": "DEBT",
+      "class": "ACCEPTED",
       "issue": "claude-skills-148",
       "first_seen": "2026-07-26",
       "detail_count": 7
@@ -136,27 +94,6 @@
     },
     {
       "key": "elixir/tidewave:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "runex/runex:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "slidev/code:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "slidev/export:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",
@@ -206,69 +143,6 @@
     },
     {
       "key": "ui/daisyui:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "wasm/wasmtime:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "wasm/wit:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/allocators:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/build:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/c-interop:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/language:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/testing:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/troubleshooting:anti_fab",
-      "class": "DEBT",
-      "issue": "claude-skills-144",
-      "first_seen": "migrated",
-      "detail_count": null
-    },
-    {
-      "key": "zig/zig:anti_fab",
       "class": "DEBT",
       "issue": "claude-skills-144",
       "first_seen": "migrated",

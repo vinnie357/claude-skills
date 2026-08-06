@@ -17,6 +17,19 @@ Use this skill when:
 - Conducting code reviews with accessibility considerations
 - Refactoring existing interfaces for better accessibility
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The claim area is the WCAG version cited and
+the ARIA Authoring Practices Guide (APG) pattern attributions. Verified against W3C's
+live WCAG22 quickref and the APG patterns index (claude-skills-223): the WCAG citation
+was bumped from 2.1 to 2.2 (2.2 became a Recommendation 2023-10-05, and per its own text
+"content that conforms to WCAG 2.2 also conforms to WCAG 2.0 and WCAG 2.1" — compatibility
+runs 2.2-to-2.1, not the reverse this skill previously implied); and "skip links" was
+corrected from an APG pattern to what it actually is, a WCAG bypass-blocks technique — the
+APG index lists 30 named patterns and skip links is not one of them. Re-verify against
+`w3.org/TR/WCAG22/` before citing a WCAG version or success-criterion number this skill
+doesn't cover.
+
 ## Core Principles (POUR)
 
 Web accessibility is organized around four foundational principles:

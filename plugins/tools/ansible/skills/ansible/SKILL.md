@@ -8,6 +8,18 @@ license: MIT
 
 Activate when working with Ansible playbooks, tasks, variables, handlers, conditionals, loops, or setting up an Ansible project from scratch.
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The claim area is playbook/task/variable
+behavior — precedence order, module params, CLI flags — which drifts across Ansible
+releases. Verified against ansible-core 2.21.2 (pipx-installed live, claude-skills-223):
+the variable precedence order (role defaults < host_vars < play vars < vars_files <
+extra-vars) was confirmed with four live adjacent-pair test playbooks, not assumed from
+docs, and `when:` list ANDing plus `check_mode: false` were confirmed correct. Re-verify
+against a current `ansible-playbook --version` before asserting a flag or precedence rule
+this skill doesn't cover; see `plugins/tools/ansible/skills/sources.toml` for the full
+per-claim record.
+
 ## What Is Ansible
 
 Ansible is an agentless, push-based automation tool. The control node (your machine) connects to managed nodes (servers) over SSH and runs tasks declared in YAML files called playbooks. There is no agent to install on managed nodes — only Python and SSH access are required.

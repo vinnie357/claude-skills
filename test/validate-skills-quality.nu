@@ -670,12 +670,12 @@ def run-braced-claude-self-test [] {
 # Validate the baseline's allowed_failures entries. Records only — a bare
 # string entry (the pre-claude-skills-132 shape) is a hard failure, because a
 # hand-added string would bypass class/issue/detail_count permanently.
-# Required: key, class (BUG|DEBT|CHECK_DEFECT), issue. first_seen is an ISO
-# date for new entries or the literal "migrated" for pre-schema ones.
+# Required: key, class (BUG|DEBT|CHECK_DEFECT|ACCEPTED), issue. first_seen is
+# an ISO date for new entries or the literal "migrated" for pre-schema ones.
 # detail_count must be an integer for detail-producing checks (DETAIL_CHECKS),
 # null otherwise. Returns a list of error strings; empty means valid.
 def validate-baseline-entries [entries: list] {
-    let valid_classes = ["BUG" "DEBT" "CHECK_DEFECT"]
+    let valid_classes = ["BUG" "DEBT" "CHECK_DEFECT" "ACCEPTED"]
     mut errors = []
     for entry in $entries {
         let kind = ($entry | describe)
@@ -694,9 +694,9 @@ def validate-baseline-entries [entries: list] {
         }
         let class = ($entry | get -o class | default "")
         if ($class | is-empty) {
-            $errors = ($errors | append $"($key): missing required 'class' \(BUG | DEBT | CHECK_DEFECT\)")
+            $errors = ($errors | append $"($key): missing required 'class' \(BUG | DEBT | CHECK_DEFECT | ACCEPTED\)")
         } else if ($class not-in $valid_classes) {
-            $errors = ($errors | append $"($key): invalid class '($class)' — must be BUG, DEBT, or CHECK_DEFECT")
+            $errors = ($errors | append $"($key): invalid class '($class)' — must be BUG, DEBT, CHECK_DEFECT, or ACCEPTED")
         }
         if (($entry | get -o issue | default "") | is-empty) {
             $errors = ($errors | append $"($key): missing required 'issue' \(tracker id the waiver is filed under\)")
@@ -825,13 +825,21 @@ def accumulate-findings [failing_keys: list, failing_counts: list, entries: list
     {failing_keys: $fk, failing_counts: $fc}
 }
 
-# Burn-down split for the summary line: CHECK_DEFECT entries are defects in
-# the checks themselves (each entry's issue field names the tracker item),
-# not skill debt — they must be reported separately so their exclusion
-# cannot read as progress.
+# Burn-down split for the summary line. Two classes are excluded from the
+# burn total, for different reasons, and both must be reported separately so
+# neither exclusion can read as progress:
+# - CHECK_DEFECT: defects in the checks themselves (each entry's issue field
+#   names the tracker item), not skill debt.
+# - ACCEPTED (claude-skills-259): a reviewed, closed verdict that the finding
+#   stays — e.g. dupe/28ccd32d's assess-no-dedupe call under claude-skills-148
+#   (21 shared lines vs core:git's 222, ~20:1 against; cross-plugin
+#   self-containment rules out a pointer). Permanent by design, not
+#   outstanding debt still to burn down; counting it in the burn total made
+#   the total not shrink even after the verdict was final.
 def burn-down-counts [baseline: list] {
     let excluded = ($baseline | where {|e| ($e | get -o class) == "CHECK_DEFECT"} | length)
-    {burn: (($baseline | length) - $excluded), excluded: $excluded}
+    let accepted = ($baseline | where {|e| ($e | get -o class) == "ACCEPTED"} | length)
+    {burn: (($baseline | length) - $excluded - $accepted), excluded: $excluded, accepted: $accepted}
 }
 
 # Embedded self-test for the baseline schema + count ratchet
@@ -914,14 +922,15 @@ def run-baseline-self-test [] {
         $failed = true
     }
 
-    # Case 10: CHECK_DEFECT entries excluded from the burn-down total but
-    # reported in the excluded figure
+    # Case 10: CHECK_DEFECT and ACCEPTED entries both excluded from the
+    # burn-down total but reported in their own separate figures
     let bd = (burn-down-counts [
         {key: "a/b:anti_fab", class: "DEBT", issue: "i"}
         {key: "c/d:reserved", class: "CHECK_DEFECT", issue: "claude-skills-130"}
+        {key: "e/f:duplicate_block", class: "ACCEPTED", issue: "claude-skills-148"}
     ])
-    if not ($bd.burn == 1 and $bd.excluded == 1) {
-        print $"(ansi red_bold)❌ baseline self-test: burn-down split wrong \(burn ($bd.burn), excluded ($bd.excluded)\)(ansi reset)"
+    if not ($bd.burn == 1 and $bd.excluded == 1 and $bd.accepted == 1) {
+        print $"(ansi red_bold)❌ baseline self-test: burn-down split wrong \(burn ($bd.burn), excluded ($bd.excluded), accepted ($bd.accepted)\)(ansi reset)"
         $failed = true
     }
 
@@ -2857,7 +2866,7 @@ def main [--update-baseline, --self-test] {
     if ($baseline_errors | is-not-empty) {
         print $"(ansi red_bold)❌ ($baseline_errors | length) invalid baseline entries in ($baseline_path):(ansi reset)"
         for e in $baseline_errors { print $"  ($e)" }
-        print "Every allowed_failures entry must be a record: {key, class (BUG|DEBT|CHECK_DEFECT), issue, first_seen, detail_count}."
+        print "Every allowed_failures entry must be a record: {key, class (BUG|DEBT|CHECK_DEFECT|ACCEPTED), issue, first_seen, detail_count}."
         exit 1
     }
     let baseline_keys = ($baseline | each {|e| $e.key})
@@ -3513,7 +3522,7 @@ def main [--update-baseline, --self-test] {
             }
             | sort-by key)
         {
-            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths; syntax-vs-usage vocabulary findings use syntax/<format>:vocab_disjoint for the formats commands/agents/hooks — the validator prints both vocabularies), class (BUG | DEBT | CHECK_DEFECT — CHECK_DEFECT means the check itself is defective; the entry's issue field names the tracker item for the check fix), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block/vocab_disjoint/fm_schema; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
+            "_comment": "Ratchet baseline for test/validate-skills-quality.nu. Each allowed_failures entry is a record: key (plugin/skill:check; corpus-wide duplicate groups use dupe/<md5-8 of the sorted member file set>:duplicate_block — the validator prints each group's member paths; syntax-vs-usage vocabulary findings use syntax/<format>:vocab_disjoint for the formats commands/agents/hooks — the validator prints both vocabularies), class (BUG | DEBT | CHECK_DEFECT | ACCEPTED — CHECK_DEFECT means the check itself is defective, entry's issue field names the tracker item for the check fix; ACCEPTED means a reviewed, closed verdict that the finding stays permanently by design rather than outstanding debt, entry's issue field names the tracker item the verdict was decided under — both are excluded from the burn-down total and reported separately so neither exclusion reads as progress), issue (tracker id the waiver is filed under), first_seen (ISO date, or the literal 'migrated' for entries predating the schema), detail_count (integer for detail-producing checks: lines/links/orphans/invocations/version_pin/ref_depth/duplicate_block/vocab_disjoint/fm_schema; null otherwise). Entries are pre-existing failures allowed to keep failing at their recorded count. Do not add entries for new code; fix the skill instead. When a fix lands or a count drops, the validator requires shrinking the baseline. Regenerate: nu test/validate-skills-quality.nu --update-baseline (shrink-only — removes fixed keys and lowers counts; errors instead of adding keys, never raises a count). Known residual: the ratchet bounds the NUMBER of findings per waived check, not their identity, so a same-commit swap of one finding for another of equal size passes."
             allowed_failures: $shrunk
         } | to json --indent 2 | save -f $baseline_path
         print ""
@@ -3560,11 +3569,14 @@ def main [--update-baseline, --self-test] {
     if $exit_code == 0 {
         print ""
         let bd = (burn-down-counts $baseline)
+        mut suffix = ""
         if $bd.excluded > 0 {
-            print $"Skill quality validation complete! ($bd.burn) debt/bug entries to burn down + ($bd.excluded) check-defects excluded \(see each entry's issue field\)"
-        } else {
-            print $"Skill quality validation complete! ($bd.burn) debt/bug entries to burn down"
+            $suffix = $suffix + $" + ($bd.excluded) check-defects excluded \(see each entry's issue field\)"
         }
+        if $bd.accepted > 0 {
+            $suffix = $suffix + $" + ($bd.accepted) accepted-by-design \(see each entry's issue field\)"
+        }
+        print $"Skill quality validation complete! ($bd.burn) debt/bug entries to burn down($suffix)"
     }
 
     exit $exit_code

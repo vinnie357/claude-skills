@@ -17,3 +17,14 @@ Activate when:
 - Linking C libraries in build.zig
 
 For type mappings, linking patterns, and string interop examples, see `references/c-interop.md`.
+
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Verified against zig 0.16.0 (locally
+installed, claude-skills-204): `references/c-interop.md`'s type mappings and linking
+snippets compile as documented — no corrections needed here. A related claim, that
+`@cImport` emits a deprecation warning, was found wrong and corrected, but that
+claim lived in the troubleshooting skill's compiler-error catalog, not in this file.
+Re-verify against a locally installed `zig build-exe` with a real C header before
+asserting a type mapping this skill doesn't cover — Zig is pre-1.0 and `translate-c`
+behavior has changed across minor releases.

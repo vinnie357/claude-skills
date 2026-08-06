@@ -8,6 +8,23 @@ license: MIT
 
 Activate when defining which hosts Ansible should manage, grouping hosts, setting connection parameters, or configuring dynamic inventory sources like AWS or Azure.
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The claim area is `references/dynamic-
+inventory.md`'s three dynamic-inventory plugin option tables — aws_ec2, azure_rm,
+gcp_compute — plus the `--limit` pattern syntax and connection-vars table, all
+independently verified against live-installed collections (claude-skills-223):
+aws_ec2/constructed against ansible-core 2.21.2; azure_rm against azure.azcollection
+3.21.0 via `ansible-doc -t inventory azure.azcollection.azure_rm` (3 corrections —
+`exclude_vm_resource_groups` does not exist, `hostnames: [default]` hashes the name
+rather than using it plain, `auth_source: auto`'s precedence comment omitted a step);
+gcp_compute against google.cloud 1.14.0 via `ansible-doc -t inventory
+google.cloud.gcp_compute` plus its source (1 correction — `auth_kind` is required with
+no default). One item stays explicitly unverified: whether GCP's `aggregatedList`
+filter needs quoted string label values — no live GCP project was available to test.
+Re-verify against a current `ansible-doc -t inventory` for the plugin in question before
+asserting an option this skill doesn't cover.
+
 ## What Is Inventory
 
 An inventory maps the control node's knowledge of managed nodes. At minimum it lists hostnames or IP addresses. Inventory also defines groups, per-host and per-group variables, and connection parameters.

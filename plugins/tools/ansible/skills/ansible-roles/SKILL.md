@@ -8,6 +8,18 @@ license: MIT
 
 Activate when creating reusable role structures, using `import_role:` or `include_role:`, writing Jinja2 templates, or working with Ansible Galaxy collections and roles.
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The claim area is role directory conventions,
+`meta/main.yml` fields, and the Jinja2 filters used in role templates. Verified against
+ansible-core 2.21.2 (pipx-installed live, claude-skills-223): the `default()` filter's
+boolean-argument semantics and `flatten`'s default-level behavior were both found
+backwards from what the skill documented and corrected — this is exactly the kind of
+inverted claim a docs-only read misses. The role directory layout itself is stable
+Ansible convention, low risk. `ansible-galaxy` hub-doc conventions (requirements.yml,
+collection installs) were last checked 2026-05-06, not re-verified this pass — treat
+those as lower-confidence than the filter/role corrections above.
+
 ## What Are Roles
 
 A role is a self-contained directory of tasks, handlers, variables, templates, and files organized for reuse. Instead of copying tasks between playbooks, extract them into a role and apply the role wherever needed.
