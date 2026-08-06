@@ -13,7 +13,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.140",
+      "version": "0.4.141",
       "category": "meta",
       "keywords": [
         "skills",
@@ -85,7 +85,7 @@
       "source": "./plugins/tools/ansible",
       "strict": true,
       "description": "Ansible automation skills: playbooks, inventory, roles, vault secrets, and Molecule testing",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "category": "tools",
       "keywords": [
         "ansible",
@@ -180,7 +180,7 @@
       "source": "./plugins/design",
       "strict": true,
       "description": "Framework-agnostic standards and design systems: accessibility (WCAG) and Material Design 3 — what you review an implementation against, and plan a compliant new one from",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "category": "frontend",
       "keywords": [
         "design",
@@ -385,7 +385,7 @@
       "source": "./plugins/tools/runex",
       "strict": true,
       "description": "Runex workflow engine: API, bundles, step logs, and debugging",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "category": "tools",
       "keywords": [
         "runex",
@@ -433,7 +433,7 @@
       "source": "./plugins/tools/slidev",
       "strict": true,
       "description": "Slidev presentation skills: strategy, branding, interactive demos, markdown slides, syntax, code blocks, export, and troubleshooting",
-      "version": "0.2.8",
+      "version": "0.2.9",
       "category": "tools",
       "keywords": [
         "slidev",
@@ -501,7 +501,7 @@
       "source": "./plugins/wasm",
       "strict": true,
       "description": "WebAssembly skills: wasmtime runtime, component model, guest compilation, and host embedding",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "category": "language",
       "keywords": [
         "wasm",
@@ -537,7 +537,7 @@
       "source": "./plugins/languages/zig",
       "strict": true,
       "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, testing, and troubleshooting",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "category": "language",
       "keywords": [
         "zig",

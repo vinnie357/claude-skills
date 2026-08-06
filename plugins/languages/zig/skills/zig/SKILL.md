@@ -15,6 +15,20 @@ Activate when:
 - Migrating a project between Zig versions
 - Unsure which specific Zig skill to load
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Zig is pre-1.0 with every minor release
+breaking `std` and build APIs, so version-migration claims are the highest-risk content
+in this plugin. Verified against zig 0.16.0 (locally installed, claude-skills-204) by
+compiling the documented snippets: `references/migration-0.16.md`'s claim that
+`std.c.arc4random_buf` is BSD/Darwin-only was refuted by its own citation (`lib/std/c.zig`
+covers Linux/Android too) and corrected to a compile-probed target table, and
+`references/version-history.md`'s listing of `fmt.bufPrintZ` under "Renamed" was
+corrected — it is still present, deprecated in favor of `bufPrintSentinel`. Re-verify
+against a locally installed `zig version` before asserting a `std` API claim this skill
+doesn't cover — see `plugins/languages/zig/skills/sources.md` for the full per-claim
+record.
+
 ## Available Skills
 
 This plugin provides focused skills for specific Zig topics:

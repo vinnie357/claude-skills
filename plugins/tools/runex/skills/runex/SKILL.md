@@ -25,6 +25,19 @@ registered as `"runex"` rather than `"runex_sub"`), not a documentation error he
 
 Current documented version: **0.0.7** (`mix.exs @version`). Legacy templates for older deployments remain under `templates/0.1.0/` and `scripts/0.1.0/`.
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Runex is a workspace-owned strategic surface
+with the fastest cadence this marketplace documents, so every claim above the fold is
+checked against the source tree rather than release notes. Verified against runex
+0.0.7 (`mix.exs @version`, re-confirmed 2026-08-04, claude-skills-223): the driver list
+was corrected from 8 to the real 14 registered in `Runex.Driver.@drivers`, and workflow
+path resolution was corrected from 3 to the real 4 search roots in `Paths.workflows_dirs/
+0`. A Gate 3 pass then caught the `execution_class/1` naming-drift documented above as an
+upstream bug, not a doc error (filed separately, claude-skills-239). Re-verify against
+the live `lib/runex/driver.ex` and `mix.exs @version` before asserting a driver name or
+version this skill doesn't cover — this is the fastest-moving source in the repo.
+
 ## When to Use This Skill
 
 Activate when:

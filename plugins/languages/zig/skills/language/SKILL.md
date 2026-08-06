@@ -16,6 +16,17 @@ Activate when:
 - Working with slices, arrays, pointers, and strings
 - Using defer/errdefer for resource cleanup
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. Verified against zig 0.16.0 (locally
+installed, claude-skills-204) by compiling the documented snippets:
+`references/language.md`'s `defer` example opened a file with `std.fs.cwd()`, which does
+not exist at 0.16.0 — rewritten against `std.Io.Dir.cwd().openFile(io, ...)` /
+`file.close(io)`, with the pre-0.16 form kept as a note for readers on older
+toolchains. Re-verify against a locally installed `zig version` before asserting a
+`std` API this skill doesn't cover — Zig is pre-1.0 and `std` breaks across minor
+releases.
+
 ## Key Topics
 
 For detailed syntax, patterns, and examples, see `references/language.md`.

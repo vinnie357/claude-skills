@@ -17,6 +17,20 @@ Use this skill when:
 - Creating Material components
 - Reviewing designs for Material Design compliance
 
+## Anti-fabrication
+
+This skill follows `core:anti-fabrication`. The claim area is the tonal-palette, type-
+scale, and layout-breakpoint numbers, which come from a living spec rather than a
+versioned release. Verified against m3.material.io plus the first-party
+material-color-utilities source (claude-skills-223), three corrections: tonal palettes
+have 13 tones (0,10,20...90,95,99,100 per `commonTones`), not "50-99 tones per color";
+the type scale is 5 categories x 3 sizes = 15 styles total, not "5 display sizes and 9
+text sizes" (the sp values 57/32/16/11 were already correct); and MD3 now defines 5
+window-size classes, not 3 — Expanded is capped at 1199dp, with Large and Extra-large
+added above it. Re-verify against `m3.material.io` before asserting a token count or
+breakpoint this skill doesn't cover — Google updates this spec continuously, with no
+versioned release to pin against.
+
 ## What is Material Design 3?
 
 Material Design 3 (Material You) represents Google's latest design system with:
