@@ -218,6 +218,25 @@ def setup-repo-with-gitignored-secret [file_name: string] {
     $repo
 }
 
+# A git repo excluding file_name via `.git/info/exclude` (the local,
+# per-clone ignore mechanism — never committed, unlike .gitignore) with a
+# secret in file_name, present on disk but neither tracked nor staged.
+# `--exclude-standard` respects info/exclude the same way it respects
+# .gitignore — verified directly. Second control surface for
+# claude-skills-272 alongside .gitignore, since a fix keyed narrowly to
+# "reads .gitignore" could still miss this one. Caller is responsible for
+# `rm -rf`.
+def setup-repo-with-info-exclude-secret [file_name: string] {
+    let repo = (mktemp -d)
+    git -C $repo init -q
+    git -C $repo config user.email "test@example.com"
+    git -C $repo config user.name "test"
+    git -C $repo commit -q --allow-empty -m "initial"
+    $"($file_name)\n" | save --append ($repo | path join ".git" "info" "exclude")
+    $"slack_token = \"(fixture-secret)\"\n" | save --force ($repo | path join $file_name)
+    $repo
+}
+
 # Runs the real hook script (Claude Code PreToolUse hook input shape) against
 # repo_dir with PATH pinned to path_list, and returns {exit_code, stdout,
 # stderr}. `command` defaults to a plain commit so existing exit-code-focused
@@ -642,6 +661,129 @@ def main [] {
     }
     rm -rf $p14_repo
     rm -rf $p14_stub.bin_dir
+
+    # ==========================================================================
+    # claude-skills-272: `git add -f <gitignored> && git commit` goes
+    # unscanned. Verified directly against the real (current) hook before
+    # writing these: the compound form exits 0 with "No staged, modified-
+    # tracked, or new untracked files to scan" for both a gitignored
+    # `.env` and a `.git/info/exclude`d path, force-added in the SAME
+    # command — the file is still untracked+ignored at the moment this
+    # PreToolUse hook fires, before `git add -f` has actually run.
+    #
+    # Design contract (the lead's call, recorded here so it isn't
+    # relitigated): detecting `-f`/`--force` in the command string is
+    # string matching used to WIDEN the scanned set, not narrow it — the
+    # opposite direction from the `$COMMAND =~ add` gate removed in
+    # claude-skills-271 round 4 (which used string matching to SKIP a
+    # pass, an unsafe failure mode: a miss reopened the hole). A miss here
+    # means "behaves exactly as today", never a regression — Part 20 below
+    # pins that asymmetry explicitly with an obfuscated form.
+    #
+    # Same unconditional-stub methodology as Parts 1-4/9/10/14 throughout:
+    # isolates "does the export/detection pass even reach the scanner for
+    # this command shape" from real-gitleaks-detection-accuracy.
+    # ==========================================================================
+
+    # --- Part 15: `git add -f .env && git commit` (short flag).
+    let p15_repo = (setup-repo-with-gitignored-secret ".env")
+    let p15_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p15_result = (run-hook $hook $p15_repo $p15_stub.path "git add -f .env && git commit -m test")
+    if not (check "Part 15: `git add -f .env && git commit` with a gitignored secret blocks" $p15_result 2) {
+        $failed = true
+    }
+    rm -rf $p15_repo
+    rm -rf $p15_stub.bin_dir
+
+    # --- Part 16: `git add --force .env && git commit` (long flag).
+    let p16_repo = (setup-repo-with-gitignored-secret ".env")
+    let p16_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p16_result = (run-hook $hook $p16_repo $p16_stub.path "git add --force .env && git commit -m test")
+    if not (check "Part 16: `git add --force .env && git commit` with a gitignored secret blocks" $p16_result 2) {
+        $failed = true
+    }
+    rm -rf $p16_repo
+    rm -rf $p16_stub.bin_dir
+
+    # --- Part 17: a `.git/info/exclude`d path (not .gitignore), force-added
+    # in a compound command. Separate case so a fix keyed narrowly to
+    # ".gitignore" specifically can't silently miss this ignore mechanism.
+    let p17_repo = (setup-repo-with-info-exclude-secret "private.txt")
+    let p17_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p17_result = (run-hook $hook $p17_repo $p17_stub.path "git add -f private.txt && git commit -m test")
+    if not (check "Part 17: `git add -f private.txt && git commit` with an info/exclude'd secret blocks" $p17_result 2) {
+        $failed = true
+    }
+    rm -rf $p17_repo
+    rm -rf $p17_stub.bin_dir
+
+    # --- Part 18 (control, LOAD-BEARING, claude-skills-268): a gitignored
+    # .env with a secret, NOT force-added, plain `git commit`, must still
+    # NOT be scanned. This is the regression that would make the gate
+    # obnoxious — scanning every gitignored file on every commit was
+    # explicitly rejected. The unconditional "secrets found" stub only
+    # fires if the export pass reaches this file at all, so a fix that
+    # over-widens (e.g. drops --exclude-standard, or treats "ignored" and
+    # "force-added" the same) fails LOUD here, not silently.
+    let p18_repo = (setup-repo-with-gitignored-secret ".env")
+    let p18_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p18_result = (run-hook $hook $p18_repo $p18_stub.path "git commit -m test")
+    if not (check "Part 18 (control): gitignored .env, NOT force-added, plain commit is NOT scanned" $p18_result 0) {
+        $failed = true
+    }
+    rm -rf $p18_repo
+    rm -rf $p18_stub.bin_dir
+
+    # --- Part 19 (control): a clean commit still succeeds.
+    let p19_repo = (setup-repo)
+    let p19_stub = (native-stub-path $real_path "" $clean_scan_stderr 0)
+    let p19_result = (run-hook $hook $p19_repo $p19_stub.path "git commit -m test")
+    if not (check "Part 19 (control): a clean commit still succeeds" $p19_result 0) {
+        $failed = true
+    }
+    rm -rf $p19_repo
+    rm -rf $p19_stub.bin_dir
+
+    # --- Part 20: separate commands — `git add -f .env` runs to
+    # completion BEFORE a distinct `git commit` is intercepted. The file
+    # is genuinely in the index by the time this hook fires, so the
+    # EXISTING staged-files pass already exports and scans it — verified
+    # directly against the real (unfixed) hook AND against real gitleaks
+    # with a real detectable token: exit 2, "SECRETS DETECTED". This
+    # already passes today; pinned here so a claude-skills-272 fix cannot
+    # accidentally narrow the staged pass while widening the compound-
+    # command detection.
+    let p20_repo = (setup-repo-with-gitignored-secret ".env")
+    git -C $p20_repo add -f ".env"
+    let p20_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p20_result = (run-hook $hook $p20_repo $p20_stub.path "git commit -m test")
+    if not (check "Part 20: separate `git add -f .env` then `git commit` blocks (already works today)" $p20_result 2) {
+        $failed = true
+    }
+    rm -rf $p20_repo
+    rm -rf $p20_stub.bin_dir
+
+    # --- Part 21 (asymmetry pin): an OBFUSCATED force-add a naive
+    # `-f`/`--force` substring detector would miss. `git add -Af` force-
+    # adds exactly like `git add -f` (verified directly: `-Af` stages a
+    # gitignored file, `git status --short` shows `A  .env`) but contains
+    # neither the literal substring "-f" nor "--force" anywhere in the
+    # flag token — "-Af" is dash, A, f; "-f" as two consecutive characters
+    # never appears. This is the asymmetry contract made concrete: the
+    # detector is EXPECTED to miss this, and the correct behavior on a
+    # miss is "identical to today" (unscanned, exit 0), NOT a crash and
+    # NOT a false block. If a future, cleverer detector starts catching
+    # this specific form too, that is a welcome improvement, not a
+    # regression — update this test's expectation then; do not treat a
+    # newly-caught case as something to guard against.
+    let p21_repo = (setup-repo-with-gitignored-secret ".env")
+    let p21_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p21_result = (run-hook $hook $p21_repo $p21_stub.path "git add -Af && git commit -m test")
+    if not (check "Part 21 (asymmetry pin): obfuscated `git add -Af` behaves as today (unscanned, exit 0) when missed" $p21_result 0) {
+        $failed = true
+    }
+    rm -rf $p21_repo
+    rm -rf $p21_stub.bin_dir
 
     if $failed {
         exit 1
