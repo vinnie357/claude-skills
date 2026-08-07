@@ -6,6 +6,34 @@ version = "latest"
 linux-x64 = { asset_pattern = "beads_*_linux_amd64.tar.gz" }
 macos-arm64 = { asset_pattern = "beads_*_darwin_arm64.tar.gz" }
 
+# Nushell — REQUIRED, not optional: every scripted task below runs under a
+# `#!/usr/bin/env nu` shebang and fails with "env: nu: No such file or
+# directory" if nu is not installed. Do not drop this entry because nu
+# happens to already be on your PATH; a fresh clone of your project will not
+# have it.
+#
+# Pinned rather than "latest" because nushell is pre-1.0 and breaking changes
+# land between minor releases — the task scripts below use version-sensitive
+# surface (`is-not-empty`, `split row`, optional `def main` params, `^cmd
+# ...$spread`). "latest" would silently hand a new installer an untested
+# version. To update: bump the version, then run every beads:* task once.
+#
+# Deliberately NO platforms/asset_pattern block here, unlike the beads entry
+# above. nushell ships both -gnu and -musl builds per Linux arch, and mise
+# picks the right one by detecting the host libc — verified on ubuntu (glibc)
+# and alpine (musl), x64 and arm64, plus macOS. Pinning an asset_pattern
+# overrides that detection and forces one libc on every Linux host: a -gnu
+# pattern breaks musl outright, failing to load the glibc ELF interpreter
+# (e.g. "failed to open elf at /lib64/ld-linux-x86-64.so.2" on x64; the
+# aarch64 loader name differs). The beads entry above can keep its patterns
+# for a different reason — upstream publishes a single Linux asset per arch,
+# so there is no gnu/musl choice for a pattern to override. That asset is
+# itself glibc-linked, so `bd` does not run on musl either way; that is an
+# upstream gap, not something this template can pin around.
+[tools."github:nushell/nushell"]
+version = "0.113.1"
+exe = "nu"
+
 # Beads (bd) mise tasks
 # Copy these task definitions to your project's mise.toml
 
@@ -214,11 +242,38 @@ def main [
 '''
 
 [tasks."beads:tree"]
-description = "List child tasks of a parent task (bd tree does not exist; this is bd children --pretty)"
+description = "Print the task tree — with no argument, open issues only (a closed issue's open descendants are re-rooted, so the shape can differ from the real hierarchy); with a task ID, that issue's full subtree including closed descendants (bd tree does not exist; this is bd list/children --pretty)"
 run = '''
 #!/usr/bin/env nu
-def main [task_id: string] {
-    bd children $task_id --pretty
+# The two forms are NOT the same view with a filter applied — they can print
+# DIFFERENT HIERARCHIES. Pick deliberately.
+#
+# With a task ID, `bd children <id> --pretty` prints that issue's full
+# recursive subtree — grandchildren and closed descendants included, closed
+# marked with a checkmark — rooted at <id> itself. bd gives no way to hide
+# closed here; `--pretty` is its only flag.
+#
+# With no argument, `bd list --pretty` shows only OPEN issues, at every depth,
+# matching the default of beads:list and beads:ready. That pruning is not
+# cosmetic: when a closed issue sits mid-tree, its open descendants are
+# RE-ROOTED to top level, so a grandchild can appear to be a root and the
+# printed shape differs from the real hierarchy. Use the ID form to see the
+# true structure of a subtree.
+#
+# Do not reach for `bd list --parent <id>` expecting an open-only rooted view.
+# `bd children --help` calls itself an alias for `bd list --parent <id>
+# --status all`, but at default status that query dead-ends — it reports
+# "has no children" when the direct child is closed, even when open
+# grandchildren exist beneath it.
+#
+# An empty-string argument is treated as no argument. `bd tree` does not
+# exist in 1.1.2.
+def main [task_id?: string] {
+    if ($task_id | is-empty) {
+        bd list --pretty
+    } else {
+        bd children $task_id --pretty
+    }
 }
 '''
 
