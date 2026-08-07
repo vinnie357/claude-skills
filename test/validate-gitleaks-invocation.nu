@@ -1,51 +1,31 @@
 #!/usr/bin/env nu
 
 # Regression tests for claude-skills-267: gitleaks fail-open on non-git scan
-# paths and on zero-commit git repos, the security-skill template ignoring
-# the native binary / shipping the same unfixed --no-git gap, and the same
-# defects in gitleaks.sh (bash parity script).
+# paths and on zero-commit git repos, and drift between the three
+# implementations of the same invariants (scripts/gitleaks.nu,
+# scripts/gitleaks.sh, and templates/mise.toml's [tasks.gitleaks] — shared
+# by gitleaks:docker/gitleaks:colima via delegation).
 #
-# Defect 1 (fail-open on a non-git directory, the important one):
-# `gitleaks detect --source=<dir>` against a directory that is not a git
-# work tree fails to enumerate any files at all — gitleaks logs "fatal: not
-# a git repository" and reports "no leaks found" having scanned ~0 bytes,
-# exit 0. Adding `--no-git` makes the scan real.
-#
-# Defect 2 (template ignores the native binary): the security skill's
-# templates/mise.toml [tasks.gitleaks] invoked `container run`
-# unconditionally with no native-binary path at all.
-#
-# Defect 3 (fail-open on a zero-commit git repo, Gate 3 B2): gating
-# `--no-git` on `git rev-parse --is-inside-work-tree` is not enough — that
-# check returns true for a freshly `git init`'d repo with zero commits,
-# even though `gitleaks detect` (without --no-git) walks git history, and a
-# zero-commit repo has none to walk. Closed via a separate invariant:
-# refuse to report clean unless gitleaks' own scan summary shows bytes
-# actually scanned (see gitleaks.nu's gitleaks-verified-clean).
-#
-# Defect 4 (template ships the unfixed arg shape, Gate 3 B3): the template
-# task didn't originally have the --no-git handling scripts/gitleaks.nu got
-# for defect 1.
-#
-# Gate 3 R1 (structural-check comment blindness): the FIRST tightened
-# version of Case 3/Case 5 (marker substring match over an isolated
-# run-body slice) still passed on a template with ZERO real native
-# resolution and ZERO --no-git, because the reviewer's mutation put both
-# marker strings inside COMMENT LINES describing what the code does NOT do
-# ("we do not call mise which gitleaks", "we deliberately do NOT pass
-# --no-git here") while the real code was an unconditional container run.
-# Fixed by stripping full comment lines before matching (strip-comment-lines).
-#
-# Gate 3 R5 (marker split): gitleaks.nu now prints a distinct "Scan
-# unverified!" marker (not "Secrets detected!") from the
-# refuse-to-report-clean branch — printing "Secrets detected!" when nothing
-# was actually detected was itself a fabricated claim in a security tool.
-# Case 1/2 assert genuine detection ("Secrets detected!"); Case 4 (which
-# takes the zero-bytes/unverified branch, not genuine detection) asserts
-# "Scan unverified!" specifically so it can no longer pass vacuously
-# regardless of which branch actually fired.
+# Gate 3 defeated textual (grep-the-source) checks against the template
+# FOUR separate ways across three review rounds: a marker matching the
+# task's own description prose, a marker inside a comment, a marker inside
+# a bare string literal, and a marker inside a caret-bearing string literal
+# in a dead (`if false { ... }`) branch. Each fix closed the witness, not
+# the class — substring matching over source text cannot distinguish code
+# from data. Gate 3 T1: stop grepping the template, EXECUTE it. Every
+# template-facing check below extracts a task's real `run` body (following
+# one level of `run = "mise run <other-task>"` delegation, since
+# gitleaks:docker/gitleaks:colima are now thin wrappers around
+# [tasks.gitleaks]'s shared implementation) and runs it as a real
+# subprocess against real fixtures or a controlled, gitleaks-shaped stub —
+# a comment, a string literal, or a dead branch cannot fake a subprocess's
+# actual behavior.
 #
 # Usage: nu test/validate-gitleaks-invocation.nu
+
+# ============================================================================
+# Fixtures
+# ============================================================================
 
 # Slack bot token pattern gitleaks's default ruleset detects (RuleID:
 # slack-bot-token) and does NOT allowlist — verified directly against
@@ -84,7 +64,8 @@ def make-non-git-plain-fixture [] {
 # A unique git repository with ZERO commits, containing one UNTRACKED file
 # with a real secret. `git rev-parse --is-inside-work-tree` reports true
 # here (it is a real work tree) even though `git log` has nothing to walk —
-# the exact condition defect 3 exploits. Caller is responsible for `rm -rf`.
+# the exact condition the zero-commit fail-open exploits. Caller is
+# responsible for `rm -rf`.
 def make-zero-commit-git-secret-fixture [] {
     let dir = (mktemp -d)
     git -C $dir init -q
@@ -94,55 +75,231 @@ def make-zero-commit-git-secret-fixture [] {
     $dir
 }
 
-# Isolates the [tasks.gitleaks] task's `run = """..."""` body — excludes
-# the task header and its `description = "..."` line — so structural
-# checks below can't be fooled by prose elsewhere in the file. Returns null
-# if the task or its run body isn't found.
-def extract-gitleaks-task-body [content: string] {
-    let task_start = ($content | str index-of "[tasks.gitleaks]")
+# A plain git repo (zero commits, no secret content) used as CWD for the
+# controlled-stub tests below (T2/T3) — content doesn't matter there since
+# a stub fully controls the scanner's stdout/stderr/exit; only "is this CWD
+# a valid git worktree" matters, so the task body reaches its invocation
+# point instead of crashing on the unwrapped `git rev-parse --show-toplevel`
+# every template task starts with.
+def make-plain-git-dir [] {
+    let dir = (mktemp -d)
+    git -C $dir init -q
+    $dir
+}
+
+# ============================================================================
+# Stub infrastructure (Gate 3 T1/T2/T3 — execute real code against
+# controlled, gitleaks-shaped responses instead of grepping source text)
+# ============================================================================
+
+def write-stub [dir: string, name: string, body: string] {
+    let path = ($dir | path join $name)
+    ("#!/usr/bin/env bash\n" + $body + "\n") | save --force $path
+    chmod +x $path
+}
+
+# Stub `mise` (which-gitleaks fails, forcing PATH fallback to the `gitleaks`
+# stub below — the same pattern test/validate-security-hook.nu already uses
+# to test gitleaks exit-code handling) and a `gitleaks` binary that prints
+# the given canned stdout/stderr and exits with the given code, ignoring its
+# real arguments. Base64-round-trips both streams so multi-line, quote- and
+# paren-heavy fixture text survives the nu -> bash handoff intact.
+def write-native-stub [bin_dir: string, stdout_text: string, stderr_text: string, exit_code: int] {
+    let stdout_b64 = ($stdout_text | encode base64)
+    let stderr_b64 = ($stderr_text | encode base64)
+    let exit_str = ($exit_code | into string)
+
+    write-stub $bin_dir "mise" "exit 1"
+    write-stub $bin_dir "gitleaks" (
+        "echo \"" + $stdout_b64 + "\" | base64 -d\n" +
+        "echo \"" + $stderr_b64 + "\" | base64 -d >&2\n" +
+        "exit " + $exit_str
+    )
+}
+
+# Stub `mise` (exec passthrough — strips tool-version args up to `--` and
+# execs the wrapped command directly, so a colima task's `mise exec
+# lima@latest colima@latest -- docker run ...` transparently reaches the
+# `docker` stub below with no real lima/colima involved), `docker`/
+# `container` (info/system-status succeed; `run` prints the given canned
+# stdout/stderr and exits with the given code), and `colima` (status/start
+# always succeed). Deliberately provides NO `gitleaks` stub — paired with
+# safe-minimal-path below, this makes native-binary resolution genuinely
+# fail so the container/docker/colima dispatch branch actually executes.
+def write-container-stubs [bin_dir: string, stdout_text: string, stderr_text: string, exit_code: int] {
+    let stdout_b64 = ($stdout_text | encode base64)
+    let stderr_b64 = ($stderr_text | encode base64)
+    let exit_str = ($exit_code | into string)
+
+    write-stub $bin_dir "mise" (
+        "if [ \"$1\" = \"exec\" ]; then\n" +
+        "  shift\n" +
+        "  while [ \"$#\" -gt 0 ] && [ \"$1\" != \"--\" ]; do shift; done\n" +
+        "  shift\n" +
+        "  exec \"$@\"\n" +
+        "fi\n" +
+        "exit 1"
+    )
+    write-stub $bin_dir "docker" (
+        "if [ \"$1\" = \"info\" ]; then\n" +
+        "  exit 0\n" +
+        "fi\n" +
+        "if [ \"$1\" = \"run\" ]; then\n" +
+        "  echo \"" + $stdout_b64 + "\" | base64 -d\n" +
+        "  echo \"" + $stderr_b64 + "\" | base64 -d >&2\n" +
+        "  exit " + $exit_str + "\n" +
+        "fi\n" +
+        "exit 0"
+    )
+    write-stub $bin_dir "container" (
+        "if [ \"$1\" = \"system\" ]; then\n" +
+        "  exit 0\n" +
+        "fi\n" +
+        "if [ \"$1\" = \"run\" ]; then\n" +
+        "  echo \"" + $stdout_b64 + "\" | base64 -d\n" +
+        "  echo \"" + $stderr_b64 + "\" | base64 -d >&2\n" +
+        "  exit " + $exit_str + "\n" +
+        "fi\n" +
+        "exit 0"
+    )
+    write-stub $bin_dir "colima" "exit 0"
+}
+
+# A PATH that provides nu/git/bash (needed to run an extracted script and
+# its own stub tools) but deliberately EXCLUDES the real gitleaks and real
+# mise, so native-binary resolution genuinely fails in write-container-stubs
+# tests. Resolved dynamically (not hardcoded to one machine's layout).
+def safe-minimal-path [] {
+    let nu_dir = (which nu | get -o 0.path | default "" | path dirname)
+    let git_dir = (which git | get -o 0.path | default "" | path dirname)
+    let bash_dir = (which bash | get -o 0.path | default "" | path dirname)
+    [$nu_dir $git_dir $bash_dir "/usr/bin" "/bin"] | where {|p| ($p | is-not-empty) and ($p | path exists)} | uniq
+}
+
+# ============================================================================
+# Template task extraction (Gate 3 T1/T3 — real TOML structure, not regex
+# guesswork over prose)
+# ============================================================================
+
+# Extracts task_name's declaration from the template. Returns:
+#   {kind: "script", body: string}                          — a
+#     self-contained `run = """...""""` body.
+#   {kind: "delegate", target: string, runtime: string}      — a
+#     `run = "mise run <target>"` wrapper, with its own
+#     `env.GITLEAKS_RUNTIME` value (empty string if undeclared).
+#   null if the task or its `run` field isn't found in a recognized shape.
+def extract-task [content: string, task_name: string] {
+    let bare_header = $"[tasks.($task_name)]"
+    let quoted_header = $"[tasks.\"($task_name)\"]"
+    let bare_idx = ($content | str index-of $bare_header)
+    let quoted_idx = ($content | str index-of $quoted_header)
+    let task_start = if $bare_idx >= 0 { $bare_idx } else { $quoted_idx }
     if $task_start < 0 {
         return null
     }
     let rest = ($content | str substring $task_start..)
-    let run_marker = 'run = """'
-    let run_offset = ($rest | str index-of $run_marker)
-    if $run_offset < 0 {
+    # Bound this task's own declaration block at the next task header, so a
+    # missing/malformed `run` field can't accidentally spill into a
+    # DIFFERENT task's fields.
+    let next_task_offset = ($rest | str substring 1.. | str index-of "\n[tasks.")
+    let block = if $next_task_offset < 0 { $rest } else { $rest | str substring 0..($next_task_offset + 1) }
+
+    let triple_marker = 'run = """'
+    let triple_offset = ($block | str index-of $triple_marker)
+    if $triple_offset >= 0 {
+        let after = ($block | str substring ($triple_offset + ($triple_marker | str length))..)
+        # The CLOSING `"""` bounds the real script — critical fix: an
+        # earlier version of this extractor bounded only at the next task
+        # header, which included the closing `"""` as trailing garbage in
+        # the "extracted script" and broke `nu` parsing the moment this
+        # test moved from grepping the extraction to actually running it.
+        let close_offset = ($after | str index-of "\n\"\"\"")
+        if $close_offset < 0 {
+            return null
+        }
+        return {kind: "script", body: ($after | str substring 0..$close_offset)}
+    }
+
+    # Not a triple-quoted body — look for a single-line delegation
+    # (`run = "mise run gitleaks"`, how gitleaks:docker/gitleaks:colima
+    # share [tasks.gitleaks]'s implementation, Gate 3 T3).
+    let single_marker = 'run = "mise run '
+    let single_offset = ($block | str index-of $single_marker)
+    if $single_offset < 0 {
         return null
     }
-    let after_run = ($rest | str substring ($run_offset + ($run_marker | str length))..)
-    # next top-level task header bounds this task's body
-    let next_task_offset = ($after_run | str index-of "\n[tasks.")
-    if $next_task_offset < 0 {
-        $after_run
-    } else {
-        $after_run | str substring 0..$next_task_offset
+    let after_single = ($block | str substring ($single_offset + ($single_marker | str length))..)
+    let end_quote = ($after_single | str index-of '"')
+    if $end_quote < 0 {
+        return null
     }
+    let target = ($after_single | str substring 0..($end_quote - 1))
+
+    let env_marker = 'GITLEAKS_RUNTIME = "'
+    let env_offset = ($block | str index-of $env_marker)
+    let runtime = if $env_offset < 0 {
+        ""
+    } else {
+        let after_env = ($block | str substring ($env_offset + ($env_marker | str length))..)
+        let env_end = ($after_env | str index-of '"')
+        if $env_end < 0 { "" } else { ($after_env | str substring 0..($env_end - 1)) }
+    }
+    {kind: "delegate", target: $target, runtime: $runtime}
 }
 
-# Strips full comment lines before structural marker checks (Gate 3 R1).
-# A bare substring match over the raw run body treats prose and code
-# identically — the reviewer's mutation embedded BOTH the native-resolution
-# marker and --no-git inside comment lines describing what the real code
-# (a bare unconditional container run) does NOT do, and the un-stripped
-# check still printed ✅. Strips any line whose TRIMMED content starts with
-# `#` (nu's comment syntax), so only real code can satisfy a marker.
-#
-# Known limitation (asked for explicitly in review): this is line-based,
-# not a real parser. A `#` that starts a physical line while inside an
-# OPEN multi-line string literal would be wrongly stripped as if it were a
-# comment. Checked directly against the current templates/mise.toml
-# (`grep -n '^\s*#' plugins/core/skills/security/templates/mise.toml`):
-# every line matching that pattern today is a genuine top-level comment or
-# shebang — none are string content — so this risk is not live in the file
-# as it exists now. A future edit introducing a multi-line string with a
-# line-initial `#` would need a real TOML/nu parser to handle correctly;
-# noting the limitation here rather than silently assuming it can never
-# happen.
-def strip-comment-lines [text: string] {
-    $text
+# Resolves task_name to what actually runs when it's invoked: its own body
+# if self-contained, or its delegation target's body plus the
+# GITLEAKS_RUNTIME value THIS task's own `env` block declares. Follows
+# exactly one level of delegation (the current template's shape) and
+# returns null — a hard failure the caller must check, not a silent
+# fallback — if the target isn't itself a self-contained script (a broken
+# or chained delegation).
+def resolve-task-execution [content: string, task_name: string] {
+    let t = (extract-task $content $task_name)
+    if $t == null {
+        return null
+    }
+    if $t.kind == "script" {
+        return {body: $t.body, runtime: ""}
+    }
+    let target_task = (extract-task $content $t.target)
+    if $target_task == null or $target_task.kind != "script" {
+        return null
+    }
+    {body: $target_task.body, runtime: $t.runtime}
+}
+
+# Enumerates documented gitleaks SCAN tasks from the template — any
+# `[tasks.X]` / `[tasks."X"]` whose name starts with "gitleaks" and isn't a
+# `gitleaks:stop*` teardown task. Reads the task list from the file itself
+# rather than a hardcoded name list (Gate 3 T3), so a fourth scan task added
+# later is covered automatically.
+def list-gitleaks-scan-tasks [content: string] {
+    $content
         | lines
-        | where {|l| not ($l | str trim | str starts-with "#")}
-        | str join "\n"
+        | where {|l| $l | str starts-with "[tasks."}
+        | each {|l|
+            let inner = ($l | str replace "[tasks." "" | str replace "]" "")
+            $inner | str trim -c '"'
+        }
+        | where {|name| ($name | str starts-with "gitleaks") and not ($name | str contains "stop")}
+}
+
+# Runs a resolved task body as a real subprocess: CWD=cwd (every template
+# task computes its scan target via `git rev-parse --show-toplevel`, which
+# is CWD-relative), PATH=path_list, GITLEAKS_RUNTIME set from `resolved`
+# when its delegation declared one.
+def run-resolved-task [resolved: record, cwd: string, path_list: list<string>] {
+    let tmp_script = (mktemp --suffix .nu)
+    $resolved.body | save --force $tmp_script
+    let env_record = if ($resolved.runtime | is-empty) {
+        {PATH: $path_list}
+    } else {
+        {PATH: $path_list, GITLEAKS_RUNTIME: $resolved.runtime}
+    }
+    let result = (with-env $env_record { do { cd $cwd; ^nu $tmp_script } | complete })
+    rm -f $tmp_script
+    $result
 }
 
 def main [] {
@@ -167,10 +324,6 @@ def main [] {
     mut failed = false
 
     # --- Case 1: fail-open regression on a non-git scan path (gitleaks.nu)
-    # Asserts on the "Secrets detected!" marker — genuine detection, not
-    # the unrelated "Scan unverified!" refuse-to-report-clean marker
-    # (Gate 3 R5 split) and not the bare exit code (Gate 3 F6: exit 1 also
-    # fires when no gitleaks binary resolves at all).
     let secret_dir = (make-non-git-secret-fixture)
     let scan = (nu $script --path $secret_dir -R native | complete)
     if not ($scan.stdout | str contains "Secrets detected!") {
@@ -182,10 +335,7 @@ def main [] {
     rm -rf $secret_dir
 
     # --- Case 2: non-git scan path must add --no-git to the constructed
-    # gitleaks arguments (gitleaks.nu), so the scan is real instead of
-    # silently scanning zero bytes. Driven through observable output:
-    # gitleaks.nu prints the exact command line it invokes before running
-    # it.
+    # gitleaks arguments (gitleaks.nu).
     let plain_dir = (make-non-git-plain-fixture)
     let arg_check = (nu $script --path $plain_dir -R native | complete)
     let command_line = ($arg_check.stdout | lines | where {|l| $l | str contains "Command:"} | get -o 0 | default "")
@@ -198,91 +348,75 @@ def main [] {
     }
     rm -rf $plain_dir
 
-    # --- Case 3: template [tasks.gitleaks] must attempt native-binary
-    # resolution before any container invocation. Structural check against
-    # the isolated, COMMENT-STRIPPED run-script body (Gate 3 R1 — see
-    # strip-comment-lines), matching a single specific marker on each side,
-    # both anchored to nu's `^` external-command sigil so a QUOTED STRING
-    # LITERAL containing the same words (e.g. `let label = "mise which
-    # gitleaks"`, which is real code but not an invocation) cannot satisfy
-    # the check either — verified against exactly this shape during Gate 3
-    # R1 remediation, alongside the comment and description shapes:
-    # "^mise which gitleaks" (the actual resolution call) and
-    # "^container run" (the nu external-command invocation, which the
-    # English word "runtime" does not contain even though "container run"
-    # bare does, since "runtime" starts with "run").
+    # --- Case 3 (Gate 3 T1 — execute the template, not grep it): run
+    # [tasks.gitleaks]'s REAL body against the REAL non-git and zero-commit
+    # fixtures, no stub. Four separate textual-mutation shapes (description,
+    # comment, bare string literal, caret-bearing string literal in a dead
+    # branch) each defeated a marker-matching version of this check across
+    # three review rounds — genuine subprocess execution cannot be faked by
+    # any of them.
     let content = (open $template --raw)
-    let raw_task_body = (extract-gitleaks-task-body $content)
-    let task_body = if $raw_task_body == null { null } else { strip-comment-lines $raw_task_body }
-    if $task_body == null {
-        print $"(ansi red_bold)❌ [template] [tasks.gitleaks] run body not found in ($template)(ansi reset)"
+    let gitleaks_resolved = (resolve-task-execution $content "gitleaks")
+    if $gitleaks_resolved == null {
+        print $"(ansi red_bold)❌ [template] could not resolve [tasks.gitleaks]'s run body(ansi reset)"
         $failed = true
     } else {
-        let native_index = ($task_body | str index-of "^mise which gitleaks")
-        let container_index = ($task_body | str index-of "^container run")
-
-        if $native_index < 0 {
-            print $"(ansi red_bold)❌ [template] [tasks.gitleaks] has no native-binary resolution path at all \(claude-skills-267\)(ansi reset)"
-            $failed = true
-        } else if $container_index < 0 {
-            print $"(ansi red_bold)❌ [template] [tasks.gitleaks] has no container invocation to compare against — test assumption broken(ansi reset)"
-            $failed = true
-        } else if $native_index > $container_index {
-            print $"(ansi red_bold)❌ [template] [tasks.gitleaks] invokes container run \(offset ($container_index)\) before attempting native-binary resolution \(offset ($native_index)\)(ansi reset)"
+        # Non-git directory: every template task computes its scan target
+        # via an UNWRAPPED `git rev-parse --show-toplevel`, which raises a
+        # hard nu shell error (exit 128, "fatal: not a git repository")
+        # before the script ever reaches its own args/verification logic —
+        # confirmed directly. This is a LOUD failure, never a silent
+        # "No secrets detected" — the invariant that actually generalizes
+        # here (and the one a regression could plausibly break, e.g. by
+        # wrapping the git call in `do {} | complete` without also adding
+        # the graceful handling that would require) is "never silently
+        # claims clean", not the specific "Secrets detected!" marker
+        # gitleaks.nu's --path-parameterized form can reach and this
+        # CWD-only form structurally cannot.
+        let tmp_nongit = (mktemp -d)
+        "unused\n" | save --force ($tmp_nongit | path join "f.txt")
+        let nongit_result = (do { cd $tmp_nongit; ^nu (
+            let p = (mktemp --suffix .nu); $gitleaks_resolved.body | save --force $p; $p
+        ) } | complete)
+        if ($nongit_result.stdout | str contains "No secrets detected") {
+            print $"(ansi red_bold)❌ [template] [tasks.gitleaks] silently reported clean when run outside any git repository at all(ansi reset)"
             $failed = true
         } else {
-            print $"(ansi green_bold)✅ [template] [tasks.gitleaks] attempts native-binary resolution \(offset ($native_index)\) before container run \(offset ($container_index)\), comment-stripped(ansi reset)"
+            print $"(ansi green_bold)✅ [template] [tasks.gitleaks] never silently reports clean outside a git repository \(exit ($nongit_result.exit_code)\)(ansi reset)"
         }
+        rm -rf $tmp_nongit
+
+        # Zero-commit git repo: reachable, meaningful defect shape for this
+        # CWD-driven task (unlike the non-git case above).
+        let zero_commit_dir = (make-zero-commit-git-secret-fixture)
+        let template_zero_commit = (run-resolved-task $gitleaks_resolved $zero_commit_dir ($env.PATH | default []))
+        if not ($template_zero_commit.stdout | str contains "Scan unverified!") {
+            print $"(ansi red_bold)❌ [template] [tasks.gitleaks] zero-commit git repo with an untracked secret present: want 'Scan unverified!' in output, exit ($template_zero_commit.exit_code) — fail-open regression \(claude-skills-267\)(ansi reset)"
+            $failed = true
+        } else {
+            print $"(ansi green_bold)✅ [template] [tasks.gitleaks] zero-commit git repo with an untracked secret present blocks \(Scan unverified!\)(ansi reset)"
+        }
+        rm -rf $zero_commit_dir
     }
 
-    # --- Case 4: fail-open on a zero-commit git repo (Gate 3 B2, gitleaks.nu).
-    # A repo is "inside a work tree" from the moment `git init` runs, well
-    # before any commit exists — but gitleaks's default (non---no-git) mode
-    # walks git history, which is empty. This fixture never trips the
-    # "Secrets detected!" branch at all — it takes the zero-bytes
-    # refuse-to-report-clean path — so asserting the split "Scan
-    # unverified!" marker (Gate 3 R5) is required for this case to
-    # distinguish genuine detection from the unverified-scan branch;
-    # asserting "Secrets detected!" here would pass whether or not that
-    # branch actually fires.
-    let zero_commit_dir = (make-zero-commit-git-secret-fixture)
-    let zero_commit_scan = (nu $script --path $zero_commit_dir -R native | complete)
-    if not ($zero_commit_scan.stdout | str contains "Scan unverified!") {
-        print $"(ansi red_bold)❌ [gitleaks.nu] zero-commit git repo with an untracked secret present: want 'Scan unverified!' in output, script exit ($zero_commit_scan.exit_code) — fail-open regression \(claude-skills-267 Gate 3 B2\)(ansi reset)"
+    # --- Case 4: fail-open on a zero-commit git repo (gitleaks.nu).
+    let zc_dir = (make-zero-commit-git-secret-fixture)
+    let zc_scan = (nu $script --path $zc_dir -R native | complete)
+    if not ($zc_scan.stdout | str contains "Scan unverified!") {
+        print $"(ansi red_bold)❌ [gitleaks.nu] zero-commit git repo with an untracked secret present: want 'Scan unverified!' in output, script exit ($zc_scan.exit_code) — fail-open regression \(claude-skills-267\)(ansi reset)"
         $failed = true
     } else {
         print $"(ansi green_bold)✅ [gitleaks.nu] zero-commit git repo with an untracked secret present blocks \(Scan unverified!\)(ansi reset)"
     }
-    rm -rf $zero_commit_dir
+    rm -rf $zc_dir
 
-    # --- Case 5: template [tasks.gitleaks] must handle the non-git case
-    # the same way scripts/gitleaks.nu does (Gate 3 B3). Reuses the same
-    # comment-stripped body as Case 3 (Gate 3 R1).
-    if $task_body == null {
-        print $"(ansi red_bold)❌ [template] [tasks.gitleaks] run body not found in ($template) — cannot check --no-git handling(ansi reset)"
-        $failed = true
-    } else if not ($task_body | str contains "--no-git") {
-        print $"(ansi red_bold)❌ [template] [tasks.gitleaks] never passes --no-git — ships the same unfixed fail-open shape scripts/gitleaks.nu fixes \(claude-skills-267 Gate 3 B3\)(ansi reset)"
-        $failed = true
-    } else {
-        print $"(ansi green_bold)✅ [template] [tasks.gitleaks] handles the non-git case with --no-git, comment-stripped(ansi reset)"
-    }
-
-    # --- Case 6/7: gitleaks.sh parity (operator decision: bring gitleaks.sh
-    # to the same fixed behavior as gitleaks.nu). gitleaks.sh currently has
-    # zero --no-git handling, zero native-binary resolution, and zero
-    # scanned-bytes verification. These assert the SAME two fail-open
-    # shapes as Cases 1 and 4, invoked with -R native mirroring
-    # gitleaks.nu's flag and marker conventions (the parity port's target
-    # shape) — `-R native` is currently rejected by gitleaks.sh's
-    # validate_runtime() ("Invalid runtime 'native'"), which fails these
-    # cases WITHOUT invoking any container runtime, so they stay
-    # side-effect-free and CI-safe both before and after the port.
+    # --- Case 5/6: gitleaks.sh parity — same two fail-open shapes as Cases
+    # 1 and 4, now that gitleaks.sh has gained -R native support.
     let sh_secret_dir = (make-non-git-secret-fixture)
     let sh_scan = (do { ^bash $sh_script --path $sh_secret_dir -R native } | complete)
     let sh_combined = ($sh_scan.stdout + $sh_scan.stderr)
     if not ($sh_combined | str contains "Secrets detected!") {
-        print $"(ansi red_bold)❌ [gitleaks.sh] non-git scan with a real secret present: want 'Secrets detected!' in output, script exit ($sh_scan.exit_code) — fail-open regression, no native/--no-git parity yet \(claude-skills-267\)(ansi reset)"
+        print $"(ansi red_bold)❌ [gitleaks.sh] non-git scan with a real secret present: want 'Secrets detected!' in output, script exit ($sh_scan.exit_code)(ansi reset)"
         $failed = true
     } else {
         print $"(ansi green_bold)✅ [gitleaks.sh] non-git scan with a real secret present blocks \(Secrets detected!\)(ansi reset)"
@@ -293,12 +427,117 @@ def main [] {
     let sh_zero_scan = (do { ^bash $sh_script --path $sh_zero_commit_dir -R native } | complete)
     let sh_zero_combined = ($sh_zero_scan.stdout + $sh_zero_scan.stderr)
     if not ($sh_zero_combined | str contains "Scan unverified!") {
-        print $"(ansi red_bold)❌ [gitleaks.sh] zero-commit git repo with an untracked secret present: want 'Scan unverified!' in output, script exit ($sh_zero_scan.exit_code) — fail-open regression, no native/--no-git/zero-bytes parity yet \(claude-skills-267 Gate 3 B2\)(ansi reset)"
+        print $"(ansi red_bold)❌ [gitleaks.sh] zero-commit git repo with an untracked secret present: want 'Scan unverified!' in output, script exit ($sh_zero_scan.exit_code)(ansi reset)"
         $failed = true
     } else {
         print $"(ansi green_bold)✅ [gitleaks.sh] zero-commit git repo with an untracked secret present blocks \(Scan unverified!\)(ansi reset)"
     }
     rm -rf $sh_zero_commit_dir
+
+    # --- Gate 3 T3: extend the zero-bytes invariant to EVERY documented
+    # gitleaks scan task, enumerated from the template (not hardcoded), each
+    # resolved through delegation and run for real against a controlled
+    # zero-bytes gitleaks-shaped response with native resolution suppressed
+    # (safe-minimal-path + write-container-stubs) — this exercises the
+    # gitleaks:docker/gitleaks:colima -> [tasks.gitleaks] delegation and
+    # runtime dispatch specifically, not just re-hitting the native branch.
+    let zero_bytes_stdout = "gitleaks console output"
+    let zero_bytes_stderr = "0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n"
+    let scan_tasks = (list-gitleaks-scan-tasks $content)
+    if ($scan_tasks | is-empty) {
+        print $"(ansi red_bold)❌ [template] no documented gitleaks scan tasks found — enumeration itself is broken(ansi reset)"
+        $failed = true
+    }
+    for task_name in $scan_tasks {
+        let resolved = (resolve-task-execution $content $task_name)
+        if $resolved == null {
+            print $"(ansi red_bold)❌ [template] [tasks.\"($task_name)\"] could not be resolved \(broken or unrecognized delegation shape\)(ansi reset)"
+            $failed = true
+            continue
+        }
+        let bin_dir = (mktemp -d)
+        write-container-stubs $bin_dir $zero_bytes_stdout $zero_bytes_stderr 0
+        let stub_path = ([$bin_dir] | append (safe-minimal-path))
+        let cwd = (make-plain-git-dir)
+        let result = (run-resolved-task $resolved $cwd $stub_path)
+        if not ($result.stdout | str contains "Scan unverified!") {
+            print $"(ansi red_bold)❌ [template] [tasks.\"($task_name)\"] \(runtime=($resolved.runtime)\) lacks the zero-bytes verification invariant: want 'Scan unverified!', exit ($result.exit_code) \(claude-skills-267 Gate 3 T3\)(ansi reset)"
+            $failed = true
+        } else {
+            print $"(ansi green_bold)✅ [template] [tasks.\"($task_name)\"] \(runtime=($resolved.runtime)\) enforces the zero-bytes verification invariant(ansi reset)"
+        }
+        rm -rf $bin_dir
+        rm -rf $cwd
+    }
+
+    # --- Gate 3 T2: cross-implementation conformance table. Feeds the SAME
+    # stderr fixtures to gitleaks.nu, gitleaks.sh, and the template's
+    # [tasks.gitleaks] native branch via a stubbed native `gitleaks` binary,
+    # and asserts they agree — this is what stops the three copies drifting
+    # apart again (they have already drifted twice: R6 first-vs-last
+    # occurrence picking, and independently the case below).
+    #
+    # Fixtures adapted from the reviewer's originals to the FULL real
+    # gitleaks log-line shape ("scanned ~<digits> bytes (<total>) in
+    # <duration>") that all three implementations now anchor their regex on
+    # (Gate 3 T2/T4/R6 hardening) — an incomplete fixture (no trailing
+    # " in <duration>") fails to match ANY of the three uniformly, which
+    # tests nothing.
+    let table = [
+        {label: "zero bytes" stderr: "0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n" expected: false}
+        {label: "clean 72 bytes" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\n" expected: true}
+        {label: "real summary + non-matching decoy path (notanumber)" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\nsome file named scanned ~notanumber.txt exists\n" expected: true}
+        {label: "comma-formatted number (not real gitleaks output shape)" stderr: "scanned ~9,107,683 bytes (9.11 MB) in 50ms\nno leaks found\n" expected: null}
+        {label: "real summary + bare trailing 'scanned ~'" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\ntrailing garbage scanned ~\n" expected: true}
+        {label: "reversed poisoning: real 0 bytes first, full-shaped 99-byte decoy later" stderr: "scanned ~0 bytes (0) in 5ms\nno leaks found\nsome later decoy log line: scanned ~99 bytes (99 bytes) in 3ms\n" expected: false}
+    ]
+
+    for c in $table {
+        # gitleaks.nu
+        let nu_bin = (mktemp -d)
+        write-native-stub $nu_bin "" $c.stderr 0
+        let nu_path = ([$nu_bin] | append ($env.PATH | default []))
+        let nu_dir = (make-plain-git-dir)
+        let nu_result = (with-env {PATH: $nu_path} { nu $script --path $nu_dir -R native } | complete)
+        let nu_verified = ($nu_result.stdout | str contains "No secrets detected")
+        rm -rf $nu_bin
+        rm -rf $nu_dir
+
+        # gitleaks.sh
+        let sh_bin = (mktemp -d)
+        write-native-stub $sh_bin "" $c.stderr 0
+        let sh_path = ([$sh_bin] | append ($env.PATH | default []))
+        let sh_dir = (make-plain-git-dir)
+        let sh_result = (with-env {PATH: $sh_path} { do { ^bash $sh_script --path $sh_dir -R native } } | complete)
+        let sh_combined_out = ($sh_result.stdout + $sh_result.stderr)
+        let sh_verified = ($sh_combined_out | str contains "No secrets detected")
+        rm -rf $sh_bin
+        rm -rf $sh_dir
+
+        # template [tasks.gitleaks] native branch
+        let tpl_bin = (mktemp -d)
+        write-native-stub $tpl_bin "" $c.stderr 0
+        let tpl_path = ([$tpl_bin] | append ($env.PATH | default []))
+        let tpl_dir = (make-plain-git-dir)
+        let tpl_resolved = (resolve-task-execution $content "gitleaks")
+        let tpl_result = if $tpl_resolved == null { {stdout: "", exit_code: -1} } else { (run-resolved-task $tpl_resolved $tpl_dir $tpl_path) }
+        let tpl_verified = ($tpl_result.stdout | str contains "No secrets detected")
+        rm -rf $tpl_bin
+        rm -rf $tpl_dir
+
+        let verdicts = {gitleaks.nu: $nu_verified, gitleaks.sh: $sh_verified, template: $tpl_verified}
+        let all_agree = ($nu_verified == $sh_verified) and ($sh_verified == $tpl_verified)
+
+        if not $all_agree {
+            print $"(ansi red_bold)❌ [T2 conformance] ($c.label): implementations disagree — ($verdicts)(ansi reset)"
+            $failed = true
+        } else if $c.expected != null and $nu_verified != $c.expected {
+            print $"(ansi red_bold)❌ [T2 conformance] ($c.label): all three agree, but on the WRONG verdict — want verified=($c.expected), got ($nu_verified) \(claude-skills-267 Gate 3 T4\)(ansi reset)"
+            $failed = true
+        } else {
+            print $"(ansi green_bold)✅ [T2 conformance] ($c.label): consistent verdict verified=($nu_verified) across gitleaks.nu, gitleaks.sh, template(ansi reset)"
+        }
+    }
 
     if $failed {
         exit 1
