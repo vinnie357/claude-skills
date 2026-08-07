@@ -306,7 +306,7 @@ nu ($scripts_dir | path join "sources-validate-urls.nu") --self-test
 """
 
 [tasks."test:security-hook"]
-description = "Regression test: check-secrets-before-commit.sh gitleaks exit-code handling (claude-skills-224)"
+description = "Regression test: check-secrets-before-commit.sh exit-code handling, command detection, and staged-file export (claude-skills-224, claude-skills-271)"
 run = """
 #!/usr/bin/env nu
 
