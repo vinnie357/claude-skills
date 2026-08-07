@@ -259,7 +259,7 @@ A shell function named `gitleaks` defined in an interactive shell's rc file (zsh
 
 ### gitleaks.sh (Bash)
 
-Bash script covering the same container runtimes as `gitleaks.nu`. It does NOT yet have the native-binary path or `--self-test` described above (claude-skills-209 scoped the native-first fix to `gitleaks.nu`) — prefer `gitleaks.nu` when a native binary is available:
+Bash script with the same runtime-detection precedence, native-binary resolution, `--no-git` handling, and bytes-verification invariant as `gitleaks.nu` — verified by reading both scripts directly. The one remaining gap: `gitleaks.sh` has no `--self-test` flag, so its selection and verification logic can only be exercised by actually running it against a real binary or container runtime, never in isolation. Prefer `gitleaks.nu` — this repo is nushell-first (`/core:nushell`), and only `gitleaks.nu`'s `--self-test` lets you check that logic without a gitleaks binary or container runtime present. Use `gitleaks.sh` on a host without nushell installed:
 
 ```bash
 # Run with auto-detected runtime
