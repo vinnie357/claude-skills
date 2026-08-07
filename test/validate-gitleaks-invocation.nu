@@ -1,23 +1,35 @@
 #!/usr/bin/env nu
 
 # Regression tests for claude-skills-267: gitleaks fail-open on non-git scan
-# paths, and the security-skill template ignoring the native binary.
+# paths and on zero-commit git repos, and the security-skill template
+# ignoring the native binary / shipping the same unfixed --no-git gap.
 #
-# Defect 1 (fail-open, the important one): `gitleaks detect --source=<dir>`
-# against a directory that is not a git work tree fails to enumerate any
-# files at all — gitleaks logs "fatal: not a git repository" and reports
-# "no leaks found" having scanned ~0 bytes, exit 0. scripts/gitleaks.nu
-# builds exactly this argument shape (build-gitleaks-args-native, ~line
-# 386) and treats exit 0 as "No secrets detected" (run-gitleaks-native,
-# ~line 466) — so pointing the script at a non-git directory yields a green
-# security gate that scanned nothing. Adding `--no-git` makes the scan real.
+# Defect 1 (fail-open on a non-git directory, the important one):
+# `gitleaks detect --source=<dir>` against a directory that is not a git
+# work tree fails to enumerate any files at all — gitleaks logs "fatal: not
+# a git repository" and reports "no leaks found" having scanned ~0 bytes,
+# exit 0. scripts/gitleaks.nu built exactly this argument shape and treated
+# exit 0 as "No secrets detected". Adding `--no-git` makes the scan real.
 #
 # Defect 2 (template ignores the native binary): the security skill's
-# templates/mise.toml [tasks.gitleaks] invokes `container run` unconditionally
-# with no native-binary path at all, contradicting root mise.toml's own
-# comment that the native binary is "preferred by scripts/gitleaks.nu over
-# container runtimes" (claude-skills-209) and this workspace's restriction
-# on container runtimes.
+# templates/mise.toml [tasks.gitleaks] invoked `container run`
+# unconditionally with no native-binary path at all, contradicting root
+# mise.toml's own comment that the native binary is "preferred by
+# scripts/gitleaks.nu over container runtimes" (claude-skills-209) and this
+# workspace's restriction on container runtimes.
+#
+# Defect 3 (fail-open on a zero-commit git repo, Gate 3 B2): the fix for
+# defect 1 gates `--no-git` on `git rev-parse --is-inside-work-tree`, which
+# returns true for a freshly `git init`'d repo with zero commits — even
+# though `gitleaks detect` (without --no-git) walks git history, and a
+# zero-commit repo has none to walk. An untracked file containing a real
+# secret in such a repo is never scanned, exit 0, same fail-open shape as
+# defect 1 under a check that reports "yes, git" when there's nothing for
+# git-mode scanning to see.
+#
+# Defect 4 (template ships the unfixed arg shape, Gate 3 B3): the template
+# task never gained the --no-git handling scripts/gitleaks.nu got for
+# defect 1 — `grep -c -- "--no-git" templates/mise.toml` is 0.
 #
 # Usage: nu test/validate-gitleaks-invocation.nu
 
@@ -31,8 +43,8 @@
 # Built at RUNTIME from parts, not as a single committed literal: a literal
 # token-shaped string in this file would itself trip the slack-bot-token
 # rule on every future scan of this repo, adding a permanent false positive
-# to the exact gate this test exists to strengthen. The temp file this
-# writes still contains a complete, real token gitleaks detects — only the
+# to the exact gate this test exists to strengthen. The temp file(s) this
+# writes still contain a complete, real token gitleaks detects — only the
 # on-disk form of THIS source file avoids the pattern.
 def fixture-secret [] {
     ["xoxb" "123456789012" "123456789012" "abcdefghijklmnopqrstuvwx"] | str join "-"
@@ -55,6 +67,48 @@ def make-non-git-plain-fixture [] {
     $dir
 }
 
+# A unique git repository with ZERO commits, containing one UNTRACKED file
+# with a real secret. `git rev-parse --is-inside-work-tree` reports true
+# here (it is a real work tree) even though `git log` has nothing to walk —
+# the exact condition defect 3 exploits. Caller is responsible for `rm -rf`.
+def make-zero-commit-git-secret-fixture [] {
+    let dir = (mktemp -d)
+    git -C $dir init -q
+    git -C $dir config user.email "test@example.com"
+    git -C $dir config user.name "test"
+    $"slack_token = \"(fixture-secret)\"\n" | save --force ($dir | path join "secret.txt")
+    $dir
+}
+
+# Isolates the [tasks.gitleaks] task's `run = """..."""` body — excludes
+# the task header and its `description = "..."` line — so structural
+# checks below can't be fooled by prose elsewhere in the file. Gate 3 B1
+# found two such false matches: a bare "native" marker matched the
+# description's own "native binary preferred" wording, and a bare
+# "container run" substring matched inside the word "container runtime" in
+# a top-of-file comment. Returns null if the task or its run body isn't
+# found.
+def extract-gitleaks-task-body [content: string] {
+    let task_start = ($content | str index-of "[tasks.gitleaks]")
+    if $task_start < 0 {
+        return null
+    }
+    let rest = ($content | str substring $task_start..)
+    let run_marker = 'run = """'
+    let run_offset = ($rest | str index-of $run_marker)
+    if $run_offset < 0 {
+        return null
+    }
+    let after_run = ($rest | str substring ($run_offset + ($run_marker | str length))..)
+    # next top-level task header bounds this task's body
+    let next_task_offset = ($after_run | str index-of "\n[tasks.")
+    if $next_task_offset < 0 {
+        $after_run
+    } else {
+        $after_run | str substring 0..$next_task_offset
+    }
+}
+
 def main [] {
     let repo_root = (git rev-parse --show-toplevel | str trim)
     let script = ($repo_root | path join "plugins" "core" "skills" "security" "scripts" "gitleaks.nu")
@@ -72,13 +126,18 @@ def main [] {
     mut failed = false
 
     # --- Case 1: fail-open regression on a non-git scan path -------------
+    # Asserts on the "Secrets detected!" marker gitleaks.nu prints only
+    # from the exit-code-1 branch of run-gitleaks-native, NOT on the bare
+    # exit code: `validate-runtime "native"` also exits 1 when no gitleaks
+    # binary resolves at all, so exit_code == 1 alone passes vacuously in
+    # an environment with no scanner installed (Gate 3 F6).
     let secret_dir = (make-non-git-secret-fixture)
     let scan = (nu $script --path $secret_dir -R native | complete)
-    if $scan.exit_code != 1 {
-        print $"(ansi red_bold)❌ non-git scan with a real secret present: want script exit 1 \(secrets detected\), got ($scan.exit_code) — fail-open regression \(claude-skills-267\)(ansi reset)"
+    if not ($scan.stdout | str contains "Secrets detected!") {
+        print $"(ansi red_bold)❌ non-git scan with a real secret present: want 'Secrets detected!' in output, script exit ($scan.exit_code) — fail-open regression \(claude-skills-267\)(ansi reset)"
         $failed = true
     } else {
-        print $"(ansi green_bold)✅ non-git scan with a real secret present blocks \(script exit 1\)(ansi reset)"
+        print $"(ansi green_bold)✅ non-git scan with a real secret present blocks \(Secrets detected!\)(ansi reset)"
     }
     rm -rf $secret_dir
 
@@ -100,47 +159,63 @@ def main [] {
     rm -rf $plain_dir
 
     # --- Case 3: template [tasks.gitleaks] must attempt native-binary
-    # resolution before any container invocation. Structural check, not a
-    # bare substring match: the FIRST native-resolution marker must appear
-    # at a lower byte offset than the FIRST container invocation, within
-    # the [tasks.gitleaks] task body specifically (not the whole file,
-    # which also documents container-only fallback tasks by design).
+    # resolution before any container invocation. Structural check against
+    # the isolated run-script body only (see extract-gitleaks-task-body),
+    # matching a single specific marker on each side: "mise which gitleaks"
+    # (the actual resolution call, not the word "native" which also
+    # appears in the task's own description) and "^container run" (the nu
+    # external-command invocation, which "container runtime" in prose does
+    # not contain — bare "container run" does, since "runtime" starts with
+    # "run").
     let content = (open $template --raw)
-    let task_start = ($content | str index-of "[tasks.gitleaks]")
-    if $task_start < 0 {
-        print $"(ansi red_bold)❌ [tasks.gitleaks] not found in ($template)(ansi reset)"
+    let task_body = (extract-gitleaks-task-body $content)
+    if $task_body == null {
+        print $"(ansi red_bold)❌ [tasks.gitleaks] run body not found in ($template)(ansi reset)"
         $failed = true
     } else {
-        let rest = ($content | str substring $task_start..)
-        # next top-level task header (skip the opening one at offset 0)
-        let next_task_offset = ($rest | str substring 1.. | str index-of "\n[tasks.")
-        let task_body = if $next_task_offset < 0 {
-            $rest
-        } else {
-            $rest | str substring 0..($next_task_offset + 1)
-        }
+        let native_index = ($task_body | str index-of "mise which gitleaks")
+        let container_index = ($task_body | str index-of "^container run")
 
-        let native_markers = ["mise which gitleaks" "which gitleaks" "gitleaks.nu" "native"]
-        let native_indices = ($native_markers
-            | each {|m| $task_body | str downcase | str index-of ($m | str downcase)}
-            | where {|i| $i >= 0})
-        let container_index = ($task_body | str index-of "container run")
-
-        if ($native_indices | is-empty) {
+        if $native_index < 0 {
             print $"(ansi red_bold)❌ [tasks.gitleaks] has no native-binary resolution path at all \(claude-skills-267\)(ansi reset)"
             $failed = true
         } else if $container_index < 0 {
             print $"(ansi red_bold)❌ [tasks.gitleaks] has no container invocation to compare against — test assumption broken(ansi reset)"
             $failed = true
+        } else if $native_index > $container_index {
+            print $"(ansi red_bold)❌ [tasks.gitleaks] invokes container run \(offset ($container_index)\) before attempting native-binary resolution \(offset ($native_index)\)(ansi reset)"
+            $failed = true
         } else {
-            let earliest_native = ($native_indices | math min)
-            if $earliest_native > $container_index {
-                print $"(ansi red_bold)❌ [tasks.gitleaks] invokes container run \(offset ($container_index)\) before attempting native-binary resolution \(offset ($earliest_native)\)(ansi reset)"
-                $failed = true
-            } else {
-                print $"(ansi green_bold)✅ [tasks.gitleaks] attempts native-binary resolution \(offset ($earliest_native)\) before container run \(offset ($container_index)\)(ansi reset)"
-            }
+            print $"(ansi green_bold)✅ [tasks.gitleaks] attempts native-binary resolution \(offset ($native_index)\) before container run \(offset ($container_index)\)(ansi reset)"
         }
+    }
+
+    # --- Case 4: fail-open on a zero-commit git repo (Gate 3 B2). A repo
+    # is "inside a work tree" from the moment `git init` runs, well before
+    # any commit exists — but gitleaks's default (non---no-git) mode walks
+    # git history, which is empty. Same assertion shape as Case 1: the
+    # "Secrets detected!" marker, not the bare exit code.
+    let zero_commit_dir = (make-zero-commit-git-secret-fixture)
+    let zero_commit_scan = (nu $script --path $zero_commit_dir -R native | complete)
+    if not ($zero_commit_scan.stdout | str contains "Secrets detected!") {
+        print $"(ansi red_bold)❌ zero-commit git repo with an untracked secret present: want 'Secrets detected!' in output, script exit ($zero_commit_scan.exit_code) — fail-open regression \(claude-skills-267 Gate 3 B2\)(ansi reset)"
+        $failed = true
+    } else {
+        print $"(ansi green_bold)✅ zero-commit git repo with an untracked secret present blocks \(Secrets detected!\)(ansi reset)"
+    }
+    rm -rf $zero_commit_dir
+
+    # --- Case 5: template [tasks.gitleaks] must handle the non-git case
+    # the same way scripts/gitleaks.nu does (Gate 3 B3). Reuses the same
+    # isolated run-script body as Case 3.
+    if $task_body == null {
+        print $"(ansi red_bold)❌ [tasks.gitleaks] run body not found in ($template) — cannot check --no-git handling(ansi reset)"
+        $failed = true
+    } else if not ($task_body | str contains "--no-git") {
+        print $"(ansi red_bold)❌ [tasks.gitleaks] never passes --no-git — ships the same unfixed fail-open shape scripts/gitleaks.nu fixes \(claude-skills-267 Gate 3 B3\)(ansi reset)"
+        $failed = true
+    } else {
+        print $"(ansi green_bold)✅ [tasks.gitleaks] handles the non-git case with --no-git(ansi reset)"
     }
 
     if $failed {
