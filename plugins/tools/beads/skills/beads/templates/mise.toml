@@ -25,8 +25,11 @@ macos-arm64 = { asset_pattern = "beads_*_darwin_arm64.tar.gz" }
 # overrides that detection and forces one libc on every Linux host: a -gnu
 # pattern breaks musl outright, failing to load the glibc ELF interpreter
 # (e.g. "failed to open elf at /lib64/ld-linux-x86-64.so.2" on x64; the
-# aarch64 loader name differs). The beads entry can pin patterns because `bd`
-# is a static Go binary and libc-indifferent; nushell is not.
+# aarch64 loader name differs). The beads entry above can keep its patterns
+# for a different reason — upstream publishes a single Linux asset per arch,
+# so there is no gnu/musl choice for a pattern to override. That asset is
+# itself glibc-linked, so `bd` does not run on musl either way; that is an
+# upstream gap, not something this template can pin around.
 [tools."github:nushell/nushell"]
 version = "0.113.1"
 exe = "nu"
