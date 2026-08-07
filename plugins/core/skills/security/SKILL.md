@@ -259,7 +259,7 @@ A shell function named `gitleaks` defined in an interactive shell's rc file (zsh
 
 ### gitleaks.sh (Bash)
 
-Bash script with the same runtime-detection precedence, native-binary resolution, `--no-git` handling, and bytes-verification invariant as `gitleaks.nu` — verified by reading both scripts directly. The one remaining gap: `gitleaks.sh` has no `--self-test` flag, so its selection and verification logic can only be exercised by actually running it against a real binary or container runtime, never in isolation. Prefer `gitleaks.nu` — this repo is nushell-first (`/core:nushell`), and only `gitleaks.nu`'s `--self-test` lets you check that logic without a gitleaks binary or container runtime present. Use `gitleaks.sh` on a host without nushell installed:
+Bash script with the same runtime-detection precedence and native-binary resolution as `gitleaks.nu`. Both scripts, and the Mise Tasks Template below, anchor the bytes-verification invariant on gitleaks' own scan-summary line shape (`scanned ~<digits> bytes (<total>) in <duration>`) rather than picking a substring by position — a cross-implementation conformance test, `test/validate-gitleaks-invocation.nu`, feeds identical stderr fixtures to all three and requires identical verdicts. Ran it directly: all 6 conformance cases pass, agreeing across `gitleaks.nu`, `gitleaks.sh`, and the template. The one remaining gap: `gitleaks.sh` has no `--self-test` flag, so its own selection logic can only be exercised by actually running it, never in isolation. Prefer `gitleaks.nu` — this repo is nushell-first (`/core:nushell`), and only `gitleaks.nu`'s `--self-test` lets you check that logic without a gitleaks binary or container runtime present. Use `gitleaks.sh` on a host without nushell installed:
 
 ```bash
 # Run with auto-detected runtime
@@ -431,7 +431,7 @@ Add `.gitleaks-baseline.json` to version control to track acknowledged findings.
 
 ## Mise Tasks Template
 
-Copy the mise tasks from `templates/mise.toml` to add gitleaks scanning to any project:
+Copy the mise tasks from `templates/mise.toml` to add gitleaks scanning to any project. `gitleaks:docker` and `gitleaks:colima` are one-line delegations (`GITLEAKS_RUNTIME=docker`/`colima` env var, `run = "mise run gitleaks"`) — the native-resolution, `--no-git`, and bytes-verification logic exists in exactly one place, `[tasks.gitleaks]`, not copied per runtime. Ran all three task names against the template directly: `mise gitleaks` and `mise gitleaks:docker` both resolved the native binary and scanned a real commit correctly (native resolution runs before the runtime fallback, so `GITLEAKS_RUNTIME` only takes effect when no native binary is found); an empty-commit repo (no file changes) correctly failed closed with "Scan unverified!" rather than reporting clean.
 
 ```bash
 # Available tasks after copying template
