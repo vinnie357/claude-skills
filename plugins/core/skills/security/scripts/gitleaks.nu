@@ -183,6 +183,17 @@ def run-self-tests [] {
         (check "native-mise still wins even with nothing else available" (select-runtime true false false false false) "native-mise")
         (check "native-not-found message builds without throwing (regression: unescaped parens)" $native_not_found.ok true)
         (check "native-not-found message names both checked sources" ($native_not_found.value | str contains "mise and PATH") true)
+        # parse-scanned-bytes / gitleaks-verified-clean (claude-skills-267
+        # Gate 3 B2): exact stderr shapes observed against real gitleaks
+        # 8.30.1 output — a zero-commit repo, a real finding, a large repo,
+        # and unparseable text (must fail closed, not crash or default to 0).
+        (check "parses the zero-byte scan summary (zero-commit repo)" (parse-scanned-bytes "INF 0 commits scanned.\nINF scanned ~0 bytes (0) in 77.2ms\nINF no leaks found") 0)
+        (check "parses a nonzero scan summary" (parse-scanned-bytes "INF scanned ~72 bytes (72 bytes) in 70.8ms\nWRN leaks found: 1") 72)
+        (check "parses a large scan summary" (parse-scanned-bytes "INF 777 commits scanned.\nINF scanned ~9107683 bytes (9.11 MB) in 377ms") 9107683)
+        (check "unparseable stderr returns null, not 0" (parse-scanned-bytes "some unrelated error text") null)
+        (check "verified-clean requires nonzero scanned bytes" (gitleaks-verified-clean "INF scanned ~72 bytes (72 bytes) in 70.8ms") true)
+        (check "zero bytes scanned is NOT verified-clean" (gitleaks-verified-clean "INF scanned ~0 bytes (0) in 77.2ms") false)
+        (check "unparseable stderr is NOT verified-clean (no evidence, not innocent)" (gitleaks-verified-clean "no scan summary here") false)
     ]
 
     for $c in $cases {
@@ -399,6 +410,51 @@ def is-git-worktree [path: string] {
     $result.exit_code == 0 and (($result.stdout | str trim) == "true")
 }
 
+# Extract the byte count from gitleaks' own scan-summary line, which it
+# always logs to stderr regardless of runtime or outcome — e.g.
+# "scanned ~72 bytes (72 bytes) in 70.8ms" or "scanned ~0 bytes (0) in
+# 77ms". Returns null when the line isn't present (unparseable/unexpected
+# gitleaks output), which callers must treat as "no evidence", not as "0".
+# Pure string ops (str index-of / str substring), no regex — same style
+# already used by test/validate-gitleaks-invocation.nu for structural
+# checks, and avoids a `parse` command corner case (empty match tables).
+#
+# Why this exists (claude-skills-267 Gate 3 B2): `is-git-worktree` reports
+# true for a freshly `git init`'d repo with zero commits — it really is a
+# work tree — but gitleaks' default git-mode scan walks commit history,
+# which is empty, so an untracked file's secret is never scanned: exit 0,
+# "no leaks found", having scanned 0 bytes. That's the same fail-open shape
+# defect 1 fixed, wearing a different trigger. Chasing each new trigger
+# with its own special case (e.g. `git rev-list --count`) never closes the
+# general hole; checking the ACTUAL evidence gitleaks itself reports does.
+def parse-scanned-bytes [text: string] {
+    let idx = ($text | str index-of "scanned ~")
+    if $idx < 0 {
+        return null
+    }
+    let after = ($text | str substring ($idx + 9)..)
+    let end_idx = ($after | str index-of " bytes")
+    if $end_idx < 0 {
+        return null
+    }
+    let num_str = ($after | str substring 0..($end_idx - 1) | str trim)
+    if ($num_str | is-empty) {
+        return null
+    }
+    try { $num_str | into int } catch { null }
+}
+
+# Never report clean without evidence something was actually scanned.
+# gitleaks exit 0 only means "no leaks found IN WHAT IT SCANNED" — if that
+# was 0 bytes (or the scan summary couldn't be parsed at all, so there's no
+# evidence either way), a clean report is unverifiable and this treats it
+# as a positive: same "Secrets detected!" signal callers already gate on,
+# rather than a silently different message a caller's grep might miss.
+def gitleaks-verified-clean [stderr: string] {
+    let scanned_bytes = (parse-scanned-bytes $stderr)
+    $scanned_bytes != null and $scanned_bytes > 0
+}
+
 # Args for a directly-invoked native binary: real host paths, no /code mount prefix.
 def build-gitleaks-args-native [scan_path: string, report: string, config: string, baseline: string, in_git: bool] {
     mut args = ["detect" $"--source=($scan_path)"]
@@ -502,17 +558,29 @@ def run-gitleaks-native [binary: string, scan_path: string, args: list<string>] 
 
     print $result.stdout
 
-    if $result.exit_code == 0 {
-        print $"(ansi green)No secrets detected(ansi reset)"
-    } else if $result.exit_code == 1 {
+    if $result.exit_code == 1 {
         print $"(ansi red)Secrets detected!(ansi reset)"
         print $result.stderr
-    } else {
+        exit 1
+    } else if $result.exit_code != 0 {
         print $"(ansi red)Error running gitleaks:(ansi reset)"
         print $result.stderr
+        exit $result.exit_code
     }
 
-    exit $result.exit_code
+    # exit_code == 0 here — gitleaks itself found nothing, but that only
+    # means something if it actually scanned bytes. Print stderr (gitleaks'
+    # scan summary lives there, not in stdout) and refuse to report clean
+    # without it (see gitleaks-verified-clean).
+    print $result.stderr
+    if not (gitleaks-verified-clean $result.stderr) {
+        print $"(ansi red)Secrets detected!(ansi reset)"
+        print $"(ansi red)Error:(ansi reset) gitleaks reported success but scanned 0 bytes \(or the scan summary could not be parsed\) — refusing to report clean without evidence something was actually scanned"
+        exit 1
+    }
+
+    print $"(ansi green)No secrets detected(ansi reset)"
+    exit 0
 }
 
 def run-gitleaks-container [runtime: string, scan_path: string, args: list<string>, config_mount: any] {
@@ -569,15 +637,26 @@ def run-gitleaks-container [runtime: string, scan_path: string, args: list<strin
 
     print $result.stdout
 
-    if $result.exit_code == 0 {
-        print $"(ansi green)No secrets detected(ansi reset)"
-    } else if $result.exit_code == 1 {
+    if $result.exit_code == 1 {
         print $"(ansi red)Secrets detected!(ansi reset)"
         print $result.stderr
-    } else {
+        exit 1
+    } else if $result.exit_code != 0 {
         print $"(ansi red)Error running gitleaks:(ansi reset)"
         print $result.stderr
+        exit $result.exit_code
     }
 
-    exit $result.exit_code
+    # Same "never report clean without evidence" invariant as
+    # run-gitleaks-native — gitleaks logs its scan summary to stderr
+    # regardless of runtime, so the container path has the identical hole.
+    print $result.stderr
+    if not (gitleaks-verified-clean $result.stderr) {
+        print $"(ansi red)Secrets detected!(ansi reset)"
+        print $"(ansi red)Error:(ansi reset) gitleaks reported success but scanned 0 bytes \(or the scan summary could not be parsed\) — refusing to report clean without evidence something was actually scanned"
+        exit 1
+    }
+
+    print $"(ansi green)No secrets detected(ansi reset)"
+    exit 0
 }

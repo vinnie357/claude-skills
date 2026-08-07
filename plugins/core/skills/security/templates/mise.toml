@@ -22,6 +22,23 @@ run = """
 let repo_root = (git rev-parse --show-toplevel | str trim)
 let image = "zricethezav/gitleaks"
 
+# restraint: this task duplicates the native-resolution and --no-git logic
+# in plugins/core/skills/security/scripts/gitleaks.nu — a copied template
+# genuinely can't call that script (it isn't guaranteed to exist at any
+# fixed relative path from a consumer project's mise.toml), so some
+# duplication here is unavoidable. scripts/gitleaks.nu is the source of
+# truth: it also enforces "never report clean without evidence something
+# was scanned" (claude-skills-267 Gate 3 B2), which this template task does
+# NOT replicate — prefer that script directly when you can reach it.
+#
+# Without --no-git, `gitleaks detect` on a path that isn't (or isn't
+# meaningfully) a git work tree fails to enumerate any files — silent
+# fail-open, exit 0, "no leaks found" having scanned nothing
+# (claude-skills-267). Checked once, mirroring scripts/gitleaks.nu's
+# is-git-worktree.
+let git_check = (do { ^git -C $repo_root rev-parse --is-inside-work-tree } | complete)
+let in_git = ($git_check.exit_code == 0 and (($git_check.stdout | str trim) == "true"))
+
 # Auto-detect baseline file
 let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
 let has_baseline = ($baseline_path | path exists)
@@ -48,7 +65,11 @@ let path_bin = if ($mise_bin | is-not-empty) {
 let native_bin = if ($mise_bin | is-not-empty) { $mise_bin } else { $path_bin }
 
 if ($native_bin | is-not-empty) {
-    mut args = ["detect" $"--source=($repo_root)" "-v"]
+    mut args = ["detect" $"--source=($repo_root)"]
+    if not $in_git {
+        $args = ($args | append "--no-git")
+    }
+    $args = ($args | append "-v")
     if $has_baseline {
         $args = ($args | append $"--baseline-path=($baseline_path)")
     }
@@ -70,8 +91,15 @@ if ($native_bin | is-not-empty) {
     exit $result.exit_code
 }
 
-# No native binary found — fall back to Apple Container.
-mut args = ["detect" "--source=/code" "-v"]
+# No native binary found — fall back to Apple Container. `in_git` reflects
+# repo_root's HOST status, checked above before the bind mount — the mount
+# carries the host's .git (or its absence) straight into /code, so the same
+# hole applies here without --no-git (claude-skills-267 Gate 3 B3).
+mut args = ["detect" "--source=/code"]
+if not $in_git {
+    $args = ($args | append "--no-git")
+}
+$args = ($args | append "-v")
 if $has_baseline {
     $args = ($args | append $"--baseline-path=/code/($baseline_name)")
 }
