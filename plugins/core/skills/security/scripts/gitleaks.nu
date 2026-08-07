@@ -47,6 +47,12 @@ def main [
         exit 1
     }
 
+    # Detected once on the HOST path, before either arg builder runs: a
+    # containerized scan mounts scan_path at /code, so git-repo status must
+    # be known before the mount happens, not re-derived from inside the
+    # container.
+    let in_git = (is-git-worktree $scan_path)
+
     # Detect or validate runtime. Both return {runtime: string, binary: string}
     # — binary is the already-resolved native path (empty for container
     # runtimes), resolved exactly once here rather than probed-then-resolved
@@ -64,10 +70,10 @@ def main [
 
     # Run gitleaks
     if $selected.runtime in ["native-mise" "native-path"] {
-        let built = (build-gitleaks-args-native $scan_path $report $config $baseline)
+        let built = (build-gitleaks-args-native $scan_path $report $config $baseline $in_git)
         run-gitleaks-native $selected.binary $scan_path $built.args
     } else {
-        let built = (build-gitleaks-args-container $report $config $baseline $verbose)
+        let built = (build-gitleaks-args-container $report $config $baseline $verbose $in_git)
         run-gitleaks-container $selected.runtime $scan_path $built.args $built.config_mount
     }
 }
@@ -382,9 +388,24 @@ def start-colima [] {
     }
 }
 
+# Is `path` inside a git work tree? Asks git rather than checking for a
+# literal `.git` directory: a git worktree or submodule uses a `.git` FILE,
+# and a subdirectory of a repo is still inside a work tree. Without --no-git,
+# `gitleaks detect` against a path that fails this check logs a git fatal,
+# scans 0 bytes, and reports "no leaks found" at exit 0 — a silent fail-open
+# (claude-skills-267).
+def is-git-worktree [path: string] {
+    let result = (do { ^git -C $path rev-parse --is-inside-work-tree } | complete)
+    $result.exit_code == 0 and (($result.stdout | str trim) == "true")
+}
+
 # Args for a directly-invoked native binary: real host paths, no /code mount prefix.
-def build-gitleaks-args-native [scan_path: string, report: string, config: string, baseline: string] {
+def build-gitleaks-args-native [scan_path: string, report: string, config: string, baseline: string, in_git: bool] {
     mut args = ["detect" $"--source=($scan_path)"]
+
+    if not $in_git {
+        $args = ($args | append "--no-git")
+    }
 
     $args = ($args | append "-v")
 
@@ -415,9 +436,16 @@ def build-gitleaks-args-native [scan_path: string, report: string, config: strin
 }
 
 # Args for a containerized run: /code-relative paths, since the scan path
-# is bind-mounted at /code inside the container.
-def build-gitleaks-args-container [report: string, config: string, baseline: string, verbose: bool] {
+# is bind-mounted at /code inside the container. `in_git` reflects the HOST
+# path's git status (checked once in main, before the mount) — the bind
+# mount carries the host's .git (or its absence) straight into /code, so the
+# same fail-open hole applies here without --no-git (claude-skills-267).
+def build-gitleaks-args-container [report: string, config: string, baseline: string, verbose: bool, in_git: bool] {
     mut args = ["detect" "--source=/code"]
+
+    if not $in_git {
+        $args = ($args | append "--no-git")
+    }
 
     # Always add verbose flag
     $args = ($args | append "-v")

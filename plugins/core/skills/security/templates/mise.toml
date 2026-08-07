@@ -15,25 +15,67 @@
 #   mise gitleaks:stop:colima
 
 [tasks.gitleaks]
-description = "Run gitleaks secret scanner (Apple Container runtime)"
+description = "Run gitleaks secret scanner (native binary preferred, falls back to Apple Container)"
 run = """
 #!/usr/bin/env nu
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
 let image = "zricethezav/gitleaks"
 
-# Build gitleaks arguments
-mut args = ["detect" "--source=/code" "-v"]
-
 # Auto-detect baseline file
 let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
-if ($baseline_path | path exists) {
-    let baseline_name = ($baseline_path | path basename)
-    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
+let has_baseline = ($baseline_path | path exists)
+let baseline_name = if $has_baseline { ($baseline_path | path basename) } else { "" }
+if $has_baseline {
     print $"📋 Using baseline: ($baseline_name)"
 }
 
-# Ensure Apple Container is running
+# Prefer a native gitleaks binary — mise-managed first, then PATH — over a
+# container runtime (claude-skills-267; mirrors the native-mise / native-path
+# precedence documented in scripts/gitleaks.nu).
+let mise_bin = if (which mise | is-not-empty) {
+    let resolved = (do { ^mise which gitleaks } | complete)
+    if $resolved.exit_code == 0 { $resolved.stdout | str trim } else { "" }
+} else {
+    ""
+}
+let path_bin = if ($mise_bin | is-not-empty) {
+    ""
+} else {
+    let found = (which gitleaks)
+    if ($found | is-empty) { "" } else { ($found | get 0.path) }
+}
+let native_bin = if ($mise_bin | is-not-empty) { $mise_bin } else { $path_bin }
+
+if ($native_bin | is-not-empty) {
+    mut args = ["detect" $"--source=($repo_root)" "-v"]
+    if $has_baseline {
+        $args = ($args | append $"--baseline-path=($baseline_path)")
+    }
+
+    print $"🔍 Scanning natively: ($repo_root)"
+    let native_args = $args
+    let result = (do { ^$native_bin ...$native_args } | complete)
+    print $result.stdout
+
+    if $result.exit_code == 0 {
+        print "✅ No secrets detected"
+    } else if $result.exit_code == 1 {
+        print "❌ Secrets detected!"
+        print $result.stderr
+    } else {
+        print $"❌ Error: ($result.stderr)"
+    }
+
+    exit $result.exit_code
+}
+
+# No native binary found — fall back to Apple Container.
+mut args = ["detect" "--source=/code" "-v"]
+if $has_baseline {
+    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
+}
+
 if (which container | is-empty) {
     print "❌ Apple Container CLI not found. Use mise gitleaks:docker or mise gitleaks:colima"
     exit 1
