@@ -6,13 +6,47 @@
 # - mise (https://mise.jdx.dev) for Colima runtime management
 #
 # Usage:
-#   mise gitleaks              # Scan with Apple Container (default)
-#   mise gitleaks:docker       # Scan with Docker
-#   mise gitleaks:colima       # Scan with Colima
+#   mise gitleaks              # Native binary preferred; falls back to Apple Container
+#   mise gitleaks:docker       # Native binary preferred; falls back to Docker (not Apple Container)
+#   mise gitleaks:colima       # Native binary preferred; falls back to Colima (not Apple Container)
 #   mise gitleaks:stop         # Stop all runtimes
 #   mise gitleaks:stop:container
 #   mise gitleaks:stop:docker
 #   mise gitleaks:stop:colima
+
+# Nushell — REQUIRED, not optional: every task body below runs under a
+# `#!/usr/bin/env nu` shebang and fails with "env: nu: No such file or
+# directory" (exit 127) if nu is not resolvable, before any of this file's
+# own logic (native detection, --no-git, the scan itself) ever runs
+# (claude-skills-267 Gate 3 U2 — reproduced in a clean scratch project with
+# only this file copied in). Do not drop this entry because nu happens to
+# already be on your PATH; a fresh clone of your project will not have it.
+# Same precedent already merged on this branch's base: PR #245 declared
+# nushell in the beads template for the identical reason — see
+# plugins/tools/beads/skills/beads/templates/mise.toml.
+#
+# Pinned rather than "latest" for the same reason as that precedent: nushell
+# is pre-1.0 and breaking changes land between minor releases; the task
+# scripts here use version-sensitive surface (`split row`, `parse -r`,
+# `is-not-empty`, optional `def main` params, `^cmd ...$spread`). "latest"
+# would silently hand a new installer an untested version.
+[tools."github:nushell/nushell"]
+version = "0.113.1"
+exe = "nu"
+
+# gitleaks itself is deliberately NOT declared here, unlike nushell above.
+# Nushell is a hard requirement — nothing in this file runs without it.
+# gitleaks is not: the whole point of the native-resolution / container /
+# docker / colima fallback chain these tasks implement is to work whether
+# or not gitleaks is installed natively. Pinning it in [tools] would make
+# `mise install` silently auto-install it on every consuming project,
+# which (a) changes that project's tool provisioning as a side effect of
+# copying a task snippet, and (b) makes the documented gitleaks:docker /
+# gitleaks:colima entry points effectively dead code in practice, since
+# native resolution always runs first (claude-skills-209) and would always
+# succeed once gitleaks is auto-installed. If your project wants gitleaks
+# guaranteed available via mise, add `gitleaks = "latest"` to your own
+# [tools] — root mise.toml in this repo does exactly that.
 
 [tasks.gitleaks]
 description = "Run gitleaks secret scanner (native binary preferred, falls back to a container runtime — GITLEAKS_RUNTIME=docker|colima overrides Apple Container; see gitleaks:docker / gitleaks:colima)"
@@ -45,7 +79,21 @@ let image = "zricethezav/gitleaks"
 # directly against gitleaks 8.30.1: "scanned ~<digits> bytes (<total>) in
 # <duration>". A decoy merely containing the substring "scanned ~" never
 # matches this full shape. Returns null when no line matches, which callers
-# must treat as "no evidence", not as "0". Identical regex semantics to
+# must treat as "no evidence", not as "0".
+#
+# Matches the LAST full-shape occurrence — NOT a dead tie-break. A
+# full-shape decoy is reachable in practice: a gitleaks WRN line can name a
+# skipped file, and a file whose NAME is literally "scanned ~4242 bytes
+# (4242 bytes) in 7ms" (mode 000, permission denied) produces a genuine
+# second full-shape match in the same stderr (claude-skills-267 Gate 3 U3,
+# reproduced directly). Last-match is correct here ONLY because gitleaks
+# emits every WRN/skip line BEFORE its own summary line in every observed
+# ordering (8.30.1) — the summary is always the LAST full-shape match
+# regardless of how many file-path-shaped decoys precede it. That ordering
+# is the entire safety property this relies on and lives in gitleaks' own
+# output discipline, not in this code — see scripts/gitleaks.nu's
+# parse-scanned-bytes for the full explanation of what breaks if that
+# ordering ever changes. Identical regex semantics to
 # scripts/gitleaks.nu's parse-scanned-bytes and scripts/gitleaks.sh's
 # parse_scanned_bytes — kept in sync deliberately across all three.
 def parse-scanned-bytes [text: string] {
@@ -256,12 +304,12 @@ exit 0
 """
 
 [tasks."gitleaks:docker"]
-description = "Run gitleaks secret scanner (Docker runtime)"
+description = "Run gitleaks secret scanner, preferring Docker if no native binary is found (native still runs first when available — see `mise gitleaks`; claude-skills-267 Gate 3 U1)"
 env = { GITLEAKS_RUNTIME = "docker" }
 run = "mise run gitleaks"
 
 [tasks."gitleaks:colima"]
-description = "Run gitleaks secret scanner (Colima runtime)"
+description = "Run gitleaks secret scanner, preferring Colima if no native binary is found (native still runs first when available — see `mise gitleaks`; claude-skills-267 Gate 3 U1)"
 env = { GITLEAKS_RUNTIME = "colima" }
 run = "mise run gitleaks"
 

@@ -157,14 +157,31 @@ is_git_worktree() {
 # ~" -- a file path, a bare trailing fragment with no reading -- never
 # matches this full shape, so it is excluded regardless of which side of
 # the real line it sits on. Echoes nothing when no line matches the full
-# shape, which callers must treat as "no evidence", not as "0". Takes the
-# LAST full-shape match only as a tie-break for multiple genuine summary
-# lines -- never reached by a decoy, since a decoy satisfying the full
-# shape well enough to need tie-breaking is, at that point,
-# indistinguishable from a real summary.
+# shape, which callers must treat as "no evidence", not as "0".
+#
+# Takes the LAST full-shape match. This is NOT a dead tie-break -- a
+# full-shape decoy is reachable in practice, not just theoretically: a
+# gitleaks WRN line can name a skipped file, and a file whose NAME is
+# literally "scanned ~4242 bytes (4242 bytes) in 7ms" (mode 000, permission
+# denied) produces a genuine second full-shape match in the same stderr
+# (claude-skills-267 Gate 3 U3, reproduced directly -- a prior version of
+# this comment claimed such a decoy could never satisfy the full shape,
+# which was wrong). Last-match is correct here ONLY because gitleaks emits
+# every WRN/skip line BEFORE its own summary line, in every observed
+# ordering (8.30.1) -- the summary is always the final line of the run, so
+# it is always the LAST full-shape match regardless of how many
+# file-path-shaped decoys precede it. That ordering is the entire safety
+# property this function relies on, and it lives in gitleaks' own output
+# discipline, not in this code: if a future gitleaks version ever logs
+# anything full-shaped AFTER the summary -- or a caller starts
+# concatenating multiple runs' stderr with a decoy-bearing run appended
+# after a clean one -- last-match silently returns the decoy's byte count
+# instead of the real one. There is no assertion here that would catch
+# that; this comment is the only record of the assumption.
 #
 # Identical regex semantics to scripts/gitleaks.nu's parse-scanned-bytes
-# (`parse -r` there, `grep -oE` here) -- kept in sync deliberately rather
+# (`parse -r` there, `grep -oE` here) and the same last-match-because-
+# summary-is-always-last assumption -- kept in sync deliberately rather
 # than reusing one implementation across languages (no shared runtime
 # between nu and bash). A prior version of this comment claimed it
 # "mirrors" gitleaks.nu while implementing a DIFFERENT algorithm
