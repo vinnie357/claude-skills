@@ -429,7 +429,32 @@ def main [] {
         let stub_path = ([$bin_dir] | append (safe-minimal-path))
         let cwd = (make-plain-git-dir)
         let result = (run-resolved-task $resolved $cwd $stub_path)
-        if not ($result.stdout | str contains "Scan unverified!") {
+
+        # Colima is genuinely macOS-only — the template's colima match arm
+        # has its own `if $nu.os-info.name != "macos" { ... exit 1 }` gate,
+        # verified directly by reading the resolved body, and this is
+        # correct/intentional (Colima itself does not run on Linux). An
+        # earlier version of this assertion expected "Scan unverified!"
+        # unconditionally, which made the test's verdict depend on the
+        # runner's OS instead of on the code under test: green on this
+        # (macOS) host, red on GitHub's ubuntu-latest runner, which the
+        # colima branch's OS gate exits out of before ever reaching the
+        # byte-verification logic. On a non-macOS host, assert the platform
+        # gate itself fires correctly instead — a real, meaningful check
+        # ("does colima correctly refuse instead of silently reporting
+        # clean") rather than logic that is structurally unreachable there,
+        # so the PASS/FAIL outcome is identical on every host even though
+        # which code path it exercises differs by design.
+        let is_colima_on_non_macos = ($resolved.runtime == "colima") and ($nu.os-info.name != "macos")
+        if $is_colima_on_non_macos {
+            let refuses_correctly = ($result.exit_code != 0) and not ($result.stdout | str contains "No secrets detected")
+            if not $refuses_correctly {
+                print $"(ansi red_bold)❌ [template] [tasks.\"($task_name)\"] \(runtime=colima, non-macOS\) does not correctly refuse: exit ($result.exit_code), stdout may claim clean(ansi reset)"
+                $failed = true
+            } else {
+                print $"(ansi green_bold)✅ [template] [tasks.\"($task_name)\"] \(runtime=colima\) correctly refuses on non-macOS \(Colima is macOS-only\) instead of silently reporting clean(ansi reset)"
+            }
+        } else if not ($result.stdout | str contains "Scan unverified!") {
             print $"(ansi red_bold)❌ [template] [tasks.\"($task_name)\"] \(runtime=($resolved.runtime)\) lacks the zero-bytes verification invariant: want 'Scan unverified!', exit ($result.exit_code) \(claude-skills-267 Gate 3 T3\)(ansi reset)"
             $failed = true
         } else {
