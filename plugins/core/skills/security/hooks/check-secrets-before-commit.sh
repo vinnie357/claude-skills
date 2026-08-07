@@ -208,30 +208,50 @@ while IFS= read -r -d '' file; do
 done < <(git ls-files --others --exclude-standard -z 2>/dev/null || true)
 
 # Additional pass for force-added ignored files, gated on the command
-# string containing `-f` (claude-skills-272). `--exclude-standard` above
-# is correct and stays unconditional and untouched -- a gitignored file is
-# rightly invisible on every ordinary commit (claude-skills-268). But
-# `git add -f`/`--force` explicitly overrides that exclusion, and the
-# compound form `git add -f <path> && git commit` reaches this hook
-# BEFORE the add has actually run: the file is still untracked+ignored at
-# the moment `git diff`/`git ls-files --others --exclude-standard` are
-# evaluated, so the standard pass above legitimately can't see it either.
+# string containing a standalone `-f` or `--force` TOKEN (claude-skills-272,
+# tightened in round 2). `--exclude-standard` above is correct and stays
+# unconditional and untouched -- a gitignored file is rightly invisible on
+# every ordinary commit (claude-skills-268). But `git add -f`/`--force`
+# explicitly overrides that exclusion, and the compound form `git add -f
+# <path> && git commit` reaches this hook BEFORE the add has actually run:
+# the file is still untracked+ignored at the moment `git diff`/`git
+# ls-files --others --exclude-standard` are evaluated, so the standard
+# pass above legitimately can't see it either.
 #
-# String matching here is safe in a way it was NOT for the `$COMMAND =~
-# add` gate removed in claude-skills-271 round 4: that gate used a miss to
-# SKIP a pass (a miss reopened a hole -- unsafe). This gate uses a miss to
-# skip WIDENING a pass -- a miss just means this command is scanned
-# exactly as it would be without this fix, never less. `-f` as a bare
-# substring also matches `--force` (`--force` contains the two characters
-# "-f" at its second dash) without a separate check, and correctly does
-# NOT match `-Af` (no literal "-f" substring in "-A" + "f" -- verified;
-# this is deliberate, not a bug to chase: a cleverer detector that DOES
-# catch `-Af` would be a welcome improvement, not something this fix
-# needs to guarantee). No `--exclude-standard` on this pass specifically
-# because the whole point is to include what that flag would hide;
-# `git ls-files --others` alone (verified directly) surfaces both a
-# `.gitignore`d path and a `.git/info/exclude`d one.
-if [[ "$COMMAND" == *-f* ]]; then
+# Both directions of this predicate matter, unlike the detection regex at
+# the top of the script. Missing a force-add here is fine -- no worse than
+# before this fix (Part 21's asymmetry). But this pass has NO
+# --exclude-standard, by design: a FALSE trigger scans every gitignored
+# file in the repo, not just one. Round 1 used a bare `*-f*` substring,
+# which matches "-f" inside ANY unrelated long option starting with an
+# "f" -- confirmed directly: `git commit --fixup=HEAD` and `git commit
+# --file=<path>` both contain the two characters "-f" (the option's own
+# leading dash + its first letter) and both incorrectly triggered a scan,
+# blocking a real commit over an intentionally-gitignored `.env` for no
+# reason -- exactly the false positive that gets a security gate switched
+# off.
+#
+# Anchored to whitespace-or-string-boundary on both sides instead:
+# `(^|[[:space:]])(-f|--force)([[:space:]]|$)` requires "-f"/"--force" to
+# be its own TOKEN, not a substring inside a longer one. Verified directly
+# against every case this predicate must decide: matches standalone `-f`
+# and `--force` (Parts 15-17, 20); does not match `-Af` (Part 21 --
+# "-A"+"f" has no "-f" substring at all, unaffected by the boundary
+# change); does not match `--fixup=HEAD` or `--file=msg.txt` (Parts 22/23
+# -- the "-f" inside each is immediately followed by more letters, not a
+# boundary); and -- deliberately, not a gap this refinement chases --
+# STILL matches a commit MESSAGE that happens to contain the token `-f`
+# surrounded by spaces (Part 24, e.g. `git commit -m "add -f support"`),
+# because token-boundary matching on the raw string can't distinguish text
+# inside a quoted argument from a real flag without actual shell-quote
+# parsing. That is a documented, accepted limitation, not something a
+# still-string-based predicate can close.
+#
+# No `--exclude-standard` on this pass specifically because the whole
+# point is to include what that flag would hide; `git ls-files --others`
+# alone (verified directly) surfaces both a `.gitignore`d path and a
+# `.git/info/exclude`d one.
+if [[ "$COMMAND" =~ (^|[[:space:]])(-f|--force)([[:space:]]|$) ]]; then
     log_info "Exporting force-addable ignored files (-f/--force detected in command)..."
     while IFS= read -r -d '' file; do
         [[ -z "$file" ]] && continue
