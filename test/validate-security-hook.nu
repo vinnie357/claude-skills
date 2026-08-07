@@ -186,20 +186,34 @@ def setup-repo-with-staged-empty-file [file_name: string] {
     $repo
 }
 
-# A git repo with a .gitignore excluding file_name, and file_name
-# containing a secret, present on disk but neither tracked nor staged —
-# the shape claude-skills-268 decided must NOT be scanned (this hook
-# scanning a developer's real .env would be worse than the leak it's
-# trying to prevent). Control for claude-skills-271 A1: the untracked-file
-# export pass MUST respect .gitignore via --exclude-standard, not just
-# pick up "everything on disk". Caller is responsible for `rm -rf`.
+# A git repo with a COMMITTED (tracked) .gitignore excluding file_name,
+# and file_name containing a secret, present on disk but neither tracked
+# nor staged — the shape claude-skills-268 decided must NOT be scanned
+# (this hook scanning a developer's real .env would be worse than the
+# leak it's trying to prevent). Control for claude-skills-271 A1: the
+# untracked-file export pass MUST respect .gitignore via
+# --exclude-standard, not just pick up "everything on disk".
+#
+# .gitignore is committed BEFORE file_name is created — Gate 3 round 4:
+# an earlier version of this fixture created .gitignore AFTER the initial
+# commit and never tracked it, which is not how real repositories look
+# (.gitignore is tracked). `git ls-files --others --exclude-standard`
+# correctly lists an UNTRACKED .gitignore itself (nothing excludes a
+# gitignore file from itself), which fired the unconditional
+# "secrets found" stub and produced a false block — the implementer
+# worked around that by gating the untracked-file export pass on the
+# command string containing "add", reintroducing command-string matching
+# as a coverage decision (defeated by `git stage . && git commit`, a
+# real synonym — see Part 14). Fixing the fixture's realism removes the
+# reason for that gate to exist at all. Caller is responsible for `rm -rf`.
 def setup-repo-with-gitignored-secret [file_name: string] {
     let repo = (mktemp -d)
     git -C $repo init -q
     git -C $repo config user.email "test@example.com"
     git -C $repo config user.name "test"
-    git -C $repo commit -q --allow-empty -m "initial"
     $"($file_name)\n" | save --force ($repo | path join ".gitignore")
+    git -C $repo add ".gitignore"
+    git -C $repo commit -q -m "initial"
     $"slack_token = \"(fixture-secret)\"\n" | save --force ($repo | path join $file_name)
     $repo
 }
@@ -608,6 +622,26 @@ def main [] {
     }
     rm -rf $p13_repo
     rm -rf $p13_stub.bin_dir
+
+    # --- Part 14 (Gate 3 round 4): `git stage . && git commit`. `stage` is
+    # a real, working git built-in synonym for `add` — verified directly
+    # (`git stage newfile.txt` stages it exactly like `git add` would).
+    # Regression test for the specific compromise Part 13's earlier
+    # unrealistic fixture forced: the implementer had gated the untracked-
+    # file export pass on `$COMMAND =~ add` to make that fixture pass,
+    # which this command defeats (no "add" substring, so the gate would
+    # have skipped the untracked-file pass entirely — the exact A1 bypass
+    # reintroduced one layer down). Same mechanism and stub methodology as
+    # Part 9; a separate case specifically to pin that the fix does NOT
+    # depend on which staging synonym appears in the command string.
+    let p14_repo = (setup-repo-with-untracked-secret "brand-new.txt")
+    let p14_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p14_result = (run-hook $hook $p14_repo $p14_stub.path "git stage . && git commit -m test")
+    if not (check "Part 14: untracked brand-new.txt with a real secret + `git stage . && git commit` blocks" $p14_result 2) {
+        $failed = true
+    }
+    rm -rf $p14_repo
+    rm -rf $p14_stub.bin_dir
 
     if $failed {
         exit 1
