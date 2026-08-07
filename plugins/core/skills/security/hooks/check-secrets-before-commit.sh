@@ -82,31 +82,44 @@ STDOUT_FILE=""
 STDERR_FILE=""
 trap 'rm -rf "$TEMP_DIR"; rm -f "$STDOUT_FILE" "$STDERR_FILE"' EXIT
 
-# Export staged content AND unstaged tracked-file modifications
-# (claude-skills-271 mechanisms 2). Two separate export passes, into two
-# separate subdirectories, both scanned:
+# Export staged content, unstaged tracked-file modifications, AND
+# untracked new files (claude-skills-271 mechanisms 2 and A1). Three
+# separate export passes, into three separate subdirectories, all scanned:
 #
-#   staged/<file>   -- the INDEX content (`git show ":$file"`), i.e. what a
-#                       plain `git commit` (no -a, no pathspec) would commit.
-#   unstaged/<file> -- the WORKING-TREE content of tracked files with
-#                       pending modifications, i.e. what `git commit -a` /
-#                       `-am` / `git commit <pathspec> -m` would ALSO pick
-#                       up and commit. `git diff --cached` alone cannot see
-#                       this: -a/pathspec stage their changes AS PART OF the
-#                       commit itself, which has not happened yet at the
-#                       moment this PreToolUse hook fires — before the
-#                       intercepted command runs, the index still reflects
-#                       only what was `git add`ed earlier.
+#   staged/<file>    -- the INDEX content (`git show ":$file"`), i.e. what a
+#                        plain `git commit` (no -a, no pathspec) would commit.
+#   unstaged/<file>  -- the WORKING-TREE content of tracked files with
+#                        pending modifications, i.e. what `git commit -a` /
+#                        `-am` / `git commit <pathspec> -m` would ALSO pick
+#                        up and commit. `git diff --cached` alone cannot see
+#                        this: -a/pathspec stage their changes AS PART OF the
+#                        commit itself, which has not happened yet at the
+#                        moment this PreToolUse hook fires — before the
+#                        intercepted command runs, the index still reflects
+#                        only what was `git add`ed earlier.
+#   untracked/<file> -- BRAND-NEW files never `git add`ed at all (Gate 3
+#                        A1). Invisible to BOTH passes above — verified
+#                        directly, neither `git diff --cached --name-only`
+#                        nor `git diff --name-only` lists a file git has
+#                        never seen before. `git add . && git commit` (this
+#                        repo's own prescribed workflow) and `git add -A`
+#                        stage exactly this shape, and a brand-new file is
+#                        the most common way a secret enters a repo (a
+#                        dumped key, a generated config, `.env.local`).
+#                        `--exclude-standard` keeps gitignored files out —
+#                        do not drop it, or a real `.env` a developer
+#                        deliberately gitignored gets scanned, which
+#                        claude-skills-268 decided against (worse than the
+#                        leak this hook exists to prevent).
 #
-# Both passes run regardless of which staging form the intercepted command
-# actually uses — the hook cannot always tell from the command string alone
-# (a plain `git commit` still commits whatever is in the index even if the
-# working tree also has further unrelated edits), and scanning a superset
-# is the "fail toward scanning" direction: extra scanned content costs
-# seconds, a missed one is the defect being fixed. A file present in BOTH
-# passes (staged content differs from a further working-tree edit) is
-# intentionally exported to both paths rather than merged/deduped, so a
-# secret sitting in EITHER version is caught.
+# All three passes run regardless of which staging form the intercepted
+# command actually uses — the hook cannot always tell from the command
+# string alone, and scanning a superset is the "fail toward scanning"
+# direction: extra scanned content costs seconds, a missed one is the
+# defect being fixed. A file present in more than one pass (e.g. staged
+# content differs from a further working-tree edit) is intentionally
+# exported to each path rather than merged/deduped, so a secret sitting in
+# ANY version is caught.
 #
 # `-z` (NUL-terminated, unquoted paths) into `read -r -d ''` piped directly
 # via process substitution, never through an intermediate bash variable:
@@ -116,7 +129,30 @@ trap 'rm -rf "$TEMP_DIR"; rm -f "$STDOUT_FILE" "$STDERR_FILE"' EXIT
 # non-ASCII filenames (e.g. `café.txt` -> literal `"caf\303\251.txt"` under
 # plain --name-only, which `git show ":$file"` then fails to resolve,
 # silently exporting a 0-byte file that `|| true` swallows).
+#
+# HAS_EXPECTED_CONTENT (Gate 3 A2): tracked alongside FILES_FOUND, using
+# git/filesystem METADATA independent of whatever the export step above
+# actually produces. A staged deletion (`git rm`) is LISTED by `git diff
+# --cached --name-only` but has no blob in the index at all
+# (`git cat-file -e` fails) — `git show ":$file"` correctly fails and
+# `|| true` leaves nothing exported, and that is not a bug, there is
+# nothing there. A staged/tracked file that legitimately has zero bytes
+# exports to a genuine 0-byte file, also not a bug. Both must ALLOW the
+# commit, not block it — but the invariant checked further down cannot
+# tell "nothing was there to begin with" apart from Part 7/8's actual
+# defect (real content that silently failed to export) by looking at
+# gitleaks' scan summary alone, because BOTH situations produce the exact
+# same "scanned ~0 bytes" outcome. The metadata check below answers the
+# question the byte count can't: independent of the export, did any listed
+# path actually have content to give? If none did, there is nothing for
+# gitleaks to meaningfully verify and the invariant is skipped entirely
+# (see the check after this section). If at least one path SHOULD have had
+# content, the strict invariant applies exactly as before — this still
+# catches a real future export bug, because the metadata check runs BEFORE
+# and INDEPENDENT of the export attempt, not by trusting the export's own
+# result.
 FILES_FOUND=0
+HAS_EXPECTED_CONTENT=0
 
 log_info "Exporting staged files..."
 while IFS= read -r -d '' file; do
@@ -124,6 +160,10 @@ while IFS= read -r -d '' file; do
     FILES_FOUND=1
     mkdir -p "$TEMP_DIR/staged/$(dirname "$file")"
     git show ":$file" > "$TEMP_DIR/staged/$file" 2>/dev/null || true
+    if git cat-file -e ":$file" 2>/dev/null; then
+        BLOB_SIZE=$(git cat-file -s ":$file" 2>/dev/null || echo 0)
+        [[ "$BLOB_SIZE" -gt 0 ]] && HAS_EXPECTED_CONTENT=1
+    fi
 done < <(git diff --cached --name-only -z 2>/dev/null || true)
 
 log_info "Exporting unstaged tracked-file modifications (covers -a/pathspec commits)..."
@@ -133,11 +173,51 @@ while IFS= read -r -d '' file; do
         FILES_FOUND=1
         mkdir -p "$TEMP_DIR/unstaged/$(dirname "$file")"
         cp "$file" "$TEMP_DIR/unstaged/$file" 2>/dev/null || true
+        [[ -s "$file" ]] && HAS_EXPECTED_CONTENT=1
     fi
 done < <(git diff --name-only -z 2>/dev/null || true)
 
+# Gated on the command containing `add`, unlike the two passes above.
+# Verified directly: `git commit <pathspec>` on a file git has never seen
+# fails outright ("pathspec did not match any file(s) known to git") --
+# `git add` (in some form: `git add .`, `-A`, an explicit filename) is the
+# ONLY git operation that can put a brand-new untracked file into a
+# commit, so this is a complete signal for "could untracked content reach
+# this commit", not a heuristic approximation the way command-shape
+# matching would be elsewhere. Unconditionally scanning EVERY untracked
+# file in the working tree regardless of what the command actually does
+# was tried first and rejected: a repo commonly has untracked files with
+# real content that are simply not part of this commit (a `.gitignore`
+# that predates this fixture's first commit is exactly this shape, and it
+# is not the secret this hook exists to catch) -- scanning them unasked
+# produces a false block that claude-skills-268's control (Part 13) exists
+# to catch. `--exclude-standard` still applies whenever this pass DOES
+# run, so a gitignored `.env` remains excluded either way.
+if [[ "$COMMAND" == *add* ]]; then
+    log_info "Exporting untracked new files (covers \`git add .\`/pathspec commits of brand-new files)..."
+    while IFS= read -r -d '' file; do
+        [[ -z "$file" ]] && continue
+        if [[ -f "$file" ]]; then
+            FILES_FOUND=1
+            mkdir -p "$TEMP_DIR/untracked/$(dirname "$file")"
+            cp "$file" "$TEMP_DIR/untracked/$file" 2>/dev/null || true
+            [[ -s "$file" ]] && HAS_EXPECTED_CONTENT=1
+        fi
+    done < <(git ls-files --others --exclude-standard -z 2>/dev/null || true)
+fi
+
 if [[ "$FILES_FOUND" -eq 0 ]]; then
-    log_info "No staged or modified-tracked files to scan"
+    log_info "No staged, modified-tracked, or new untracked files to scan"
+    exit 0
+fi
+
+if [[ "$HAS_EXPECTED_CONTENT" -eq 0 ]]; then
+    # Every listed path was a deletion or a genuinely empty file (Gate 3
+    # A2) -- nothing for gitleaks to meaningfully verify, so the
+    # bytes-invariant below is skipped rather than blocking a routine
+    # `git rm` or an empty-file commit on the same "scanned ~0 bytes"
+    # shape Part 7/8's real defect produces.
+    log_info "Listed paths are deletions/empty files only — nothing to scan"
     exit 0
 fi
 
