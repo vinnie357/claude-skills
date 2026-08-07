@@ -138,6 +138,72 @@ def setup-repo-with-unstaged-secret-in-tracked-file [file_name: string] {
     $repo
 }
 
+# A git repo with an initial commit (so it's not a brand-new repo with zero
+# history) and file_name written but NEVER `git add`ed — a genuinely
+# untracked, brand-new file, containing a secret. Matches the moment this
+# PreToolUse hook fires for `git add . && git commit`: the intercepted
+# command hasn't run yet, so the file is still untracked when the hook
+# runs (claude-skills-271 A1). Caller is responsible for `rm -rf`.
+def setup-repo-with-untracked-secret [file_name: string] {
+    let repo = (mktemp -d)
+    git -C $repo init -q
+    git -C $repo config user.email "test@example.com"
+    git -C $repo config user.name "test"
+    git -C $repo commit -q --allow-empty -m "initial"
+    let path = ($repo | path join $file_name)
+    let parent = ($path | path dirname)
+    mkdir $parent
+    $"slack_token = \"(fixture-secret)\"\n" | save --force $path
+    $repo
+}
+
+# A git repo where file_name was committed clean, then STAGED FOR DELETION
+# (`git rm`) — no secret anywhere in the repo, past or present
+# (claude-skills-271 A2). Caller is responsible for `rm -rf`.
+def setup-repo-with-staged-deletion [file_name: string] {
+    let repo = (mktemp -d)
+    git -C $repo init -q
+    git -C $repo config user.email "test@example.com"
+    git -C $repo config user.name "test"
+    let path = ($repo | path join $file_name)
+    "clean content, nothing secret\n" | save --force $path
+    git -C $repo add $file_name
+    git -C $repo commit -q -m "initial"
+    git -C $repo rm -q $file_name
+    $repo
+}
+
+# A git repo with an empty (0-byte) file STAGED — no secret anywhere
+# (claude-skills-271 A2). Caller is responsible for `rm -rf`.
+def setup-repo-with-staged-empty-file [file_name: string] {
+    let repo = (mktemp -d)
+    git -C $repo init -q
+    git -C $repo config user.email "test@example.com"
+    git -C $repo config user.name "test"
+    let path = ($repo | path join $file_name)
+    "" | save --force $path
+    git -C $repo add $file_name
+    $repo
+}
+
+# A git repo with a .gitignore excluding file_name, and file_name
+# containing a secret, present on disk but neither tracked nor staged —
+# the shape claude-skills-268 decided must NOT be scanned (this hook
+# scanning a developer's real .env would be worse than the leak it's
+# trying to prevent). Control for claude-skills-271 A1: the untracked-file
+# export pass MUST respect .gitignore via --exclude-standard, not just
+# pick up "everything on disk". Caller is responsible for `rm -rf`.
+def setup-repo-with-gitignored-secret [file_name: string] {
+    let repo = (mktemp -d)
+    git -C $repo init -q
+    git -C $repo config user.email "test@example.com"
+    git -C $repo config user.name "test"
+    git -C $repo commit -q --allow-empty -m "initial"
+    $"($file_name)\n" | save --force ($repo | path join ".gitignore")
+    $"slack_token = \"(fixture-secret)\"\n" | save --force ($repo | path join $file_name)
+    $repo
+}
+
 # Runs the real hook script (Claude Code PreToolUse hook input shape) against
 # repo_dir with PATH pinned to path_list, and returns {exit_code, stdout,
 # stderr}. `command` defaults to a plain commit so existing exit-code-focused
@@ -407,6 +473,17 @@ def main [] {
     # mechanism to tell "gitleaks found nothing because it scanned real
     # content" apart from "gitleaks found nothing because there was
     # nothing to scan" — it trusts exit 0 unconditionally.
+    #
+    # Gate 3 A2 carve-out (claude-skills-271 round 3): this pins the
+    # "scanned nothing UNEXPECTEDLY" side of the invariant — real,
+    # non-empty content genuinely existed to export (setup-repo-with-
+    # staged-secret writes a real, non-trivial file), yet gitleaks reports
+    # zero. That must BLOCK. It is the opposite of Parts 9/10 below, which
+    # pin "there was genuinely NOTHING to scan" (a deletion, an empty
+    # file) — that must ALLOW. A correct fix distinguishes the two by
+    # whether real bytes were actually exported, not by gitleaks' report
+    # alone; this test and Parts 9/10 together are what pins that
+    # distinction rather than leaving it implicit.
     let p7_repo = (setup-repo-with-staged-secret "secret.txt")
     let p7_stub = (native-stub-path $real_path "" "0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n" 0)
     let p7_result = (run-hook $hook $p7_repo $p7_stub.path "git commit -m test")
@@ -416,21 +493,13 @@ def main [] {
     rm -rf $p7_repo
     rm -rf $p7_stub.bin_dir
 
-    # --- Part 8 (Gate 3 W): "no evidence" — gitleaks exits 0 having emitted
-    # NO parseable scan-summary line at all, not an explicit zero. This is
-    # the case gitleaks.nu/gitleaks.sh/the template's shared invariant
-    # (`gitleaks-verified-clean` / `gitleaks_verified_clean`) treats
-    # IDENTICALLY to Part 7's explicit-zero case — "no evidence is not
-    # innocence" was PR #246's entire six-round conclusion — but this
-    # hook's current `gitleaks_scan_reported_zero_bytes` deliberately does
-    # NOT: it blocks ONLY on an explicit parsed zero, falling back to
-    # trust-the-exit-code when the summary is unparseable/missing (see
-    # that function's own comment in the hook for why, and the accepted
-    # gap it documents). Real gitleaks invoked with -v has never been
-    # observed to produce this shape — the stub below is what makes it
-    # constructible at all. Expected RED until the strict port lands;
-    # currently ALLOWS (the exact narrower-rule gap the hook's own comment
-    # documents).
+    # --- Part 8 (Gate 3 W, landed): "no evidence" — gitleaks exits 0
+    # having emitted NO parseable scan-summary line at all, not an
+    # explicit zero. gitleaks.nu/gitleaks.sh/the template's shared
+    # invariant treats this IDENTICALLY to Part 7's explicit-zero case —
+    # "no evidence is not innocence" was PR #246's six-round conclusion —
+    # and the hook's `gitleaks_verified_clean` now matches that exactly
+    # (ported verbatim from gitleaks.sh, confirmed at commit 4429fdd).
     let p8_repo = (setup-repo-with-staged-secret "secret.txt")
     let p8_stub = (native-stub-path $real_path "" "" 0)
     let p8_result = (run-hook $hook $p8_repo $p8_stub.path "git commit -m test")
@@ -439,6 +508,106 @@ def main [] {
     }
     rm -rf $p8_repo
     rm -rf $p8_stub.bin_dir
+
+    # ==========================================================================
+    # claude-skills-271 Gate 3 A1/A2 (round 3): the strict bytes-invariant
+    # port (Part 8) closed one gap and immediately opened two more that the
+    # existing 19 cases could not see. Both were reproduced directly
+    # before writing these tests (see the commit message / PR thread for
+    # the exact commands run).
+    # ==========================================================================
+
+    # --- Part 9 (A1): untracked (brand-new) file. `git diff --cached
+    # --name-only` (staged) and `git diff --name-only` (unstaged tracked
+    # modifications) are BOTH empty for a file that was never `git add`ed
+    # at all — verified directly: only `git ls-files --others
+    # --exclude-standard` sees it. `git add . && git commit`, `git add -A
+    # && git commit`, and a plain new file anywhere are exactly this
+    # shape — the most common way a secret enters a repo (a dumped key, a
+    # generated config, `.env.local`) is a BRAND NEW file, and it
+    # currently exports nothing. Same unconditional "secrets found" stub
+    # methodology as Parts 1-4: isolates "does the export even find this
+    # file" from whether real gitleaks would detect the specific token.
+    let p9_repo = (setup-repo-with-untracked-secret "brand-new.txt")
+    let p9_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p9_result = (run-hook $hook $p9_repo $p9_stub.path "git add . && git commit -m test")
+    if not (check "Part 9: untracked brand-new.txt with a real secret + `git add . && git commit` blocks" $p9_result 2) {
+        $failed = true
+    }
+    rm -rf $p9_repo
+    rm -rf $p9_stub.bin_dir
+
+    # --- Part 10 (A1): untracked file in a subdirectory. Same mechanism
+    # as Part 9; a separate case because a naive fix (e.g. `ls` instead of
+    # a recursive `git ls-files`) could pass Part 9 while still missing
+    # this.
+    let p10_repo = (setup-repo-with-untracked-secret "configs/brand-new.txt")
+    let p10_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p10_result = (run-hook $hook $p10_repo $p10_stub.path "git add . && git commit -m test")
+    if not (check "Part 10: untracked configs/brand-new.txt (subdirectory) with a real secret blocks" $p10_result 2) {
+        $failed = true
+    }
+    rm -rf $p10_repo
+    rm -rf $p10_stub.bin_dir
+
+    # --- Part 11 (A2): staged deletion, no secret anywhere. Verified
+    # directly: `git diff --cached --name-only` DOES list a deleted path
+    # (a deletion is a staged change), but `git show ":$file"` fails
+    # \(file no longer exists in the index\) and the redirect creates a
+    # 0-byte export artifact regardless. Real gitleaks against that
+    # genuinely-empty export correctly reports "scanned ~0 bytes... no
+    # leaks found" — this is Part 7's mirror image: real gitleaks, not a
+    # stub, so the fix under test is "does the hook correctly ALLOW when
+    # there was truly nothing to scan", not detection logic. `git rm
+    # <file> && git commit` is one of the most routine git operations
+    # there is — this hook currently blocking it is the disable-the-hook
+    # risk. Skips gracefully, like Part 6, if no native gitleaks/mise is
+    # reachable on this host.
+    let p11_precheck = (bash -c "command -v mise || command -v gitleaks" | complete)
+    if $p11_precheck.exit_code != 0 {
+        print $"(ansi yellow)⚠️  skipping Part 11 \(staged deletion\): no native gitleaks/mise reachable on this host to run a REAL scan against(ansi reset)"
+    } else {
+        let p11_repo = (setup-repo-with-staged-deletion "gone.txt")
+        let p11_result = (run-hook $hook $p11_repo $real_path "git rm gone.txt && git commit -m test")
+        if not (check "Part 11: `git rm gone.txt && git commit` with no secret anywhere is allowed" $p11_result 0) {
+            $failed = true
+        }
+        rm -rf $p11_repo
+    }
+
+    # --- Part 12 (A2): staged empty file, no secret anywhere. Same
+    # mirror-of-Part-7 methodology as Part 11 — real gitleaks against
+    # genuinely empty (0-byte) content correctly reports "scanned ~0
+    # bytes... no leaks found", and a correct fix must allow this, not
+    # block it.
+    let p12_precheck = (bash -c "command -v mise || command -v gitleaks" | complete)
+    if $p12_precheck.exit_code != 0 {
+        print $"(ansi yellow)⚠️  skipping Part 12 \(staged empty file\): no native gitleaks/mise reachable on this host to run a REAL scan against(ansi reset)"
+    } else {
+        let p12_repo = (setup-repo-with-staged-empty-file "empty.txt")
+        let p12_result = (run-hook $hook $p12_repo $real_path "git commit -m test")
+        if not (check "Part 12: staged empty.txt (0 bytes), no secret anywhere, is allowed" $p12_result 0) {
+            $failed = true
+        }
+        rm -rf $p12_repo
+    }
+
+    # --- Part 13 (control, claude-skills-268): a gitignored .env with a
+    # secret, present on disk but never tracked/staged, must still NOT be
+    # scanned. Guards the A1 fix specifically: an untracked-file pass that
+    # forgot `--exclude-standard` (or used a bare directory walk instead
+    # of `git ls-files`) would pick this up and this test would catch it
+    # — the unconditional "secrets found" stub only fires if the export
+    # pass reaches it at all, so a regression here fails LOUD (block
+    # instead of the expected allow), not silently.
+    let p13_repo = (setup-repo-with-gitignored-secret ".env")
+    let p13_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p13_result = (run-hook $hook $p13_repo $p13_stub.path "git commit -m test")
+    if not (check "Part 13 (control): gitignored .env with a secret is NOT scanned, commit allowed" $p13_result 0) {
+        $failed = true
+    }
+    rm -rf $p13_repo
+    rm -rf $p13_stub.bin_dir
 
     if $failed {
         exit 1
