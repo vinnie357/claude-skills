@@ -191,6 +191,12 @@ def run-self-tests [] {
         (check "parses a nonzero scan summary" (parse-scanned-bytes "INF scanned ~72 bytes (72 bytes) in 70.8ms\nWRN leaks found: 1") 72)
         (check "parses a large scan summary" (parse-scanned-bytes "INF 777 commits scanned.\nINF scanned ~9107683 bytes (9.11 MB) in 377ms") 9107683)
         (check "unparseable stderr returns null, not 0" (parse-scanned-bytes "some unrelated error text") null)
+        # Gate 3 R6: a false "scanned ~" match earlier in the text (e.g. a
+        # log line naming a file whose path happens to contain that
+        # substring) must not win over gitleaks' own real summary line —
+        # matching the FIRST occurrence is itself a fail-open. Matching the
+        # LAST occurrence picks the real summary in this adversarial case.
+        (check "matches the LAST scanned~ occurrence, not the first (R6 fail-open)" (parse-scanned-bytes "WRN skipping /x/scanned ~99 bytes.txt\nINF scanned ~0 bytes (0) in 80.6ms") 0)
         (check "verified-clean requires nonzero scanned bytes" (gitleaks-verified-clean "INF scanned ~72 bytes (72 bytes) in 70.8ms") true)
         (check "zero bytes scanned is NOT verified-clean" (gitleaks-verified-clean "INF scanned ~0 bytes (0) in 77.2ms") false)
         (check "unparseable stderr is NOT verified-clean (no evidence, not innocent)" (gitleaks-verified-clean "no scan summary here") false)
@@ -415,24 +421,19 @@ def is-git-worktree [path: string] {
 # "scanned ~72 bytes (72 bytes) in 70.8ms" or "scanned ~0 bytes (0) in
 # 77ms". Returns null when the line isn't present (unparseable/unexpected
 # gitleaks output), which callers must treat as "no evidence", not as "0".
-# Pure string ops (str index-of / str substring), no regex — same style
-# already used by test/validate-gitleaks-invocation.nu for structural
-# checks, and avoids a `parse` command corner case (empty match tables).
-#
-# Why this exists (claude-skills-267 Gate 3 B2): `is-git-worktree` reports
-# true for a freshly `git init`'d repo with zero commits — it really is a
-# work tree — but gitleaks' default git-mode scan walks commit history,
-# which is empty, so an untracked file's secret is never scanned: exit 0,
-# "no leaks found", having scanned 0 bytes. That's the same fail-open shape
-# defect 1 fixed, wearing a different trigger. Chasing each new trigger
-# with its own special case (e.g. `git rev-list --count`) never closes the
-# general hole; checking the ACTUAL evidence gitleaks itself reports does.
+# Matches the LAST "scanned ~" occurrence, not the first: gitleaks can log
+# other lines containing that substring before its own summary (e.g. a file
+# path being scanned) — matching first is itself a fail-open vector
+# (claude-skills-267 Gate 3 R6). Pure string ops (split row / str index-of
+# / str substring), no regex — same style already used by
+# test/validate-gitleaks-invocation.nu for structural checks, and avoids a
+# `parse` command corner case (empty match tables).
 def parse-scanned-bytes [text: string] {
-    let idx = ($text | str index-of "scanned ~")
-    if $idx < 0 {
+    let parts = ($text | split row "scanned ~")
+    if ($parts | length) < 2 {
         return null
     }
-    let after = ($text | str substring ($idx + 9)..)
+    let after = ($parts | last)
     let end_idx = ($after | str index-of " bytes")
     if $end_idx < 0 {
         return null
@@ -444,12 +445,28 @@ def parse-scanned-bytes [text: string] {
     try { $num_str | into int } catch { null }
 }
 
-# Never report clean without evidence something was actually scanned.
-# gitleaks exit 0 only means "no leaks found IN WHAT IT SCANNED" — if that
-# was 0 bytes (or the scan summary couldn't be parsed at all, so there's no
-# evidence either way), a clean report is unverifiable and this treats it
-# as a positive: same "Secrets detected!" signal callers already gate on,
-# rather than a silently different message a caller's grep might miss.
+# What this check actually verifies, precisely (claude-skills-267 Gate 3
+# R2 — a prior version of this comment overclaimed "checking the ACTUAL
+# evidence gitleaks itself reports" closes fail-open in general; it does
+# not, and the wording implied it did):
+#
+# This closes exactly two cases: a scan that covered LITERALLY ZERO bytes
+# (claude-skills-267 Gate 3 B2 — e.g. a freshly `git init`'d repo with zero
+# commits, where `is-git-worktree` correctly reports true but git-mode has
+# no history to walk), and a scan whose summary couldn't be parsed at all
+# (no evidence either way, treated as unverified rather than assumed
+# innocent).
+#
+# It does NOT guarantee the requested scan SCOPE was covered. gitleaks'
+# git-mode scans committed history — that is documented gitleaks behavior,
+# not a bug this function fixes. A repo with one committed file and a
+# separate uncommitted secret scans a nonzero byte count (the committed
+# file) and passes this check while the uncommitted secret is never
+# examined; reproduced directly (one-commit repo + live untracked secret →
+# scanned_bytes = 9, verified-clean = true, secret unexamined). Whether
+# gitleaks should also cover the working tree by default is a separate,
+# already-filed question — this function only proves "something was
+# scanned," never "the thing you meant to scan was scanned."
 def gitleaks-verified-clean [stderr: string] {
     let scanned_bytes = (parse-scanned-bytes $stderr)
     $scanned_bytes != null and $scanned_bytes > 0
@@ -571,10 +588,13 @@ def run-gitleaks-native [binary: string, scan_path: string, args: list<string>] 
     # exit_code == 0 here — gitleaks itself found nothing, but that only
     # means something if it actually scanned bytes. Print stderr (gitleaks'
     # scan summary lives there, not in stdout) and refuse to report clean
-    # without it (see gitleaks-verified-clean).
+    # without it (see gitleaks-verified-clean). Distinct marker from real
+    # detection (claude-skills-267 Gate 3 R5): printing "Secrets detected!"
+    # when nothing was actually detected is a fabricated claim in a
+    # security tool, even in service of failing closed.
     print $result.stderr
     if not (gitleaks-verified-clean $result.stderr) {
-        print $"(ansi red)Secrets detected!(ansi reset)"
+        print $"(ansi red)Scan unverified!(ansi reset)"
         print $"(ansi red)Error:(ansi reset) gitleaks reported success but scanned 0 bytes \(or the scan summary could not be parsed\) — refusing to report clean without evidence something was actually scanned"
         exit 1
     }
@@ -583,6 +603,18 @@ def run-gitleaks-native [binary: string, scan_path: string, args: list<string>] 
     exit 0
 }
 
+# Stream separation (claude-skills-267 Gate 3 R7): the bytes-verification
+# invariant below depends on `$result.stderr` actually containing gitleaks'
+# scan-summary line rather than an empty string from a merged stdout/stderr
+# stream. Verified empirically against Apple Container 1.0.0 (no -t/-it
+# flag is passed to `container run`, so no pseudo-TTY merge): a clean scan
+# of a real fixture correctly reported "No secrets detected" (stderr
+# carried "scanned ~29 bytes" and parsed), and a zero-commit-repo fixture
+# correctly reported "Scan unverified!" (stderr carried "scanned ~0
+# bytes"). Docker and Colima were NOT reachable to test on this host
+# (`docker info` unavailable) — same reasoning applies (no -t flag passed
+# here either), but that specific claim is unverified for those two
+# runtimes.
 def run-gitleaks-container [runtime: string, scan_path: string, args: list<string>, config_mount: any] {
     let args_str = ($args | str join " ")
     let image = "zricethezav/gitleaks"
@@ -650,9 +682,12 @@ def run-gitleaks-container [runtime: string, scan_path: string, args: list<strin
     # Same "never report clean without evidence" invariant as
     # run-gitleaks-native — gitleaks logs its scan summary to stderr
     # regardless of runtime, so the container path has the identical hole.
+    # Same distinct "Scan unverified!" marker (Gate 3 R5) — see the
+    # run-gitleaks-native comment for why it must not say "Secrets
+    # detected!" when nothing was actually detected.
     print $result.stderr
     if not (gitleaks-verified-clean $result.stderr) {
-        print $"(ansi red)Secrets detected!(ansi reset)"
+        print $"(ansi red)Scan unverified!(ansi reset)"
         print $"(ansi red)Error:(ansi reset) gitleaks reported success but scanned 0 bytes \(or the scan summary could not be parsed\) — refusing to report clean without evidence something was actually scanned"
         exit 1
     }

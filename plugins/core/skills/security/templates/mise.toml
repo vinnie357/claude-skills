@@ -22,15 +22,52 @@ run = """
 let repo_root = (git rev-parse --show-toplevel | str trim)
 let image = "zricethezav/gitleaks"
 
-# restraint: this task duplicates the native-resolution and --no-git logic
-# in plugins/core/skills/security/scripts/gitleaks.nu — a copied template
+# restraint: this task duplicates the native-resolution, --no-git, and
+# bytes-verification logic in
+# plugins/core/skills/security/scripts/gitleaks.nu — a copied template
 # genuinely can't call that script (it isn't guaranteed to exist at any
 # fixed relative path from a consumer project's mise.toml), so some
 # duplication here is unavoidable. scripts/gitleaks.nu is the source of
-# truth: it also enforces "never report clean without evidence something
-# was scanned" (claude-skills-267 Gate 3 B2), which this template task does
-# NOT replicate — prefer that script directly when you can reach it.
-#
+# truth: if its invariant logic changes there, mirror the change here too
+# (claude-skills-267 Gate 3 R4 — this task previously added --no-git but
+# NOT the bytes-verification invariant, and shipped the same fail-open the
+# script had already fixed. Prefer the script directly when you can reach
+# it.
+
+# Extract the byte count from gitleaks' own scan-summary line (stderr).
+# Matches the LAST "scanned ~" occurrence, mirroring
+# scripts/gitleaks.nu's parse-scanned-bytes — matching the FIRST occurrence
+# is itself a fail-open if an earlier log line contains the same substring
+# (claude-skills-267 Gate 3 R6).
+def parse-scanned-bytes [text: string] {
+    let parts = ($text | split row "scanned ~")
+    if ($parts | length) < 2 {
+        return null
+    }
+    let after = ($parts | last)
+    let end_idx = ($after | str index-of " bytes")
+    if $end_idx < 0 {
+        return null
+    }
+    let num_str = ($after | str substring 0..($end_idx - 1) | str trim)
+    if ($num_str | is-empty) {
+        return null
+    }
+    try { $num_str | into int } catch { null }
+}
+
+# Never report clean without evidence something was actually scanned —
+# mirrors scripts/gitleaks.nu's gitleaks-verified-clean. This closes the
+# zero-byte-scanned case and the unparseable-summary case; it does NOT
+# guarantee the requested scan scope was covered (gitleaks' git-mode scans
+# committed history only, which is documented gitleaks behavior, not a bug
+# this closes) — see that function's comment in scripts/gitleaks.nu for the
+# full explanation (claude-skills-267 Gate 3 R2).
+def gitleaks-verified-clean [stderr: string] {
+    let scanned_bytes = (parse-scanned-bytes $stderr)
+    $scanned_bytes != null and $scanned_bytes > 0
+}
+
 # Without --no-git, `gitleaks detect` on a path that isn't (or isn't
 # meaningfully) a git work tree fails to enumerate any files — silent
 # fail-open, exit 0, "no leaks found" having scanned nothing
@@ -79,16 +116,28 @@ if ($native_bin | is-not-empty) {
     let result = (do { ^$native_bin ...$native_args } | complete)
     print $result.stdout
 
-    if $result.exit_code == 0 {
-        print "✅ No secrets detected"
-    } else if $result.exit_code == 1 {
+    if $result.exit_code == 1 {
         print "❌ Secrets detected!"
         print $result.stderr
-    } else {
+        exit 1
+    } else if $result.exit_code != 0 {
         print $"❌ Error: ($result.stderr)"
+        exit $result.exit_code
     }
 
-    exit $result.exit_code
+    # exit_code == 0 — gitleaks itself found nothing, but that only means
+    # something if it actually scanned bytes (claude-skills-267 Gate 3 R4).
+    # Distinct marker from real detection (Gate 3 R5): printing "Secrets
+    # detected!" when nothing was actually detected is a fabricated claim.
+    print $result.stderr
+    if not (gitleaks-verified-clean $result.stderr) {
+        print "❌ Scan unverified!"
+        print "Error: gitleaks reported success but scanned 0 bytes (or the scan summary could not be parsed) — refusing to report clean without evidence something was actually scanned"
+        exit 1
+    }
+
+    print "✅ No secrets detected"
+    exit 0
 }
 
 # No native binary found — fall back to Apple Container. `in_git` reflects
@@ -120,16 +169,26 @@ let final_args = $args
 let result = (do { ^container run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
 print $result.stdout
 
-if $result.exit_code == 0 {
-    print "✅ No secrets detected"
-} else if $result.exit_code == 1 {
+if $result.exit_code == 1 {
     print "❌ Secrets detected!"
     print $result.stderr
-} else {
+    exit 1
+} else if $result.exit_code != 0 {
     print $"❌ Error: ($result.stderr)"
+    exit $result.exit_code
 }
 
-exit $result.exit_code
+# Same "never report clean without evidence" invariant as the native path
+# above — gitleaks logs its scan summary to stderr regardless of runtime.
+print $result.stderr
+if not (gitleaks-verified-clean $result.stderr) {
+    print "❌ Scan unverified!"
+    print "Error: gitleaks reported success but scanned 0 bytes (or the scan summary could not be parsed) — refusing to report clean without evidence something was actually scanned"
+    exit 1
+}
+
+print "✅ No secrets detected"
+exit 0
 """
 
 [tasks."gitleaks:docker"]
