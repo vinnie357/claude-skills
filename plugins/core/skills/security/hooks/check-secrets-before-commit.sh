@@ -207,6 +207,43 @@ while IFS= read -r -d '' file; do
     fi
 done < <(git ls-files --others --exclude-standard -z 2>/dev/null || true)
 
+# Additional pass for force-added ignored files, gated on the command
+# string containing `-f` (claude-skills-272). `--exclude-standard` above
+# is correct and stays unconditional and untouched -- a gitignored file is
+# rightly invisible on every ordinary commit (claude-skills-268). But
+# `git add -f`/`--force` explicitly overrides that exclusion, and the
+# compound form `git add -f <path> && git commit` reaches this hook
+# BEFORE the add has actually run: the file is still untracked+ignored at
+# the moment `git diff`/`git ls-files --others --exclude-standard` are
+# evaluated, so the standard pass above legitimately can't see it either.
+#
+# String matching here is safe in a way it was NOT for the `$COMMAND =~
+# add` gate removed in claude-skills-271 round 4: that gate used a miss to
+# SKIP a pass (a miss reopened a hole -- unsafe). This gate uses a miss to
+# skip WIDENING a pass -- a miss just means this command is scanned
+# exactly as it would be without this fix, never less. `-f` as a bare
+# substring also matches `--force` (`--force` contains the two characters
+# "-f" at its second dash) without a separate check, and correctly does
+# NOT match `-Af` (no literal "-f" substring in "-A" + "f" -- verified;
+# this is deliberate, not a bug to chase: a cleverer detector that DOES
+# catch `-Af` would be a welcome improvement, not something this fix
+# needs to guarantee). No `--exclude-standard` on this pass specifically
+# because the whole point is to include what that flag would hide;
+# `git ls-files --others` alone (verified directly) surfaces both a
+# `.gitignore`d path and a `.git/info/exclude`d one.
+if [[ "$COMMAND" == *-f* ]]; then
+    log_info "Exporting force-addable ignored files (-f/--force detected in command)..."
+    while IFS= read -r -d '' file; do
+        [[ -z "$file" ]] && continue
+        if [[ -f "$file" ]]; then
+            FILES_FOUND=1
+            mkdir -p "$TEMP_DIR/force-added/$(dirname "$file")"
+            cp "$file" "$TEMP_DIR/force-added/$file" 2>/dev/null || true
+            [[ -s "$file" ]] && HAS_EXPECTED_CONTENT=1
+        fi
+    done < <(git ls-files --others -z 2>/dev/null || true)
+fi
+
 if [[ "$FILES_FOUND" -eq 0 ]]; then
     log_info "No staged, modified-tracked, or new untracked files to scan"
     exit 0
