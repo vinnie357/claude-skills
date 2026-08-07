@@ -51,6 +51,24 @@
 # plus the pre-existing, still-intentional fail-open when no scanner is
 # available at all (documented in the hook's "Fail-open, deliberately" note).
 #
+# Fixture rule (claude-skills-272 round 3, after this pattern bit Part 13
+# and then Part 23): the hook scans untracked files for ANY commit command
+# that reaches it, including a plain `git commit` that would not itself
+# stage anything new — this is the deliberate claude-skills-271 tradeoff
+# (the hook cannot know whether an `add` ran earlier in a compound
+# command it can't fully parse, so it errs toward scanning). That means a
+# fixture's INCIDENTAL untracked files — anything written to disk for
+# setup convenience, not as the condition under test — are always in
+# scope for that pass and will trip an unconditional "secrets found" stub
+# the moment the untracked pass runs, independent of whatever command
+# shape the test claims to be exercising. Before adding a fixture: any
+# file created but not `git add`ed+committed must be untracked ON
+# PURPOSE (the secret file itself in a "does the untracked pass catch
+# this" test, or a deliberately-unstaged modification in a staging-timing
+# test) — never incidental. Every setup-repo-* fixture in this file has
+# been checked against this rule as of round 3; see each fixture's own
+# comment for why its untracked (or tracked) files are the ones they are.
+#
 # Usage: nu test/validate-security-hook.nu
 
 # Slack bot token pattern gitleaks's default ruleset detects (RuleID:
@@ -817,8 +835,25 @@ def main [] {
     # --- Part 23: `git commit --file=<path>`, same setup. Separate case —
     # a fix keyed narrowly to excluding "--fixup" specifically could still
     # miss this one.
+    #
+    # Gate 3 round 3 (claude-skills-272): msg.txt is TRACKED (committed)
+    # here, not left on disk untracked. An earlier version wrote it
+    # straight to disk with no `git add` — real content, genuinely
+    # untracked, not gitignored — which the UNCONDITIONAL untracked-file
+    # export pass from claude-skills-271 (no --exclude-standard skip logic
+    # applies to that pass; it scans any real untracked file regardless of
+    # the command shape, since the hook cannot know whether an `add` ran
+    # earlier in a compound command — see the note below) correctly
+    # exported and the stub then correctly fired on. That made this test
+    # red for the wrong reason: the incidental fixture file, not the
+    # `--file=msg.txt` command shape being tested. Second occurrence of
+    # this exact pattern — Part 13's untracked `.gitignore` was the first
+    # (claude-skills-271 round 4) — see the sweep note in this file's
+    # header comment for the general rule extracted from both.
     let p23_repo = (setup-repo-with-gitignored-secret ".env")
     "a commit message\n" | save --force ($p23_repo | path join "msg.txt")
+    git -C $p23_repo add "msg.txt"
+    git -C $p23_repo commit -q -m "add message file"
     let p23_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
     let p23_result = (run-hook $hook $p23_repo $p23_stub.path "git commit --file=msg.txt")
     if not (check "Part 23: `git commit --file=msg.txt` does not scan a gitignored .env (false-positive guard)" $p23_result 0) {
