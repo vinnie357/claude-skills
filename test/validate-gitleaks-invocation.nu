@@ -272,7 +272,16 @@ def list-gitleaks-scan-tasks [content: string] {
 # it. Returns null if the line isn't found (a broken/removed gate), which
 # the caller must treat as "gate did not fire", not as a pass.
 def extract-colima-os-gate-message [gitleaks_body: string] {
-    let line = ($gitleaks_body | lines | where {|l| $l | str contains "only available on macOS"} | get -o 0)
+    # Gate 3 W2: filter to lines containing `print` before taking the
+    # first match. Without this, a COMMENT line above the real gate that
+    # happens to also mention "only available on macOS" (without quotes)
+    # gets picked first, fails the quote lookup, and returns null — the
+    # assertion then goes RED with "does not fire the macOS-only gate"
+    # while the real gate is perfectly intact. Fails closed either way
+    # (a false alarm, not a hole), but a guard tripped by editing a
+    # comment is exactly the kind of needless trap this PR spent three
+    # rounds closing elsewhere.
+    let line = ($gitleaks_body | lines | where {|l| ($l | str contains "only available on macOS") and ($l | str contains "print")} | get -o 0)
     if $line == null {
         return null
     }
@@ -326,6 +335,41 @@ def main [] {
 
     mut failed = false
 
+    # Read once, reused by the self-test below and by Cases 3/T3/T2 further
+    # down (all operate on the parsed template).
+    let content = (open $template --raw)
+
+    # --- Case 0: self-test extract-colima-os-gate-message's line
+    # selection (Gate 3 W2, "add the comment-above-the-gate case to your
+    # break-it set so it stays closed"). Pure-function checks against
+    # synthetic bodies, no subprocess involved — mirrors the pattern
+    # scripts/gitleaks.nu's own --self-test uses for its pure helpers.
+    let w2_comment_before = "
+# Note: colima is only available on macOS, unlike docker.
+if $nu.os-info.name != \"macos\" {
+    print \"⚠️  Colima is only available on macOS\"
+    exit 1
+}
+"
+    let w2_comment_only = "
+# colima is only available on macOS, remember this.
+print \"something unrelated\"
+"
+    let w2_real_body = ($content | from toml | get -o tasks.gitleaks | get -o run | default "")
+    let w2_cases = [
+        {label: "comment mentioning the phrase BEFORE the real print line still resolves to the real gate's message, not null" got: (extract-colima-os-gate-message $w2_comment_before) want: "⚠️  Colima is only available on macOS"}
+        {label: "comment mentioning the phrase with no real print line anywhere fails closed (null)" got: (extract-colima-os-gate-message $w2_comment_only) want: null}
+        {label: "the real template's gate still extracts correctly" got: (extract-colima-os-gate-message $w2_real_body) want: "⚠️  Colima is only available on macOS"}
+    ]
+    for c in $w2_cases {
+        if $c.got != $c.want {
+            print $"(ansi red_bold)❌ [self-test] extract-colima-os-gate-message: ($c.label) — want ($c.want | to json), got ($c.got | to json)(ansi reset)"
+            $failed = true
+        } else {
+            print $"(ansi green_bold)✅ [self-test] extract-colima-os-gate-message: ($c.label)(ansi reset)"
+        }
+    }
+
     # --- Case 1: fail-open regression on a non-git scan path (gitleaks.nu)
     let secret_dir = (make-non-git-secret-fixture)
     let scan = (nu $script --path $secret_dir -R native | complete)
@@ -358,7 +402,6 @@ def main [] {
     # branch) each defeated a marker-matching version of this check across
     # three review rounds — genuine subprocess execution cannot be faked by
     # any of them.
-    let content = (open $template --raw)
     let gitleaks_resolved = (resolve-task-execution $content "gitleaks")
     if $gitleaks_resolved == null {
         print $"(ansi red_bold)❌ [template] could not resolve [tasks.gitleaks]'s run body(ansi reset)"
