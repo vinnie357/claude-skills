@@ -250,7 +250,7 @@ else
     log_error "config, bad baseline file) rather than reporting a clean scan."
     log_error "Investigate before committing:"
     log_error "  1. Run gitleaks manually to see the real error:"
-    log_error "     ${NATIVE_BIN:-gitleaks} detect --source=. --no-git -v"
+    log_error "     \$(mise which gitleaks) dir . -v"
     log_error "  2. Check .gitleaks.toml parses (if present)"
     log_error "  3. Check .gitleaks-baseline.json is valid JSON (if present)"
     exit 2

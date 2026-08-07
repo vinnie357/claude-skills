@@ -47,6 +47,12 @@ def main [
         exit 1
     }
 
+    # Detected once on the HOST path, before either arg builder runs: a
+    # containerized scan mounts scan_path at /code, so git-repo status must
+    # be known before the mount happens, not re-derived from inside the
+    # container.
+    let in_git = (is-git-worktree $scan_path)
+
     # Detect or validate runtime. Both return {runtime: string, binary: string}
     # — binary is the already-resolved native path (empty for container
     # runtimes), resolved exactly once here rather than probed-then-resolved
@@ -64,10 +70,10 @@ def main [
 
     # Run gitleaks
     if $selected.runtime in ["native-mise" "native-path"] {
-        let built = (build-gitleaks-args-native $scan_path $report $config $baseline)
+        let built = (build-gitleaks-args-native $scan_path $report $config $baseline $in_git)
         run-gitleaks-native $selected.binary $scan_path $built.args
     } else {
-        let built = (build-gitleaks-args-container $report $config $baseline $verbose)
+        let built = (build-gitleaks-args-container $report $config $baseline $verbose $in_git)
         run-gitleaks-container $selected.runtime $scan_path $built.args $built.config_mount
     }
 }
@@ -177,6 +183,28 @@ def run-self-tests [] {
         (check "native-mise still wins even with nothing else available" (select-runtime true false false false false) "native-mise")
         (check "native-not-found message builds without throwing (regression: unescaped parens)" $native_not_found.ok true)
         (check "native-not-found message names both checked sources" ($native_not_found.value | str contains "mise and PATH") true)
+        # parse-scanned-bytes / gitleaks-verified-clean (claude-skills-267
+        # Gate 3 B2): exact stderr shapes observed against real gitleaks
+        # 8.30.1 output — a zero-commit repo, a real finding, a large repo,
+        # and unparseable text (must fail closed, not crash or default to 0).
+        (check "parses the zero-byte scan summary (zero-commit repo)" (parse-scanned-bytes "INF 0 commits scanned.\nINF scanned ~0 bytes (0) in 77.2ms\nINF no leaks found") 0)
+        (check "parses a nonzero scan summary" (parse-scanned-bytes "INF scanned ~72 bytes (72 bytes) in 70.8ms\nWRN leaks found: 1") 72)
+        (check "parses a large scan summary" (parse-scanned-bytes "INF 777 commits scanned.\nINF scanned ~9107683 bytes (9.11 MB) in 377ms") 9107683)
+        (check "unparseable stderr returns null, not 0" (parse-scanned-bytes "some unrelated error text") null)
+        # Gate 3 R6 / T4 (position is not the axis — see parse-scanned-bytes'
+        # comment). A decoy that merely contains the substring "scanned ~"
+        # must not win over the real, full-shape summary line regardless of
+        # which side of the real line it sits on: BEFORE it (R6's original
+        # shape) or AFTER it (T4, the mirror image — a last-occurrence "fix"
+        # for R6 that only moved the same bug to the other side).
+        (check "decoy BEFORE the real summary does not win (R6)" (parse-scanned-bytes "WRN skipping /x/scanned ~99 bytes.txt\nINF scanned ~0 bytes (0) in 80.6ms") 0)
+        (check "decoy AFTER the real summary does not win (T4)" (parse-scanned-bytes "INF scanned ~0 bytes (0) in 5ms\nWRN something scanned ~99 bytes nonsense") 0)
+        (check "non-numeric decoy after a real summary (T2)" (parse-scanned-bytes "INF scanned ~72 bytes (72 bytes) in 70.8ms\nWRN .../scanned ~notanumber.txt") 72)
+        (check "bare trailing fragment after a real summary (T2)" (parse-scanned-bytes "INF scanned ~72 bytes (72 bytes) in 70.8ms\nscanned ~") 72)
+        (check "verified-clean requires nonzero scanned bytes" (gitleaks-verified-clean "INF scanned ~72 bytes (72 bytes) in 70.8ms") true)
+        (check "zero bytes scanned is NOT verified-clean" (gitleaks-verified-clean "INF scanned ~0 bytes (0) in 77.2ms") false)
+        (check "unparseable stderr is NOT verified-clean (no evidence, not innocent)" (gitleaks-verified-clean "no scan summary here") false)
+        (check "T4 decoy is NOT verified-clean" (gitleaks-verified-clean "INF scanned ~0 bytes (0) in 5ms\nWRN something scanned ~99 bytes nonsense") false)
     ]
 
     for $c in $cases {
@@ -382,9 +410,101 @@ def start-colima [] {
     }
 }
 
+# Is `path` inside a git work tree? Asks git rather than checking for a
+# literal `.git` directory: a git worktree or submodule uses a `.git` FILE,
+# and a subdirectory of a repo is still inside a work tree. Without --no-git,
+# `gitleaks detect` against a path that fails this check logs a git fatal,
+# scans 0 bytes, and reports "no leaks found" at exit 0 — a silent fail-open
+# (claude-skills-267).
+def is-git-worktree [path: string] {
+    let result = (do { ^git -C $path rev-parse --is-inside-work-tree } | complete)
+    $result.exit_code == 0 and (($result.stdout | str trim) == "true")
+}
+
+# Extract the byte count from gitleaks' own scan-summary line, anchored to
+# its actual STRUCTURE rather than picked by text POSITION (claude-skills-267
+# Gate 3 T2/T4). Position-based picking — first occurrence or last
+# occurrence of the substring "scanned ~" — is defeated by a decoy on
+# whichever side isn't checked: a decoy BEFORE the real summary beats
+# first-match (Gate 3 R6); a decoy AFTER the real summary beats last-match
+# (Gate 3 T4, the mirror image of R6, not a fix for it). Position was never
+# the right axis.
+#
+# The real line has a fixed, verifiable shape — checked directly against
+# gitleaks 8.30.1: "scanned ~<digits> bytes (<total>) in <duration>", e.g.
+# "scanned ~72 bytes (72 bytes) in 70.8ms" or "scanned ~9107683 bytes
+# (9.11 MB) in 377ms". A decoy that merely contains the substring "scanned
+# ~" — a file path, a bare trailing fragment with no reading — never
+# matches this full shape, so it is excluded regardless of which side of
+# the real line it sits on. Returns null when no line matches the full
+# shape, which callers must treat as "no evidence", not as "0".
+#
+# Matches the LAST full-shape occurrence. This is NOT a dead tie-break —
+# a full-shape decoy is reachable in practice, not just theoretically: a
+# gitleaks WRN line can name a skipped file, and a file whose NAME is
+# literally "scanned ~4242 bytes (4242 bytes) in 7ms" (mode 000, permission
+# denied) produces a genuine second full-shape match in the same stderr
+# (claude-skills-267 Gate 3 U3, reproduced directly — a prior version of
+# this comment claimed such a decoy could never satisfy the full shape,
+# which was wrong). Last-match is correct here ONLY because gitleaks emits
+# every WRN/skip line BEFORE its own summary line, in every observed
+# ordering (8.30.1) — the summary is always the final line of the run, so
+# it is always the LAST full-shape match regardless of how many
+# file-path-shaped decoys precede it. That ordering is the entire safety
+# property this function relies on, and it lives in gitleaks' own output
+# discipline, not in this code: if a future gitleaks version ever logs
+# anything full-shaped AFTER the summary — or a caller starts concatenating
+# multiple runs' stderr with a decoy-bearing run appended after a clean
+# one — last-match silently returns the decoy's byte count instead of the
+# real one. There is no assertion here that would catch that; this comment
+# is the only record of the assumption.
+#
+# `gitleaks.sh` implements the identical shape via `grep -oE` — same regex
+# semantics and the same last-match-because-summary-is-always-last
+# assumption, kept in sync deliberately rather than reusing one
+# implementation across languages (no shared runtime between nu and bash).
+def parse-scanned-bytes [text: string] {
+    let matches = ($text | parse -r 'scanned ~(?P<bytes>\d+) bytes \([^)]*\) in \S+')
+    if ($matches | is-empty) {
+        return null
+    }
+    try { ($matches | last | get bytes | into int) } catch { null }
+}
+
+# What this check actually verifies, precisely (claude-skills-267 Gate 3
+# R2 — a prior version of this comment overclaimed "checking the ACTUAL
+# evidence gitleaks itself reports" closes fail-open in general; it does
+# not, and the wording implied it did):
+#
+# This closes exactly two cases: a scan that covered LITERALLY ZERO bytes
+# (claude-skills-267 Gate 3 B2 — e.g. a freshly `git init`'d repo with zero
+# commits, where `is-git-worktree` correctly reports true but git-mode has
+# no history to walk), and a scan whose summary couldn't be parsed at all
+# (no evidence either way, treated as unverified rather than assumed
+# innocent).
+#
+# It does NOT guarantee the requested scan SCOPE was covered. gitleaks'
+# git-mode scans committed history — that is documented gitleaks behavior,
+# not a bug this function fixes. A repo with one committed file and a
+# separate uncommitted secret scans a nonzero byte count (the committed
+# file) and passes this check while the uncommitted secret is never
+# examined; reproduced directly (one-commit repo + live untracked secret →
+# scanned_bytes = 9, verified-clean = true, secret unexamined). Whether
+# gitleaks should also cover the working tree by default is a separate,
+# already-filed question — this function only proves "something was
+# scanned," never "the thing you meant to scan was scanned."
+def gitleaks-verified-clean [stderr: string] {
+    let scanned_bytes = (parse-scanned-bytes $stderr)
+    $scanned_bytes != null and $scanned_bytes > 0
+}
+
 # Args for a directly-invoked native binary: real host paths, no /code mount prefix.
-def build-gitleaks-args-native [scan_path: string, report: string, config: string, baseline: string] {
+def build-gitleaks-args-native [scan_path: string, report: string, config: string, baseline: string, in_git: bool] {
     mut args = ["detect" $"--source=($scan_path)"]
+
+    if not $in_git {
+        $args = ($args | append "--no-git")
+    }
 
     $args = ($args | append "-v")
 
@@ -415,9 +535,16 @@ def build-gitleaks-args-native [scan_path: string, report: string, config: strin
 }
 
 # Args for a containerized run: /code-relative paths, since the scan path
-# is bind-mounted at /code inside the container.
-def build-gitleaks-args-container [report: string, config: string, baseline: string, verbose: bool] {
+# is bind-mounted at /code inside the container. `in_git` reflects the HOST
+# path's git status (checked once in main, before the mount) — the bind
+# mount carries the host's .git (or its absence) straight into /code, so the
+# same fail-open hole applies here without --no-git (claude-skills-267).
+def build-gitleaks-args-container [report: string, config: string, baseline: string, verbose: bool, in_git: bool] {
     mut args = ["detect" "--source=/code"]
+
+    if not $in_git {
+        $args = ($args | append "--no-git")
+    }
 
     # Always add verbose flag
     $args = ($args | append "-v")
@@ -474,19 +601,46 @@ def run-gitleaks-native [binary: string, scan_path: string, args: list<string>] 
 
     print $result.stdout
 
-    if $result.exit_code == 0 {
-        print $"(ansi green)No secrets detected(ansi reset)"
-    } else if $result.exit_code == 1 {
+    if $result.exit_code == 1 {
         print $"(ansi red)Secrets detected!(ansi reset)"
         print $result.stderr
-    } else {
+        exit 1
+    } else if $result.exit_code != 0 {
         print $"(ansi red)Error running gitleaks:(ansi reset)"
         print $result.stderr
+        exit $result.exit_code
     }
 
-    exit $result.exit_code
+    # exit_code == 0 here — gitleaks itself found nothing, but that only
+    # means something if it actually scanned bytes. Print stderr (gitleaks'
+    # scan summary lives there, not in stdout) and refuse to report clean
+    # without it (see gitleaks-verified-clean). Distinct marker from real
+    # detection (claude-skills-267 Gate 3 R5): printing "Secrets detected!"
+    # when nothing was actually detected is a fabricated claim in a
+    # security tool, even in service of failing closed.
+    print $result.stderr
+    if not (gitleaks-verified-clean $result.stderr) {
+        print $"(ansi red)Scan unverified!(ansi reset)"
+        print $"(ansi red)Error:(ansi reset) gitleaks reported success but scanned 0 bytes \(or the scan summary could not be parsed\) — refusing to report clean without evidence something was actually scanned"
+        exit 1
+    }
+
+    print $"(ansi green)No secrets detected(ansi reset)"
+    exit 0
 }
 
+# Stream separation (claude-skills-267 Gate 3 R7): the bytes-verification
+# invariant below depends on `$result.stderr` actually containing gitleaks'
+# scan-summary line rather than an empty string from a merged stdout/stderr
+# stream. Verified empirically against Apple Container 1.0.0 (no -t/-it
+# flag is passed to `container run`, so no pseudo-TTY merge): a clean scan
+# of a real fixture correctly reported "No secrets detected" (stderr
+# carried "scanned ~29 bytes" and parsed), and a zero-commit-repo fixture
+# correctly reported "Scan unverified!" (stderr carried "scanned ~0
+# bytes"). Docker and Colima were NOT reachable to test on this host
+# (`docker info` unavailable) — same reasoning applies (no -t flag passed
+# here either), but that specific claim is unverified for those two
+# runtimes.
 def run-gitleaks-container [runtime: string, scan_path: string, args: list<string>, config_mount: any] {
     let args_str = ($args | str join " ")
     let image = "zricethezav/gitleaks"
@@ -541,15 +695,29 @@ def run-gitleaks-container [runtime: string, scan_path: string, args: list<strin
 
     print $result.stdout
 
-    if $result.exit_code == 0 {
-        print $"(ansi green)No secrets detected(ansi reset)"
-    } else if $result.exit_code == 1 {
+    if $result.exit_code == 1 {
         print $"(ansi red)Secrets detected!(ansi reset)"
         print $result.stderr
-    } else {
+        exit 1
+    } else if $result.exit_code != 0 {
         print $"(ansi red)Error running gitleaks:(ansi reset)"
         print $result.stderr
+        exit $result.exit_code
     }
 
-    exit $result.exit_code
+    # Same "never report clean without evidence" invariant as
+    # run-gitleaks-native — gitleaks logs its scan summary to stderr
+    # regardless of runtime, so the container path has the identical hole.
+    # Same distinct "Scan unverified!" marker (Gate 3 R5) — see the
+    # run-gitleaks-native comment for why it must not say "Secrets
+    # detected!" when nothing was actually detected.
+    print $result.stderr
+    if not (gitleaks-verified-clean $result.stderr) {
+        print $"(ansi red)Scan unverified!(ansi reset)"
+        print $"(ansi red)Error:(ansi reset) gitleaks reported success but scanned 0 bytes \(or the scan summary could not be parsed\) — refusing to report clean without evidence something was actually scanned"
+        exit 1
+    }
+
+    print $"(ansi green)No secrets detected(ansi reset)"
+    exit 0
 }

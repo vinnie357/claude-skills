@@ -159,18 +159,27 @@ Gitleaks is an open-source tool for detecting secrets and sensitive information 
 
 ### Basic Usage
 
+Invoke gitleaks via its resolved absolute path (`$(mise which gitleaks)`), never a bare `gitleaks` command in an interactive shell — an rc-file shell function can silently reroute the bare command through a full-history container scan regardless of the flags you passed. See "Shell-function shadowing trap" below for the mechanism and how to check for it.
+
+Current syntax (verified against gitleaks 8.30.1) uses `git`/`dir` subcommands — `detect`/`protect` still work but are deprecated aliases no longer listed in `--help`:
+
 ```bash
-# Scan current directory
-gitleaks detect --source="." -v
+GITLEAKS=$(mise which gitleaks)
+
+# Scan the current git repository's full history
+"$GITLEAKS" git . -v
 
 # Scan with JSON report
-gitleaks detect --source="." -v --report-path=report.json --report-format=json
+"$GITLEAKS" git . -v --report-path=report.json --report-format=json
 
 # Scan only staged changes (pre-commit)
-gitleaks protect --staged
+"$GITLEAKS" git . --staged
 
-# Scan git history
-gitleaks detect --source="." --log-opts="--all"
+# Scan git history explicitly (equivalent to the default; --log-opts scopes the range)
+"$GITLEAKS" git . --log-opts="--all"
+
+# Scan a directory or files without git awareness
+"$GITLEAKS" dir . -v
 ```
 
 ### Configuration
@@ -250,7 +259,7 @@ A shell function named `gitleaks` defined in an interactive shell's rc file (zsh
 
 ### gitleaks.sh (Bash)
 
-Bash script covering the same container runtimes as `gitleaks.nu`. It does NOT yet have the native-binary path or `--self-test` described above (claude-skills-209 scoped the native-first fix to `gitleaks.nu`) — prefer `gitleaks.nu` when a native binary is available:
+Bash script with the same runtime-detection precedence and native-binary resolution as `gitleaks.nu`. Both scripts, and the Mise Tasks Template below, anchor the bytes-verification invariant on gitleaks' own scan-summary line shape (`scanned ~<digits> bytes (<total>) in <duration>`) rather than picking a substring by position — a cross-implementation conformance test, `test/validate-gitleaks-invocation.nu`, feeds identical stderr fixtures to all three and requires identical verdicts. Ran it directly: all 6 conformance cases pass, agreeing across `gitleaks.nu`, `gitleaks.sh`, and the template. The one remaining gap: `gitleaks.sh` has no `--self-test` flag, so its own selection logic can only be exercised by actually running it, never in isolation. Prefer `gitleaks.nu` — this repo is nushell-first (`/core:nushell`), and only `gitleaks.nu`'s `--self-test` lets you check that logic without a gitleaks binary or container runtime present. Use `gitleaks.sh` on a host without nushell installed:
 
 ```bash
 # Run with auto-detected runtime
@@ -275,7 +284,9 @@ The scripts support three container runtimes with automatic detection:
 
 1. **Apple Container** (macOS 26+) - Native macOS containerization
 2. **Docker** - Docker Desktop or Docker Engine
-3. **Colima** - Lightweight container runtime via mise
+3. **Colima** - Lightweight container runtime via mise (macOS only)
+
+The three examples below scan `/code` with `git`, which walks commit history — a mount that isn't a git repository, or is a git repository with no commits yet, has no history to walk and exits 0 with "no leaks found" (verified: both cases scan ~0 bytes and report clean, even with an untracked secret sitting in the mount). Use `dir /code` in place of `git /code` when the mount is not guaranteed to be a committed git repo, or to scan working-tree file content regardless of git state.
 
 ### Apple Container (macOS 26+)
 
@@ -289,7 +300,7 @@ container system status
 container system start
 
 # Run gitleaks
-container run -v $(pwd):/code zricethezav/gitleaks detect --source="/code" -v
+container run -v $(pwd):/code zricethezav/gitleaks git /code -v
 ```
 
 ### Docker
@@ -304,12 +315,12 @@ docker info >/dev/null 2>&1
 open -a Docker
 
 # Run gitleaks
-docker run -v $(pwd):/code zricethezav/gitleaks detect --source="/code" -v
+docker run -v $(pwd):/code zricethezav/gitleaks git /code -v
 ```
 
 ### Colima via mise
 
-Lightweight runtime managed through mise:
+Lightweight runtime managed through mise, macOS only — the template's colima fallback exits with an explicit error on other platforms rather than attempting to start it:
 
 ```bash
 # Check status
@@ -319,7 +330,7 @@ mise exec colima@latest -- colima status
 mise exec colima@latest -- colima start
 
 # Run gitleaks
-mise exec colima@latest -- docker run -v $(pwd):/code zricethezav/gitleaks detect --source="/code" -v
+mise exec colima@latest -- docker run -v $(pwd):/code zricethezav/gitleaks git /code -v
 ```
 
 Using `mise exec` provides automatic installation and version management without requiring global installation.
@@ -373,7 +384,7 @@ gitleaks:
   stage: security
   image: zricethezav/gitleaks:latest
   script:
-    - gitleaks detect --source="." -v
+    - gitleaks git . -v
   allow_failure: false
 ```
 
@@ -381,12 +392,16 @@ gitleaks:
 
 Create a baseline to ignore known false positives:
 
+Invoke via the resolved binary path, not a bare `gitleaks` command — see "Shell-function shadowing trap" above.
+
 ```bash
+GITLEAKS=$(mise which gitleaks)
+
 # Generate baseline
-gitleaks detect --source="." -v --baseline-path=.gitleaks-baseline.json
+"$GITLEAKS" git . -v --baseline-path=.gitleaks-baseline.json
 
 # Scan using baseline
-gitleaks detect --source="." -v --baseline-path=.gitleaks-baseline.json
+"$GITLEAKS" git . -v --baseline-path=.gitleaks-baseline.json
 ```
 
 Add `.gitleaks-baseline.json` to version control to track acknowledged findings.
@@ -416,13 +431,15 @@ Add `.gitleaks-baseline.json` to version control to track acknowledged findings.
 
 ## Mise Tasks Template
 
-Copy the mise tasks from `templates/mise.toml` to add gitleaks scanning to any project:
+Copy the mise tasks from `templates/mise.toml` to add gitleaks scanning to any project — merge the `[tools]` section, don't append the whole file. The template declares `[tools."github:nushell/nushell"]`; a duplicate declaration of that exact key anywhere else in the same `mise.toml` is a TOML duplicate-key error that breaks every task in the file, not just gitleaks — even when both entries pin the identical version. Verified: appending the template onto a `mise.toml` that already declared that same key raised `TOML parse error ... duplicate key`, and `mise tasks` failed outright. If the project already declares nushell at 0.113.1 or newer, skip the `[tools]` block and copy only the `[tasks.*]` blocks below it. An older pin is untested, not assumed broken — the one data point available is nushell 0.107.0 (six minors back), which ran the extracted task body and `gitleaks.nu --self-test` correctly (21/21); the task scripts use version-sensitive nushell surface (`split row`, `parse -r`, `is-not-empty`, optional `def main` params, `^cmd ...$spread`), so that single result doesn't generalize to a range. With the security skill installed, run `nu .../scripts/gitleaks.nu --self-test` under your own pinned nushell to check directly rather than assuming compatibility or incompatibility from the version number alone. With no existing nushell entry, copy the `[tools]` block too, unmodified.
+
+`gitleaks:docker` and `gitleaks:colima` are one-line delegations (`GITLEAKS_RUNTIME=docker`/`colima` env var, `run = "mise run gitleaks"`) — the native-resolution, `--no-git`, and bytes-verification logic exists in exactly one place, `[tasks.gitleaks]`, not copied per runtime. Ran all three task names against the template directly: `mise gitleaks` and `mise gitleaks:docker` both resolved the native binary and scanned a real commit correctly (native resolution runs before the runtime fallback, so `GITLEAKS_RUNTIME` only takes effect when no native binary is found); an empty-commit repo (no file changes) correctly failed closed with "Scan unverified!" rather than reporting clean.
 
 ```bash
 # Available tasks after copying template
-mise gitleaks              # Scan with Apple Container (default)
-mise gitleaks:docker       # Scan with Docker
-mise gitleaks:colima       # Scan with Colima
+mise gitleaks              # Scan — native binary preferred; falls back to Apple Container if none found
+mise gitleaks:docker       # Scan — native binary preferred; forces the Docker fallback if none found
+mise gitleaks:colima       # Scan — native binary preferred; forces the Colima fallback if none found (macOS only)
 
 mise gitleaks:stop         # Stop all runtimes
 mise gitleaks:stop:container

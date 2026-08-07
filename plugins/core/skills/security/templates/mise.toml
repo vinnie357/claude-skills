@@ -1,173 +1,365 @@
 # Gitleaks Secret Scanner Tasks
-# Copy these tasks to your project's mise.toml
+#
+# Two ways to use this file (claude-skills-267 Gate 3 V2 — "copy these
+# tasks to your project's mise.toml" stopped being the whole instruction
+# once this file grew a [tools] block; see below for why that block can't
+# always come along for the ride):
+#
+#   1. FRESH project, no mise.toml yet: copy this ENTIRE file, including
+#      [tools], to your project root as mise.toml. Works standalone —
+#      `mise install && mise run gitleaks` needs nothing else added.
+#
+#   2. EXISTING project with its own mise.toml: copy only the [tasks...]
+#      sections below — do NOT also copy the [tools] block if your
+#      mise.toml already declares nushell (`[tools."github:nushell/
+#      nushell"]` or any other `nu`/nushell tools entry). See the [tools]
+#      block's own comment for exactly what to do and what breaks if you
+#      don't.
 #
 # Prerequisites:
-# - One of: Apple Container (macOS 26+), Docker, or Colima
+# - One of: Apple Container (macOS 26+), Docker (any OS), or Colima
+#   (macOS only — errors on Linux/Windows; claude-skills-267 Gate 3 V4)
 # - mise (https://mise.jdx.dev) for Colima runtime management
 #
 # Usage:
-#   mise gitleaks              # Scan with Apple Container (default)
-#   mise gitleaks:docker       # Scan with Docker
-#   mise gitleaks:colima       # Scan with Colima
+#   mise gitleaks              # Native binary preferred; falls back to Apple Container
+#   mise gitleaks:docker       # Native binary preferred; falls back to Docker (not Apple Container)
+#   mise gitleaks:colima       # Native binary preferred; falls back to Colima (not Apple Container) — macOS only
 #   mise gitleaks:stop         # Stop all runtimes
 #   mise gitleaks:stop:container
 #   mise gitleaks:stop:docker
 #   mise gitleaks:stop:colima
 
+# Nushell — REQUIRED, not optional: every task body below runs under a
+# `#!/usr/bin/env nu` shebang and fails with "env: nu: No such file or
+# directory" (exit 127) if nu is not resolvable, before any of this file's
+# own logic (native detection, --no-git, the scan itself) ever runs
+# (claude-skills-267 Gate 3 U2 — reproduced in a clean scratch project with
+# only this file copied in). Do not drop this entry because nu happens to
+# already be on your PATH; a fresh clone of your project will not have it.
+# Same precedent already merged on this branch's base: PR #245 declared
+# nushell in the beads template for the identical reason — see
+# plugins/tools/beads/skills/beads/templates/mise.toml.
+#
+# Pinned rather than "latest" for the same reason as that precedent: nushell
+# is pre-1.0 and breaking changes land between minor releases; the task
+# scripts here use version-sensitive surface (`split row`, `parse -r`,
+# `is-not-empty`, optional `def main` params, `^cmd ...$spread`). "latest"
+# would silently hand a new installer an untested version.
+#
+# MERGE this block into your project's [tools], don't APPEND it
+# (claude-skills-267 Gate 3 V2). If you're pasting the [tasks...] sections
+# below into a mise.toml that already has a `[tools."github:nushell/
+# nushell"]` (or any other nushell/nu entry) of its own:
+#   - Versions already match (or yours is newer)? Skip this block
+#     entirely — keep your existing entry, copy only the tasks.
+#   - Your pin is OLDER than 0.113.1? Untested beyond one spot-check, not
+#     assumed broken (claude-skills-267 Gate 3 W1): nushell 0.107.0 (six
+#     minors back from this pin) ran the extracted [tasks.gitleaks] body
+#     and plugins/core/skills/security/scripts/gitleaks.nu's --self-test
+#     correctly (21/21) when checked directly — but that is one version
+#     checked, not a range guaranteed. The version-sensitive surface named
+#     above (`split row`, `parse -r`, `is-not-empty`, optional `def main`
+#     params, `^cmd ...$spread`) is real. If you have the security skill
+#     installed, `nu .../scripts/gitleaks.nu --self-test` under your
+#     pinned nushell is the concrete way to check your own version before
+#     trusting it either way — don't assume compatibility OR
+#     incompatibility from the version number alone.
+#   - No existing nushell entry? Copy this block too, unmodified.
+#   - Never paste both blocks into the same file. TOML rejects a
+#     DUPLICATE TABLE KEY at parse time regardless of whether the values
+#     inside match — reproduced directly: appending this exact block onto
+#     a mise.toml that already declared `[tools."github:nushell/
+#     nushell"]` produced `TOML parse error ... duplicate key` from
+#     `mise tasks`, and that failure is not scoped to gitleaks — the
+#     WHOLE mise.toml stops parsing, so every task in the project breaks,
+#     not just the ones defined here. Two marketplace templates already
+#     declare this identical key at this identical version
+#     (plugins/tools/beads/skills/beads/templates/mise.toml is the other
+#     one) — installing both plugins and copy-pasting both files verbatim
+#     into the same mise.toml hits this exact collision.
+[tools."github:nushell/nushell"]
+version = "0.113.1"
+exe = "nu"
+
+# gitleaks itself is deliberately NOT declared here, unlike nushell above.
+# Nushell is a hard requirement — nothing in this file runs without it.
+# gitleaks is not: the whole point of the native-resolution / container /
+# docker / colima fallback chain these tasks implement is to work whether
+# or not gitleaks is installed natively. Pinning it in [tools] would make
+# `mise install` silently auto-install it on every consuming project,
+# which (a) changes that project's tool provisioning as a side effect of
+# copying a task snippet, and (b) makes the documented gitleaks:docker /
+# gitleaks:colima entry points effectively dead code in practice, since
+# native resolution always runs first (claude-skills-209) and would always
+# succeed once gitleaks is auto-installed. If your project wants gitleaks
+# guaranteed available via mise, add `gitleaks = "latest"` to your own
+# [tools] — root mise.toml in this repo does exactly that.
+
 [tasks.gitleaks]
-description = "Run gitleaks secret scanner (Apple Container runtime)"
+description = "Run gitleaks secret scanner (native binary preferred, falls back to a container runtime — GITLEAKS_RUNTIME=docker|colima overrides Apple Container; see gitleaks:docker / gitleaks:colima)"
 run = """
 #!/usr/bin/env nu
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
 let image = "zricethezav/gitleaks"
 
-# Build gitleaks arguments
-mut args = ["detect" "--source=/code" "-v"]
+# restraint: this task duplicates the native-resolution, --no-git, and
+# bytes-verification logic in
+# plugins/core/skills/security/scripts/gitleaks.nu — a copied template
+# genuinely can't call that script (it isn't guaranteed to exist at any
+# fixed relative path from a consumer project's mise.toml), so some
+# duplication here is unavoidable. scripts/gitleaks.nu is the source of
+# truth: if its invariant logic changes there, mirror the change here too
+# (claude-skills-267 Gate 3 R4/T2/T4). Single container-fallback
+# implementation now shared by gitleaks, gitleaks:docker, and
+# gitleaks:colima (Gate 3 T3) — gitleaks:docker/gitleaks:colima set
+# GITLEAKS_RUNTIME and delegate here instead of re-implementing the
+# fallback, which is what let the native-resolution / --no-git /
+# bytes-verification fixes drift out of sync across three separate copies
+# in the first place (B3, R4, T3 were the same bug landing three times).
+# Prefer scripts/gitleaks.nu directly when you can reach it.
+
+# Extract the byte count from gitleaks' own scan-summary line, anchored to
+# its actual STRUCTURE rather than picked by text position (claude-skills-267
+# Gate 3 T2/T4 — first/last-occurrence picking is defeated by a decoy on
+# whichever side isn't checked). The real line has a fixed shape, checked
+# directly against gitleaks 8.30.1: "scanned ~<digits> bytes (<total>) in
+# <duration>". A decoy merely containing the substring "scanned ~" never
+# matches this full shape. Returns null when no line matches, which callers
+# must treat as "no evidence", not as "0".
+#
+# Matches the LAST full-shape occurrence — NOT a dead tie-break. A
+# full-shape decoy is reachable in practice: a gitleaks WRN line can name a
+# skipped file, and a file whose NAME is literally "scanned ~4242 bytes
+# (4242 bytes) in 7ms" (mode 000, permission denied) produces a genuine
+# second full-shape match in the same stderr (claude-skills-267 Gate 3 U3,
+# reproduced directly). Last-match is correct here ONLY because gitleaks
+# emits every WRN/skip line BEFORE its own summary line in every observed
+# ordering (8.30.1) — the summary is always the LAST full-shape match
+# regardless of how many file-path-shaped decoys precede it. That ordering
+# is the entire safety property this relies on and lives in gitleaks' own
+# output discipline, not in this code — see scripts/gitleaks.nu's
+# parse-scanned-bytes for the full explanation of what breaks if that
+# ordering ever changes. Identical regex semantics to
+# scripts/gitleaks.nu's parse-scanned-bytes and scripts/gitleaks.sh's
+# parse_scanned_bytes — kept in sync deliberately across all three.
+def parse-scanned-bytes [text: string] {
+    let matches = ($text | parse -r 'scanned ~(?P<bytes>\\d+) bytes \\([^)]*\\) in \\S+')
+    if ($matches | is-empty) {
+        return null
+    }
+    try { ($matches | last | get bytes | into int) } catch { null }
+}
+
+# Never report clean without evidence something was actually scanned —
+# mirrors scripts/gitleaks.nu's gitleaks-verified-clean. This closes the
+# zero-byte-scanned case and the unparseable-summary case; it does NOT
+# guarantee the requested scan scope was covered (gitleaks' git-mode scans
+# committed history only, which is documented gitleaks behavior, not a bug
+# this closes) — see that function's comment in scripts/gitleaks.nu for the
+# full explanation (claude-skills-267 Gate 3 R2).
+def gitleaks-verified-clean [stderr: string] {
+    let scanned_bytes = (parse-scanned-bytes $stderr)
+    $scanned_bytes != null and $scanned_bytes > 0
+}
+
+# Without --no-git, `gitleaks detect` on a path that isn't (or isn't
+# meaningfully) a git work tree fails to enumerate any files — silent
+# fail-open, exit 0, "no leaks found" having scanned nothing
+# (claude-skills-267). Checked once, mirroring scripts/gitleaks.nu's
+# is-git-worktree.
+let git_check = (do { ^git -C $repo_root rev-parse --is-inside-work-tree } | complete)
+let in_git = ($git_check.exit_code == 0 and (($git_check.stdout | str trim) == "true"))
 
 # Auto-detect baseline file
 let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
-if ($baseline_path | path exists) {
-    let baseline_name = ($baseline_path | path basename)
-    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
+let has_baseline = ($baseline_path | path exists)
+let baseline_name = if $has_baseline { ($baseline_path | path basename) } else { "" }
+if $has_baseline {
     print $"📋 Using baseline: ($baseline_name)"
 }
 
-# Ensure Apple Container is running
-if (which container | is-empty) {
-    print "❌ Apple Container CLI not found. Use mise gitleaks:docker or mise gitleaks:colima"
-    exit 1
-}
-
-let status = (do { ^container system status } | complete)
-if $status.exit_code != 0 {
-    print "🚀 Starting Apple Container..."
-    do { ^container system start } | complete
-}
-
-print $"🔍 Scanning: ($repo_root)"
-let final_args = $args
-let result = (do { ^container run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
-print $result.stdout
-
-if $result.exit_code == 0 {
-    print "✅ No secrets detected"
-} else if $result.exit_code == 1 {
-    print "❌ Secrets detected!"
-    print $result.stderr
+# Prefer a native gitleaks binary — mise-managed first, then PATH — over a
+# container runtime (claude-skills-267; mirrors the native-mise / native-path
+# precedence documented in scripts/gitleaks.nu).
+let mise_bin = if (which mise | is-not-empty) {
+    let resolved = (do { ^mise which gitleaks } | complete)
+    if $resolved.exit_code == 0 { $resolved.stdout | str trim } else { "" }
 } else {
-    print $"❌ Error: ($result.stderr)"
+    ""
+}
+let path_bin = if ($mise_bin | is-not-empty) {
+    ""
+} else {
+    let found = (which gitleaks)
+    if ($found | is-empty) { "" } else { ($found | get 0.path) }
+}
+let native_bin = if ($mise_bin | is-not-empty) { $mise_bin } else { $path_bin }
+
+if ($native_bin | is-not-empty) {
+    mut args = ["detect" $"--source=($repo_root)"]
+    if not $in_git {
+        $args = ($args | append "--no-git")
+    }
+    $args = ($args | append "-v")
+    if $has_baseline {
+        $args = ($args | append $"--baseline-path=($baseline_path)")
+    }
+
+    print $"🔍 Scanning natively: ($repo_root)"
+    let native_args = $args
+    let result = (do { ^$native_bin ...$native_args } | complete)
+    print $result.stdout
+
+    if $result.exit_code == 1 {
+        print "❌ Secrets detected!"
+        print $result.stderr
+        exit 1
+    } else if $result.exit_code != 0 {
+        print $"❌ Error: ($result.stderr)"
+        exit $result.exit_code
+    }
+
+    # exit_code == 0 — gitleaks itself found nothing, but that only means
+    # something if it actually scanned bytes (claude-skills-267 Gate 3 R4).
+    # Distinct marker from real detection (Gate 3 R5): printing "Secrets
+    # detected!" when nothing was actually detected is a fabricated claim.
+    print $result.stderr
+    if not (gitleaks-verified-clean $result.stderr) {
+        print "❌ Scan unverified!"
+        print "Error: gitleaks reported success but scanned 0 bytes (or the scan summary could not be parsed) — refusing to report clean without evidence something was actually scanned"
+        exit 1
+    }
+
+    print "✅ No secrets detected"
+    exit 0
 }
 
-exit $result.exit_code
-"""
+# No native binary found -- fall back to a container runtime. Single
+# implementation shared by gitleaks, gitleaks:docker, gitleaks:colima
+# (Gate 3 T3). Falls back to Apple Container when GITLEAKS_RUNTIME is
+# unset, matching this task's documented default; gitleaks:docker /
+# gitleaks:colima set GITLEAKS_RUNTIME via their own task-level `env`
+# instead of duplicating this fallback.
+let forced_runtime = ($env.GITLEAKS_RUNTIME? | default "")
+let runtime = if ($forced_runtime | is-empty) { "container" } else { $forced_runtime }
 
-[tasks."gitleaks:docker"]
-description = "Run gitleaks secret scanner (Docker runtime)"
-run = """
-#!/usr/bin/env nu
-
-let repo_root = (git rev-parse --show-toplevel | str trim)
-let image = "zricethezav/gitleaks"
-
-mut args = ["detect" "--source=/code" "-v"]
-
-let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
-if ($baseline_path | path exists) {
-    let baseline_name = ($baseline_path | path basename)
+# `in_git` reflects repo_root's HOST status, checked above before the bind
+# mount -- the mount carries the host's .git (or its absence) straight into
+# /code, so the same fail-open hole applies here without --no-git
+# (claude-skills-267 Gate 3 B3).
+mut args = ["detect" "--source=/code"]
+if not $in_git {
+    $args = ($args | append "--no-git")
+}
+$args = ($args | append "-v")
+if $has_baseline {
     $args = ($args | append $"--baseline-path=/code/($baseline_name)")
-    print $"📋 Using baseline: ($baseline_name)"
 }
 
-if (which docker | is-empty) {
-    print "❌ Docker CLI not found"
-    exit 1
-}
-
-let status = (do { ^docker info } | complete)
-if $status.exit_code != 0 {
-    print "🚀 Starting Docker..."
-    if $nu.os-info.name == "macos" {
-        do { ^open -a Docker } | complete
-        print "Waiting for Docker to start..."
-        mut attempts = 0
-        loop {
-            sleep 2sec
-            $attempts = $attempts + 1
-            let check = (do { ^docker info } | complete)
-            if $check.exit_code == 0 { break }
-            if $attempts >= 30 {
-                print "❌ Docker failed to start"
+match $runtime {
+    "container" => {
+        if (which container | is-empty) {
+            print "❌ Apple Container CLI not found. Use `GITLEAKS_RUNTIME=docker mise run gitleaks` or `GITLEAKS_RUNTIME=colima mise run gitleaks`"
+            exit 1
+        }
+        let status = (do { ^container system status } | complete)
+        if $status.exit_code != 0 {
+            print "🚀 Starting Apple Container..."
+            do { ^container system start } | complete
+        }
+    }
+    "docker" => {
+        if (which docker | is-empty) {
+            print "❌ Docker CLI not found"
+            exit 1
+        }
+        let status = (do { ^docker info } | complete)
+        if $status.exit_code != 0 {
+            print "🚀 Starting Docker..."
+            if $nu.os-info.name == "macos" {
+                do { ^open -a Docker } | complete
+                print "Waiting for Docker to start..."
+                mut attempts = 0
+                loop {
+                    sleep 2sec
+                    $attempts = $attempts + 1
+                    let check = (do { ^docker info } | complete)
+                    if $check.exit_code == 0 { break }
+                    if $attempts >= 30 {
+                        print "❌ Docker failed to start"
+                        exit 1
+                    }
+                }
+            } else {
+                print "❌ Docker is not running. Start it manually."
                 exit 1
             }
         }
-    } else {
-        print "❌ Docker is not running. Start it manually."
+    }
+    "colima" => {
+        if $nu.os-info.name != "macos" {
+            print "⚠️  Colima is only available on macOS"
+            exit 1
+        }
+        if (which mise | is-empty) {
+            print "❌ mise not found (required to run Colima via `mise exec`)"
+            exit 1
+        }
+        let status = (do { ^mise exec lima@latest colima@latest -- colima status } | complete)
+        if $status.exit_code != 0 {
+            print "🚀 Starting Colima..."
+            do { ^mise exec lima@latest colima@latest -- colima start } | complete
+        }
+    }
+    _ => {
+        print $"❌ Unknown GITLEAKS_RUNTIME '($runtime)' — valid values: container, docker, colima"
         exit 1
     }
 }
 
 print $"🔍 Scanning: ($repo_root)"
 let final_args = $args
-let result = (do { ^docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
+let result = match $runtime {
+    "container" => (do { ^container run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
+    "docker" => (do { ^docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
+    "colima" => (do { ^mise exec lima@latest colima@latest -- docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
+    _ => { print "❌ unreachable runtime"; exit 1 }
+}
 print $result.stdout
 
-if $result.exit_code == 0 {
-    print "✅ No secrets detected"
-} else if $result.exit_code == 1 {
+if $result.exit_code == 1 {
     print "❌ Secrets detected!"
     print $result.stderr
-} else {
+    exit 1
+} else if $result.exit_code != 0 {
     print $"❌ Error: ($result.stderr)"
+    exit $result.exit_code
 }
 
-exit $result.exit_code
-"""
-
-[tasks."gitleaks:colima"]
-description = "Run gitleaks secret scanner (Colima runtime)"
-run = """
-#!/usr/bin/env nu
-
-if $nu.os-info.name != "macos" {
-    print "⚠️  Colima is only available on macOS"
+# Same "never report clean without evidence" invariant as the native path
+# above — gitleaks logs its scan summary to stderr regardless of runtime.
+print $result.stderr
+if not (gitleaks-verified-clean $result.stderr) {
+    print "❌ Scan unverified!"
+    print "Error: gitleaks reported success but scanned 0 bytes (or the scan summary could not be parsed) — refusing to report clean without evidence something was actually scanned"
     exit 1
 }
 
-let repo_root = (git rev-parse --show-toplevel | str trim)
-let image = "zricethezav/gitleaks"
-
-mut args = ["detect" "--source=/code" "-v"]
-
-let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
-if ($baseline_path | path exists) {
-    let baseline_name = ($baseline_path | path basename)
-    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
-    print $"📋 Using baseline: ($baseline_name)"
-}
-
-let status = (do { ^mise exec lima@latest colima@latest -- colima status } | complete)
-if $status.exit_code != 0 {
-    print "🚀 Starting Colima..."
-    do { ^mise exec lima@latest colima@latest -- colima start } | complete
-}
-
-print $"🔍 Scanning: ($repo_root)"
-let final_args = $args
-let result = (do { ^mise exec lima@latest colima@latest -- docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
-print $result.stdout
-
-if $result.exit_code == 0 {
-    print "✅ No secrets detected"
-} else if $result.exit_code == 1 {
-    print "❌ Secrets detected!"
-    print $result.stderr
-} else {
-    print $"❌ Error: ($result.stderr)"
-}
-
-exit $result.exit_code
+print "✅ No secrets detected"
+exit 0
 """
+
+[tasks."gitleaks:docker"]
+description = "Run gitleaks secret scanner, preferring Docker if no native binary is found (native still runs first when available — see `mise gitleaks`; claude-skills-267 Gate 3 U1)"
+env = { GITLEAKS_RUNTIME = "docker" }
+run = "mise run gitleaks"
+
+[tasks."gitleaks:colima"]
+description = "Run gitleaks secret scanner, preferring Colima if no native binary is found (native still runs first when available — see `mise gitleaks`; macOS only — errors on other platforms; claude-skills-267 Gate 3 U1/V4)"
+env = { GITLEAKS_RUNTIME = "colima" }
+run = "mise run gitleaks"
 
 [tasks."gitleaks:stop"]
 description = "Stop all container runtimes"
@@ -260,7 +452,7 @@ if $nu.os-info.name == "macos" {
 """
 
 [tasks."gitleaks:stop:colima"]
-description = "Stop Colima runtime"
+description = "Stop Colima runtime (macOS only)"
 run = """
 #!/usr/bin/env nu
 
