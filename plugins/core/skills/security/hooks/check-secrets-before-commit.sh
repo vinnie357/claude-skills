@@ -214,40 +214,32 @@ parse_scanned_bytes() {
     printf '%s' "$full_match" | grep -oE '^scanned ~[0-9]+' | grep -oE '[0-9]+' || true
 }
 
-# Never report clean without evidence something was actually scanned --
-# BUT with a narrower rule than scripts/gitleaks.nu / gitleaks.sh / the
-# template's `gitleaks-verified-clean` / `gitleaks_verified_clean`
-# (claude-skills-271 mechanism 3, reconciled against this hook's
-# pre-existing tests -- see below for why this deliberately does NOT port
-# that function unchanged, despite parse_scanned_bytes above being ported
-# verbatim).
-#
-# Those three treat "unparseable" (no scan summary at all) the SAME as
-# "explicitly reported 0 bytes" -- both block. This hook can't: two
-# pre-existing tests (claude-skills-224's exit-0 case, and this file's own
-# Part 5b control) exercise a stub gitleaks that produces NO output
-# whatsoever and exits 0, and both are required to ALLOW the commit --
-# they test exit-code mapping in isolation, decoupled from output content,
-# and predate the bytes-invariant concept entirely. Confirmed empirically:
-# porting the other three's exact function breaks both.
-#
-# The narrower rule that satisfies every test: block ONLY on an EXPLICIT,
-# parsed report of zero bytes -- Part 7's actual defect (a scan that ran,
-# told us in its own words that it covered nothing, and still exited 0).
-# An unparseable/empty summary falls back to trusting the exit code alone,
-# same as this hook's behavior before this fix. This is a real, accepted
-# gap relative to the other three implementations, not a silent one: a
-# REAL gitleaks invoked with -v (which this hook always passes) has never
-# been observed to produce zero output in this PR's testing, so the gap
-# should not be reachable against genuine gitleaks -- but if a future
-# gitleaks version ever stops emitting the scan-summary line, this hook
-# would silently revert to trust-the-exit-code for every scan rather than
-# blocking defensively, and nothing here would catch that.
-gitleaks_scan_reported_zero_bytes() {
+# Never report clean without evidence something was actually scanned.
+# Ported verbatim from scripts/gitleaks.sh's gitleaks_verified_clean
+# (claude-skills-271 mechanism 3 -- this hook was the one implementation in
+# the PR #246/#247 chain that never gained this invariant: it trusted exit
+# code 0 alone, so a scan that covered zero bytes -- for any reason,
+# including the non-ASCII export bug this same fix closes -- still reported
+# "No secrets detected"). An explicit parsed zero AND an unparseable/missing
+# summary are both treated as NOT verified-clean -- "no evidence is not
+# innocence" is the conclusion scripts/gitleaks.nu / gitleaks.sh / the
+# template's shared invariant reached over six PR #246 review rounds
+# (claude-skills-267 Gate 3 R2/R6/T2/T4/U3), and this hook now matches it
+# exactly rather than the narrower explicit-zero-only rule an earlier
+# version of this fix used. That narrower rule existed only because two
+# pre-existing tests (the exit-0 case and the Part 5b control) exercised a
+# gitleaks stub with unrealistic empty output; the test suite fixed those
+# fixtures to emit realistic scan-summary text instead of the hook
+# weakening the invariant to match them (claude-skills-271 Gate 3, "your
+# escalation was right"). Does NOT guarantee the requested scan scope was
+# covered (gitleaks' git-mode / dir-mode semantics are unrelated to this
+# check) -- see scripts/gitleaks.sh's parse_scanned_bytes comment for the
+# full explanation.
+gitleaks_verified_clean() {
     local stderr_text="$1"
     local bytes
     bytes="$(parse_scanned_bytes "$stderr_text")"
-    [[ -n "$bytes" ]] && [[ "$bytes" -eq 0 ]]
+    [[ -n "$bytes" ]] && [[ "$bytes" -gt 0 ]]
 }
 
 NATIVE_BIN=$(detect_native || true)
@@ -355,16 +347,14 @@ fi
 if [[ $EXIT_CODE -eq 0 ]]; then
     # gitleaks itself found nothing, but that only means something if it
     # actually scanned bytes (claude-skills-271 mechanism 3 — see
-    # gitleaks_scan_reported_zero_bytes above for why this checks for an
-    # EXPLICIT zero-byte report rather than porting the stricter
-    # unparseable-also-blocks rule the other three implementations use).
-    # Distinct marker from real detection, matching
-    # scripts/gitleaks.sh/gitleaks.nu's split (claude-skills-267 Gate 3
-    # R5): printing "SECRETS DETECTED" when nothing was actually detected
-    # would itself be a fabricated claim.
-    if gitleaks_scan_reported_zero_bytes "$STDERR_CONTENT"; then
+    # gitleaks_verified_clean above: an explicit zero-byte report AND an
+    # unparseable/missing summary both fail this check). Distinct marker
+    # from real detection, matching scripts/gitleaks.sh/gitleaks.nu's split
+    # (claude-skills-267 Gate 3 R5): printing "SECRETS DETECTED" when
+    # nothing was actually detected would itself be a fabricated claim.
+    if ! gitleaks_verified_clean "$STDERR_CONTENT"; then
         log_error "Scan unverified!"
-        log_error "gitleaks reported success but scanned 0 bytes — refusing to report clean without evidence something was actually scanned."
+        log_error "gitleaks reported success but scanned 0 bytes (or the scan summary could not be parsed) — refusing to report clean without evidence something was actually scanned."
         log_error "Commit blocked - unable to verify no secrets are present."
         exit 2
     fi
