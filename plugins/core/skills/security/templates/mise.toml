@@ -53,6 +53,18 @@
 # nushell"]` (or any other nushell/nu entry) of its own:
 #   - Versions already match (or yours is newer)? Skip this block
 #     entirely — keep your existing entry, copy only the tasks.
+#   - Your pin is OLDER than 0.113.1? Untested beyond one spot-check, not
+#     assumed broken (claude-skills-267 Gate 3 W1): nushell 0.107.0 (six
+#     minors back from this pin) ran the extracted [tasks.gitleaks] body
+#     and plugins/core/skills/security/scripts/gitleaks.nu's --self-test
+#     correctly (21/21) when checked directly — but that is one version
+#     checked, not a range guaranteed. The version-sensitive surface named
+#     above (`split row`, `parse -r`, `is-not-empty`, optional `def main`
+#     params, `^cmd ...$spread`) is real. If you have the security skill
+#     installed, `nu .../scripts/gitleaks.nu --self-test` under your
+#     pinned nushell is the concrete way to check your own version before
+#     trusting it either way — don't assume compatibility OR
+#     incompatibility from the version number alone.
 #   - No existing nushell entry? Copy this block too, unmodified.
 #   - Never paste both blocks into the same file. TOML rejects a
 #     DUPLICATE TABLE KEY at parse time regardless of whether the values
