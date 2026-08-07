@@ -207,6 +207,52 @@ while IFS= read -r -d '' file; do
     fi
 done < <(git ls-files --others --exclude-standard -z 2>/dev/null || true)
 
+# NO fourth pass here for force-added ignored files (claude-skills-272,
+# reverted in round 4 -- do not re-add one without reading this).
+#
+# `git add -f <gitignored-path> && git commit` in a SINGLE compound
+# command reaches this hook before the add has actually run, so the
+# gitignored file is still untracked+excluded at the moment every pass
+# above is evaluated -- none of them, correctly, ever see it. Two
+# successive attempts to widen the export for this case were tried and
+# both were defeated by a real false positive, not a theoretical one:
+#
+#   Round 1: `[[ "$COMMAND" == *-f* ]]` -- bare substring anywhere in the
+#   command. Matched "-f" inside ANY unrelated long option starting with
+#   "f": `git commit --fixup=HEAD` and `git commit --file=<path>` both
+#   contain the literal two characters "-f" and both incorrectly triggered
+#   a scan (and block) of a gitignored `.env` with a real secret that was
+#   never being force-added at all.
+#
+#   Round 2: `[[ "$COMMAND" =~ (^|[[:space:]])(-f|--force)([[:space:]]|$) ]]`
+#   -- tightened to a whitespace-bounded TOKEN instead of a bare
+#   substring, closing round 1's exact failure. Still defeated: `rm -f
+#   tmp.txt && git commit`, `grep -f patterns.txt file && git commit`,
+#   `docker build -f Dockerfile . && git commit`, and `tar -x -f a.tar &&
+#   git commit` all contain a perfectly well-formed standalone `-f` token
+#   that belongs to `rm`/`grep`/`docker`/`tar`, not `git add` -- token
+#   matching answers "is `-f` a token anywhere in this command?", never
+#   "whose flag is it?", and attributing a flag to a specific subcommand
+#   needs real argument parsing, not string matching.
+#
+# Operator decision: abandon the widening rather than try a third
+# predicate. The pass had NO --exclude-standard by design (the whole
+# point was to include what that flag hides), so every false trigger
+# scanned every gitignored file in the repo, not just one -- the
+# over-trigger direction is not a minor cost here, unlike the
+# fail-toward-scanning detection regex at the top of this script.
+#
+# The residual gap is narrow and stays open, documented rather than
+# chased: a SEPARATE `git add -f <path>` followed by a distinct `git
+# commit` is already caught by the staged-files pass above, because the
+# file is genuinely in the index by the time this hook fires (still
+# verified working -- see test/validate-security-hook.nu Part 20). Only
+# the single-command compound form escapes, and only when the file is
+# both gitignored/excluded AND force-added AND committed in one command.
+# test/validate-security-hook.nu Parts 15-17 pin this as an accepted,
+# documented limitation; Parts 22-24 remain as regression guards against
+# a third predicate reintroducing round 1 or round 2's exact failure.
+
 if [[ "$FILES_FOUND" -eq 0 ]]; then
     log_info "No staged, modified-tracked, or new untracked files to scan"
     exit 0

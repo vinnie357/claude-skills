@@ -51,6 +51,24 @@
 # plus the pre-existing, still-intentional fail-open when no scanner is
 # available at all (documented in the hook's "Fail-open, deliberately" note).
 #
+# Fixture rule (claude-skills-272 round 3, after this pattern bit Part 13
+# and then Part 23): the hook scans untracked files for ANY commit command
+# that reaches it, including a plain `git commit` that would not itself
+# stage anything new — this is the deliberate claude-skills-271 tradeoff
+# (the hook cannot know whether an `add` ran earlier in a compound
+# command it can't fully parse, so it errs toward scanning). That means a
+# fixture's INCIDENTAL untracked files — anything written to disk for
+# setup convenience, not as the condition under test — are always in
+# scope for that pass and will trip an unconditional "secrets found" stub
+# the moment the untracked pass runs, independent of whatever command
+# shape the test claims to be exercising. Before adding a fixture: any
+# file created but not `git add`ed+committed must be untracked ON
+# PURPOSE (the secret file itself in a "does the untracked pass catch
+# this" test, or a deliberately-unstaged modification in a staging-timing
+# test) — never incidental. Every setup-repo-* fixture in this file has
+# been checked against this rule as of round 3; see each fixture's own
+# comment for why its untracked (or tracked) files are the ones they are.
+#
 # Usage: nu test/validate-security-hook.nu
 
 # Slack bot token pattern gitleaks's default ruleset detects (RuleID:
@@ -214,6 +232,25 @@ def setup-repo-with-gitignored-secret [file_name: string] {
     $"($file_name)\n" | save --force ($repo | path join ".gitignore")
     git -C $repo add ".gitignore"
     git -C $repo commit -q -m "initial"
+    $"slack_token = \"(fixture-secret)\"\n" | save --force ($repo | path join $file_name)
+    $repo
+}
+
+# A git repo excluding file_name via `.git/info/exclude` (the local,
+# per-clone ignore mechanism — never committed, unlike .gitignore) with a
+# secret in file_name, present on disk but neither tracked nor staged.
+# `--exclude-standard` respects info/exclude the same way it respects
+# .gitignore — verified directly. Second control surface for
+# claude-skills-272 alongside .gitignore, since a fix keyed narrowly to
+# "reads .gitignore" could still miss this one. Caller is responsible for
+# `rm -rf`.
+def setup-repo-with-info-exclude-secret [file_name: string] {
+    let repo = (mktemp -d)
+    git -C $repo init -q
+    git -C $repo config user.email "test@example.com"
+    git -C $repo config user.name "test"
+    git -C $repo commit -q --allow-empty -m "initial"
+    $"($file_name)\n" | save --append ($repo | path join ".git" "info" "exclude")
     $"slack_token = \"(fixture-secret)\"\n" | save --force ($repo | path join $file_name)
     $repo
 }
@@ -642,6 +679,249 @@ def main [] {
     }
     rm -rf $p14_repo
     rm -rf $p14_stub.bin_dir
+
+    # ==========================================================================
+    # claude-skills-272: `git add -f <gitignored> && git commit` goes
+    # unscanned. Verified directly against the real (current) hook before
+    # writing these: the compound form exits 0 with "No staged, modified-
+    # tracked, or new untracked files to scan" for both a gitignored
+    # `.env` and a `.git/info/exclude`d path, force-added in the SAME
+    # command — the file is still untracked+ignored at the moment this
+    # PreToolUse hook fires, before `git add -f` has actually run.
+    #
+    # OPERATOR DECISION (round 4, reverting the widening): two successive
+    # attempts to detect `-f`/`--force` in the command string each
+    # introduced a false positive worse than the hole being closed —
+    # `git stage` (claude-skills-271, string matching used to SKIP a
+    # pass — unsafe, a miss reopens a hole) is a different failure mode
+    # from what killed THIS widening, but the token-boundary predicate
+    # that replaced the bare substring check was ALSO defeated: `rm -f
+    # tmp.txt && git commit`, `grep -f patterns.txt file && git commit`,
+    # `docker build -f Dockerfile . && git commit`, and `tar -x -f a.tar
+    # && git commit` all trigger the widened pass and block a legitimate
+    # commit over a gitignored file the user deliberately excluded — every
+    # one verified directly. Token matching answers "is `-f` a token
+    # anywhere in this command?", never "whose flag is it?" — a `-f`
+    # belonging to `rm`/`grep`/`docker`/`tar` is indistinguishable from one
+    # belonging to `git add` without actually parsing subcommand
+    # boundaries, which is out of scope for this hook.
+    #
+    # The hole this widening tried to close is NARROW: a SEPARATE `git add
+    # -f` followed by a distinct `git commit` is already caught by the
+    # existing staged-files pass (Part 20 below, unchanged, still pins
+    # this). Only the COMPOUND form (`git add -f x && git commit` in one
+    # shell invocation) escapes, and only for a file that is both
+    # gitignored/excluded AND force-added AND committed in the same
+    # command — accepted as a documented gap rather than chased with a
+    # fourth predicate. Parts 15/16/17 below are now documented-limitation
+    # pins (matching Part 21/24's style), not requirements — they keep
+    # claude-skills-272 visible in this suite as a known, bounded gap
+    # rather than letting it disappear when the widening code does.
+    #
+    # Same unconditional-stub methodology as Parts 1-4/9/10/14 throughout:
+    # isolates "does the export/detection pass even reach the scanner for
+    # this command shape" from real-gitleaks-detection-accuracy.
+    # ==========================================================================
+
+    # --- Part 15 (documented-limitation pin, NOT a requirement,
+    # claude-skills-272): `git add -f .env && git commit` (short flag), a
+    # compound force-add of a gitignored secret. Accepted gap per the
+    # round-4 operator decision above — no predicate widens the scan for
+    # this, so it behaves exactly as an ordinary gitignored file: NOT
+    # scanned, exit 0. If a future, safely-scoped detector (one that can
+    # actually attribute `-f` to `git add` specifically, not just find the
+    # token anywhere) closes this without reintroducing the
+    # rm/grep/docker/tar false positives, that is a welcome improvement —
+    # flip this expectation then, the same asymmetry-in-reverse Part
+    # 21/24 describe. Kept in the suite (not deleted) so this gap stays
+    # visible rather than disappearing with the code that used to close it.
+    let p15_repo = (setup-repo-with-gitignored-secret ".env")
+    let p15_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p15_result = (run-hook $hook $p15_repo $p15_stub.path "git add -f .env && git commit -m test")
+    if not (check "Part 15 (documented limitation): compound `git add -f .env && git commit` is NOT scanned (accepted gap)" $p15_result 0) {
+        $failed = true
+    }
+    rm -rf $p15_repo
+    rm -rf $p15_stub.bin_dir
+
+    # --- Part 16 (documented-limitation pin): `git add --force .env &&
+    # git commit` (long flag). Same accepted gap as Part 15, kept as a
+    # separate case so both flag spellings stay documented.
+    let p16_repo = (setup-repo-with-gitignored-secret ".env")
+    let p16_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p16_result = (run-hook $hook $p16_repo $p16_stub.path "git add --force .env && git commit -m test")
+    if not (check "Part 16 (documented limitation): compound `git add --force .env && git commit` is NOT scanned (accepted gap)" $p16_result 0) {
+        $failed = true
+    }
+    rm -rf $p16_repo
+    rm -rf $p16_stub.bin_dir
+
+    # --- Part 17 (documented-limitation pin): a `.git/info/exclude`d path
+    # (not .gitignore), force-added in a compound command. Kept as a
+    # separate case so the gap's extent is documented across BOTH ignore
+    # mechanisms, not just .gitignore.
+    let p17_repo = (setup-repo-with-info-exclude-secret "private.txt")
+    let p17_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p17_result = (run-hook $hook $p17_repo $p17_stub.path "git add -f private.txt && git commit -m test")
+    if not (check "Part 17 (documented limitation): compound `git add -f private.txt && git commit` \(info/exclude\) is NOT scanned (accepted gap)" $p17_result 0) {
+        $failed = true
+    }
+    rm -rf $p17_repo
+    rm -rf $p17_stub.bin_dir
+
+    # --- Part 18 (control, LOAD-BEARING, claude-skills-268): a gitignored
+    # .env with a secret, NOT force-added, plain `git commit`, must still
+    # NOT be scanned. This is the regression that would make the gate
+    # obnoxious — scanning every gitignored file on every commit was
+    # explicitly rejected. The unconditional "secrets found" stub only
+    # fires if the export pass reaches this file at all, so a fix that
+    # over-widens (e.g. drops --exclude-standard, or treats "ignored" and
+    # "force-added" the same) fails LOUD here, not silently.
+    let p18_repo = (setup-repo-with-gitignored-secret ".env")
+    let p18_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p18_result = (run-hook $hook $p18_repo $p18_stub.path "git commit -m test")
+    if not (check "Part 18 (control): gitignored .env, NOT force-added, plain commit is NOT scanned" $p18_result 0) {
+        $failed = true
+    }
+    rm -rf $p18_repo
+    rm -rf $p18_stub.bin_dir
+
+    # --- Part 19 (control): a clean commit still succeeds.
+    let p19_repo = (setup-repo)
+    let p19_stub = (native-stub-path $real_path "" $clean_scan_stderr 0)
+    let p19_result = (run-hook $hook $p19_repo $p19_stub.path "git commit -m test")
+    if not (check "Part 19 (control): a clean commit still succeeds" $p19_result 0) {
+        $failed = true
+    }
+    rm -rf $p19_repo
+    rm -rf $p19_stub.bin_dir
+
+    # --- Part 20: separate commands — `git add -f .env` runs to
+    # completion BEFORE a distinct `git commit` is intercepted. The file
+    # is genuinely in the index by the time this hook fires, so the
+    # EXISTING staged-files pass already exports and scans it — verified
+    # directly against the real (unfixed) hook AND against real gitleaks
+    # with a real detectable token: exit 2, "SECRETS DETECTED". This
+    # already passes today; pinned here so a claude-skills-272 fix cannot
+    # accidentally narrow the staged pass while widening the compound-
+    # command detection.
+    let p20_repo = (setup-repo-with-gitignored-secret ".env")
+    git -C $p20_repo add -f ".env"
+    let p20_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p20_result = (run-hook $hook $p20_repo $p20_stub.path "git commit -m test")
+    if not (check "Part 20: separate `git add -f .env` then `git commit` blocks (already works today)" $p20_result 2) {
+        $failed = true
+    }
+    rm -rf $p20_repo
+    rm -rf $p20_stub.bin_dir
+
+    # --- Part 21 (asymmetry pin): an OBFUSCATED force-add a naive
+    # `-f`/`--force` substring detector would miss. `git add -Af` force-
+    # adds exactly like `git add -f` (verified directly: `-Af` stages a
+    # gitignored file, `git status --short` shows `A  .env`) but contains
+    # neither the literal substring "-f" nor "--force" anywhere in the
+    # flag token — "-Af" is dash, A, f; "-f" as two consecutive characters
+    # never appears. This is the asymmetry contract made concrete: the
+    # detector is EXPECTED to miss this, and the correct behavior on a
+    # miss is "identical to today" (unscanned, exit 0), NOT a crash and
+    # NOT a false block. If a future, cleverer detector starts catching
+    # this specific form too, that is a welcome improvement, not a
+    # regression — update this test's expectation then; do not treat a
+    # newly-caught case as something to guard against.
+    let p21_repo = (setup-repo-with-gitignored-secret ".env")
+    let p21_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p21_result = (run-hook $hook $p21_repo $p21_stub.path "git add -Af && git commit -m test")
+    if not (check "Part 21 (asymmetry pin): obfuscated `git add -Af` behaves as today (unscanned, exit 0) when missed" $p21_result 0) {
+        $failed = true
+    }
+    rm -rf $p21_repo
+    rm -rf $p21_stub.bin_dir
+
+    # ==========================================================================
+    # claude-skills-272 round 2 (history, kept for context): the FIRST
+    # landed detector was `[[ "$COMMAND" == *-f* ]]` — bare substring,
+    # anywhere in the whole command. Confirmed directly against that hook
+    # (commit e5b000d) that it OVER-triggered: `git commit --fixup=HEAD`
+    # and `git commit --file=<path>` both contain the literal substring
+    # "-f" inside an unrelated long-option name and both incorrectly
+    # scanned (and blocked on) a gitignored .env with a real secret. A
+    # SECOND, token-boundary detector fixed that but was itself defeated
+    # by `rm -f`/`grep -f`/`docker build -f`/`tar -x -f` (round 4, see the
+    # revert note above Part 15) — the whole widening is gone now, so
+    # Parts 22/23 below pass TRIVIALLY (no predicate exists to over-
+    # trigger on anything). Kept as regression guards specifically against
+    # a THIRD predicate attempt reintroducing this exact failure mode —
+    # if `--fixup`/`--file` ever start blocking again, that is the
+    # over-trigger direction coming back, not a coincidence.
+    # ==========================================================================
+
+    # --- Part 22 (regression guard against re-adding a predicate):
+    # `git commit --fixup=HEAD`, gitignored .env with a real secret,
+    # nothing force-added. Must NOT scan.
+    let p22_repo = (setup-repo-with-gitignored-secret ".env")
+    let p22_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p22_result = (run-hook $hook $p22_repo $p22_stub.path "git commit --fixup=HEAD")
+    if not (check "Part 22: `git commit --fixup=HEAD` does not scan a gitignored .env (false-positive guard)" $p22_result 0) {
+        $failed = true
+    }
+    rm -rf $p22_repo
+    rm -rf $p22_stub.bin_dir
+
+    # --- Part 23 (regression guard against re-adding a predicate):
+    # `git commit --file=<path>`, same setup. Separate case from Part 22 —
+    # a hypothetical future predicate keyed narrowly to excluding
+    # "--fixup" specifically could still reintroduce this one.
+    #
+    # Gate 3 round 3 (claude-skills-272): msg.txt is TRACKED (committed)
+    # here, not left on disk untracked. An earlier version wrote it
+    # straight to disk with no `git add` — real content, genuinely
+    # untracked, not gitignored — which the UNCONDITIONAL untracked-file
+    # export pass from claude-skills-271 (no --exclude-standard skip logic
+    # applies to that pass; it scans any real untracked file regardless of
+    # the command shape, since the hook cannot know whether an `add` ran
+    # earlier in a compound command — see the note below) correctly
+    # exported and the stub then correctly fired on. That made this test
+    # red for the wrong reason: the incidental fixture file, not the
+    # `--file=msg.txt` command shape being tested. Second occurrence of
+    # this exact pattern — Part 13's untracked `.gitignore` was the first
+    # (claude-skills-271 round 4) — see the sweep note in this file's
+    # header comment for the general rule extracted from both.
+    let p23_repo = (setup-repo-with-gitignored-secret ".env")
+    "a commit message\n" | save --force ($p23_repo | path join "msg.txt")
+    git -C $p23_repo add "msg.txt"
+    git -C $p23_repo commit -q -m "add message file"
+    let p23_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p23_result = (run-hook $hook $p23_repo $p23_stub.path "git commit --file=msg.txt")
+    if not (check "Part 23: `git commit --file=msg.txt` does not scan a gitignored .env (false-positive guard)" $p23_result 0) {
+        $failed = true
+    }
+    rm -rf $p23_repo
+    rm -rf $p23_stub.bin_dir
+
+    # --- Part 24: a commit MESSAGE that itself contains the literal
+    # substring "-f" — e.g. `git commit -m "add -f support"`.
+    #
+    # Round 4 update: this previously pinned a genuine, judged-unavoidable
+    # false-positive limitation of the token-boundary predicate (a
+    # refinement requiring "add" to co-occur with "-f" would still have
+    # been fooled by this exact message text — see the git log for that
+    # analysis). That predicate is gone with the round-4 revert, so there
+    # is no detector left to fool: this is now an ordinary gitignored-file
+    # case, identical in shape to Parts 15/16/17, and correctly belongs
+    # alongside them as exit 0 rather than as its own limitation pin — the
+    # limitation it used to document doesn't exist anymore because the
+    # mechanism that caused it doesn't exist anymore. Kept as its own case
+    # (not merged into Part 15) because it exercises a DIFFERENT trigger
+    # shape (message text, not a real flag) that any future detector
+    # attempt needs to independently avoid re-breaking.
+    let p24_repo = (setup-repo-with-gitignored-secret ".env")
+    let p24_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p24_result = (run-hook $hook $p24_repo $p24_stub.path 'git commit -m "add -f support"')
+    if not (check "Part 24: commit message containing \"-f\" is NOT scanned (no predicate left to fool)" $p24_result 0) {
+        $failed = true
+    }
+    rm -rf $p24_repo
+    rm -rf $p24_stub.bin_dir
 
     if $failed {
         exit 1
