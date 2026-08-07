@@ -179,72 +179,47 @@ def safe-minimal-path [] {
 # ============================================================================
 # Template task extraction (Gate 3 T1/T3 — real TOML structure, not regex
 # guesswork over prose)
+#
+# Gate 3 round 4: an earlier version of this section sliced the RAW file
+# text with `str index-of`/`str substring` instead of parsing it as TOML.
+# `run = """..."""` is a TOML basic (not literal) multi-line string, and
+# mise's TOML parser un-escapes it before nu ever sees it — a raw-text
+# slice never applies that unescaping. That bug produced a false report
+# that the template's `\\d`-doubled-backslash regex was broken; it is not
+# — TOML unescapes `\\d` to `\d` before nu evaluates it, verified directly
+# by comparing a raw slice against `$content | from toml`. Parse the file
+# as TOML and index into the parsed value; never slice its text again.
 # ============================================================================
 
-# Extracts task_name's declaration from the template. Returns:
+# Extracts task_name's declaration from the PARSED template. Returns:
 #   {kind: "script", body: string}                          — a
-#     self-contained `run = """...""""` body.
+#     self-contained `run = """...""""` body, already TOML-unescaped.
 #   {kind: "delegate", target: string, runtime: string}      — a
 #     `run = "mise run <target>"` wrapper, with its own
 #     `env.GITLEAKS_RUNTIME` value (empty string if undeclared).
 #   null if the task or its `run` field isn't found in a recognized shape.
 def extract-task [content: string, task_name: string] {
-    let bare_header = $"[tasks.($task_name)]"
-    let quoted_header = $"[tasks.\"($task_name)\"]"
-    let bare_idx = ($content | str index-of $bare_header)
-    let quoted_idx = ($content | str index-of $quoted_header)
-    let task_start = if $bare_idx >= 0 { $bare_idx } else { $quoted_idx }
-    if $task_start < 0 {
+    let parsed = ($content | from toml)
+    let task = ($parsed.tasks | get -o $task_name)
+    if $task == null {
         return null
     }
-    let rest = ($content | str substring $task_start..)
-    # Bound this task's own declaration block at the next task header, so a
-    # missing/malformed `run` field can't accidentally spill into a
-    # DIFFERENT task's fields.
-    let next_task_offset = ($rest | str substring 1.. | str index-of "\n[tasks.")
-    let block = if $next_task_offset < 0 { $rest } else { $rest | str substring 0..($next_task_offset + 1) }
-
-    let triple_marker = 'run = """'
-    let triple_offset = ($block | str index-of $triple_marker)
-    if $triple_offset >= 0 {
-        let after = ($block | str substring ($triple_offset + ($triple_marker | str length))..)
-        # The CLOSING `"""` bounds the real script — critical fix: an
-        # earlier version of this extractor bounded only at the next task
-        # header, which included the closing `"""` as trailing garbage in
-        # the "extracted script" and broke `nu` parsing the moment this
-        # test moved from grepping the extraction to actually running it.
-        let close_offset = ($after | str index-of "\n\"\"\"")
-        if $close_offset < 0 {
-            return null
-        }
-        return {kind: "script", body: ($after | str substring 0..$close_offset)}
-    }
-
-    # Not a triple-quoted body — look for a single-line delegation
-    # (`run = "mise run gitleaks"`, how gitleaks:docker/gitleaks:colima
-    # share [tasks.gitleaks]'s implementation, Gate 3 T3).
-    let single_marker = 'run = "mise run '
-    let single_offset = ($block | str index-of $single_marker)
-    if $single_offset < 0 {
+    let run_value = ($task | get -o run)
+    if $run_value == null {
         return null
     }
-    let after_single = ($block | str substring ($single_offset + ($single_marker | str length))..)
-    let end_quote = ($after_single | str index-of '"')
-    if $end_quote < 0 {
-        return null
-    }
-    let target = ($after_single | str substring 0..($end_quote - 1))
 
-    let env_marker = 'GITLEAKS_RUNTIME = "'
-    let env_offset = ($block | str index-of $env_marker)
-    let runtime = if $env_offset < 0 {
-        ""
-    } else {
-        let after_env = ($block | str substring ($env_offset + ($env_marker | str length))..)
-        let env_end = ($after_env | str index-of '"')
-        if $env_end < 0 { "" } else { ($after_env | str substring 0..($env_end - 1)) }
+    let delegate_prefix = "mise run "
+    if ($run_value | str starts-with $delegate_prefix) {
+        # Not a self-contained script — a single-line delegation (how
+        # gitleaks:docker/gitleaks:colima share [tasks.gitleaks]'s
+        # implementation, Gate 3 T3).
+        let target = ($run_value | str substring ($delegate_prefix | str length)..)
+        let runtime = ($task | get -o env | default {} | get -o GITLEAKS_RUNTIME | default "")
+        return {kind: "delegate", target: $target, runtime: $runtime}
     }
-    {kind: "delegate", target: $target, runtime: $runtime}
+
+    {kind: "script", body: $run_value}
 }
 
 # Resolves task_name to what actually runs when it's invoked: its own body
@@ -269,20 +244,14 @@ def resolve-task-execution [content: string, task_name: string] {
     {body: $target_task.body, runtime: $t.runtime}
 }
 
-# Enumerates documented gitleaks SCAN tasks from the template — any
-# `[tasks.X]` / `[tasks."X"]` whose name starts with "gitleaks" and isn't a
-# `gitleaks:stop*` teardown task. Reads the task list from the file itself
-# rather than a hardcoded name list (Gate 3 T3), so a fourth scan task added
-# later is covered automatically.
+# Enumerates documented gitleaks SCAN tasks from the PARSED template — any
+# task name that starts with "gitleaks" and isn't a `gitleaks:stop*`
+# teardown task. Reads the task list from the file's own parsed structure
+# rather than a hardcoded name list (Gate 3 T3), so a fourth scan task
+# added later is covered automatically.
 def list-gitleaks-scan-tasks [content: string] {
-    $content
-        | lines
-        | where {|l| $l | str starts-with "[tasks."}
-        | each {|l|
-            let inner = ($l | str replace "[tasks." "" | str replace "]" "")
-            $inner | str trim -c '"'
-        }
-        | where {|name| ($name | str starts-with "gitleaks") and not ($name | str contains "stop")}
+    let parsed = ($content | from toml)
+    ($parsed.tasks | columns) | where {|name| ($name | str starts-with "gitleaks") and not ($name | str contains "stop")}
 }
 
 # Runs a resolved task body as a real subprocess: CWD=cwd (every template
@@ -474,8 +443,8 @@ def main [] {
     # stderr fixtures to gitleaks.nu, gitleaks.sh, and the template's
     # [tasks.gitleaks] native branch via a stubbed native `gitleaks` binary,
     # and asserts they agree — this is what stops the three copies drifting
-    # apart again (they have already drifted twice: R6 first-vs-last
-    # occurrence picking, and independently the case below).
+    # apart again (Gate 3 R6 first-vs-last occurrence picking was the first
+    # drift).
     #
     # Fixtures adapted from the reviewer's originals to the FULL real
     # gitleaks log-line shape ("scanned ~<digits> bytes (<total>) in
@@ -483,13 +452,25 @@ def main [] {
     # (Gate 3 T2/T4/R6 hardening) — an incomplete fixture (no trailing
     # " in <duration>") fails to match ANY of the three uniformly, which
     # tests nothing.
+    #
+    # The reversed-poisoning case below intentionally uses a REALISTIC
+    # decoy, not a second full-shaped summary line: gitleaks emits exactly
+    # one scan-summary line per invocation, so two complete
+    # "scanned ~N bytes (X) in Yms" matches in one real stderr cannot
+    # occur — an earlier version of this fixture used a full-shaped decoy
+    # and reported a genuine drift (T4, all three agreeing on the wrong
+    # verdict), but that specific input is not reachable in practice. The
+    # decoy here mirrors the file-path/trailing-garbage shapes above (a
+    # substring match that never completes the full pattern) placed BEFORE
+    # the real summary instead of after, to test the same "does position
+    # matter" question against a realistic input.
     let table = [
         {label: "zero bytes" stderr: "0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n" expected: false}
         {label: "clean 72 bytes" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\n" expected: true}
         {label: "real summary + non-matching decoy path (notanumber)" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\nsome file named scanned ~notanumber.txt exists\n" expected: true}
         {label: "comma-formatted number (not real gitleaks output shape)" stderr: "scanned ~9,107,683 bytes (9.11 MB) in 50ms\nno leaks found\n" expected: null}
         {label: "real summary + bare trailing 'scanned ~'" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\ntrailing garbage scanned ~\n" expected: true}
-        {label: "reversed poisoning: real 0 bytes first, full-shaped 99-byte decoy later" stderr: "scanned ~0 bytes (0) in 5ms\nno leaks found\nsome later decoy log line: scanned ~99 bytes (99 bytes) in 3ms\n" expected: false}
+        {label: "realistic non-matching decoy BEFORE the real zero-bytes summary" stderr: "WARN could not stat file: /repo/scanned ~99 bytes.bak\n0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n" expected: false}
     ]
 
     for c in $table {
