@@ -1,14 +1,30 @@
 # Gitleaks Secret Scanner Tasks
-# Copy these tasks to your project's mise.toml
+#
+# Two ways to use this file (claude-skills-267 Gate 3 V2 — "copy these
+# tasks to your project's mise.toml" stopped being the whole instruction
+# once this file grew a [tools] block; see below for why that block can't
+# always come along for the ride):
+#
+#   1. FRESH project, no mise.toml yet: copy this ENTIRE file, including
+#      [tools], to your project root as mise.toml. Works standalone —
+#      `mise install && mise run gitleaks` needs nothing else added.
+#
+#   2. EXISTING project with its own mise.toml: copy only the [tasks...]
+#      sections below — do NOT also copy the [tools] block if your
+#      mise.toml already declares nushell (`[tools."github:nushell/
+#      nushell"]` or any other `nu`/nushell tools entry). See the [tools]
+#      block's own comment for exactly what to do and what breaks if you
+#      don't.
 #
 # Prerequisites:
-# - One of: Apple Container (macOS 26+), Docker, or Colima
+# - One of: Apple Container (macOS 26+), Docker (any OS), or Colima
+#   (macOS only — errors on Linux/Windows; claude-skills-267 Gate 3 V4)
 # - mise (https://mise.jdx.dev) for Colima runtime management
 #
 # Usage:
 #   mise gitleaks              # Native binary preferred; falls back to Apple Container
 #   mise gitleaks:docker       # Native binary preferred; falls back to Docker (not Apple Container)
-#   mise gitleaks:colima       # Native binary preferred; falls back to Colima (not Apple Container)
+#   mise gitleaks:colima       # Native binary preferred; falls back to Colima (not Apple Container) — macOS only
 #   mise gitleaks:stop         # Stop all runtimes
 #   mise gitleaks:stop:container
 #   mise gitleaks:stop:docker
@@ -30,6 +46,26 @@
 # scripts here use version-sensitive surface (`split row`, `parse -r`,
 # `is-not-empty`, optional `def main` params, `^cmd ...$spread`). "latest"
 # would silently hand a new installer an untested version.
+#
+# MERGE this block into your project's [tools], don't APPEND it
+# (claude-skills-267 Gate 3 V2). If you're pasting the [tasks...] sections
+# below into a mise.toml that already has a `[tools."github:nushell/
+# nushell"]` (or any other nushell/nu entry) of its own:
+#   - Versions already match (or yours is newer)? Skip this block
+#     entirely — keep your existing entry, copy only the tasks.
+#   - No existing nushell entry? Copy this block too, unmodified.
+#   - Never paste both blocks into the same file. TOML rejects a
+#     DUPLICATE TABLE KEY at parse time regardless of whether the values
+#     inside match — reproduced directly: appending this exact block onto
+#     a mise.toml that already declared `[tools."github:nushell/
+#     nushell"]` produced `TOML parse error ... duplicate key` from
+#     `mise tasks`, and that failure is not scoped to gitleaks — the
+#     WHOLE mise.toml stops parsing, so every task in the project breaks,
+#     not just the ones defined here. Two marketplace templates already
+#     declare this identical key at this identical version
+#     (plugins/tools/beads/skills/beads/templates/mise.toml is the other
+#     one) — installing both plugins and copy-pasting both files verbatim
+#     into the same mise.toml hits this exact collision.
 [tools."github:nushell/nushell"]
 version = "0.113.1"
 exe = "nu"
@@ -309,7 +345,7 @@ env = { GITLEAKS_RUNTIME = "docker" }
 run = "mise run gitleaks"
 
 [tasks."gitleaks:colima"]
-description = "Run gitleaks secret scanner, preferring Colima if no native binary is found (native still runs first when available — see `mise gitleaks`; claude-skills-267 Gate 3 U1)"
+description = "Run gitleaks secret scanner, preferring Colima if no native binary is found (native still runs first when available — see `mise gitleaks`; macOS only — errors on other platforms; claude-skills-267 Gate 3 U1/V4)"
 env = { GITLEAKS_RUNTIME = "colima" }
 run = "mise run gitleaks"
 
@@ -404,7 +440,7 @@ if $nu.os-info.name == "macos" {
 """
 
 [tasks."gitleaks:stop:colima"]
-description = "Stop Colima runtime"
+description = "Stop Colima runtime (macOS only)"
 run = """
 #!/usr/bin/env nu
 
