@@ -33,7 +33,7 @@ depends = ["test"]
 # "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
 # Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:no-symlinks"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:gitleaks-invocation", "test:no-symlinks"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -312,6 +312,15 @@ run = """
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
 nu ($repo_root | path join "test" "validate-security-hook.nu")
+"""
+
+[tasks."test:gitleaks-invocation"]
+description = "Regression test: gitleaks.nu non-git fail-open and template native-first ordering (claude-skills-267)"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "validate-gitleaks-invocation.nu")
 """
 
 [tasks."test:fenced-literals"]
