@@ -266,6 +266,28 @@ def list-gitleaks-scan-tasks [content: string] {
     ($parsed.tasks | columns) | where {|name| ($name | str starts-with "gitleaks") and not ($name | str contains "stop")}
 }
 
+# Extracts the colima OS-gate's exact print message from a resolved
+# [tasks.gitleaks] body (Gate 3 V1) — reads the real string out of the
+# parsed body rather than hardcoding a copy that could silently drift from
+# it. Returns null if the line isn't found (a broken/removed gate), which
+# the caller must treat as "gate did not fire", not as a pass.
+def extract-colima-os-gate-message [gitleaks_body: string] {
+    let line = ($gitleaks_body | lines | where {|l| $l | str contains "only available on macOS"} | get -o 0)
+    if $line == null {
+        return null
+    }
+    let quote_start = ($line | str index-of '"')
+    if $quote_start < 0 {
+        return null
+    }
+    let after = ($line | str substring ($quote_start + 1)..)
+    let quote_end = ($after | str index-of '"')
+    if $quote_end < 0 {
+        return null
+    }
+    $after | str substring 0..($quote_end - 1)
+}
+
 # Runs a resolved task body as a real subprocess: CWD=cwd (every template
 # task computes its scan target via `git rev-parse --show-toplevel`, which
 # is CWD-relative), PATH=path_list, GITLEAKS_RUNTIME set from `resolved`
@@ -457,20 +479,30 @@ def main [] {
         # runner's OS instead of on the code under test: green on this
         # (macOS) host, red on GitHub's ubuntu-latest runner, which the
         # colima branch's OS gate exits out of before ever reaching the
-        # byte-verification logic. On a non-macOS host, assert the platform
-        # gate itself fires correctly instead — a real, meaningful check
-        # ("does colima correctly refuse instead of silently reporting
-        # clean") rather than logic that is structurally unreachable there,
-        # so the PASS/FAIL outcome is identical on every host even though
-        # which code path it exercises differs by design.
+        # byte-verification logic.
+        #
+        # Gate 3 V1: a SECOND version of this assertion ("exit_code != 0 and
+        # not claiming clean") still passed on a crash, a syntax error, or
+        # the colima arm being silently misrouted to the docker arm — any
+        # nonzero exit without "No secrets detected" satisfied it, whether
+        # or not the OS gate itself ever fired. Assert the OS gate's own
+        # message instead, extracted dynamically from the resolved body
+        # (not copied as a literal here, which could silently drift from
+        # the real string) — this is only satisfiable by the actual gate
+        # firing.
         let is_colima_on_non_macos = ($resolved.runtime == "colima") and ($nu.os-info.name != "macos")
         if $is_colima_on_non_macos {
-            let refuses_correctly = ($result.exit_code != 0) and not ($result.stdout | str contains "No secrets detected")
-            if not $refuses_correctly {
-                print $"(ansi red_bold)❌ [template] [tasks.\"($task_name)\"] \(runtime=colima, non-macOS\) does not correctly refuse: exit ($result.exit_code), stdout may claim clean(ansi reset)"
+            let os_gate_message = (extract-colima-os-gate-message $resolved.body)
+            let fires_correctly = if $os_gate_message == null {
+                false
+            } else {
+                ($result.stdout | str contains $os_gate_message)
+            }
+            if not $fires_correctly {
+                print $"(ansi red_bold)❌ [template] [tasks.\"($task_name)\"] \(runtime=colima, non-macOS\) does not fire the macOS-only gate: exit ($result.exit_code), stdout: ($result.stdout | str substring 0..120)(ansi reset)"
                 $failed = true
             } else {
-                print $"(ansi green_bold)✅ [template] [tasks.\"($task_name)\"] \(runtime=colima\) correctly refuses on non-macOS \(Colima is macOS-only\) instead of silently reporting clean(ansi reset)"
+                print $"(ansi green_bold)✅ [template] [tasks.\"($task_name)\"] \(runtime=colima\) fires the macOS-only gate on non-macOS instead of silently reporting clean(ansi reset)"
             }
         } else if not ($result.stdout | str contains "Scan unverified!") {
             print $"(ansi red_bold)❌ [template] [tasks.\"($task_name)\"] \(runtime=($resolved.runtime)\) lacks the zero-bytes verification invariant: want 'Scan unverified!', exit ($result.exit_code) \(claude-skills-267 Gate 3 T3\)(ansi reset)"
@@ -523,13 +555,13 @@ def main [] {
     # contingent behavior (verified=true, the wrong answer) rather than
     # leave the dependency on log ordering implicit and untested.
     let table = [
-        {label: "zero bytes" stderr: "0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n" expected: false}
-        {label: "clean 72 bytes" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\n" expected: true}
-        {label: "real summary + non-matching decoy path (notanumber)" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\nsome file named scanned ~notanumber.txt exists\n" expected: true}
-        {label: "comma-formatted number (not real gitleaks output shape)" stderr: "scanned ~9,107,683 bytes (9.11 MB) in 50ms\nno leaks found\n" expected: null}
-        {label: "real summary + bare trailing 'scanned ~'" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\ntrailing garbage scanned ~\n" expected: true}
-        {label: "live-reproduced filename decoy BEFORE the real summary (gitleaks 8.30.1)" stderr: "10:20AM WRN skipping file: permission denied path=\"scanned ~4242 bytes (4242 bytes) in 7ms\"\n10:20AM INF scanned ~0 bytes (0) in 588µs\n10:20AM INF no leaks found\n" expected: false}
-        {label: "same real decoy moved AFTER the summary — pins the ordering dependency" stderr: "10:20AM INF scanned ~0 bytes (0) in 588µs\n10:20AM INF no leaks found\n10:20AM WRN skipping file: permission denied path=\"scanned ~4242 bytes (4242 bytes) in 7ms\"\n" expected: true}
+        {label: "zero bytes" stderr: "0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n" expected: false contingent: false}
+        {label: "clean 72 bytes" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\n" expected: true contingent: false}
+        {label: "real summary + non-matching decoy path (notanumber)" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\nsome file named scanned ~notanumber.txt exists\n" expected: true contingent: false}
+        {label: "comma-formatted number (not real gitleaks output shape)" stderr: "scanned ~9,107,683 bytes (9.11 MB) in 50ms\nno leaks found\n" expected: null contingent: false}
+        {label: "real summary + bare trailing 'scanned ~'" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\ntrailing garbage scanned ~\n" expected: true contingent: false}
+        {label: "live-reproduced filename decoy BEFORE the real summary (gitleaks 8.30.1)" stderr: "10:20AM WRN skipping file: permission denied path=\"scanned ~4242 bytes (4242 bytes) in 7ms\"\n10:20AM INF scanned ~0 bytes (0) in 588µs\n10:20AM INF no leaks found\n" expected: false contingent: false}
+        {label: "same real decoy moved AFTER the summary — CURRENTLY-WRONG pinned verdict, not a target (see contingent note)" stderr: "10:20AM INF scanned ~0 bytes (0) in 588µs\n10:20AM INF no leaks found\n10:20AM WRN skipping file: permission denied path=\"scanned ~4242 bytes (4242 bytes) in 7ms\"\n" expected: true contingent: true}
     ]
 
     for c in $table {
@@ -568,14 +600,33 @@ def main [] {
         let verdicts = {gitleaks.nu: $nu_verified, gitleaks.sh: $sh_verified, template: $tpl_verified}
         let all_agree = ($nu_verified == $sh_verified) and ($sh_verified == $tpl_verified)
 
+        # Gate 3 V3: a row can be marked `contingent: true` — its `expected`
+        # value is a PINNED CURRENTLY-WRONG verdict (see the ordering
+        # comment above the table), not a target to preserve. Without this,
+        # a maintainer who correctly hardens the parser (e.g. anchoring to
+        # the INF-prefixed summary line specifically) sees a bare
+        # "expected true, got false" failure that reads exactly like a
+        # regression they caused — and the cheapest way to green is to
+        # revert their own fix. Surface the flag in both outcomes so the
+        # message itself says what it means.
         if not $all_agree {
             print $"(ansi red_bold)❌ [T2 conformance] ($c.label): implementations disagree — ($verdicts)(ansi reset)"
             $failed = true
         } else if $c.expected != null and $nu_verified != $c.expected {
-            print $"(ansi red_bold)❌ [T2 conformance] ($c.label): all three agree, but on the WRONG verdict — want verified=($c.expected), got ($nu_verified) \(claude-skills-267 Gate 3 T4\)(ansi reset)"
+            let contingent_note = if $c.contingent {
+                " -- this row is PINNED CONTINGENT, its expected value is a KNOWN-WRONG verdict: a flip away from it is very likely a parser improvement, not a regression. Update `expected` to match, do not revert whatever caused this."
+            } else {
+                ""
+            }
+            print $"(ansi red_bold)❌ [T2 conformance] ($c.label): all three agree, but on the WRONG verdict — want verified=($c.expected), got ($nu_verified) \(claude-skills-267 Gate 3 T4\)($contingent_note)(ansi reset)"
             $failed = true
         } else {
-            print $"(ansi green_bold)✅ [T2 conformance] ($c.label): consistent verdict verified=($nu_verified) across gitleaks.nu, gitleaks.sh, template(ansi reset)"
+            let contingent_note = if $c.contingent {
+                " -- PINNED CONTINGENT value, not a target: this verdict is currently WRONG (see the ordering comment above the table)."
+            } else {
+                ""
+            }
+            print $"(ansi green_bold)✅ [T2 conformance] ($c.label): consistent verdict verified=($nu_verified) across gitleaks.nu, gitleaks.sh, template($contingent_note)(ansi reset)"
         }
     }
 
