@@ -166,9 +166,21 @@ def write-container-stubs [bin_dir: string, stdout_text: string, stderr_text: st
 }
 
 # A PATH that provides nu/git/bash (needed to run an extracted script and
-# its own stub tools) but deliberately EXCLUDES the real gitleaks and real
-# mise, so native-binary resolution genuinely fails in write-container-stubs
-# tests. Resolved dynamically (not hardcoded to one machine's layout).
+# its own stub tools). Real gitleaks is genuinely absent from every
+# directory this collects. Real mise is NOT absent — on a Homebrew host
+# `which git`'s directory (e.g. /opt/homebrew/bin) also holds the real
+# `mise` binary, verified directly (`ls $(dirname $(which git)) | grep -x
+# mise`). This PATH alone does not suppress native resolution.
+#
+# The suppression is entirely the caller's responsibility: every call site
+# below MUST prepend its stub bin_dir ahead of this list
+# (`[$bin_dir] | append (safe-minimal-path))`), never append it. The stub's
+# `mise` shadows the real one purely by PATH ORDER. Flip prepend to append
+# and every "container/colima" test silently starts hitting the real mise
+# -> real gitleaks native path instead — still exercising SOME code, but
+# not the container dispatch the test claims to cover, and it would keep
+# passing while testing nothing. Resolved dynamically, not hardcoded to one
+# machine's layout.
 def safe-minimal-path [] {
     let nu_dir = (which nu | get -o 0.path | default "" | path dirname)
     let git_dir = (which git | get -o 0.path | default "" | path dirname)
@@ -426,6 +438,12 @@ def main [] {
         }
         let bin_dir = (mktemp -d)
         write-container-stubs $bin_dir $zero_bytes_stdout $zero_bytes_stderr 0
+        # LOAD-BEARING ORDER: bin_dir MUST come first. safe-minimal-path
+        # does not exclude real mise (see its comment) — the stub `mise`
+        # only shadows the real one because it is earlier on PATH. Reorder
+        # this to `(safe-minimal-path) | append $bin_dir` and this loop
+        # silently starts testing the real native path instead of the
+        # container dispatch it claims to.
         let stub_path = ([$bin_dir] | append (safe-minimal-path))
         let cwd = (make-plain-git-dir)
         let result = (run-resolved-task $resolved $cwd $stub_path)
@@ -478,24 +496,40 @@ def main [] {
     # " in <duration>") fails to match ANY of the three uniformly, which
     # tests nothing.
     #
-    # The reversed-poisoning case below intentionally uses a REALISTIC
-    # decoy, not a second full-shaped summary line: gitleaks emits exactly
-    # one scan-summary line per invocation, so two complete
-    # "scanned ~N bytes (X) in Yms" matches in one real stderr cannot
-    # occur — an earlier version of this fixture used a full-shaped decoy
-    # and reported a genuine drift (T4, all three agreeing on the wrong
-    # verdict), but that specific input is not reachable in practice. The
-    # decoy here mirrors the file-path/trailing-garbage shapes above (a
-    # substring match that never completes the full pattern) placed BEFORE
-    # the real summary instead of after, to test the same "does position
-    # matter" question against a realistic input.
+    # Gate 3 U3: an earlier version of this comment claimed a full-shaped
+    # decoy ("scanned ~N bytes (X) in Yms" appearing a SECOND time) could
+    # not occur, since gitleaks emits exactly one scan-summary line per
+    # invocation — that claim was wrong. stderr also carries file PATHS,
+    # and a file NAME can carry the full shape. Reproduced live against
+    # gitleaks 8.30.1: a file literally named
+    # "scanned ~4242 bytes (4242 bytes) in 7ms", made unreadable
+    # (chmod 000, non-empty so gitleaks attempts and fails the read rather
+    # than short-circuiting on "skipping empty file"), produces
+    # `WRN skipping file: permission denied path="scanned ~4242 bytes
+    # (4242 bytes) in 7ms"` on stderr at the DEFAULT log level — a second,
+    # complete match for the anchor regex, verified with `cat -A`-style
+    # capture of the real process's stderr (ascii-art banner trimmed below
+    # for readability; every log line is verbatim).
+    #
+    # The invariant that actually keeps last-match-wins correct: gitleaks
+    # logs every WARN/INF diagnostic line BEFORE its final scan-summary
+    # line, so the REAL summary is always the LAST full-shaped match in a
+    # real run — the fixture below is that live reproduction, decoy first,
+    # real (correct) 0-byte summary last. The second fixture takes the
+    # SAME real decoy text and moves it after the real summary — an
+    # ordering gitleaks itself would never produce, but one nothing here
+    # prevents from occurring (a future gitleaks log-order change, a
+    # downstream tool appending output, etc.) — to PIN the current
+    # contingent behavior (verified=true, the wrong answer) rather than
+    # leave the dependency on log ordering implicit and untested.
     let table = [
         {label: "zero bytes" stderr: "0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n" expected: false}
         {label: "clean 72 bytes" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\n" expected: true}
         {label: "real summary + non-matching decoy path (notanumber)" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\nsome file named scanned ~notanumber.txt exists\n" expected: true}
         {label: "comma-formatted number (not real gitleaks output shape)" stderr: "scanned ~9,107,683 bytes (9.11 MB) in 50ms\nno leaks found\n" expected: null}
         {label: "real summary + bare trailing 'scanned ~'" stderr: "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\ntrailing garbage scanned ~\n" expected: true}
-        {label: "realistic non-matching decoy BEFORE the real zero-bytes summary" stderr: "WARN could not stat file: /repo/scanned ~99 bytes.bak\n0 commits scanned.\nscanned ~0 bytes (0) in 5ms\nno leaks found\n" expected: false}
+        {label: "live-reproduced filename decoy BEFORE the real summary (gitleaks 8.30.1)" stderr: "10:20AM WRN skipping file: permission denied path=\"scanned ~4242 bytes (4242 bytes) in 7ms\"\n10:20AM INF scanned ~0 bytes (0) in 588µs\n10:20AM INF no leaks found\n" expected: false}
+        {label: "same real decoy moved AFTER the summary — pins the ordering dependency" stderr: "10:20AM INF scanned ~0 bytes (0) in 588µs\n10:20AM INF no leaks found\n10:20AM WRN skipping file: permission denied path=\"scanned ~4242 bytes (4242 bytes) in 7ms\"\n" expected: true}
     ]
 
     for c in $table {
