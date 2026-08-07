@@ -187,6 +187,21 @@ def main [] {
     mut failed = false
     let real_path = ($env.PATH | default [])
 
+    # Gate 3 W (claude-skills-271 round 2): real gitleaks, invoked with -v
+    # (which this hook always passes), ALWAYS emits a "scanned ~N bytes
+    # (X) in Yms" scan-summary line on stderr — verified directly when
+    # building the T2 conformance table for gitleaks.nu/gitleaks.sh/the
+    # template. A stub that prints nothing and exits 0 is not a realistic
+    # "clean scan" — it is a scanner that told the hook nothing, which is
+    # exactly the "no evidence" case the strict bytes-invariant (ported
+    # from gitleaks.sh's gitleaks_verified_clean) must BLOCK, not allow.
+    # Every "clean" or "secrets found" stub below uses one of these
+    # realistic response bodies instead of empty output — reserving a
+    # genuinely EMPTY stderr for the one new case that specifically tests
+    # the no-evidence path (below, after Part 7).
+    let clean_scan_stderr = "scanned ~72 bytes (72 bytes) in 10ms\nno leaks found\n"
+    let secrets_found_stderr = "leaks found: 1\nscanned ~72 bytes (72 bytes) in 10ms\n"
+
     # --- Cases 1-3: gitleaks exit-code handling on the native-binary path ---
     let bin_dir = (mktemp -d)
     # A stub `mise` that always fails makes `mise which gitleaks` resolve to
@@ -197,13 +212,17 @@ def main [] {
     let native_path = ([$bin_dir] | append $real_path)
 
     let cases = [
-        {label: "gitleaks exit 0 (clean) -> hook allows the commit" gitleaks_exit: 0 want: 0}
-        {label: "gitleaks exit 1 (secrets found) -> hook blocks the commit" gitleaks_exit: 1 want: 2}
-        {label: "gitleaks exit 42 (unexpected failure) -> hook now fails closed" gitleaks_exit: 42 want: 2}
+        {label: "gitleaks exit 0 (clean) -> hook allows the commit" gitleaks_exit: 0 stderr: $clean_scan_stderr want: 0}
+        {label: "gitleaks exit 1 (secrets found) -> hook blocks the commit" gitleaks_exit: 1 stderr: $secrets_found_stderr want: 2}
+        {label: "gitleaks exit 42 (unexpected failure) -> hook now fails closed" gitleaks_exit: 42 stderr: "" want: 2}
     ]
 
     for c in $cases {
-        stub $bin_dir "gitleaks" $c.gitleaks_exit
+        # Exit 42 keeps empty stderr deliberately — it represents a genuine
+        # gitleaks CRASH (bad config, bad baseline) that never completes a
+        # scan, so no scan-summary line is the realistic shape there,
+        # unlike a "clean" exit-0 stub with no output.
+        stub-with-response $bin_dir "gitleaks" "" $c.stderr $c.gitleaks_exit
         let repo = (setup-repo)
         let result = (run-hook $hook $repo $native_path)
         if $result.exit_code != $c.want {
@@ -270,7 +289,7 @@ def main [] {
     # SKILL.md:243, CLAUDE.md:130) — treat as the headline case. `cd <dir>
     # && git commit` covers a commit issued from outside the current cwd.
     let p1a_repo = (setup-repo-with-staged-secret "secret.txt")
-    let p1a_stub = (native-stub-path $real_path "" "" 1)
+    let p1a_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
     let p1a_result = (run-hook $hook $p1a_repo $p1a_stub.path "git add . && git commit -m test")
     if not (check "Part 1a: `git add . && git commit -m test` with a staged secret blocks" $p1a_result 2) {
         $failed = true
@@ -279,7 +298,7 @@ def main [] {
     rm -rf $p1a_stub.bin_dir
 
     let p1b_repo = (setup-repo-with-staged-secret "secret.txt")
-    let p1b_stub = (native-stub-path $real_path "" "" 1)
+    let p1b_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
     let p1b_result = (run-hook $hook $p1b_repo $p1b_stub.path $"cd ($p1b_repo) && git commit -m test")
     if not (check "Part 1b: `cd <dir> && git commit -m test` with a staged secret blocks" $p1b_result 2) {
         $failed = true
@@ -290,7 +309,7 @@ def main [] {
     # --- Part 2: prefixes. Leading whitespace, and an env-var assignment
     # prefix (a real, common shell idiom for one-off commits).
     let p2a_repo = (setup-repo-with-staged-secret "secret.txt")
-    let p2a_stub = (native-stub-path $real_path "" "" 1)
+    let p2a_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
     let p2a_result = (run-hook $hook $p2a_repo $p2a_stub.path "  git commit -m test")
     if not (check "Part 2a: leading whitespace before `git commit` with a staged secret blocks" $p2a_result 2) {
         $failed = true
@@ -299,7 +318,7 @@ def main [] {
     rm -rf $p2a_stub.bin_dir
 
     let p2b_repo = (setup-repo-with-staged-secret "secret.txt")
-    let p2b_stub = (native-stub-path $real_path "" "" 1)
+    let p2b_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
     let p2b_result = (run-hook $hook $p2b_repo $p2b_stub.path "GIT_AUTHOR_NAME=z git commit -m test")
     if not (check "Part 2b: env-var-prefixed `git commit` with a staged secret blocks" $p2b_result 2) {
         $failed = true
@@ -311,7 +330,7 @@ def main [] {
     let p3_cases = ["git -c k=v commit -m test" "git -C . commit -m test" "git --no-pager commit -m test"]
     for cmd in $p3_cases {
         let repo = (setup-repo-with-staged-secret "secret.txt")
-        let stub = (native-stub-path $real_path "" "" 1)
+        let stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
         let result = (run-hook $hook $repo $stub.path $cmd)
         if not (check $"Part 3: `($cmd)` with a staged secret blocks" $result 2) {
             $failed = true
@@ -330,7 +349,7 @@ def main [] {
     ]
     for c in $p4_cases {
         let repo = (setup-repo-with-unstaged-secret-in-tracked-file "secret.txt")
-        let stub = (native-stub-path $real_path "" "" 1)
+        let stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
         let result = (run-hook $hook $repo $stub.path $c.cmd)
         if not (check $"Part 4: `($c.label)` with an unstaged secret in a tracked file blocks" $result 2) {
             $failed = true
@@ -344,7 +363,7 @@ def main [] {
     # Expected to already pass against the CURRENT (unfixed) hook — these
     # are baseline-sanity/regression guards, not claude-skills-271 defects.
     let p5a_repo = (setup-repo-with-staged-secret "secret.txt")
-    let p5a_stub = (native-stub-path $real_path "" "" 1)
+    let p5a_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
     let p5a_result = (run-hook $hook $p5a_repo $p5a_stub.path "git commit -m test")
     if not (check "Part 5a (control): plain `git commit -m test` with a staged secret still blocks" $p5a_result 2) {
         $failed = true
@@ -353,7 +372,7 @@ def main [] {
     rm -rf $p5a_stub.bin_dir
 
     let p5b_repo = (setup-repo)
-    let p5b_stub = (native-stub-path $real_path "" "" 0)
+    let p5b_stub = (native-stub-path $real_path "" $clean_scan_stderr 0)
     let p5b_result = (run-hook $hook $p5b_repo $p5b_stub.path "git commit -m test")
     if not (check "Part 5b (control): plain `git commit -m test` with no secret still succeeds" $p5b_result 0) {
         $failed = true
@@ -396,6 +415,30 @@ def main [] {
     }
     rm -rf $p7_repo
     rm -rf $p7_stub.bin_dir
+
+    # --- Part 8 (Gate 3 W): "no evidence" — gitleaks exits 0 having emitted
+    # NO parseable scan-summary line at all, not an explicit zero. This is
+    # the case gitleaks.nu/gitleaks.sh/the template's shared invariant
+    # (`gitleaks-verified-clean` / `gitleaks_verified_clean`) treats
+    # IDENTICALLY to Part 7's explicit-zero case — "no evidence is not
+    # innocence" was PR #246's entire six-round conclusion — but this
+    # hook's current `gitleaks_scan_reported_zero_bytes` deliberately does
+    # NOT: it blocks ONLY on an explicit parsed zero, falling back to
+    # trust-the-exit-code when the summary is unparseable/missing (see
+    # that function's own comment in the hook for why, and the accepted
+    # gap it documents). Real gitleaks invoked with -v has never been
+    # observed to produce this shape — the stub below is what makes it
+    # constructible at all. Expected RED until the strict port lands;
+    # currently ALLOWS (the exact narrower-rule gap the hook's own comment
+    # documents).
+    let p8_repo = (setup-repo-with-staged-secret "secret.txt")
+    let p8_stub = (native-stub-path $real_path "" "" 0)
+    let p8_result = (run-hook $hook $p8_repo $p8_stub.path "git commit -m test")
+    if not (check "Part 8: gitleaks exiting 0 with NO parseable scan summary (not explicit zero) still blocks" $p8_result 2) {
+        $failed = true
+    }
+    rm -rf $p8_repo
+    rm -rf $p8_stub.bin_dir
 
     if $failed {
         exit 1
