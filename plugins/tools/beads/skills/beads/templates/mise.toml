@@ -17,16 +17,19 @@ macos-arm64 = { asset_pattern = "beads_*_darwin_arm64.tar.gz" }
 # surface (`is-not-empty`, `split row`, optional `def main` params, `^cmd
 # ...$spread`). "latest" would silently hand a new installer an untested
 # version. To update: bump the version, then run every beads:* task once.
+#
+# Deliberately NO platforms/asset_pattern block here, unlike the beads entry
+# above. nushell ships both -gnu and -musl builds per Linux arch, and mise
+# picks the right one by detecting the host libc — verified on ubuntu (glibc)
+# and alpine (musl), x64 and arm64, plus macOS. Pinning an asset_pattern
+# overrides that detection and forces one libc on every Linux host: a -gnu
+# pattern breaks musl outright, failing to load the glibc ELF interpreter
+# (e.g. "failed to open elf at /lib64/ld-linux-x86-64.so.2" on x64; the
+# aarch64 loader name differs). The beads entry can pin patterns because `bd`
+# is a static Go binary and libc-indifferent; nushell is not.
 [tools."github:nushell/nushell"]
 version = "0.113.1"
 exe = "nu"
-
-# Only the Linux assets need explicit patterns: nushell publishes both -gnu
-# and -musl builds per Linux arch, so the choice is ambiguous. macOS assets
-# are unambiguous and mise auto-resolves platforms left undeclared here.
-[tools."github:nushell/nushell".platforms]
-linux-x64 = { asset_pattern = "nu-*-x86_64-unknown-linux-gnu.tar.gz" }
-macos-arm64 = { asset_pattern = "nu-*-aarch64-apple-darwin.tar.gz" }
 
 # Beads (bd) mise tasks
 # Copy these task definitions to your project's mise.toml
@@ -236,13 +239,32 @@ def main [
 '''
 
 [tasks."beads:tree"]
-description = "Print the recursive task tree — every root with no argument, or the subtree rooted at a task ID (bd tree does not exist; this is bd list/children --pretty)"
+description = "Print the task tree — with no argument, open issues only (a closed issue's open descendants are re-rooted, so the shape can differ from the real hierarchy); with a task ID, that issue's full subtree including closed descendants (bd tree does not exist; this is bd list/children --pretty)"
 run = '''
 #!/usr/bin/env nu
-# Both forms print the FULL recursive subtree, grandchildren included — not
-# just immediate children. `bd tree` does not exist in 1.1.2; the whole-forest
-# form is `bd list --pretty` and the rooted form is `bd children <id> --pretty`
-# (which includes <id> itself as the root of the printed tree).
+# The two forms are NOT the same view with a filter applied — they can print
+# DIFFERENT HIERARCHIES. Pick deliberately.
+#
+# With a task ID, `bd children <id> --pretty` prints that issue's full
+# recursive subtree — grandchildren and closed descendants included, closed
+# marked with a checkmark — rooted at <id> itself. bd gives no way to hide
+# closed here; `--pretty` is its only flag.
+#
+# With no argument, `bd list --pretty` shows only OPEN issues, at every depth,
+# matching the default of beads:list and beads:ready. That pruning is not
+# cosmetic: when a closed issue sits mid-tree, its open descendants are
+# RE-ROOTED to top level, so a grandchild can appear to be a root and the
+# printed shape differs from the real hierarchy. Use the ID form to see the
+# true structure of a subtree.
+#
+# Do not reach for `bd list --parent <id>` expecting an open-only rooted view.
+# `bd children --help` calls itself an alias for `bd list --parent <id>
+# --status all`, but at default status that query dead-ends — it reports
+# "has no children" when the direct child is closed, even when open
+# grandchildren exist beneath it.
+#
+# An empty-string argument is treated as no argument. `bd tree` does not
+# exist in 1.1.2.
 def main [task_id?: string] {
     if ($task_id | is-empty) {
         bd list --pretty
