@@ -191,15 +191,20 @@ def run-self-tests [] {
         (check "parses a nonzero scan summary" (parse-scanned-bytes "INF scanned ~72 bytes (72 bytes) in 70.8ms\nWRN leaks found: 1") 72)
         (check "parses a large scan summary" (parse-scanned-bytes "INF 777 commits scanned.\nINF scanned ~9107683 bytes (9.11 MB) in 377ms") 9107683)
         (check "unparseable stderr returns null, not 0" (parse-scanned-bytes "some unrelated error text") null)
-        # Gate 3 R6: a false "scanned ~" match earlier in the text (e.g. a
-        # log line naming a file whose path happens to contain that
-        # substring) must not win over gitleaks' own real summary line —
-        # matching the FIRST occurrence is itself a fail-open. Matching the
-        # LAST occurrence picks the real summary in this adversarial case.
-        (check "matches the LAST scanned~ occurrence, not the first (R6 fail-open)" (parse-scanned-bytes "WRN skipping /x/scanned ~99 bytes.txt\nINF scanned ~0 bytes (0) in 80.6ms") 0)
+        # Gate 3 R6 / T4 (position is not the axis — see parse-scanned-bytes'
+        # comment). A decoy that merely contains the substring "scanned ~"
+        # must not win over the real, full-shape summary line regardless of
+        # which side of the real line it sits on: BEFORE it (R6's original
+        # shape) or AFTER it (T4, the mirror image — a last-occurrence "fix"
+        # for R6 that only moved the same bug to the other side).
+        (check "decoy BEFORE the real summary does not win (R6)" (parse-scanned-bytes "WRN skipping /x/scanned ~99 bytes.txt\nINF scanned ~0 bytes (0) in 80.6ms") 0)
+        (check "decoy AFTER the real summary does not win (T4)" (parse-scanned-bytes "INF scanned ~0 bytes (0) in 5ms\nWRN something scanned ~99 bytes nonsense") 0)
+        (check "non-numeric decoy after a real summary (T2)" (parse-scanned-bytes "INF scanned ~72 bytes (72 bytes) in 70.8ms\nWRN .../scanned ~notanumber.txt") 72)
+        (check "bare trailing fragment after a real summary (T2)" (parse-scanned-bytes "INF scanned ~72 bytes (72 bytes) in 70.8ms\nscanned ~") 72)
         (check "verified-clean requires nonzero scanned bytes" (gitleaks-verified-clean "INF scanned ~72 bytes (72 bytes) in 70.8ms") true)
         (check "zero bytes scanned is NOT verified-clean" (gitleaks-verified-clean "INF scanned ~0 bytes (0) in 77.2ms") false)
         (check "unparseable stderr is NOT verified-clean (no evidence, not innocent)" (gitleaks-verified-clean "no scan summary here") false)
+        (check "T4 decoy is NOT verified-clean" (gitleaks-verified-clean "INF scanned ~0 bytes (0) in 5ms\nWRN something scanned ~99 bytes nonsense") false)
     ]
 
     for $c in $cases {
@@ -416,33 +421,37 @@ def is-git-worktree [path: string] {
     $result.exit_code == 0 and (($result.stdout | str trim) == "true")
 }
 
-# Extract the byte count from gitleaks' own scan-summary line, which it
-# always logs to stderr regardless of runtime or outcome — e.g.
-# "scanned ~72 bytes (72 bytes) in 70.8ms" or "scanned ~0 bytes (0) in
-# 77ms". Returns null when the line isn't present (unparseable/unexpected
-# gitleaks output), which callers must treat as "no evidence", not as "0".
-# Matches the LAST "scanned ~" occurrence, not the first: gitleaks can log
-# other lines containing that substring before its own summary (e.g. a file
-# path being scanned) — matching first is itself a fail-open vector
-# (claude-skills-267 Gate 3 R6). Pure string ops (split row / str index-of
-# / str substring), no regex — same style already used by
-# test/validate-gitleaks-invocation.nu for structural checks, and avoids a
-# `parse` command corner case (empty match tables).
+# Extract the byte count from gitleaks' own scan-summary line, anchored to
+# its actual STRUCTURE rather than picked by text POSITION (claude-skills-267
+# Gate 3 T2/T4). Position-based picking — first occurrence or last
+# occurrence of the substring "scanned ~" — is defeated by a decoy on
+# whichever side isn't checked: a decoy BEFORE the real summary beats
+# first-match (Gate 3 R6); a decoy AFTER the real summary beats last-match
+# (Gate 3 T4, the mirror image of R6, not a fix for it). Position was never
+# the right axis.
+#
+# The real line has a fixed, verifiable shape — checked directly against
+# gitleaks 8.30.1: "scanned ~<digits> bytes (<total>) in <duration>", e.g.
+# "scanned ~72 bytes (72 bytes) in 70.8ms" or "scanned ~9107683 bytes
+# (9.11 MB) in 377ms". A decoy that merely contains the substring "scanned
+# ~" — a file path, a bare trailing fragment with no reading — never
+# matches this full shape, so it is excluded regardless of which side of
+# the real line it sits on. Returns null when no line matches the full
+# shape, which callers must treat as "no evidence", not as "0". Matches
+# the LAST full-shape occurrence only as a tie-break for the (real-world
+# rare) case of multiple genuine summary lines — never reached by a decoy,
+# since a decoy that satisfies the full shape well enough to need tie-
+# breaking is, at that point, indistinguishable from a real summary.
+#
+# `gitleaks.sh` implements the identical shape via `grep -oE` — same regex
+# semantics, kept in sync deliberately rather than reusing one
+# implementation across languages (no shared runtime between nu and bash).
 def parse-scanned-bytes [text: string] {
-    let parts = ($text | split row "scanned ~")
-    if ($parts | length) < 2 {
+    let matches = ($text | parse -r 'scanned ~(?P<bytes>\d+) bytes \([^)]*\) in \S+')
+    if ($matches | is-empty) {
         return null
     }
-    let after = ($parts | last)
-    let end_idx = ($after | str index-of " bytes")
-    if $end_idx < 0 {
-        return null
-    }
-    let num_str = ($after | str substring 0..($end_idx - 1) | str trim)
-    if ($num_str | is-empty) {
-        return null
-    }
-    try { $num_str | into int } catch { null }
+    try { ($matches | last | get bytes | into int) } catch { null }
 }
 
 # What this check actually verifies, precisely (claude-skills-267 Gate 3

@@ -31,6 +31,20 @@ VERBOSE=true
 # the caller's actual file into the container (see main()).
 CONFIG_MOUNT=()
 
+# Populated by run_gitleaks_native / run_gitleaks right before their
+# subprocess call, and cleared via explicit `rm -f` right after (the
+# normal-path cleanup, deliberately NOT a `trap ... RETURN` -- see the
+# comment at that `rm -f` for why). Global, not `local`: this EXIT trap
+# needs a name that survives whichever function is currently running, to
+# catch the window between `mktemp` and that explicit cleanup -- e.g.
+# Ctrl-C mid-scan (claude-skills-267 Gate 3 T5). `trap ... EXIT` fires
+# exactly once, when the whole script exits, so it doesn't have the
+# RETURN-trap refire problem; `rm -f` on empty/already-removed paths is a
+# silent no-op.
+STDOUT_FILE=""
+STDERR_FILE=""
+trap 'rm -f "$STDOUT_FILE" "$STDERR_FILE"' EXIT
+
 print_help() {
     cat << 'EOF'
 Gitleaks Secret Scanner
@@ -128,23 +142,43 @@ is_git_worktree() {
     [[ "$result" == "true" ]]
 }
 
-# Extract the byte count from gitleaks' own scan-summary line, which it
-# always writes to stderr regardless of runtime or outcome -- e.g.
-# "scanned ~72 bytes (72 bytes) in 70.8ms" or "scanned ~0 bytes (0) in
-# 77ms". Echoes nothing when the line isn't present (unparseable/unexpected
-# gitleaks output), which callers must treat as "no evidence", not as "0".
-# Matches the LAST "scanned ~" occurrence, not the first: an earlier log
-# line can coincidentally contain that substring too (e.g. a file path
-# being scanned) -- matching first is itself a fail-open (claude-skills-267
-# Gate 3 R6). Mirrors scripts/gitleaks.nu's parse-scanned-bytes.
+# Extract the byte count from gitleaks' own scan-summary line, anchored to
+# its actual STRUCTURE rather than picked by text position (claude-skills-267
+# Gate 3 T2/T4). Position-based picking -- first occurrence or last
+# occurrence of the substring "scanned ~" -- is defeated by a decoy on
+# whichever side isn't checked: a decoy BEFORE the real summary beats
+# first-match (Gate 3 R6); a decoy AFTER the real summary beats last-match
+# (Gate 3 T4, the mirror image of R6, not a fix for it).
+#
+# The real line has a fixed, verifiable shape -- checked directly against
+# gitleaks 8.30.1: "scanned ~<digits> bytes (<total>) in <duration>", e.g.
+# "scanned ~72 bytes (72 bytes) in 70.8ms" or "scanned ~9107683 bytes
+# (9.11 MB) in 377ms". A decoy that merely contains the substring "scanned
+# ~" -- a file path, a bare trailing fragment with no reading -- never
+# matches this full shape, so it is excluded regardless of which side of
+# the real line it sits on. Echoes nothing when no line matches the full
+# shape, which callers must treat as "no evidence", not as "0". Takes the
+# LAST full-shape match only as a tie-break for multiple genuine summary
+# lines -- never reached by a decoy, since a decoy satisfying the full
+# shape well enough to need tie-breaking is, at that point,
+# indistinguishable from a real summary.
+#
+# Identical regex semantics to scripts/gitleaks.nu's parse-scanned-bytes
+# (`parse -r` there, `grep -oE` here) -- kept in sync deliberately rather
+# than reusing one implementation across languages (no shared runtime
+# between nu and bash). A prior version of this comment claimed it
+# "mirrors" gitleaks.nu while implementing a DIFFERENT algorithm
+# (first-vs-last, no shape anchor) that produced different verdicts on
+# identical input (claude-skills-267 Gate 3 T2) -- verify this claim
+# against the actual regex, not just the comment, if either changes.
 parse_scanned_bytes() {
     local text="$1"
-    local last_match
-    last_match="$(printf '%s' "$text" | grep -oE 'scanned ~[0-9]+ bytes' | tail -n 1 || true)"
-    if [[ -z "$last_match" ]]; then
+    local full_match
+    full_match="$(printf '%s' "$text" | grep -oE 'scanned ~[0-9]+ bytes \([^)]*\) in [^[:space:]]+' | tail -n 1 || true)"
+    if [[ -z "$full_match" ]]; then
         return
     fi
-    printf '%s' "$last_match" | grep -oE '[0-9]+' || true
+    printf '%s' "$full_match" | grep -oE '^scanned ~[0-9]+' | grep -oE '[0-9]+' || true
 }
 
 # Never report clean without evidence something was actually scanned.
@@ -291,24 +325,27 @@ run_gitleaks_native() {
     log_info "Command: $binary ${args[*]}"
     echo ""
 
-    local stdout_file stderr_file
-    stdout_file="$(mktemp)"
-    stderr_file="$(mktemp)"
+    STDOUT_FILE="$(mktemp)"
+    STDERR_FILE="$(mktemp)"
 
     local exit_code=0
-    "$binary" "${args[@]}" >"$stdout_file" 2>"$stderr_file" || exit_code=$?
+    "$binary" "${args[@]}" >"$STDOUT_FILE" 2>"$STDERR_FILE" || exit_code=$?
 
     local stdout_content stderr_content
-    stdout_content="$(cat "$stdout_file")"
-    stderr_content="$(cat "$stderr_file")"
+    stdout_content="$(cat "$STDOUT_FILE")"
+    stderr_content="$(cat "$STDERR_FILE")"
     # Cleaned up synchronously, right after reading -- NOT via `trap ...
     # RETURN`: a RETURN trap set inside a bash function is not
     # function-scoped, it fires on every subsequent function return until
     # explicitly cleared, including the CALLER's return. That refired this
-    # cleanup from main()'s own return with $stdout_file/$stderr_file
-    # already out of scope, tripping "unbound variable" under `set -u`
-    # (found by actually running this function, not just `bash -n`).
-    rm -f "$stdout_file" "$stderr_file"
+    # cleanup from main()'s own return with the temp-file locals already
+    # out of scope, tripping "unbound variable" under `set -u` (found by
+    # actually running this function, not just `bash -n`). The top-level
+    # `trap ... EXIT` on the global STDOUT_FILE/STDERR_FILE is the backstop
+    # for an interrupt landing before this line runs (Gate 3 T5).
+    rm -f "$STDOUT_FILE" "$STDERR_FILE"
+    STDOUT_FILE=""
+    STDERR_FILE=""
 
     echo "$stdout_content"
     echo ""
@@ -356,29 +393,32 @@ run_gitleaks() {
         mounts+=("${CONFIG_MOUNT[@]}")
     fi
 
-    local stdout_file stderr_file
-    stdout_file="$(mktemp)"
-    stderr_file="$(mktemp)"
+    STDOUT_FILE="$(mktemp)"
+    STDERR_FILE="$(mktemp)"
 
     local exit_code=0
     case "$runtime" in
         container)
-            container run --rm "${mounts[@]}" "$image" "${args[@]}" >"$stdout_file" 2>"$stderr_file" || exit_code=$?
+            container run --rm "${mounts[@]}" "$image" "${args[@]}" >"$STDOUT_FILE" 2>"$STDERR_FILE" || exit_code=$?
             ;;
         docker)
-            docker run --rm "${mounts[@]}" "$image" "${args[@]}" >"$stdout_file" 2>"$stderr_file" || exit_code=$?
+            docker run --rm "${mounts[@]}" "$image" "${args[@]}" >"$STDOUT_FILE" 2>"$STDERR_FILE" || exit_code=$?
             ;;
         colima)
-            mise exec lima@latest colima@latest -- docker run --rm "${mounts[@]}" "$image" "${args[@]}" >"$stdout_file" 2>"$stderr_file" || exit_code=$?
+            mise exec lima@latest colima@latest -- docker run --rm "${mounts[@]}" "$image" "${args[@]}" >"$STDOUT_FILE" 2>"$STDERR_FILE" || exit_code=$?
             ;;
     esac
 
     local stdout_content stderr_content
-    stdout_content="$(cat "$stdout_file")"
-    stderr_content="$(cat "$stderr_file")"
+    stdout_content="$(cat "$STDOUT_FILE")"
+    stderr_content="$(cat "$STDERR_FILE")"
     # Cleaned up synchronously -- see run_gitleaks_native for why this is
     # NOT a `trap ... RETURN` (bash RETURN traps are not function-scoped).
-    rm -f "$stdout_file" "$stderr_file"
+    # The top-level `trap ... EXIT` on the global STDOUT_FILE/STDERR_FILE
+    # is the backstop for an interrupt landing before this line (Gate 3 T5).
+    rm -f "$STDOUT_FILE" "$STDERR_FILE"
+    STDOUT_FILE=""
+    STDERR_FILE=""
 
     echo "$stdout_content"
     echo ""
@@ -486,9 +526,17 @@ main() {
         args+=("-v")
 
         if [[ -n "$REPORT" ]]; then
-            local report_dir report_path
-            report_dir="$(cd "$(dirname "$REPORT")" 2>/dev/null && pwd)" || report_dir="$(pwd)"
-            report_path="$report_dir/$(basename "$REPORT")"
+            # Errors when the requested directory doesn't exist, rather
+            # than silently relocating the report to $(pwd) -- a prior
+            # version did that silently (claude-skills-267 Gate 3 T6),
+            # which means a typo'd --report path would write the report
+            # somewhere the caller never asked for and never find out.
+            local report_dir
+            if ! report_dir="$(cd "$(dirname "$REPORT")" 2>/dev/null && pwd)"; then
+                log_error "Directory for --report '$REPORT' does not exist"
+                exit 1
+            fi
+            local report_path="$report_dir/$(basename "$REPORT")"
             args+=("--report-path=$report_path" "--report-format=json")
         fi
 
@@ -546,7 +594,17 @@ main() {
     args+=("-v")
 
     if [[ -n "$REPORT" ]]; then
-        args+=("--report-path=/code/report.json" "--report-format=json")
+        # restraint: honors the requested FILENAME, not the requested
+        # DIRECTORY -- the container only has /code (the bind-mounted
+        # SCAN_PATH) to write into, so the report lands inside the scanned
+        # directory under this basename rather than at the literal $REPORT
+        # path when the two differ. A full fix needs a second bind mount
+        # for the report's directory, the same trick CONFIG_MOUNT already
+        # uses for --config; not done here since this is a LOW-priority
+        # gap (claude-skills-267 Gate 3 T6) and gitleaks.nu's own container
+        # path has the identical limitation (hardcodes /code/report.json).
+        # Previously this branch discarded the filename too -- fixed here.
+        args+=("--report-path=/code/$(basename "$REPORT")" "--report-format=json")
     fi
 
     if [[ -n "$CONFIG" ]]; then

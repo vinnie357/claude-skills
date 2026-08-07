@@ -15,7 +15,7 @@
 #   mise gitleaks:stop:colima
 
 [tasks.gitleaks]
-description = "Run gitleaks secret scanner (native binary preferred, falls back to Apple Container)"
+description = "Run gitleaks secret scanner (native binary preferred, falls back to a container runtime — GITLEAKS_RUNTIME=docker|colima overrides Apple Container; see gitleaks:docker / gitleaks:colima)"
 run = """
 #!/usr/bin/env nu
 
@@ -29,31 +29,31 @@ let image = "zricethezav/gitleaks"
 # fixed relative path from a consumer project's mise.toml), so some
 # duplication here is unavoidable. scripts/gitleaks.nu is the source of
 # truth: if its invariant logic changes there, mirror the change here too
-# (claude-skills-267 Gate 3 R4 — this task previously added --no-git but
-# NOT the bytes-verification invariant, and shipped the same fail-open the
-# script had already fixed. Prefer the script directly when you can reach
-# it.
+# (claude-skills-267 Gate 3 R4/T2/T4). Single container-fallback
+# implementation now shared by gitleaks, gitleaks:docker, and
+# gitleaks:colima (Gate 3 T3) — gitleaks:docker/gitleaks:colima set
+# GITLEAKS_RUNTIME and delegate here instead of re-implementing the
+# fallback, which is what let the native-resolution / --no-git /
+# bytes-verification fixes drift out of sync across three separate copies
+# in the first place (B3, R4, T3 were the same bug landing three times).
+# Prefer scripts/gitleaks.nu directly when you can reach it.
 
-# Extract the byte count from gitleaks' own scan-summary line (stderr).
-# Matches the LAST "scanned ~" occurrence, mirroring
-# scripts/gitleaks.nu's parse-scanned-bytes — matching the FIRST occurrence
-# is itself a fail-open if an earlier log line contains the same substring
-# (claude-skills-267 Gate 3 R6).
+# Extract the byte count from gitleaks' own scan-summary line, anchored to
+# its actual STRUCTURE rather than picked by text position (claude-skills-267
+# Gate 3 T2/T4 — first/last-occurrence picking is defeated by a decoy on
+# whichever side isn't checked). The real line has a fixed shape, checked
+# directly against gitleaks 8.30.1: "scanned ~<digits> bytes (<total>) in
+# <duration>". A decoy merely containing the substring "scanned ~" never
+# matches this full shape. Returns null when no line matches, which callers
+# must treat as "no evidence", not as "0". Identical regex semantics to
+# scripts/gitleaks.nu's parse-scanned-bytes and scripts/gitleaks.sh's
+# parse_scanned_bytes — kept in sync deliberately across all three.
 def parse-scanned-bytes [text: string] {
-    let parts = ($text | split row "scanned ~")
-    if ($parts | length) < 2 {
+    let matches = ($text | parse -r 'scanned ~(?P<bytes>\\d+) bytes \\([^)]*\\) in \\S+')
+    if ($matches | is-empty) {
         return null
     }
-    let after = ($parts | last)
-    let end_idx = ($after | str index-of " bytes")
-    if $end_idx < 0 {
-        return null
-    }
-    let num_str = ($after | str substring 0..($end_idx - 1) | str trim)
-    if ($num_str | is-empty) {
-        return null
-    }
-    try { $num_str | into int } catch { null }
+    try { ($matches | last | get bytes | into int) } catch { null }
 }
 
 # Never report clean without evidence something was actually scanned —
@@ -140,10 +140,19 @@ if ($native_bin | is-not-empty) {
     exit 0
 }
 
-# No native binary found — fall back to Apple Container. `in_git` reflects
-# repo_root's HOST status, checked above before the bind mount — the mount
-# carries the host's .git (or its absence) straight into /code, so the same
-# hole applies here without --no-git (claude-skills-267 Gate 3 B3).
+# No native binary found -- fall back to a container runtime. Single
+# implementation shared by gitleaks, gitleaks:docker, gitleaks:colima
+# (Gate 3 T3). Falls back to Apple Container when GITLEAKS_RUNTIME is
+# unset, matching this task's documented default; gitleaks:docker /
+# gitleaks:colima set GITLEAKS_RUNTIME via their own task-level `env`
+# instead of duplicating this fallback.
+let forced_runtime = ($env.GITLEAKS_RUNTIME? | default "")
+let runtime = if ($forced_runtime | is-empty) { "container" } else { $forced_runtime }
+
+# `in_git` reflects repo_root's HOST status, checked above before the bind
+# mount -- the mount carries the host's .git (or its absence) straight into
+# /code, so the same fail-open hole applies here without --no-git
+# (claude-skills-267 Gate 3 B3).
 mut args = ["detect" "--source=/code"]
 if not $in_git {
     $args = ($args | append "--no-git")
@@ -153,20 +162,75 @@ if $has_baseline {
     $args = ($args | append $"--baseline-path=/code/($baseline_name)")
 }
 
-if (which container | is-empty) {
-    print "❌ Apple Container CLI not found. Use mise gitleaks:docker or mise gitleaks:colima"
-    exit 1
-}
-
-let status = (do { ^container system status } | complete)
-if $status.exit_code != 0 {
-    print "🚀 Starting Apple Container..."
-    do { ^container system start } | complete
+match $runtime {
+    "container" => {
+        if (which container | is-empty) {
+            print "❌ Apple Container CLI not found. Use `GITLEAKS_RUNTIME=docker mise run gitleaks` or `GITLEAKS_RUNTIME=colima mise run gitleaks`"
+            exit 1
+        }
+        let status = (do { ^container system status } | complete)
+        if $status.exit_code != 0 {
+            print "🚀 Starting Apple Container..."
+            do { ^container system start } | complete
+        }
+    }
+    "docker" => {
+        if (which docker | is-empty) {
+            print "❌ Docker CLI not found"
+            exit 1
+        }
+        let status = (do { ^docker info } | complete)
+        if $status.exit_code != 0 {
+            print "🚀 Starting Docker..."
+            if $nu.os-info.name == "macos" {
+                do { ^open -a Docker } | complete
+                print "Waiting for Docker to start..."
+                mut attempts = 0
+                loop {
+                    sleep 2sec
+                    $attempts = $attempts + 1
+                    let check = (do { ^docker info } | complete)
+                    if $check.exit_code == 0 { break }
+                    if $attempts >= 30 {
+                        print "❌ Docker failed to start"
+                        exit 1
+                    }
+                }
+            } else {
+                print "❌ Docker is not running. Start it manually."
+                exit 1
+            }
+        }
+    }
+    "colima" => {
+        if $nu.os-info.name != "macos" {
+            print "⚠️  Colima is only available on macOS"
+            exit 1
+        }
+        if (which mise | is-empty) {
+            print "❌ mise not found (required to run Colima via `mise exec`)"
+            exit 1
+        }
+        let status = (do { ^mise exec lima@latest colima@latest -- colima status } | complete)
+        if $status.exit_code != 0 {
+            print "🚀 Starting Colima..."
+            do { ^mise exec lima@latest colima@latest -- colima start } | complete
+        }
+    }
+    _ => {
+        print $"❌ Unknown GITLEAKS_RUNTIME '($runtime)' — valid values: container, docker, colima"
+        exit 1
+    }
 }
 
 print $"🔍 Scanning: ($repo_root)"
 let final_args = $args
-let result = (do { ^container run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
+let result = match $runtime {
+    "container" => (do { ^container run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
+    "docker" => (do { ^docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
+    "colima" => (do { ^mise exec lima@latest colima@latest -- docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
+    _ => { print "❌ unreachable runtime"; exit 1 }
+}
 print $result.stdout
 
 if $result.exit_code == 1 {
@@ -193,110 +257,13 @@ exit 0
 
 [tasks."gitleaks:docker"]
 description = "Run gitleaks secret scanner (Docker runtime)"
-run = """
-#!/usr/bin/env nu
-
-let repo_root = (git rev-parse --show-toplevel | str trim)
-let image = "zricethezav/gitleaks"
-
-mut args = ["detect" "--source=/code" "-v"]
-
-let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
-if ($baseline_path | path exists) {
-    let baseline_name = ($baseline_path | path basename)
-    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
-    print $"📋 Using baseline: ($baseline_name)"
-}
-
-if (which docker | is-empty) {
-    print "❌ Docker CLI not found"
-    exit 1
-}
-
-let status = (do { ^docker info } | complete)
-if $status.exit_code != 0 {
-    print "🚀 Starting Docker..."
-    if $nu.os-info.name == "macos" {
-        do { ^open -a Docker } | complete
-        print "Waiting for Docker to start..."
-        mut attempts = 0
-        loop {
-            sleep 2sec
-            $attempts = $attempts + 1
-            let check = (do { ^docker info } | complete)
-            if $check.exit_code == 0 { break }
-            if $attempts >= 30 {
-                print "❌ Docker failed to start"
-                exit 1
-            }
-        }
-    } else {
-        print "❌ Docker is not running. Start it manually."
-        exit 1
-    }
-}
-
-print $"🔍 Scanning: ($repo_root)"
-let final_args = $args
-let result = (do { ^docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
-print $result.stdout
-
-if $result.exit_code == 0 {
-    print "✅ No secrets detected"
-} else if $result.exit_code == 1 {
-    print "❌ Secrets detected!"
-    print $result.stderr
-} else {
-    print $"❌ Error: ($result.stderr)"
-}
-
-exit $result.exit_code
-"""
+env = { GITLEAKS_RUNTIME = "docker" }
+run = "mise run gitleaks"
 
 [tasks."gitleaks:colima"]
 description = "Run gitleaks secret scanner (Colima runtime)"
-run = """
-#!/usr/bin/env nu
-
-if $nu.os-info.name != "macos" {
-    print "⚠️  Colima is only available on macOS"
-    exit 1
-}
-
-let repo_root = (git rev-parse --show-toplevel | str trim)
-let image = "zricethezav/gitleaks"
-
-mut args = ["detect" "--source=/code" "-v"]
-
-let baseline_path = ($repo_root | path join ".gitleaks-baseline.json")
-if ($baseline_path | path exists) {
-    let baseline_name = ($baseline_path | path basename)
-    $args = ($args | append $"--baseline-path=/code/($baseline_name)")
-    print $"📋 Using baseline: ($baseline_name)"
-}
-
-let status = (do { ^mise exec lima@latest colima@latest -- colima status } | complete)
-if $status.exit_code != 0 {
-    print "🚀 Starting Colima..."
-    do { ^mise exec lima@latest colima@latest -- colima start } | complete
-}
-
-print $"🔍 Scanning: ($repo_root)"
-let final_args = $args
-let result = (do { ^mise exec lima@latest colima@latest -- docker run --rm -v $"($repo_root):/code" $image ...$final_args } | complete)
-print $result.stdout
-
-if $result.exit_code == 0 {
-    print "✅ No secrets detected"
-} else if $result.exit_code == 1 {
-    print "❌ Secrets detected!"
-    print $result.stderr
-} else {
-    print $"❌ Error: ($result.stderr)"
-}
-
-exit $result.exit_code
-"""
+env = { GITLEAKS_RUNTIME = "colima" }
+run = "mise run gitleaks"
 
 [tasks."gitleaks:stop"]
 description = "Stop all container runtimes"
