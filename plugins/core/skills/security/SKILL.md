@@ -286,6 +286,8 @@ The scripts support three container runtimes with automatic detection:
 2. **Docker** - Docker Desktop or Docker Engine
 3. **Colima** - Lightweight container runtime via mise
 
+The three examples below scan `/code` with `git`, which walks commit history — a mount that isn't a git repository, or is a git repository with no commits yet, has no history to walk and exits 0 with "no leaks found" (verified: both cases scan ~0 bytes and report clean, even with an untracked secret sitting in the mount). Use `dir /code` in place of `git /code` when the mount is not guaranteed to be a committed git repo, or to scan working-tree file content regardless of git state.
+
 ### Apple Container (macOS 26+)
 
 Native container support in macOS 26 and later:
