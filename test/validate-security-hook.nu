@@ -785,6 +785,78 @@ def main [] {
     rm -rf $p21_repo
     rm -rf $p21_stub.bin_dir
 
+    # ==========================================================================
+    # claude-skills-272 round 2: the landed detector is
+    # `[[ "$COMMAND" == *-f* ]]` — bare substring, anywhere in the whole
+    # command. Confirmed directly against the real hook (commit e5b000d)
+    # that this OVER-triggers: `git commit --fixup=HEAD` and `git commit
+    # --file=<path>` both contain the literal substring "-f" inside an
+    # unrelated long-option name and both incorrectly scan (and block on)
+    # a gitignored .env with a real secret — exit 2 for both, verified.
+    #
+    # This is the asymmetry's dangerous direction, not the safe one Part
+    # 21 pins: the force pass has NO --exclude-standard by design (that is
+    # the whole point of the pass), so a spurious trigger scans every
+    # gitignored file on every matching commit. A repo with a real secret
+    # in `.env` (normal, intentional, exactly what claude-skills-268
+    # protects) gets an ordinary `--fixup`/`--file` commit blocked for no
+    # reason — the false positive that gets a security gate disabled.
+    # ==========================================================================
+
+    # --- Part 22: `git commit --fixup=HEAD`, gitignored .env with a real
+    # secret, nothing force-added. Must NOT trigger the force pass.
+    let p22_repo = (setup-repo-with-gitignored-secret ".env")
+    let p22_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p22_result = (run-hook $hook $p22_repo $p22_stub.path "git commit --fixup=HEAD")
+    if not (check "Part 22: `git commit --fixup=HEAD` does not scan a gitignored .env (false-positive guard)" $p22_result 0) {
+        $failed = true
+    }
+    rm -rf $p22_repo
+    rm -rf $p22_stub.bin_dir
+
+    # --- Part 23: `git commit --file=<path>`, same setup. Separate case —
+    # a fix keyed narrowly to excluding "--fixup" specifically could still
+    # miss this one.
+    let p23_repo = (setup-repo-with-gitignored-secret ".env")
+    "a commit message\n" | save --force ($p23_repo | path join "msg.txt")
+    let p23_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p23_result = (run-hook $hook $p23_repo $p23_stub.path "git commit --file=msg.txt")
+    if not (check "Part 23: `git commit --file=msg.txt` does not scan a gitignored .env (false-positive guard)" $p23_result 0) {
+        $failed = true
+    }
+    rm -rf $p23_repo
+    rm -rf $p23_stub.bin_dir
+
+    # --- Part 24 (documented-limitation pin, NOT a requirement): a commit
+    # MESSAGE that itself contains the literal substring "-f" — e.g. `git
+    # commit -m "add -f support"`. Judged this one directly rather than
+    # assuming: a refinement that requires "add" to co-occur before
+    # "-f"/"--force" (a still string-based, still restrained fix) would
+    # correctly exclude Parts 22/23 above — verified directly, neither
+    # "--fixup=HEAD" nor "--file=msg.txt" contains the substring "add"
+    # anywhere — but this exact fixture was chosen because its MESSAGE
+    # TEXT contains both "add" and "-f", so that same refinement would
+    # NOT exclude it (verified directly: the raw command string literally
+    # contains "add" followed later by "-f", indistinguishable from a real
+    # `git add -f` invocation without actually parsing which text is
+    # inside the quoted -m argument and which is a real flag). That
+    # crosses from substring/token matching into real shell-quote
+    # awareness — genuinely harder than the other three mechanisms this
+    # issue chain has fixed with string techniques, not a corner someone
+    # cut. Pins the CURRENT, accepted behavior (exit 2 — a known,
+    # documented false positive) rather than requiring a fix; if a future
+    # quote-aware detector correctly excludes this too, that is a welcome
+    # improvement — update this test's expectation then, the same
+    # asymmetry-in-reverse Part 21's comment describes.
+    let p24_repo = (setup-repo-with-gitignored-secret ".env")
+    let p24_stub = (native-stub-path $real_path "" $secrets_found_stderr 1)
+    let p24_result = (run-hook $hook $p24_repo $p24_stub.path 'git commit -m "add -f support"')
+    if not (check "Part 24 (documented limitation): commit message containing \"-f\" currently still scans (accepted false positive)" $p24_result 2) {
+        $failed = true
+    }
+    rm -rf $p24_repo
+    rm -rf $p24_stub.bin_dir
+
     if $failed {
         exit 1
     }
