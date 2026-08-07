@@ -177,34 +177,35 @@ while IFS= read -r -d '' file; do
     fi
 done < <(git diff --name-only -z 2>/dev/null || true)
 
-# Gated on the command containing `add`, unlike the two passes above.
-# Verified directly: `git commit <pathspec>` on a file git has never seen
-# fails outright ("pathspec did not match any file(s) known to git") --
-# `git add` (in some form: `git add .`, `-A`, an explicit filename) is the
-# ONLY git operation that can put a brand-new untracked file into a
-# commit, so this is a complete signal for "could untracked content reach
-# this commit", not a heuristic approximation the way command-shape
-# matching would be elsewhere. Unconditionally scanning EVERY untracked
-# file in the working tree regardless of what the command actually does
-# was tried first and rejected: a repo commonly has untracked files with
-# real content that are simply not part of this commit (a `.gitignore`
-# that predates this fixture's first commit is exactly this shape, and it
-# is not the secret this hook exists to catch) -- scanning them unasked
-# produces a false block that claude-skills-268's control (Part 13) exists
-# to catch. `--exclude-standard` still applies whenever this pass DOES
-# run, so a gitignored `.env` remains excluded either way.
-if [[ "$COMMAND" == *add* ]]; then
-    log_info "Exporting untracked new files (covers \`git add .\`/pathspec commits of brand-new files)..."
-    while IFS= read -r -d '' file; do
-        [[ -z "$file" ]] && continue
-        if [[ -f "$file" ]]; then
-            FILES_FOUND=1
-            mkdir -p "$TEMP_DIR/untracked/$(dirname "$file")"
-            cp "$file" "$TEMP_DIR/untracked/$file" 2>/dev/null || true
-            [[ -s "$file" ]] && HAS_EXPECTED_CONTENT=1
-        fi
-    done < <(git ls-files --others --exclude-standard -z 2>/dev/null || true)
-fi
+# Runs unconditionally, same as the two passes above -- NOT gated on the
+# command string containing "add". An earlier version of this fix gated
+# this pass on `$COMMAND == *add*`, reasoning that `git add` (in some form)
+# is the only git operation that can put a brand-new untracked file into a
+# commit. That reasoning about WHAT git can do was correct; using the
+# command STRING to decide it was not, and was disproved directly: `git
+# stage` is a real built-in synonym for `git add` (`git stage newfile.txt`
+# actually stages the file) and contains no substring "add" at all, so the
+# gate silently skipped this entire pass for `git stage . && git commit`
+# and reintroduced the exact bypass it was meant to close
+# (claude-skills-271 Gate 3, new Part 14). Matching a command STRING to
+# decide export COVERAGE is the same primitive claude-skills-271's original
+# defect (mechanism 1) proved unreliable, one layer down -- there is always
+# another synonym or wrapper. `--exclude-standard` still keeps a gitignored
+# `.env` out regardless (claude-skills-268); the `.gitignore` false-block
+# this gate was originally added to work around turned out to be the test
+# fixture's own artifact (it created `.gitignore` untracked, so the pass
+# self-listed it) rather than a reason to scope this pass at all -- fixed
+# on the fixture side, not here.
+log_info "Exporting untracked new files (covers \`git add\`/\`git stage\`/pathspec commits of brand-new files)..."
+while IFS= read -r -d '' file; do
+    [[ -z "$file" ]] && continue
+    if [[ -f "$file" ]]; then
+        FILES_FOUND=1
+        mkdir -p "$TEMP_DIR/untracked/$(dirname "$file")"
+        cp "$file" "$TEMP_DIR/untracked/$file" 2>/dev/null || true
+        [[ -s "$file" ]] && HAS_EXPECTED_CONTENT=1
+    fi
+done < <(git ls-files --others --exclude-standard -z 2>/dev/null || true)
 
 if [[ "$FILES_FOUND" -eq 0 ]]; then
     log_info "No staged, modified-tracked, or new untracked files to scan"
