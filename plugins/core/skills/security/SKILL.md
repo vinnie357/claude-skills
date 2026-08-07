@@ -435,9 +435,9 @@ Copy the mise tasks from `templates/mise.toml` to add gitleaks scanning to any p
 
 ```bash
 # Available tasks after copying template
-mise gitleaks              # Scan with Apple Container (default)
-mise gitleaks:docker       # Scan with Docker
-mise gitleaks:colima       # Scan with Colima
+mise gitleaks              # Scan — native binary preferred; falls back to Apple Container if none found
+mise gitleaks:docker       # Scan — native binary preferred; forces the Docker fallback if none found
+mise gitleaks:colima       # Scan — native binary preferred; forces the Colima fallback if none found
 
 mise gitleaks:stop         # Stop all runtimes
 mise gitleaks:stop:container
