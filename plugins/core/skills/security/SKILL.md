@@ -298,7 +298,7 @@ container system status
 container system start
 
 # Run gitleaks
-container run -v $(pwd):/code zricethezav/gitleaks detect --source="/code" -v
+container run -v $(pwd):/code zricethezav/gitleaks git /code -v
 ```
 
 ### Docker
@@ -313,7 +313,7 @@ docker info >/dev/null 2>&1
 open -a Docker
 
 # Run gitleaks
-docker run -v $(pwd):/code zricethezav/gitleaks detect --source="/code" -v
+docker run -v $(pwd):/code zricethezav/gitleaks git /code -v
 ```
 
 ### Colima via mise
@@ -328,7 +328,7 @@ mise exec colima@latest -- colima status
 mise exec colima@latest -- colima start
 
 # Run gitleaks
-mise exec colima@latest -- docker run -v $(pwd):/code zricethezav/gitleaks detect --source="/code" -v
+mise exec colima@latest -- docker run -v $(pwd):/code zricethezav/gitleaks git /code -v
 ```
 
 Using `mise exec` provides automatic installation and version management without requiring global installation.
@@ -382,7 +382,7 @@ gitleaks:
   stage: security
   image: zricethezav/gitleaks:latest
   script:
-    - gitleaks detect --source="." -v
+    - gitleaks git . -v
   allow_failure: false
 ```
 

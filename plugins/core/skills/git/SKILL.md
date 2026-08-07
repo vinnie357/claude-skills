@@ -96,7 +96,7 @@ gh pr create --title "feat(auth): add JWT authentication" --body "- Add JWT gene
 
 1. **Gate 1 — Local CI**: `mise run ci` — fix until 0 failures
 2. **Commit**: Conventional commit, no attribution
-3. **Gitleaks**: Scan committed changes for secrets — the `check-secrets-before-commit.sh` PreToolUse hook does this automatically on every `git commit` by resolving the binary via `mise which gitleaks` (immune to shell shadowing). For a manual scan use the resolved path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged` (`/core:security`)
+3. **Gitleaks**: Scan committed changes for secrets — `$(mise which gitleaks) git . --staged`, never a bare `gitleaks` (`/core:security`). The `check-secrets-before-commit.sh` PreToolUse hook backstops this on `git commit`, but only while `/core:security` is loaded (hooks are scoped to their own skill's lifecycle) and it fails open — allows the commit — when no scanner is available. Run the scan yourself; don't treat the hook as a substitute for it.
 4. **Push**: `git push -u origin <branch>`
 5. **Create PR**: `gh pr create` with minimal format (title + bullets)
 6. **Gate 2 — Watch remote CI**: `gh pr checks --watch` (wait for CI to complete)
@@ -114,7 +114,7 @@ gh pr create --title "feat(auth): add JWT authentication" --body "- Add JWT gene
 
 Three gates protect main. None is optional, and none substitutes for another.
 
-**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. The PreToolUse hook scans staged changes with gitleaks automatically on every `git commit`; for a manual scan before push, use the resolved binary path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged` (`/core:security`).
+**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push — resolved binary path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged`. The PreToolUse hook backstops this on `git commit`, but only while `/core:security` is loaded, and fails open when no scanner is available — it is not a substitute for the scan (`/core:security`).
 
 **Gate 2 — Remote (before every squash merge).** Squash-merge a PR only when **both** conditions hold:
 
