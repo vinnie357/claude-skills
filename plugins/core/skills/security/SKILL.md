@@ -159,18 +159,27 @@ Gitleaks is an open-source tool for detecting secrets and sensitive information 
 
 ### Basic Usage
 
+Invoke gitleaks via its resolved absolute path (`$(mise which gitleaks)`), never a bare `gitleaks` command in an interactive shell — an rc-file shell function can silently reroute the bare command through a full-history container scan regardless of the flags you passed. See "Shell-function shadowing trap" below for the mechanism and how to check for it.
+
+Current syntax (verified against gitleaks 8.30.1) uses `git`/`dir` subcommands — `detect`/`protect` still work but are deprecated aliases no longer listed in `--help`:
+
 ```bash
-# Scan current directory
-gitleaks detect --source="." -v
+GITLEAKS=$(mise which gitleaks)
+
+# Scan the current git repository's full history
+"$GITLEAKS" git . -v
 
 # Scan with JSON report
-gitleaks detect --source="." -v --report-path=report.json --report-format=json
+"$GITLEAKS" git . -v --report-path=report.json --report-format=json
 
 # Scan only staged changes (pre-commit)
-gitleaks protect --staged
+"$GITLEAKS" git . --staged
 
-# Scan git history
-gitleaks detect --source="." --log-opts="--all"
+# Scan git history explicitly (equivalent to the default; --log-opts scopes the range)
+"$GITLEAKS" git . --log-opts="--all"
+
+# Scan a directory or files without git awareness
+"$GITLEAKS" dir . -v
 ```
 
 ### Configuration
@@ -381,12 +390,16 @@ gitleaks:
 
 Create a baseline to ignore known false positives:
 
+Invoke via the resolved binary path, not a bare `gitleaks` command — see "Shell-function shadowing trap" above.
+
 ```bash
+GITLEAKS=$(mise which gitleaks)
+
 # Generate baseline
-gitleaks detect --source="." -v --baseline-path=.gitleaks-baseline.json
+"$GITLEAKS" git . -v --baseline-path=.gitleaks-baseline.json
 
 # Scan using baseline
-gitleaks detect --source="." -v --baseline-path=.gitleaks-baseline.json
+"$GITLEAKS" git . -v --baseline-path=.gitleaks-baseline.json
 ```
 
 Add `.gitleaks-baseline.json` to version control to track acknowledged findings.
