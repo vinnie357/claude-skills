@@ -75,6 +75,12 @@ The typespec carries the same unset forms (`""` and `[]` are the same Erlang ter
 {env, Env :: [{Name :: os:env_var_name(), Val :: os:env_var_value() | [] | false}]}
 ```
 
+The empty-string unset form is documented from **OTP 27 onward**. OTP 26 (`erts/doc/src/erlang.xml`
+at tag `OTP-26.2.5`) types it as `Val = os:env_var_value() | false` — `false` only, no `[]` — and
+names just "the atom `false`" as the removal form. The *extend* semantics are not version-dependent:
+OTP 26 already reads "The environment of the started process is extended using the environment
+specifications in `Env`." Target OTP 26 or earlier, and use `false` rather than an empty charlist.
+
 Consequences:
 
 - The spawned process inherits every variable the BEAM holds. A short `Env` list adds to that
