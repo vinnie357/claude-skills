@@ -70,7 +70,7 @@ Port.close(port)
 | `{:arg0, string}` | Override argv[0] for the external process |
 | `:parallelism` | Hint to scheduler for improved throughput |
 
-**Note on `{:env, env_list}`**: This option extends the environment the BEAM already holds — the spawned process inherits every existing variable, and `env_list` adds to or overrides individual entries. There is no replace-all option. To withhold an inherited variable, pair its name with `false` (`""` and `[]` also unset). See the Security section.
+**Note on `{:env, env_list}`**: This option extends the environment the BEAM already holds — the spawned process inherits every existing variable, and `env_list` adds to or overrides individual entries. There is no replace-all option. To withhold an inherited variable, pair its name with `false` (an empty charlist — `~c""` or `[]` — also unsets; Elixir's `""` is a binary and raises). See the Security section.
 
 ## Communication Patterns
 
@@ -337,7 +337,7 @@ Store the validated path in process state so it is resolved once at startup.
 
 `{:env, env_list}` **extends** the spawned process's environment — it does not replace it. OTP documents this directly: "The environment of the started process is extended using the environment specifications in `Env`." The child therefore inherits every variable the BEAM holds, including any secrets in it, whether or not they appear in `env_list`.
 
-The security consequence is the part that is easy to get backwards: passing a short `env_list` does **not** sandbox the child. There is no replace-all option, so a variable is only withheld if you name it and pair it with `false`. The OTP 27 and 28 docs also treat the empty string (`""`, equivalently `[]`) as unset, "just as if `os:unsetenv/1` had been called" — so an empty value cannot be passed through to a child at all.
+The security consequence is the part that is easy to get backwards: passing a short `env_list` does **not** sandbox the child. There is no replace-all option, so a variable is only withheld if you name it and pair it with `false`. The OTP 27 and 28 docs also treat an empty Erlang string as unset, "just as if `os:unsetenv/1` had been called" — so an empty value cannot be passed through to a child at all. From Elixir that means `~c""` or `[]`; the Elixir literal `""` is a binary and raises `ArgumentError`.
 
 Do not build a "clean" environment by enumerating `System.get_env/0` and passing it back in — the child already has those variables, so it withholds nothing, and it copies every secret value into a BEAM term where it can surface in crash dumps, `:sys.get_state/1`, exception messages, and any stray `IO.inspect/1`.
 

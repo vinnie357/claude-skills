@@ -81,9 +81,11 @@ Consequences:
   set; it does not narrow it.
 - There is no replace-all option. A variable is withheld only by naming it with `false`.
 - `os:env_var_name()` is `nonempty_string()` — a charlist. **Binaries raise `ArgumentError`**
-  ("invalid option in list"). The asymmetry is deliberate: `{cd, Dir}`, `{args, ArgList}`, and
-  `{arg0, ArgString}` all declare `string() | binary()` in the same typespec, while `env`
+  ("invalid option in list"). The asymmetry is in the typespec itself: `{cd, Dir}`,
+  `{args, ArgList}`, and `{arg0, ArgString}` all declare `string() | binary()`, while `env`
   declares neither `Name` nor `Val` as `binary()`. Convert with `String.to_charlist/1`.
+  Note that from Elixir the unset value is `false` or an empty **charlist** (`~c""` / `[]`) —
+  the Elixir literal `""` is a binary and raises like any other binary.
 - `System.cmd/3` is the exception, because it converts for you: its `:env` accepts binaries and
   uses `nil` as the unset marker, mapping `{k, nil} -> {charlist(k), false}` before the port
   sees it. Passing `false` to `System.cmd/3` raises. At the raw `Port.open/2` boundary, `false`
@@ -127,6 +129,10 @@ Port.open({:spawn_executable, executable}, [
   env: allowlisted_env([{~c"MY_VAR", ~c"value"}])
 ])
 ```
+
+`denied ++ extra` relies on a later entry winning when a name appears twice — observed on OTP
+28.4.2, but not documented. If a name in `extra` might also be in the deny list, reject it from
+`denied` explicitly rather than depending on order.
 
 Limitation, and it is not incidental: this covers only the variables `System.get_env/0` returns
 at the moment it is called. Anything set afterwards, or set in the child's own startup files, is
