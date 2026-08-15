@@ -54,10 +54,78 @@ The Erlang BIF `open_port/2` is what `Port.open/2` calls. The complete set of `P
 |--------|-------------|
 | `exit_status` | Send `{Port, {exit_status, Status}}` when program exits. |
 | `{cd, Dir}` | Set working directory of the spawned process. |
-| `{env, Env}` | Set environment. `Env` is a list of `{Name, Val}` or `{Name, false}` to unset. Replaces the entire environment. |
+| `{env, Env}` | Extends the spawned process's environment (does NOT replace it). `Env` is a list of `{Name, Val}`, or `{Name, false}` to unset. See "Environment Inheritance" below. |
 | `{args, ArgList}` | Argument list for `spawn_executable`. Each element is a string or binary. |
 | `{arg0, ArgString}` | Override `argv[0]` (the program name as seen by the process). |
 | `hide` | Windows only: start process with `STARTF_USESHOWWINDOW` + `SW_HIDE`. |
+
+### Environment Inheritance
+
+`{env, Env}` extends rather than replaces. From the OTP source documentation for `open_port/2`
+(`erts/preloaded/src/erlang.erl`, wording identical in OTP 27 and OTP 28):
+
+> The environment of the started process is extended using the environment specifications in `Env`.
+>
+> If `Val` is set to the atom `false` or the empty string (that is `""` or `[]`), open_port
+> will consider those variables unset just as if `os:unsetenv/1` had been called.
+
+The typespec carries the same three unset forms:
+
+```erlang
+{env, Env :: [{Name :: os:env_var_name(), Val :: os:env_var_value() | [] | false}]}
+```
+
+Consequences:
+
+- The spawned process inherits every variable the BEAM holds. A short `Env` list adds to that
+  set; it does not narrow it.
+- There is no replace-all option. A variable is withheld only by naming it with `false`.
+- `os:env_var_name()` is `nonempty_string()` — a charlist. Binaries are accepted in practice.
+
+#### Withholding specific variables
+
+When you know which variables must not reach the child, name them:
+
+```elixir
+Port.open({:spawn_executable, executable}, [
+  :binary,
+  env: [
+    {~c"DATABASE_URL", false},
+    {~c"AWS_SECRET_ACCESS_KEY", false},
+    {~c"MY_VAR", ~c"value"}
+  ]
+])
+```
+
+#### Minimal allowlist helper
+
+When the child should see only a known-good set, deny everything else explicitly. There is no
+API that does this for you — the deny list has to be built from the names currently set:
+
+```elixir
+@allowed ~w(PATH HOME LANG LC_ALL TZ)
+
+defp allowlisted_env(extra) do
+  denied =
+    System.get_env()
+    |> Map.keys()
+    |> Enum.reject(&(&1 in @allowed))
+    |> Enum.map(&{String.to_charlist(&1), false})
+
+  denied ++ extra
+end
+
+Port.open({:spawn_executable, executable}, [
+  :binary,
+  env: allowlisted_env([{~c"MY_VAR", ~c"value"}])
+])
+```
+
+Limitation, and it is not incidental: this covers only the variables `System.get_env/0` returns
+at the moment it is called. Anything set afterwards, or set in the child's own startup files, is
+not denied. Treat it as a reduction of exposure, not a guarantee of isolation — if the child
+must not see a secret at all, the stronger control is not putting that secret in the BEAM's
+environment in the first place.
 
 ### Busy Limits (Backpressure)
 
