@@ -54,10 +54,97 @@ The Erlang BIF `open_port/2` is what `Port.open/2` calls. The complete set of `P
 |--------|-------------|
 | `exit_status` | Send `{Port, {exit_status, Status}}` when program exits. |
 | `{cd, Dir}` | Set working directory of the spawned process. |
-| `{env, Env}` | Set environment. `Env` is a list of `{Name, Val}` or `{Name, false}` to unset. Replaces the entire environment. |
+| `{env, Env}` | Extends the spawned process's environment (does NOT replace it). `Env` is a list of `{Name, Val}`, or `{Name, false}` to unset. See "Environment Inheritance" below. |
 | `{args, ArgList}` | Argument list for `spawn_executable`. Each element is a string or binary. |
 | `{arg0, ArgString}` | Override `argv[0]` (the program name as seen by the process). |
 | `hide` | Windows only: start process with `STARTF_USESHOWWINDOW` + `SW_HIDE`. |
+
+### Environment Inheritance
+
+`{env, Env}` extends rather than replaces. From the OTP source documentation for `open_port/2`
+(`erts/preloaded/src/erlang.erl`, wording identical in OTP 27 and OTP 28):
+
+> The environment of the started process is extended using the environment specifications in `Env`.
+>
+> If `Val` is set to the atom `false` or the empty string (that is `""` or `[]`), open_port
+> will consider those variables unset just as if `os:unsetenv/1` had been called.
+
+The typespec carries the same unset forms (`""` and `[]` are the same Erlang term):
+
+```erlang
+{env, Env :: [{Name :: os:env_var_name(), Val :: os:env_var_value() | [] | false}]}
+```
+
+The empty-string unset form is documented from **OTP 27 onward**. OTP 26 (`erts/doc/src/erlang.xml`
+at tag `OTP-26.2.5`) types it as `Val = os:env_var_value() | false` — `false` only, no `[]` — and
+names just "the atom `false`" as the removal form. The *extend* semantics are not version-dependent:
+OTP 26 already reads "The environment of the started process is extended using the environment
+specifications in `Env`." Target OTP 26 or earlier, and use `false` rather than an empty charlist.
+
+Consequences:
+
+- The spawned process inherits every variable the BEAM holds. A short `Env` list adds to that
+  set; it does not narrow it.
+- There is no replace-all option. A variable is withheld only by naming it with `false`.
+- `os:env_var_name()` is `nonempty_string()` — a charlist. **Binaries raise `ArgumentError`**
+  ("invalid option in list"). The asymmetry is in the typespec itself: `{cd, Dir}`,
+  `{args, ArgList}`, and `{arg0, ArgString}` all declare `string() | binary()`, while `env`
+  declares neither `Name` nor `Val` as `binary()`. Convert with `String.to_charlist/1`.
+  Note that from Elixir the unset value is `false` or an empty **charlist** (`~c""` / `[]`) —
+  the Elixir literal `""` is a binary and raises like any other binary.
+- `System.cmd/3` is the exception, because it converts for you: its `:env` accepts binaries and
+  uses `nil` as the unset marker, mapping `{k, nil} -> {charlist(k), false}` before the port
+  sees it. Passing `false` to `System.cmd/3` raises. At the raw `Port.open/2` boundary, `false`
+  is the unset value and charlists are mandatory.
+
+#### Withholding specific variables
+
+When you know which variables must not reach the child, name them:
+
+```elixir
+Port.open({:spawn_executable, executable}, [
+  :binary,
+  env: [
+    {~c"DATABASE_URL", false},
+    {~c"AWS_SECRET_ACCESS_KEY", false},
+    {~c"MY_VAR", ~c"value"}
+  ]
+])
+```
+
+#### Minimal allowlist helper
+
+When the child should see only a known-good set, deny everything else explicitly. There is no
+API that does this for you — the deny list has to be built from the names currently set:
+
+```elixir
+@allowed ~w(PATH HOME LANG LC_ALL TZ)
+
+defp allowlisted_env(extra) do
+  denied =
+    System.get_env()
+    |> Map.keys()
+    |> Enum.reject(&(&1 in @allowed))
+    |> Enum.map(&{String.to_charlist(&1), false})
+
+  denied ++ extra
+end
+
+Port.open({:spawn_executable, executable}, [
+  :binary,
+  env: allowlisted_env([{~c"MY_VAR", ~c"value"}])
+])
+```
+
+`denied ++ extra` relies on a later entry winning when a name appears twice — observed on OTP
+28.4.2, but not documented. If a name in `extra` might also be in the deny list, reject it from
+`denied` explicitly rather than depending on order.
+
+Limitation, and it is not incidental: this covers only the variables `System.get_env/0` returns
+at the moment it is called. Anything set afterwards, or set in the child's own startup files, is
+not denied. Treat it as a reduction of exposure, not a guarantee of isolation — if the child
+must not see a secret at all, the stronger control is not putting that secret in the BEAM's
+environment in the first place.
 
 ### Busy Limits (Backpressure)
 

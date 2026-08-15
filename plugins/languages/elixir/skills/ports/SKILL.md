@@ -65,12 +65,12 @@ Port.close(port)
 | `:use_stdio` | Use stdin/stdout for communication (default) |
 | `:stderr_to_stdout` | Merge stderr into stdout stream |
 | `{:cd, dir}` | Set working directory for the external process |
-| `{:env, env_list}` | Set environment variables (REPLACES the entire environment) |
+| `{:env, env_list}` | EXTENDS the spawned process's environment (does NOT replace it) |
 | `{:args, arg_list}` | Argument list when using `:spawn_executable` |
 | `{:arg0, string}` | Override argv[0] for the external process |
 | `:parallelism` | Hint to scheduler for improved throughput |
 
-**Note on `{:env, env_list}`**: This option completely replaces the OS environment, it does not merge with the current environment. To extend the current environment, merge explicitly before passing it.
+**Note on `{:env, env_list}`**: This option extends the environment the BEAM already holds — the spawned process inherits every existing variable, and `env_list` adds to or overrides individual entries. There is no replace-all option. To withhold an inherited variable, pair its name with `false` (an empty charlist — `~c""` or `[]` — also unsets; Elixir's `""` is a binary and raises). See the Security section.
 
 ## Communication Patterns
 
@@ -333,20 +333,17 @@ executable = System.find_executable("my_tool") ||
 
 Store the validated path in process state so it is resolved once at startup.
 
-### Environment Variable Replacement
+### Environment Variable Inheritance
 
-`{:env, env_list}` completely replaces the OS environment. To avoid accidentally stripping PATH or other required variables:
+`{:env, env_list}` **extends** the spawned process's environment — it does not replace it. OTP documents this directly: "The environment of the started process is extended using the environment specifications in `Env`." The child therefore inherits every variable the BEAM holds, including any secrets in it, whether or not they appear in `env_list`.
 
-```elixir
-# Merge with current environment
-base_env = System.get_env() |> Map.to_list()
-Port.open({:spawn_executable, executable}, [
-  :binary,
-  env: base_env ++ [{"MY_VAR", "value"}]
-])
-```
+The security consequence is the part that is easy to get backwards: passing a short `env_list` does **not** sandbox the child. There is no replace-all option, so a variable is only withheld if you name it and pair it with `false`. The OTP 27 and 28 docs also treat an empty Erlang string as unset, "just as if `os:unsetenv/1` had been called" — so an empty value cannot be passed through to a child at all. From Elixir that means `~c""` or `[]`; the Elixir literal `""` is a binary and raises `ArgumentError`.
 
-Note: `{:env, env_list}` expects a list of `{charlist, charlist}` or `{binary, binary}` tuples. Use `String.to_charlist/1` if mixing types.
+Do not build a "clean" environment by enumerating `System.get_env/0` and passing it back in — the child already has those variables, so it withholds nothing, and it copies every secret value into a BEAM term where it can surface in crash dumps, `:sys.get_state/1`, exception messages, and any stray `IO.inspect/1`.
+
+See `references/erlang-ports.md` for a deny example and a minimal allowlist helper.
+
+Note: `Name` and `Val` must be Erlang strings (charlists). Binaries raise `ArgumentError` — unlike `:cd`, `:args`, and `:arg0`, whose typespecs explicitly allow `binary()`, the `:env` typespec does not. Convert with `String.to_charlist/1`. `System.cmd/3` differs: it accepts binaries and takes `nil` (not `false`) as its unset marker, converting both before reaching the port.
 
 ### Windows Batch File Injection
 
@@ -412,7 +409,7 @@ Use `assert_receive` with a timeout rather than bare `receive` in tests to avoid
 
 **Charlists vs binaries**: Without `:binary`, data arrives as charlists (lists of integers). Always use `:binary` unless working with legacy code that expects charlists.
 
-**Environment replacement**: `{:env, list}` replaces the entire environment. See the Security section for how to merge with the current environment.
+**Assuming `{:env, list}` sandboxes the child**: it extends the environment rather than replacing it, so the spawned process inherits everything the BEAM holds no matter how short the list is. Withholding a variable requires naming it explicitly with `false`. See the Security section.
 
 **Blocking the GenServer**: A GenServer that sends a command and awaits a reply synchronously in `handle_call` will block the entire GenServer during the wait. The pattern above avoids this by storing the `from` and replying in `handle_info`.
 
