@@ -337,13 +337,13 @@ Store the validated path in process state so it is resolved once at startup.
 
 `{:env, env_list}` **extends** the spawned process's environment — it does not replace it. OTP documents this directly: "The environment of the started process is extended using the environment specifications in `Env`." The child therefore inherits every variable the BEAM holds, including any secrets in it, whether or not they appear in `env_list`.
 
-The security consequence is the part that is easy to get backwards: passing a short `env_list` does **not** sandbox the child. There is no replace-all option, so a variable is only withheld if you name it and pair it with `false` (`""` and `[]` unset it too, as if `os:unsetenv/1` had been called).
+The security consequence is the part that is easy to get backwards: passing a short `env_list` does **not** sandbox the child. There is no replace-all option, so a variable is only withheld if you name it and pair it with `false`. The OTP 27 and 28 docs also treat the empty string (`""`, equivalently `[]`) as unset, "just as if `os:unsetenv/1` had been called" — so an empty value cannot be passed through to a child at all.
 
-Do not build a "clean" environment by enumerating `System.get_env/0` and passing it back in — the child already has those variables, so it withholds nothing, and it copies every secret into a BEAM term where it can surface in crash dumps, `Port.info/1`, `:sys.get_state/1`, and exception messages.
+Do not build a "clean" environment by enumerating `System.get_env/0` and passing it back in — the child already has those variables, so it withholds nothing, and it copies every secret value into a BEAM term where it can surface in crash dumps, `:sys.get_state/1`, exception messages, and any stray `IO.inspect/1`.
 
 See `references/erlang-ports.md` for a deny example and a minimal allowlist helper.
 
-Note: `Name` and `Val` are documented as Erlang strings (charlists); binaries are accepted in practice. `Val` may also be `false`, `""`, or `[]` to unset. Use `String.to_charlist/1` if mixing types.
+Note: `Name` and `Val` must be Erlang strings (charlists). Binaries raise `ArgumentError` — unlike `:cd`, `:args`, and `:arg0`, whose typespecs explicitly allow `binary()`, the `:env` typespec does not. Convert with `String.to_charlist/1`. `System.cmd/3` differs: it accepts binaries and takes `nil` (not `false`) as its unset marker, converting both before reaching the port.
 
 ### Windows Batch File Injection
 

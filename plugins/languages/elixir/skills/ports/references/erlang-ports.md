@@ -69,7 +69,7 @@ The Erlang BIF `open_port/2` is what `Port.open/2` calls. The complete set of `P
 > If `Val` is set to the atom `false` or the empty string (that is `""` or `[]`), open_port
 > will consider those variables unset just as if `os:unsetenv/1` had been called.
 
-The typespec carries the same three unset forms:
+The typespec carries the same unset forms (`""` and `[]` are the same Erlang term):
 
 ```erlang
 {env, Env :: [{Name :: os:env_var_name(), Val :: os:env_var_value() | [] | false}]}
@@ -80,7 +80,14 @@ Consequences:
 - The spawned process inherits every variable the BEAM holds. A short `Env` list adds to that
   set; it does not narrow it.
 - There is no replace-all option. A variable is withheld only by naming it with `false`.
-- `os:env_var_name()` is `nonempty_string()` — a charlist. Binaries are accepted in practice.
+- `os:env_var_name()` is `nonempty_string()` — a charlist. **Binaries raise `ArgumentError`**
+  ("invalid option in list"). The asymmetry is deliberate: `{cd, Dir}`, `{args, ArgList}`, and
+  `{arg0, ArgString}` all declare `string() | binary()` in the same typespec, while `env`
+  declares neither `Name` nor `Val` as `binary()`. Convert with `String.to_charlist/1`.
+- `System.cmd/3` is the exception, because it converts for you: its `:env` accepts binaries and
+  uses `nil` as the unset marker, mapping `{k, nil} -> {charlist(k), false}` before the port
+  sees it. Passing `false` to `System.cmd/3` raises. At the raw `Port.open/2` boundary, `false`
+  is the unset value and charlists are mandatory.
 
 #### Withholding specific variables
 
