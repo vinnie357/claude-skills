@@ -10,7 +10,7 @@ Memory entries in Claude Code (user memory, feedback memories, project notes, an
 
 ### Example 1: Test Assertion Validation
 
-**Bad:** "claude-skills-287 failed because the mock returned nil and the test didn't distinguish it from a real call—double-check mocks in future feedback-skill work."
+**Bad:** "VIN-201 failed because the mock returned nil and the test didn't distinguish it from a real call—double-check mocks in future feedback-skill work."
 
 - Why it's bad: Tied to one closed issue; only makes sense to someone who worked that specific ticket.
 - Next session: "feedback-skill work?" Could refer to any number of issues. Useless.
@@ -36,7 +36,7 @@ Memory entries in Claude Code (user memory, feedback memories, project notes, an
 
 ### Example 3: Dependency Version Constraints
 
-**Bad:** "claude-skills-156 broke because Nushell 0.97.0 changed the parse-date syntax. Upgrade our Nushell carefully next time."
+**Bad:** "VIN-202 broke because Nushell 0.97.0 changed the parse-date syntax. Upgrade our Nushell carefully next time."
 
 - Why it's bad: Describes one version bump; won't apply to future changes (Nushell version, different tool).
 - Single-issue context: Only matters if you're upgrading Nushell, and only if you remember this note.
@@ -49,7 +49,7 @@ Memory entries in Claude Code (user memory, feedback memories, project notes, an
 
 ### Example 4: Merge Gotchas
 
-**Bad:** "claude-skills-212 PR #185 took 4 hours to merge because GitHub's API cache was stale. Remember to double-check the PR status page on the web UI before merging."
+**Bad:** "VIN-203 PR #XYZ took 4 hours to merge because GitHub's API cache was stale. Remember to double-check the PR status page on the web UI before merging."
 
 - Why it's bad: GitHub API caching is an infrastructure detail, not a reproducible pattern.
 - Doesn't generalize: Workaround for one flaky API call in one point-in-time.
@@ -78,8 +78,8 @@ Record memory when you discover:
 
 The most common memory-writing mistake is anchoring to an issue ID or epic number:
 
-- ❌ "When using claude-skills-289, remember to..."
-- ❌ "In VIN-XXX, the problem was..."
+- ❌ "When using VIN-204, remember to..."
+- ❌ "In VIN-205, the problem was..."
 - ❌ "After working feature/auth-redesign, always check..."
 
 Replace these with generalizable context:
