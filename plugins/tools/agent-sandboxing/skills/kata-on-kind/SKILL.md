@@ -8,12 +8,6 @@ license: MIT
 
 `kind` runs Kubernetes nodes as Docker containers. `kata-deploy` is a DaemonSet that installs the Kata Containers runtime + VM artifacts onto every node it lands on and reconfigures containerd to register the `kata-qemu`, `kata-clh`, and `kata-fc` RuntimeClasses. Combining the two on a Linux host gives microVM-isolated pods for local development.
 
-## When to use
-
-- Setting up a local microVM dev loop for `kubernetes-sigs/agent-sandbox` workloads.
-- Verifying that `/dev/kvm` is exposed and nested virtualization works.
-- Reproducing a GKE Standard + Kata production setup on a laptop before pushing to GKE.
-
 ## Host prerequisites — Linux only
 
 Kata-on-kind requires the host to expose `/dev/kvm` to the kind node container. macOS hosts (Apple Silicon or Intel) cannot do this — Hypervisor.framework does not expose nested KVM to a guest Linux VM. For macOS, use `kina-microvm` (Apple Container nodes) instead.

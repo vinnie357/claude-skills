@@ -8,14 +8,6 @@ license: MIT
 
 Hooks are shell commands or prompts that Claude Code executes in response to events. They are the only mechanism that can compel behavior — Claude reads memory and skills as guidance, but the harness runs hooks, not Claude.
 
-## When to Use
-
-- Inject binding context at session start (SessionStart)
-- Validate or block tool calls before execution (PreToolUse)
-- Format, lint, or log after tool calls (PostToolUse)
-- Enforce completion standards before the agent stops (Stop / SubagentStop)
-- Augment user prompts with project context (UserPromptSubmit)
-
 ## Hook Configuration Locations
 
 | Scope | Path | Use case |

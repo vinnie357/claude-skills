@@ -15,16 +15,6 @@ hooks:
 
 This skill activates when performing secret detection, credential scanning, or implementing security checks for leaked sensitive data in code repositories.
 
-## When to Use This Skill
-
-Activate when:
-- Scanning repositories for leaked secrets, API keys, or credentials
-- Setting up pre-commit hooks for secret detection
-- Auditing codebases for exposed passwords or tokens
-- Implementing CI/CD security pipelines
-- Checking git history for accidentally committed secrets
-- Validating that .gitignore excludes sensitive files
-
 ## Pre-Commit Hook (Automatic)
 
 When this skill is loaded, a pre-commit hook automatically scans staged files for secrets before every `git commit` command, providing defense-in-depth by catching secrets before they enter git history. Only staged files are scanned (not the entire working tree); `.gitleaks-baseline.json` and `.gitleaks.toml`, when present, are honored for known false positives and custom rules.
@@ -79,16 +69,6 @@ If you need to know something about your OWN process's environment, use `test -n
 - Treat `-e`/`-E`-shaped flags on any unfamiliar tool as suspect until you've checked what they do; the macOS/Linux split above (`-E` vs bare `e` vs `-e`-means-"all") is exactly the kind of one-letter, cross-platform inconsistency that causes an agent to reach for the wrong flag under the impression it is the safe one.
 
 **Recovery.** If an environment dump reaches the transcript despite the above, self-report the exposure immediately and ask the operator to rotate every credential that appeared — do not wait to be asked, and do not attempt to redact it after the fact (the value is already in context/logs).
-
-## When to Use security-review Instead
-
-Use the `security-review` skill for:
-- STRIDE threat modeling
-- Security architecture reviews
-- Vulnerability assessments
-- Security documentation and reports
-- Risk prioritization
-- Attack surface analysis
 
 | Task | Use `security` | Use `security-review` |
 |------|---------------|----------------------|

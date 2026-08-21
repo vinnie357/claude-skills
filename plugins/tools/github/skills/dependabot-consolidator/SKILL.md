@@ -8,13 +8,6 @@ license: MIT
 
 Codifies the recipe proven on kina PR #36: collect open Dependabot PRs, consolidate into one tested branch and PR, verify with baseline-diff gates, and close out on operator approval. Single-repo, operator-supervised scope.
 
-## When to Use This Skill
-
-- A repo accumulates multiple open Dependabot PRs and you want to batch them
-- You want a single reviewable dependency-update PR instead of N separate reviews
-- You need to verify dependency bumps without confusing pre-existing CI failures with regressions
-- You are preparing a consolidated PR for operator review and approval before merging
-
 ## Scope: Dependabot only
 
 List open Dependabot PRs with:

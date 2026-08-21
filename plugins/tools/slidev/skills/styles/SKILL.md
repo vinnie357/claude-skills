@@ -7,16 +7,6 @@ description: Guide for brand discovery, theme generation, and style validation f
 
 Brand discovery, theme generation, and style validation for Slidev presentations.
 
-## When to Use This Skill
-
-Activate when:
-- Extracting brand tokens (colors, fonts, spacing) from a website using Playwright MCP
-- Creating a Slidev theme from brand guidelines or a style guide URL
-- Validating slides for brand compliance or WCAG contrast requirements
-- Configuring UnoCSS theme shortcuts and CSS variables for a presentation
-- Applying a logo, custom font, or color palette to existing slides
-- Working from a manual brand brief when no website is available
-
 ## Brand Discovery Pipeline Overview
 
 The full brand discovery workflow has four stages:

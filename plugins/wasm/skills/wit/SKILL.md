@@ -10,17 +10,6 @@ WIT is the Interface Definition Language (IDL) for the WebAssembly Component Mod
 
 See also: [wasmtime skill](../wasmtime/SKILL.md) for runtime embedding and compilation details.
 
-## When to Use This Skill
-
-Activate when:
-- Writing `.wit` files to define component interfaces
-- Designing worlds for WebAssembly components
-- Understanding the Component Model type system
-- Using `cargo-component`, `wit-bindgen`, or `wasm-tools`
-- Mapping WIT types to host language types (Rust, Go, Python, JavaScript)
-- Structuring packages and namespaces for wasm components
-- Composing components via shared interfaces
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. The claim area is the WIT type system and

@@ -8,16 +8,6 @@ license: MIT
 
 Vitest and Jest for unit/integration tests, Playwright for end-to-end, type-level testing, coverage, and CI wiring.
 
-## When to Use This Skill
-
-Activate when:
-- Choosing or configuring a unit test runner (Vitest or Jest) for a TypeScript project
-- Mocking modules, timers, or globals in a test
-- Asserting that a type is exactly what's expected, at compile time rather than runtime
-- Writing or running Playwright end-to-end browser tests
-- Setting coverage thresholds or wiring `test`/`coverage` into `mise run ci`
-- Debugging a flaky or slow TypeScript test suite
-
 ## Choosing Vitest vs Jest
 
 Both are viable; the deciding factor is the rest of the toolchain, not raw feature count.

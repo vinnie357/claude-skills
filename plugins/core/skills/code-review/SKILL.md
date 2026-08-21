@@ -7,16 +7,6 @@ description: Guide for conducting code reviews. Use when reviewing pull requests
 
 This skill activates when reviewing code for quality, correctness, security, and maintainability.
 
-## When to Use This Skill
-
-Activate when:
-- Reviewing pull requests
-- Conducting code audits
-- Providing feedback on code quality
-- Identifying security vulnerabilities
-- Suggesting refactoring improvements
-- Checking adherence to coding standards
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`, but has little to verify against an external

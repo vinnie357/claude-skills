@@ -8,12 +8,6 @@ license: MIT
 
 GKE ships a managed "Agent Sandbox" add-on, but it pins `runtimeClassName: gvisor`. There is no managed Kata path. For microVM isolation on GKE, follow the upstream `examples/kata-gke-sandbox/` recipe: a standard (non-Autopilot) GKE cluster, an Ubuntu N2 node pool with nested virtualization, and a `setup.sh` that installs Kata onto those nodes.
 
-## When to use
-
-- Running agent workloads on GKE with hardware-level isolation, not userspace-kernel (gVisor) isolation.
-- Reproducing a `kata-on-kind` dev setup in a real GKE cluster.
-- Pairing GKE with `kubernetes-sigs/agent-sandbox` upstream (not the managed addon) so SandboxTemplates can pin `runtimeClassName: kata-qemu`.
-
 ## Prerequisites
 
 - GCP project with billing enabled.

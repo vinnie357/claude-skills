@@ -11,13 +11,6 @@ Reviews open, human-authored pull requests with the care of the Forge operating 
 runs per PR, each branch is built and tested locally under baseline-diff discipline, and the
 operator owns every merge. Repo-agnostic — stack and gates are discovered, never hardcoded.
 
-## When to Use This Skill
-
-- A repo accumulates open contributor or collaborator PRs that need review before merge
-- External PRs need a local build/test pass (the project's CI does not run the full suite)
-- You triage the open PR queue and want one reviewable verdict per PR
-- You verify a PR without confusing pre-existing failures with regressions it introduced
-
 ## Scope: human-authored PRs only
 
 List open PRs and exclude bots:

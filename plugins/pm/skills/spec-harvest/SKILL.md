@@ -8,15 +8,6 @@ description: "Extracts implementation-agnostic feature specs from working protot
 
 Extracts a customer-value feature inventory, an SDLC risk assessment, and per-feature PRDs from a working prototype — without carrying the prototype's implementation choices into the spec. `/pm:harvest` runs all four phases end-to-end via an agent team; `/pm:assess` runs phase 3 alone against an existing inventory.
 
-## When to Use
-
-Activate when:
-- Handing a prototype to an engineering team that will rebuild it for production.
-- Reverse-engineering prototype code into user stories and acceptance criteria.
-- Assessing licensing, security, or supportability risk before a production build.
-- Reading bees epics alongside prototype code to produce a coding spec.
-- Separating customer-value behavior from prototype shortcuts before scoping work.
-
 ## Four Phases
 
 1. **Discovery** — pure inventory, no judgment. Record what is observed: routes/pages, data models, external integrations, dependencies, technology stack and framework choices. Every entry carries a confidence tag (see Anti-Fabrication below).

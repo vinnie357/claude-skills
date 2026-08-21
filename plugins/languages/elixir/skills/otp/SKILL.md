@@ -7,16 +7,6 @@ description: Guide for OTP and Elixir concurrency. Use when implementing GenServ
 
 This skill activates when working with OTP behaviors, building concurrent systems, managing processes, or implementing fault-tolerant architectures in Elixir.
 
-## When to Use This Skill
-
-Activate when:
-- Implementing GenServer, GenStage, Supervisor, or other OTP behaviors
-- Designing supervision trees and fault-tolerance strategies
-- Working with Tasks, Agents, or process management
-- Building concurrent or distributed systems
-- Managing application state
-- Troubleshooting process-related issues
-
 ## OTP Behaviors
 
 Full catalogs for GenServer, Supervisor, Task, and Agent — client/server structure, dynamic supervision, restart configuration — live in `references/behaviors.md`. Two decisions from that catalog are worth keeping here:

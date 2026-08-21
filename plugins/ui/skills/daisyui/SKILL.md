@@ -7,16 +7,6 @@ description: Guide for daisyUI component library with Tailwind CSS. Use when bui
 
 Use this skill when building user interfaces with daisyUI and Tailwind CSS, implementing UI components, or configuring themes.
 
-## When to Use This Skill
-
-Activate when:
-- Building UI components with daisyUI
-- Choosing appropriate daisyUI components for design needs
-- Implementing responsive layouts with daisyUI
-- Configuring or customizing themes
-- Converting designs to daisyUI components
-- Troubleshooting daisyUI component styling
-
 ## What is daisyUI?
 
 daisyUI is a Tailwind CSS component library providing:

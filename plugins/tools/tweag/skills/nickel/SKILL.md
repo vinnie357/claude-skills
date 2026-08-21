@@ -8,17 +8,6 @@ license: MIT
 
 Nickel is a configuration language designed to automate generation of static configuration files (JSON, YAML, TOML, XML). It combines gradual typing with runtime contracts to provide both static checking for complex logic and flexible validation for configuration data.
 
-## When to Use This Skill
-
-Activate this skill when:
-- Defining typed configuration schemas with validation contracts
-- Validating YAML/JSON/TOML files against Nickel contract definitions
-- Merging multiple configuration files using Nickel's merge semantics
-- Converting between configuration formats (JSON ↔ YAML ↔ TOML)
-- Generating type-safe configurations from a single Nickel source
-- Creating reusable configuration templates with metadata
-- Building configuration pipelines with validation and transformation
-
 ## Key Concepts
 
 ### Gradual Typing

@@ -7,16 +7,6 @@ description: Guide for using mise to manage development tools and runtime versio
 
 This skill activates when working with mise for managing tool versions, environment variables, and project tasks.
 
-## When to Use This Skill
-
-Activate when:
-- Setting up development environments
-- Managing tool and runtime versions (Node.js, Python, Ruby, Go, etc.)
-- Configuring environment variables and secrets
-- Defining and running project tasks
-- Creating reproducible development setups
-- Working with monorepos or multiple projects
-
 ## What is mise?
 
 Current stable: v2026.3.15

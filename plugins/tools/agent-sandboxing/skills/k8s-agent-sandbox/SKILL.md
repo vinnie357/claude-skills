@@ -8,15 +8,6 @@ license: MIT
 
 The upstream open-source project `kubernetes-sigs/agent-sandbox` ships four CRDs that model "give me a per-session, isolated pod for an AI agent and reap it when the session ends." This skill covers the controller, the CRD model, and the lifecycle. Pair with `kata-on-kind` / `kata-on-gke` / `kina-microvm` for the RuntimeClass install and with `claude-code-on-sandbox` for the workload-side packaging.
 
-## When to use
-
-- Standing up the agent-sandbox controller on a new cluster.
-- Authoring a `SandboxTemplate` for an agent workload.
-- Provisioning per-session sandboxes via `SandboxClaim` from a shell, CI job, or the Python SDK.
-- Configuring `SandboxWarmPool` to get sub-second cold-starts.
-- Locking down agent egress with `networkPolicyManagement: Managed`.
-- Deciding between managed GKE Agent Sandbox (gVisor only) and self-installed upstream (Kata + gVisor + anything else).
-
 ## What it is
 
 `kubernetes-sigs/agent-sandbox` is Apache-2.0 (verified at https://github.com/kubernetes-sigs/agent-sandbox). Latest release v0.4.6 (2026-05-14). API group `agents.x-k8s.io` (core `Sandbox`) and `extensions.agents.x-k8s.io` (templates, claims, warm pools). The upstream README example uses `v1alpha1`; `docs/api.md` documents `v1beta1`. Verify the installed CRD version before authoring manifests:

@@ -15,15 +15,6 @@ Invoke `/core:anti-fabrication` always — every claim about a tool, file, or te
 
 Glob patterns like `/core:*` do not expand in Agent prompts. List skill names explicitly.
 
-## When to Use This Skill
-
-Activate this skill when:
-- Creating custom agent types for specific workflows
-- Defining agent behaviors and tool permissions
-- Configuring agent capabilities
-- Understanding agent vs skill differences
-- Implementing domain-specific agents
-
 ## What Are Agents?
 
 Agents are specialized Claude instances with:

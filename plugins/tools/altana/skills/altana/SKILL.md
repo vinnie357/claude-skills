@@ -8,16 +8,6 @@ license: MIT
 
 Procedural knowledge for working with the altana CLI — a tool that delegates prompts to named AI harness presets, collects structured JSON results, and fans out tasks across multiple harnesses for diverse-perspective synthesis.
 
-## When to Use
-
-Activate when:
-- Running `/altana:delegate`, `/altana:council`, or `/altana:harness` commands.
-- Debugging non-`done` status values or unexpected JSON output.
-- Configuring `altana.toml` harness presets or prompt templates.
-- Choosing between foreground vs background invocation for long tasks.
-- Synthesizing council results across multiple harness responses.
-- Using the model picker or `altana models` to enumerate available models.
-
 ## Config Discovery
 
 altana resolves its config in this order:

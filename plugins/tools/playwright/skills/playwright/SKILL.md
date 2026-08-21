@@ -8,17 +8,6 @@ license: MIT
 
 The Playwright MCP server gives Claude Code agents direct browser control through 50+ tools that operate on the accessibility tree rather than screenshots. This enables fast, structured web interaction — navigating pages, clicking elements, filling forms, extracting content, and taking screenshots — without requiring vision models.
 
-## When to Use
-
-Activate when:
-- Installing or configuring the Playwright MCP server for Claude Code
-- Browsing websites that reject non-browser HTTP clients (curl/wget blocked)
-- Taking screenshots of web applications or local dev servers
-- Automating browser interactions (clicking, typing, form submission)
-- Running local web UI tests through browser automation
-- Inspecting or extracting content from rendered web pages
-- Managing browser tabs, dialogs, or file uploads in automation workflows
-
 ## Installation
 
 ### Claude Code (recommended)

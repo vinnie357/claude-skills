@@ -10,17 +10,6 @@ A `.mm` script is the instrumentation program whamm! injects into a WebAssembly 
 
 For installing whamm! and running instrumented modules, load the companion **whamm** skill in this plugin.
 
-## When to Use This Skill
-
-Activate when:
-- Writing `.mm` monitor scripts to instrument WebAssembly binaries
-- Reading or debugging existing `.mm` files
-- Choosing the right match rule, mode, or predicate for a probe
-- Selecting between `var`, `unshared var`, `report var`, and `frame var`
-- Understanding which bound variables are available at a given probe site
-- Using libraries (`use whamm_core;`) or the `@static`/`@init` call modifiers
-- Looking up type syntax (tuples, maps, strings, type bounds)
-
 ## Script structure
 
 A `.mm` file contains, in order:

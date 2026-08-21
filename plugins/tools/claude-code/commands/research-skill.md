@@ -38,14 +38,13 @@ Research a topic and create a properly structured Agent Skill following the Agen
 ```markdown
 ---
 name: skill-name
-description: When Claude should use this skill (concise, activation-focused)
+description: What the skill does and when to use it — this is the ONLY text
+  Claude sees during discovery, so every activation trigger belongs here, not
+  in a body section.
 license: MIT
 ---
 
 # Skill Name
-
-## When to Use This Skill
-[Activation criteria]
 
 ## Core Concepts
 [Essential knowledge]

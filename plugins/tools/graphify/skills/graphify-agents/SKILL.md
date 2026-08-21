@@ -12,15 +12,6 @@ The project's published benchmark reports "**71.5x** fewer tokens per query vs r
 
 For installing graphify and the full CLI surface, load the `graphify` skill.
 
-## When to Use This Skill
-
-Activate when:
-- Giving a research or Explore subagent codebase context without reading every file
-- Adding a graph-build + graph-query step to a `/core:agent-loop` Phase 1 pre-flight
-- Doing impact analysis ("what breaks if I change X") before decomposing an epic
-- Exposing the graph to an agent through the graphify MCP server
-- Deciding between a graph query and grep+read for a given question
-
 ## The Core Pattern: Query, Don't Read
 
 | Question shape | Without graphify | With graphify |

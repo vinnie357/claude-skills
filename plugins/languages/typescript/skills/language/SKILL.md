@@ -8,17 +8,6 @@ license: MIT
 
 Core TypeScript: strict mode, the type system, utility types, declaration files, and discriminated unions.
 
-## When to Use This Skill
-
-Activate when:
-- Configuring `tsconfig.json`, especially `strict` and its component flags
-- Designing generic functions, classes, or constraints
-- Writing conditional types, mapped types, or template literal types
-- Choosing between the built-in utility types (`Partial`, `Pick`, `Omit`, `Record`, ...)
-- Writing or consuming `.d.ts` declaration files
-- Modeling variant data with discriminated unions and exhaustiveness checks
-- Deciding between `interface` and `type`, or between `enum` and a union of literals
-
 ## Strict Mode
 
 `strict: true` in `tsconfig.json` is the floor for new TypeScript code in this workspace, not an opt-in extra. It is a single flag that enables a family of component flags — turn it on first, then reach for a component flag only when you need something `strict` doesn't cover.

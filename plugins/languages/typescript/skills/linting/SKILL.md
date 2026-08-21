@@ -8,15 +8,6 @@ license: MIT
 
 ESLint + typescript-eslint for type-aware linting, Biome as a fast all-in-one alternative, Prettier for formatting, and CI wiring.
 
-## When to Use This Skill
-
-Activate when:
-- Setting up `eslint.config.js` (flat config) for a TypeScript project
-- Choosing between typescript-eslint's `recommended`, `strict`, and `stylistic` presets
-- Deciding between the ESLint+Prettier stack and Biome
-- Configuring pre-commit hooks (`husky` + `lint-staged`) for lint/format
-- Adding lint and format checks to `mise run ci` or a CI workflow
-
 ## ESLint with typescript-eslint
 
 ### Setup

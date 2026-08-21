@@ -7,15 +7,6 @@ description: Guide for Zig core language features. Use when writing Zig code wit
 
 Core language features, data types, and idioms for writing Zig code.
 
-## When to Use This Skill
-
-Activate when:
-- Writing Zig code with structs, enums, unions, optionals
-- Using comptime for compile-time execution and generics
-- Handling errors with error unions, try, catch, errdefer
-- Working with slices, arrays, pointers, and strings
-- Using defer/errdefer for resource cleanup
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. Verified against zig 0.16.0 (locally

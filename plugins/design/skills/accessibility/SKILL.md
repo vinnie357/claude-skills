@@ -7,16 +7,6 @@ description: Guide for implementing web accessibility (WCAG). Use when designing
 
 Apply W3C Web Accessibility Initiative (WAI) principles when working on web interfaces to ensure usability for people with disabilities.
 
-## When to Activate
-
-Use this skill when:
-- Designing or implementing user interfaces
-- Reviewing code for accessibility compliance
-- Creating or editing web content (HTML, CSS, JavaScript)
-- Working with forms, navigation, multimedia, or interactive components
-- Conducting code reviews with accessibility considerations
-- Refactoring existing interfaces for better accessibility
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. The claim area is the WCAG version cited and

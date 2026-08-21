@@ -8,16 +8,6 @@ license: MIT
 
 Strict requirements for ensuring factual, measurable, and validated outputs in all work products including documentation, research, reports, and analysis.
 
-## When to Use This Skill
-
-Activate when:
-- Writing documentation or creating research materials
-- Making claims about system capabilities, performance, or features
-- Providing estimates for time, effort, or complexity
-- Reporting test results or analysis outcomes
-- Creating any content that presents factual information
-- Generating metrics, statistics, or performance data
-
 ## Core Principles
 
 ### Evidence-Based Outputs

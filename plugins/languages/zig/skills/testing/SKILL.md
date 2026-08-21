@@ -7,15 +7,6 @@ description: Guide for Zig built-in testing framework. Use when writing tests, u
 
 Built-in test framework, leak detection, and CI integration.
 
-## When to Use This Skill
-
-Activate when:
-- Writing unit tests in Zig
-- Using the test allocator for memory leak detection
-- Configuring test steps in build.zig
-- Filtering and running specific tests
-- Skipping platform-specific tests
-
 For assertion functions, test allocator patterns, and build integration, see `references/testing.md`.
 
 ## Anti-fabrication

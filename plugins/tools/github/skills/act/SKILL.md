@@ -7,17 +7,6 @@ description: Test GitHub Actions locally using act. Use when debugging workflows
 
 Activate when testing GitHub Actions workflows locally, debugging workflow issues, or developing actions without committing to remote repositories. This skill covers act installation, configuration, and usage patterns.
 
-## When to Use This Skill
-
-Activate when:
-- Testing workflow changes before committing
-- Debugging workflow failures locally
-- Developing new workflows iteratively
-- Validating workflow syntax and logic
-- Testing actions with different events
-- Running workflows without GitHub runners
-- Troubleshooting act-specific issues
-
 ## Installation
 
 Install via mise: `mise install act` (pinned in the github plugin's mise.toml), then verify with `act --version`. Homebrew, Linux script, source, and Chocolatey methods: see `references/setup-and-config.md`.

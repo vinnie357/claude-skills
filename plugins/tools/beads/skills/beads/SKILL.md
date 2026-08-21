@@ -8,16 +8,6 @@ license: MIT
 
 This skill activates when working with Beads (`bd`) for task management, dependency tracking, and AI agent workflows.
 
-## When to Use This Skill
-
-Activate when:
-- Managing tasks with dependencies in a git repository
-- Working with AI agents that need task queue access
-- Running multi-branch parallel development workflows
-- Needing collision-resistant task IDs across distributed teams
-- Tracking task hierarchies and dependency graphs
-- Integrating issue tracking directly into version control
-
 ## What is Beads?
 
 Beads is a distributed graph issue tracker designed for AI agents and modern development workflows. As of v1.1.x it is powered by [Dolt](https://github.com/dolthub/dolt) — a version-controlled SQL database — not plain JSONL+SQLite (confirmed against `gastownhall/beads` README, tag `v1.1.2`; the legacy SQLite backend has been removed):

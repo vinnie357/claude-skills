@@ -7,18 +7,6 @@ description: Write and optimize GitHub Actions workflows. Use when creating CI/C
 
 Activate when creating, modifying, debugging, or optimizing GitHub Actions workflow files. This skill covers workflow structure, best practices, and common CI/CD patterns; full YAML syntax detail lives in `references/`.
 
-## When to Use This Skill
-
-Activate when:
-- Writing .github/workflows/*.yml files
-- Configuring workflow triggers and events
-- Defining jobs, steps, and dependencies
-- Using expressions and contexts
-- Managing secrets and environment variables
-- Implementing CI/CD pipelines
-- Optimizing workflow performance
-- Debugging workflow failures
-
 ## Workflow File Structure
 
 File anatomy (`name:`, `on:`, `env:`, `jobs:`) and the `.github/workflows/` location requirement: see `references/workflow-syntax.md`.

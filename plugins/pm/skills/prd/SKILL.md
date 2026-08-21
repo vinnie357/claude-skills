@@ -8,14 +8,6 @@ license: MIT
 
 Author a Product Requirements Document that serves as the handoff contract between product intent and an implementing team — human or AI agent. The PRD states WHAT the feature does and WHY it exists; it never prescribes HOW to build it.
 
-## When to Use
-
-Activate when:
-- The `/pm:prd` command is invoked.
-- Turning one feature-area entry from a `/pm:spec-harvest` feature inventory into a standalone PRD.
-- Defining scope boundaries, acceptance criteria, or success metrics before an engineering handoff.
-- Reviewing an existing PRD for implementation leakage (tech names, schemas, API shapes) or missing non-goals.
-
 ## PRD as Contract
 
 A PRD is complete when the implementing team needs no follow-up questions to start work. Treat every unanswerable question as a defect in the document, not a gap the implementer fills in.

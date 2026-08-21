@@ -8,15 +8,6 @@ license: MIT
 
 Topiary is a universal code formatter that uses Tree-sitter grammars and queries to define formatting rules. Rather than implementing language-specific formatting logic, Topiary uses declarative Tree-sitter query files (.scm) to specify how code should be formatted.
 
-## When to Use This Skill
-
-Activate this skill when:
-- Formatting code in languages without dedicated formatters (JSON, TOML, Bash, Nickel, OCaml, OCamllex, CSS, OpenSCAD, SDML, WIT, or custom languages)
-- Writing or debugging Tree-sitter query files (.scm)
-- Configuring Topiary via languages.ncl for custom languages or indentation settings
-- Setting up Topiary as part of a development workflow or CI/CD pipeline
-- Learning Tree-sitter query syntax for code analysis
-
 ## Key Concepts
 
 ### Tree-Sitter Queries

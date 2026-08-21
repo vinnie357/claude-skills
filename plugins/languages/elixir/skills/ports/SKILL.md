@@ -8,16 +8,6 @@ license: MIT
 
 Ports are Elixir's mechanism for communicating with external OS programs via stdin/stdout. A Port is not a network port — it is a process-like entity that manages an external OS program, forwarding messages as bytes and delivering responses back to the owning Elixir process.
 
-## When to Use This Skill
-
-Activate when:
-- Spawning and communicating with external programs or scripts
-- Implementing binary protocols over stdin/stdout
-- Wrapping a port in a GenServer for lifecycle management
-- Deciding between Port, NIF, C Node, or `System.cmd`
-- Handling port crashes, exit status, or monitoring ports
-- Working with long-running external processes
-
 ## Port Fundamentals
 
 Open a port with `Port.open/2`. The most common name forms are `{:spawn, command}` and `{:spawn_executable, path}`.

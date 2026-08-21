@@ -8,17 +8,6 @@ license: MIT
 
 A discipline for growing software guided by tests, one small step at a time.
 
-## When to Activate
-
-Use this skill when:
-- Writing code test-first for a new feature or module
-- Starting a greenfield project and need a walking skeleton
-- Applying outside-in development from acceptance tests to unit tests
-- Sequencing tests to drive incremental design
-- Creating a test list to plan implementation
-- Reviewing whether tests are giving good design feedback
-- Deciding between Fake It, Obvious Implementation, or Triangulation
-
 ## The TDD Cycle
 
 ### Five Steps

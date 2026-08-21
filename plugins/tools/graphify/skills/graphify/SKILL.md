@@ -10,16 +10,6 @@ Graphify converts a folder of code, docs, PDFs, images, and videos into a querya
 
 PyPI package: **`graphifyy`** (double-y). CLI command: **`graphify`**. License: MIT. Requires Python >= 3.10.
 
-## When to Use This Skill
-
-Activate when:
-- Installing graphify in a project via mise
-- Building or refreshing a knowledge graph of a repository or document corpus
-- Exporting a graph to GraphML, SVG, Neo4j/Cypher, an Obsidian vault, or call-flow HTML
-- Querying a codebase with `query`, `path`, `explain`, or `affected`
-- Setting up `graphify hook install` to rebuild the graph on git commits
-- Wiring graphify into an AI assistant via `graphify install` / `graphify claude install`
-
 For using graphify to reduce agent token usage during research and decomposition, load `graphify-agents`.
 
 ## Installation
