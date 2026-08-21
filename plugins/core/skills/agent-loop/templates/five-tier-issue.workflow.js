@@ -30,6 +30,11 @@
 // plugins/core/skills/agent-loop/SKILL.md. The caller supplies them — no model
 // name is hardcoded in this script (12-factor rule: config comes from args).
 //
+// Agent naming: each agent() invocation implicitly uses the naming convention
+// task-<model>-<instance>, where <instance> is a per-session monotonic counter.
+// The Claude Code workflow runtime handles this automatically; no explicit naming
+// is required in this script. See /claude-code:claude-agents for details.
+//
 // Constraints (from /claude-code:claude-workflows): plain JavaScript only;
 // Date.now(), Math.random(), and argless new Date() throw — pass timestamps
 // and the escalation chain through args. The script has no filesystem or

@@ -119,6 +119,22 @@ skills:
 
 Skills not listed in `skills` remain invocable through the Skill tool during the run — `skills` only controls what loads automatically at startup. Never list `Skill` in `tools:` to enable this; `skills` is the dedicated field.
 
+## Agent Spawning Naming Convention
+
+When spawning agents via the Agent tool, embed the model tier and a per-session instance counter in the `name` parameter: `task-<model>-<instance>` (e.g., `task-sonnet-1`, `task-opus-2`, `task-haiku-1`). This naming convention allows operators to see which model each running agent activated with at a glance.
+
+Example spawning:
+
+```
+Agent({
+  name: 'task-sonnet-1',
+  description: 'Implement feature endpoint',
+  prompt: '...'
+})
+```
+
+Instance counters are PER-SESSION and MONOTONIC — each agent spawned in a session increments the counter independently (e.g., `task-haiku-1`, `task-sonnet-1`, `task-opus-1`, `task-sonnet-2`). This is a prompt-discipline convention, not an enforced mechanism — the counter is assigned at spawn time and never reset or persisted across sessions.
+
 ## Common Agent Patterns
 
 Four recurring shapes, each with a runnable template:

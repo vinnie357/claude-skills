@@ -49,3 +49,17 @@ proceeding to step 3.
 Canonical list: `/core:agent-loop` "Core Skills (Mandatory)"; drift-checked in CI.
 
 Compact. Names files and functions to reuse. Anchors the proof-of-loading checkpoint inside the execution order.
+
+## Agent naming convention
+
+When spawning the agent via the Agent tool, use the naming convention `task-<model>-<instance>`:
+
+```
+Agent({
+  name: 'task-sonnet-1',
+  description: 'Implement /api/workflows/import endpoint',
+  prompt: '(the prompt template above)'
+})
+```
+
+The instance counter is per-session and monotonic: each spawn in the same session increments the counter independently, so the second sonnet worker would be named `task-sonnet-2`, and a haiku worker later in the same session would be `task-haiku-1`. This naming allows operators to see which model each running agent activated with at a glance. See `/claude-code:claude-agents` for complete details on agent spawning and naming conventions.
