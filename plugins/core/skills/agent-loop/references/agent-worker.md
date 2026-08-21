@@ -34,6 +34,8 @@ Implementation owes the restraint ladder too — see `/core:restraint`'s agent-l
 
 ## Phase 4: Reporting
 
+Use the worker-report contract in `/claude-code:claude-output-styles`'s `assets/worker-report-format.md` for structured output.
+
 1. On completion: report to sub-lead with summary of what was done
 2. On failure: report what was attempted, what failed, error context
 3. On missing skill: report which skill is needed and why

@@ -73,6 +73,8 @@ Collect any divergences reported by `weed`. Treat each divergence as a validatio
 
 ## Phase 3: Report Failures
 
+Use the worker-report contract in `/claude-code:claude-output-styles`'s `assets/worker-report-format.md` for structured output.
+
 1. Collect ALL failures from the full suite run (CI failures and, if applicable, spec divergences)
 2. Report failures in structured format:
    - file, line, error type, error message
