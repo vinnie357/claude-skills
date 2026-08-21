@@ -27,7 +27,7 @@
       "file": "f04.rs",
       "verdict": "NO-FLAG",
       "category": "none",
-      "why": "States purpose, and the second line carries a load-bearing caveat (offsetless RFC 3339 timestamps silently misread as local time) that is not obvious from the signature alone.",
+      "why": "States purpose, and the caveat (release-build i64 addition wraps via two's complement on overflow instead of panicking, so an out-of-range `delta` silently corrupts `balance_cents`) is real and not recoverable from the `+` expression alone — it's a compiler/build-profile fact, per the Rust Book's Integer Overflow section, not something the code reveals.",
       "example_replacement": "n/a — already a good comment, no change"
     },
     {

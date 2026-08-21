@@ -1,6 +1,7 @@
-/// Parses `input` as an RFC 3339 timestamp, returned in UTC.
-/// `input` must carry an explicit offset; RFC 3339 allows omitting it, and
-/// reading an offsetless value as local time shifts ledger entries silently.
-pub fn parse_timestamp(input: &str) -> Result<DateTime<Utc>, ParseError> {
-    DateTime::parse_from_rfc3339(input).map(|dt| dt.with_timezone(&Utc))
+/// Applies `delta` to `balance_cents` and returns the resulting balance.
+/// In a release build, `i64` addition overflow wraps via two's complement
+/// instead of panicking — an out-of-range `delta` silently corrupts the
+/// balance rather than raising an error.
+pub fn apply_delta(balance_cents: i64, delta: i64) -> i64 {
+    balance_cents + delta
 }
