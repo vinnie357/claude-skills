@@ -153,7 +153,7 @@ nu scripts/gitleaks.nu --path ./src
 nu scripts/gitleaks.nu --self-test
 ```
 
-Same committed-history-only scan scope as manual `git` mode above — see the SKILL.md's References list for the full caveat and known bypass classes.
+Same committed-history-only scan scope as manual `git` mode above — see the "Scan scope: committed history only" section above for the full caveat and known bypass classes.
 
 #### Shell-function shadowing trap
 
@@ -161,7 +161,7 @@ A shell function named `gitleaks` defined in an interactive shell's rc file (zsh
 
 ### gitleaks.sh (Bash)
 
-Bash script with the same runtime-detection precedence, native-binary resolution, and committed-history-only scan scope as `gitleaks.nu` (same committed-history-only caveat as `git` mode above — see the SKILL.md's References list for the full write-up). Both scripts, and the Mise Tasks Template, anchor the bytes-verification invariant on gitleaks' own scan-summary line shape (`scanned ~<digits> bytes (<total>) in <duration>`) rather than picking a substring by position — a cross-implementation conformance test, `test/validate-gitleaks-invocation.nu`, feeds identical stderr fixtures to all three and requires identical verdicts. Ran it directly: all 6 conformance cases pass, agreeing across `gitleaks.nu`, `gitleaks.sh`, and the template. The one remaining gap: `gitleaks.sh` has no `--self-test` flag, so its own selection logic can only be exercised by actually running it, never in isolation. Prefer `gitleaks.nu` — this repo is nushell-first (`/core:nushell`), and only `gitleaks.nu`'s `--self-test` lets you check that logic without a gitleaks binary or container runtime present. Use `gitleaks.sh` on a host without nushell installed:
+Bash script with the same runtime-detection precedence, native-binary resolution, and committed-history-only scan scope as `gitleaks.nu` (same committed-history-only caveat as `git` mode above — see the "Scan scope: committed history only" section earlier in this file for the full write-up). Both scripts, and the Mise Tasks Template, anchor the bytes-verification invariant on gitleaks' own scan-summary line shape (`scanned ~<digits> bytes (<total>) in <duration>`) rather than picking a substring by position — a cross-implementation conformance test, `test/validate-gitleaks-invocation.nu`, feeds identical stderr fixtures to all three and requires identical verdicts. Ran it directly: all 6 conformance cases pass, agreeing across `gitleaks.nu`, `gitleaks.sh`, and the template. The one remaining gap: `gitleaks.sh` has no `--self-test` flag, so its own selection logic can only be exercised by actually running it, never in isolation. Prefer `gitleaks.nu` — this repo is nushell-first (`/core:nushell`), and only `gitleaks.nu`'s `--self-test` lets you check that logic without a gitleaks binary or container runtime present. Use `gitleaks.sh` on a host without nushell installed:
 
 ```bash
 # Run with auto-detected runtime
