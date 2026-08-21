@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the core plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits`, `github-rest-troubleshooting`, `github-oauth-scopes` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model` (Agent Loop Skill).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits`, `github-rest-troubleshooting`, `github-oauth-scopes`, `gitlab-cli-docs` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model` (Agent Loop Skill).
 
 ## Git Skill
 
@@ -28,6 +28,12 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Purpose**: Documents the `workflow` scope OAuth apps/PATs need to push GitHub Actions workflow files over HTTPS — the documented half of the SSH-bypasses-scope claim; the SSH-side exemption itself is not documented on this or any GitHub page found, and is described in the skill as empirically observed, not cited, for that reason
 - **Date Accessed**: 2026-08-01
 - **Key Topics**: OAuth app scopes, `workflow` scope, PAT scope requirements
+
+### GitLab CLI (glab) Documentation
+- **URL**: https://docs.gitlab.com/cli/
+- **Purpose**: Per-command reference for `glab` — source for the GitLab MR content added to the skill body's GitLab MR Commands table and to `references/gitlab-mr.md` (create, list, view, checkout, note, note create, merge, ci status, auth login)
+- **Date Accessed**: 2026-08-21
+- **Key Topics**: `glab mr create`/`list`/`view`/`checkout`/`note create`/`merge` flags, `glab ci status` branch-vs-PR scoping, `glab auth login`, `--auto-merge` default-true behavior
 
 ## Mise Skill
 
