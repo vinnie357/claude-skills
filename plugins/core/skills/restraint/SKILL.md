@@ -72,7 +72,7 @@ A report names a symptom. Before editing, grep every caller of the function you 
 
 ## Anti-prose
 
-If the explanation is longer than the code, delete the explanation. Every paragraph defending a simplification is complexity smuggled back in as prose. Boring over clever — clever is what someone decodes at 3am.
+If the explanation is longer than the code, delete the explanation. Every paragraph defending a simplification is complexity smuggled back in as prose. Boring over clever — clever is what someone decodes at 3am. See `/claude-code:claude-output-styles`'s `assets/worker-report-format.md` for a reusable contract that enforces terseness in agent output.
 
 ## In the agent loop
 
