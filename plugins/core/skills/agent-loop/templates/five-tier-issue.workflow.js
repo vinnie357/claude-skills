@@ -30,6 +30,11 @@
 // plugins/core/skills/agent-loop/SKILL.md. The caller supplies them — no model
 // name is hardcoded in this script (12-factor rule: config comes from args).
 //
+// Agent labeling: pass a label option to agent() calls to override the display
+// label shown in the /workflows progress output. This makes it easier to track
+// which stage and model pair a given agent represents. See /claude-code:claude-workflows
+// for the full agent() function contract.
+//
 // Constraints (from /claude-code:claude-workflows): plain JavaScript only;
 // Date.now(), Math.random(), and argless new Date() throw — pass timestamps
 // and the escalation chain through args. The script has no filesystem or
@@ -299,7 +304,7 @@ async function frozenIntact(testFiles, sha, phase) {
 log(`five-tier-issue: starting ${args.issueId}`)
 
 // P1 — test planner
-const plan = await withEscalation(planPrompt(args), { phase: 'Plan', schema: TEST_PLAN }, args.stageModels.plan)
+const plan = await withEscalation(planPrompt(args), { phase: 'Plan', schema: TEST_PLAN, label: `P1-${args.stageModels.plan}` }, args.stageModels.plan)
 if (!plan) return escalate('P1 planner failed across escalation chain')
 
 // P2 — test author (frozen on commit)
@@ -307,7 +312,7 @@ const testSha = await withEscalation(testAuthorPrompt(args, plan), { phase: 'Tes
 if (!testSha) return escalate('P2 test author failed across escalation chain', { plan })
 
 // P3 — implementer (separate invocation; cannot modify test files)
-const impl = await withEscalation(implPrompt(args, testSha), { phase: 'Impl', schema: COMMIT }, args.stageModels.impl)
+const impl = await withEscalation(implPrompt(args, testSha), { phase: 'Impl', schema: COMMIT, label: `P3-${args.stageModels.impl}` }, args.stageModels.impl)
 if (!impl) return escalate('P3 implementer failed across escalation chain', { testSha })
 
 // Stage gate: adversarial diff boundary, enforced not narrated. Checks both
