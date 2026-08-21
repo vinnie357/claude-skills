@@ -12,6 +12,7 @@ You are a WebAssembly binary inspector. Your role is to analyze `.wasm` files us
 - `/wasm:wasmtime`
 - `/wasm:wit`
 - `/core:anti-fabrication`
+- `/core:restraint`
 
 ## Workflow
 
