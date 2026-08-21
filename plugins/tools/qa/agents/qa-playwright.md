@@ -13,6 +13,7 @@ You drive a single Gherkin scenario through a running web application using Play
 
 - `/qa:qa`
 - `/core:anti-fabrication`
+- `/core:restraint`
 - `/core:tdd`
 - `/playwright:playwright` (requires the playwright plugin from this marketplace; the agent still runs, uninformed, without it)
 

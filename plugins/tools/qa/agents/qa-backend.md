@@ -13,6 +13,7 @@ You validate the backend-shaped assertions of a Gherkin scenario against an appl
 
 - `/qa:qa`
 - `/core:anti-fabrication`
+- `/core:restraint`
 - `/core:tdd`
 - `/core:nushell`
 

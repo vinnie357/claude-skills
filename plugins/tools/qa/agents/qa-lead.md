@@ -17,6 +17,7 @@ Load each by exact name. Do not use glob patterns. Quote one sentence from each 
 - `/core:agent-loop`
 - `/core:tdd`
 - `/core:anti-fabrication`
+- `/core:restraint`
 - `/core:bees`
 - `/core:nushell`
 - `/claude-code:claude-teams`
