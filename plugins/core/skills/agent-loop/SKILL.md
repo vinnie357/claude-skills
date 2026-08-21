@@ -342,6 +342,7 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 - `references/dep-doc-introspection.md` — Staged-pipeline prompts name the runtime-introspection tools AND the specific deps touched, never abstract "use the introspection tools"
 - `references/no-todos.md` — Implementer prompts ban TODO/FIXME/XXX/HACK/KLUDGE/DEFERRED markers, enforced by pre-commit grep; tempted workers escalate-or-implement-now instead of punting scope via a comment
 - `references/dispatch-discipline.md` — Spawn-prompt rules: explicit model, specialized subagent types, lead delegates all execution, fresh-main branch creation, read-only agents never mutate the shared tree (scratchpad clone instead), no polling, host-inspection over claims, ADR search before proposing architecture
+- `references/memory-guidance.md` — Memory entries must generalize across sessions, repos, and contexts; incident-specific notes tied to issue IDs become dead knowledge once issues close
 - `references/secret-provisioning.md` — Tier 1 plans include symmetric secret provisioning (generation, store creation, prod/dev deploy diffs); Tier 5 blocker check
 - `references/workflows-execution.md` — Optional workflow substrate for the five-tier pipeline: pipeline-as-script, stage gates, escalation ladder, teams-of-teams; decomposition/merge stay interactive
 - `templates/five-tier-issue.workflow.js` — Runnable `N=1` five-tier pipeline template: stage prompts, `skillProof` schemas, diff-boundary gate, escalation ladder, bounded fix loop
