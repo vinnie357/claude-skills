@@ -70,6 +70,16 @@ If you need to know something about your OWN process's environment, use `test -n
 
 **Recovery.** If an environment dump reaches the transcript despite the above, self-report the exposure immediately and ask the operator to rotate every credential that appeared — do not wait to be asked, and do not attempt to redact it after the fact (the value is already in context/logs).
 
+## When to Use security-review Instead
+
+Use the `security-review` skill for:
+- STRIDE threat modeling
+- Security architecture reviews
+- Vulnerability assessments
+- Security documentation and reports
+- Risk prioritization
+- Attack surface analysis
+
 | Task | Use `security` | Use `security-review` |
 |------|---------------|----------------------|
 | Scan for secrets in code | ✓ | |
