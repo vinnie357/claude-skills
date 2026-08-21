@@ -22,7 +22,7 @@ are the current defaults, not fixed values.
 | Plan | Test Planner (opus) | Research hands (smallest) | 1 |
 | Author tests | Test Author (sonnet) | Test Reviewer (opus) + its own hands (smallest) | 1 |
 | Implement | Implementor (sonnet) | Test Runner (haiku) | × N slices, parallel by dep wave |
-| Review | Reviewer (opus) | Research hands (smallest) | 1 |
+| Review | Reviewer (opus) | Research hands (smallest) + Comment Reviewer (fable) | 1 |
 | Final review | Final Reviewer (opus) | Research hands (smallest) | 1 |
 | Remediate | Implementor (sonnet) | Test Runner (haiku) | per review-finding batch |
 
@@ -37,6 +37,14 @@ The **Test Reviewer** has a specific charter: using haiku hands to surface *only
 new tests, verify the tests follow the Test Planner's plan and carry no redundancy. Catching
 plan-drift and duplicate tests *before* the implementor starts raises the implementor's chance of
 first-pass success — a cheap gate that prevents an expensive failed implementation loop.
+
+The **Comment Reviewer** (`core:comment-reviewer`) has an equally narrow charter: comment
+*quality* only, never comment *presence* — a well-named uncommented function is not a finding.
+It runs as an optional dimension of the Review pair, checking new and touched comments in the
+diff for restated, over-explained, missing-purpose, missing-inputs, or contradicting content,
+and reports through the `## VERDICTS` contract. It defaults to `model: fable`, falling back to
+`opus` when fable is unavailable — a capability substitution, not the escalation-on-failure
+ladder.
 
 ## Startup index per principal
 
