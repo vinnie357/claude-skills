@@ -68,7 +68,7 @@
 # as the mise/ansible examples above, not on the floating-tag basis.
 
 [[literals]]
-file = "plugins/core/skills/security/SKILL.md"
+file = "plugins/core/skills/security/references/ci-and-prevention.md"
 literal = "v8.30.1"
 context = "gitleaks pre-commit hook rev pin"
 check_method = "github-releases"
