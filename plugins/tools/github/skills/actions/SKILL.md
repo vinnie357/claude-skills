@@ -7,17 +7,6 @@ description: Create and configure GitHub Actions. Use when building custom actio
 
 Activate when creating, modifying, troubleshooting, or optimizing GitHub Actions components. This skill covers action development, marketplace integration, and best practices.
 
-## When to Use This Skill
-
-Activate when:
-- Creating custom GitHub Actions (JavaScript, Docker, or composite)
-- Publishing actions to GitHub Marketplace
-- Configuring action metadata and inputs/outputs
-- Implementing action security and permissions
-- Troubleshooting action execution
-- Selecting or evaluating marketplace actions
-- Optimizing action performance and reliability
-
 ## Action Types
 
 ### JavaScript Actions

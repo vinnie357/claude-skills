@@ -7,14 +7,6 @@ description: Guide for Zig programming language. Use when writing Zig code, sett
 
 Entry point for Zig development. Provides an overview, version awareness, and routes to focused skills.
 
-## When to Use This Skill
-
-Activate when:
-- Starting a new Zig project
-- Needing a general overview of Zig capabilities
-- Migrating a project between Zig versions
-- Unsure which specific Zig skill to load
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. Zig is pre-1.0 with every minor release

@@ -8,18 +8,6 @@ license: MIT
 
 Guide for building scalable, maintainable, and portable cloud-native applications following the 12-Factor App principles and modern extensions.
 
-## When to Activate
-
-Use this skill when:
-- Designing or refactoring cloud-native applications
-- Building applications for Kubernetes deployment
-- Setting up CI/CD pipelines
-- Implementing microservices architecture
-- Migrating applications to containers
-- Reviewing architecture for cloud readiness
-- Troubleshooting deployment or scaling issues
-- Working with environment configuration
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. The 12 factors themselves are the

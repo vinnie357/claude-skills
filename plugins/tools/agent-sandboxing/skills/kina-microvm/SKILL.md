@@ -10,12 +10,6 @@ license: MIT
 
 The structural difference matters: with kata-on-kind, isolation lives at the **pod** level via `runtimeClassName: kata-qemu` on a Linux container node. With kina, isolation lives at the **node** level — every node IS already an Apple Container microVM, so every pod on the cluster is already inside a microVM. There is no per-pod `runtimeClassName` swap.
 
-## When to use
-
-- Developing `kubernetes-sigs/agent-sandbox` workloads on a Mac (Apple Silicon or Intel).
-- Wanting microVM isolation locally without requiring a Linux host.
-- Needing parity between local dev and a future Linux+Kata or GKE deployment.
-
 ## Why not kata-on-kind on macOS
 
 Apple Silicon's Hypervisor.framework does not expose nested KVM to guest Linux VMs. Docker Desktop and Colima both run a Linux VM under the hood; that VM cannot itself host KVM-accelerated Kata microVMs. Symptom if you try: `qemu-system-x86_64: failed to access /dev/kvm`.

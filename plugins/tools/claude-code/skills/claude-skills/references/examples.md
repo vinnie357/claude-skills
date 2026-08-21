@@ -21,14 +21,6 @@ license: MIT
 
 # Git Operations
 
-## When to Use
-
-Activate when:
-- Creating commit messages
-- Managing branches
-- Resolving conflicts
-- Rebasing or merging
-
 ## Conventional Commits
 
 Follow the format: `type(scope): description`
@@ -68,14 +60,6 @@ license: MIT
 ---
 
 # Phoenix Framework
-
-## When to Use
-
-Activate for:
-- Phoenix application development
-- LiveView implementations
-- Context design
-- Channel setup
 
 ## Project Structure
 
@@ -134,37 +118,32 @@ Loading entire API references into SKILL.md wastes context window space for ever
 - Move detailed reference material to `references/`
 - Keep SKILL.md under 500 lines (Anthropic recommendation)
 
-### Missing Activation Criteria
+### Missing Activation Triggers
 
-Without a "When to Use" section and description triggers, Claude cannot determine when to activate the skill.
+The description is the ONLY text visible during discovery (Level 1) — Claude never reads the SKILL.md body until AFTER it has already activated the skill. Putting activation triggers in a body "When to Use" section instead of (or in addition to) the description means they never influence discovery; a body-only trigger list is invisible exactly when it would matter.
 
-```markdown
-# Bad — no activation guidance
-# My Skill
-
-This skill helps with stuff.
+```yaml
+# Bad — no triggers anywhere; Claude cannot determine when to activate
+description: Helps with Git operations
 ```
 
 ```markdown
-# Good — clear activation criteria
-# My Skill
+# Bad — triggers exist, but only in the body, where discovery never sees them
+---
+description: Guide for Git operations including commits, branches, rebasing, and conflict resolution
+---
+
+# Git Operations
 
 ## When to Use
 
 Activate when:
-- Specific scenario 1
-- Specific scenario 2
-- Specific scenario 3
+- Creating commit messages
+- Managing branches
+- Resolving conflicts
 ```
 
-### Missing "Use when" in Description
-
-The description is the ONLY text visible during discovery (Level 1). Body content loads only after activation.
-
 ```yaml
-# Bad — missing triggers
-description: Guide for Git operations including commits, branches, rebasing, and conflict resolution
-
-# Good — includes triggers
+# Good — triggers live in description, where discovery reads them
 description: Guide for Git operations including commits, branches, rebasing, and conflict resolution. Use when working with version control or the user mentions git, commits, or branches.
 ```

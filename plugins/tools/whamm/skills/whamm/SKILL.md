@@ -10,15 +10,6 @@ Entry point for installing, configuring, and running whamm! (v0.1.0). whamm! ins
 
 For the `.mm` language itself — probe syntax, events, libraries, and examples — load the companion **whamm-dsl** skill in this plugin.
 
-## When to Use This Skill
-
-Activate when:
-- Instrumenting or profiling a `.wasm` binary without modifying source
-- Counting opcodes, tracking function calls, or measuring memory access patterns in a WebAssembly module
-- Installing whamm via `mise` or building from source
-- Choosing between bytecode-rewriting and wei (engine-support) injection strategies
-- Running an instrumented module with `wasmtime` (rewriting path) or Wizard engine (wei path)
-
 ## Install (mise github backend)
 
 Copy the stanzas from `templates/mise.toml` into your project's `mise.toml`. Full explanation of asset patterns, Rosetta caveat, and build-from-source steps lives in `references/installation.md`.

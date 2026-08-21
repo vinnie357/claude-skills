@@ -8,16 +8,6 @@ license: MIT
 
 A team-driven validation loop that exercises a running application against a Gherkin user story, treats every `Then` clause as a TDD assertion, and files behavior deltas as bees issues via the existing `bees-manager` agent.
 
-## When to Use
-
-Activate when:
-- The `/qa <path>` slash command is invoked.
-- The `/qa:new-story <name>` slash command is invoked.
-- Reasoning about how to validate a documented golden path end-to-end.
-- Decomposing a Gherkin user story into parallel work items.
-- Mapping Given/When/Then to RED/GREEN states for `/core:tdd`.
-- Authoring a new Gherkin file in `docs/user-stories/`.
-
 ## Inputs
 
 The `/qa` command expects:

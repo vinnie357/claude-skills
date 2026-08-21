@@ -7,16 +7,6 @@ description: Guide for setting up GitHub community health files for open source 
 
 Activate when setting up or auditing community health files for GitHub repositories. This skill covers the files GitHub checks in its Community Standards profile, plus related repo configuration.
 
-## When to Use This Skill
-
-Activate when:
-- Preparing a repository for public/open-source release
-- Adding or updating community standards files (CODE_OF_CONDUCT, CONTRIBUTING, SECURITY, etc.)
-- Setting up issue or pull request templates
-- Configuring CODEOWNERS or FUNDING.yml
-- Auditing a repo against GitHub's community profile checklist
-- Setting repo-level configuration (merge strategy, branch protection, topics)
-
 ## Community Profile Checklist
 
 GitHub checks these 6 items on the `/community` tab:

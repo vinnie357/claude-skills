@@ -7,17 +7,6 @@ description: Guide for using the Dagu REST API. Use when programmatically managi
 
 Use this skill when integrating Dagu with external systems, automating workflow operations, or programmatically managing workflows through the API.
 
-## When to Use This Skill
-
-Activate when:
-- Triggering workflows programmatically
-- Querying workflow status from applications
-- Building automation around Dagu
-- Integrating Dagu with CI/CD pipelines
-- Creating custom dashboards or monitoring tools
-- Scheduling workflows dynamically
-- Fetching execution logs programmatically
-
 ## Core API Capabilities
 
 The Dagu REST API provides endpoints for:

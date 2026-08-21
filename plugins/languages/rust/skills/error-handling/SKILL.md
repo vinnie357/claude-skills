@@ -7,15 +7,6 @@ description: Guide for Rust error handling. Use when working with Result, Option
 
 Result, Option, error propagation, and custom error types.
 
-## When to Use This Skill
-
-Activate when:
-- Returning and handling Result types
-- Working with Option for optional values
-- Using the ? operator for error propagation
-- Implementing custom error types with Display and From
-- Composing error enums with thiserror or adding caller context with anyhow
-
 For Result, Option, ? operator, custom error type patterns, and the thiserror/anyhow ecosystem crates, see `references/error-handling.md`.
 
 ## Anti-fabrication

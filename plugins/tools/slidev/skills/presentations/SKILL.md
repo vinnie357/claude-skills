@@ -7,16 +7,6 @@ description: Guide for presentation strategy and best practices. Use when planni
 
 Structured frameworks for planning, structuring, and designing effective presentations for any audience.
 
-## When to Use This Skill
-
-Activate when:
-- Planning the structure or narrative of a slide deck
-- Choosing how to frame a problem or recommendation
-- Adapting a presentation for developers, executives, or mixed audiences
-- Designing a one-pager (executive summary or single-slide overview)
-- Applying presentation design principles (rule of threes, assertion-evidence, cognitive load)
-- Reviewing or critiquing a slide deck's structure or messaging
-
 ## Core Frameworks
 
 ### Problem-First Framing (Pyramid Principle)

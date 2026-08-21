@@ -7,17 +7,6 @@ description: Guide for Elixir testing with ExUnit. Use when writing unit tests, 
 
 This skill activates when writing, organizing, or improving tests for Elixir applications using ExUnit and related testing tools.
 
-## When to Use This Skill
-
-Activate when:
-- Writing unit, integration, or property-based tests
-- Organizing test suites and test files
-- Setting up test fixtures and factories
-- Mocking external dependencies
-- Testing concurrent or asynchronous code
-- Improving test coverage or quality
-- Troubleshooting failing tests
-
 ## ExUnit Basics
 
 ### Test Module Structure

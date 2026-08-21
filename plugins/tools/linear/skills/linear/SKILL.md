@@ -8,17 +8,6 @@ license: MIT
 
 Manage Linear issues, author VantageEx-compatible epics, and interact with the Linear API via MCP or direct GraphQL.
 
-## When to Use
-
-Activate when:
-- Querying, creating, or updating Linear issues
-- Authoring epics for VantageEx agent consumption
-- Auditing existing epics for VantageEx compatibility
-- Grooming epics to fix audit findings
-- Transitioning issue workflow states
-- Attaching GitHub PRs to Linear issues
-- Working with Linear comments or description sections
-
 ## MCP Setup (Preferred)
 
 The Linear MCP server provides tool-based access to Linear. Set up once:

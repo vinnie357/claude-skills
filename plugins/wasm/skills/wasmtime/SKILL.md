@@ -8,16 +8,6 @@ license: MIT
 
 Wasmtime is a standalone, fast, secure WebAssembly runtime from the Bytecode Alliance. It implements the WebAssembly standard and extensions including WASI (WebAssembly System Interface) and the Component Model.
 
-## When to Use This Skill
-
-Activate when:
-- Compiling Rust or Zig code to WebAssembly targets
-- Embedding a WebAssembly runtime in Rust or Elixir applications
-- Working with WASI for system interface access
-- Using the Component Model and WIT interfaces
-- Building plugin systems with WebAssembly sandboxing
-- Optimizing wasm module size or runtime performance
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. Wasmtime ships major-version bumps roughly

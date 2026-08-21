@@ -38,17 +38,6 @@ upstream bug, not a doc error (filed separately, claude-skills-239). Re-verify a
 the live `lib/runex/driver.ex` and `mix.exs @version` before asserting a driver name or
 version this skill doesn't cover — this is the fastest-moving source in the repo.
 
-## When to Use This Skill
-
-Activate when:
-- Submitting workflows via the Runex REST API
-- Authoring or modifying TOML/YAML workflow files
-- Creating or updating workflow bundles
-- Inspecting run status or step logs for debugging
-- Configuring workflow path resolution (`RUNEX_WORKFLOW_PATH`, `RUNEX_WORKFLOWS_DIR`) or bundle search (`RUNEX_BUNDLE_DIRS`)
-- Calling the step heartbeat endpoint from long-running steps
-- Working with federation endpoints (multi-node Postgres deployments)
-
 ## Install
 
 Mise is the recommended install path. It manages the version, pins reproducibly, and uses the GitHub releases backend.

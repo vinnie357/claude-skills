@@ -1,13 +1,22 @@
 {
   "name": "elixir",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Elixir development skills: Phoenix, OTP, Ports, Ecto, Tidewave MCP, testing, configuration, style, and anti-patterns",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["elixir", "phoenix", "otp", "ports", "ecto", "style", "beam", "erlang"],
+  "keywords": [
+    "elixir",
+    "phoenix",
+    "otp",
+    "ports",
+    "ecto",
+    "style",
+    "beam",
+    "erlang"
+  ],
   "agents": [
     "./agents/tidewave.md"
   ],

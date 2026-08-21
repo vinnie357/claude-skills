@@ -508,6 +508,200 @@ def has-braced-claude-var [body: string]: nothing -> bool {
     ($body | parse --regex '\$\{CLAUDE_[A-Z_]+[^}]*\}' | is-not-empty)
 }
 
+# Redundant "When to Use" check (claude-skills-296). Per the Claude Code
+# Skills docs, the frontmatter `description` is the ONLY text Claude sees
+# during discovery (Level 1) — a body "## When to Use" / "## When to
+# Activate" section that is JUST a restated trigger-bullet list duplicates
+# work the description must already carry and never reaches discovery. H2
+# only ("^##\s+" requires whitespace immediately after the second `#`, so an
+# H3 "### When to Use" — real decision content in references/, agents/,
+# commands/ — never matches). Structural, no thresholds: flags a heading
+# whose section has at least one bullet line and NOTHING else structural (no
+# H3 subheading, no fenced code block, no table). Trailing prose (a scope
+# note, a references/*.md pointer) does NOT exempt a section — only
+# structural content does.
+#
+# Fence-AWARE, not fence-STRIPPED. Unlike has-anti-fab-evidence and the
+# invocation check, this does not run strip-fences over the body first:
+# strip-fences deletes an entire fenced block (markers and content) with no
+# trace, which would erase the "this section has a code fence" signal the
+# self-test's fenced-block case depends on to exempt it. Fence state is
+# tracked inline instead, for exactly one purpose: a "## When to
+# (Use|Activate)" heading found while still inside an open fence is a
+# documentation EXAMPLE of the anti-pattern (illustrating what not to write),
+# not a real structural heading, and must not be matched.
+def has-redundant-when-to-use-section [content: string]: nothing -> bool {
+    let body = (strip-frontmatter $content)
+    let all_lines = ($body | lines)
+
+    # Pass 1: fence-aware scan for the first REAL (non-fenced) heading line.
+    # -1 is the not-found sentinel (rather than null) so the arithmetic below
+    # stays on a single int type throughout.
+    mut open_len = 0
+    mut heading_idx = -1
+    for pair in ($all_lines | enumerate) {
+        let trimmed = ($pair.item | str trim)
+        let fence = ($trimmed | parse --regex '^(?P<ticks>`{3,})')
+        let tick_len = if ($fence | is-not-empty) { $fence | first | get ticks | str length } else { 0 }
+        if $open_len == 0 {
+            if $tick_len > 0 {
+                $open_len = $tick_len
+            } else if $heading_idx == -1 {
+                let is_heading = ($trimmed | str downcase | parse --regex '^##\s+when to (use|activate)\b')
+                if ($is_heading | is-not-empty) {
+                    $heading_idx = $pair.index
+                }
+            }
+        } else if $tick_len >= $open_len {
+            $open_len = 0
+        }
+    }
+    if $heading_idx == -1 {
+        return false
+    }
+
+    # Pass 2: section = lines after the heading up to the next "## " line
+    # (fence-aware, so a "## "-shaped line inside a fence never ends the
+    # section early) or EOF.
+    let after = ($all_lines | skip ($heading_idx + 1))
+    mut section_lines = []
+    mut open_len2 = 0
+    mut ended = false
+    for line in $after {
+        if $ended { continue }
+        let trimmed = ($line | str trim)
+        let fence = ($trimmed | parse --regex '^(?P<ticks>`{3,})')
+        let tick_len = if ($fence | is-not-empty) { $fence | first | get ticks | str length } else { 0 }
+        if $open_len2 == 0 {
+            if $tick_len > 0 {
+                $open_len2 = $tick_len
+                $section_lines = ($section_lines | append $line)
+            } else if ($trimmed | str starts-with "## ") {
+                $ended = true
+            } else {
+                $section_lines = ($section_lines | append $line)
+            }
+        } else {
+            $section_lines = ($section_lines | append $line)
+            if $tick_len >= $open_len2 {
+                $open_len2 = 0
+            }
+        }
+    }
+
+    let content_lines = ($section_lines | where {|l| ($l | str trim | str length) > 0 })
+    if ($content_lines | is-empty) {
+        return false
+    }
+
+    let has_bullet = ($content_lines | any {|l| let t = ($l | str trim); ($t | str starts-with "- ") or ($t | str starts-with "* ") })
+    let has_subheading = ($content_lines | any {|l| ($l | str trim | str starts-with "#") })
+    let has_fence = ($content_lines | any {|l| ($l | str trim | str starts-with "```") })
+    let has_table = ($content_lines | any {|l| ($l | str trim | str starts-with "|") })
+
+    $has_bullet and (not $has_subheading) and (not $has_fence) and (not $has_table)
+}
+
+# Embedded self-test for has-redundant-when-to-use-section (claude-skills-296).
+# 13 cases: three heading-spelling variants that flag, four structural
+# exemptions (H3 subheading, fenced code, table, zero bullets), a
+# non-matching heading, fence-awareness in both directions (a whole flagged
+# section wrapped in a fence must NOT match; a real heading followed by a
+# real fenced block inside its section must still see the fence and pass),
+# H2-only, a trailing-prose line that does not exempt, EOF-terminated
+# sections, and the "* " bullet alternation.
+def run-redundant-when-to-use-self-test [] {
+    mut failed = false
+
+    # Case 1: heading + "Activate when:" + 3 bullets -> FLAG
+    if not (has-redundant-when-to-use-section "## When to Use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 1 (basic bullets) not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2: heading "When to Activate" -> FLAG
+    if not (has-redundant-when-to-use-section "## When to Activate\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 2 ('When to Activate') not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3: heading "When to use" (lowercase) -> FLAG
+    if not (has-redundant-when-to-use-section "## When to use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 3 (lowercase 'use') not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4: same bullets + one "### Sub" line -> pass
+    if (has-redundant-when-to-use-section "## When to Use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\n\n### Sub\n\nMore decision content.\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 4 (H3 subheading) wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5: same bullets + one fenced code block -> pass
+    if (has-redundant-when-to-use-section "## When to Use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\n\n```bash\nexample command\n```\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 5 (fenced code block) wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 6: same bullets + one "|" table line -> pass
+    if (has-redundant-when-to-use-section "## When to Use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\n\n| A | B |\n|---|---|\n| 1 | 2 |\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 6 (table) wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 7: heading present, prose only, zero bullets -> pass
+    if (has-redundant-when-to-use-section "## When to Use\n\nThis activates when the user asks about X or Y, described only in prose.\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 7 (zero bullets) wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 8: non-matching heading -> pass
+    if (has-redundant-when-to-use-section "## When Nushell over bash\n\n- bash one-liners\n- structured pipelines\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 8 (non-matching heading) wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 9: whole flagged section wrapped in a markdown fence -> pass
+    # (proves fence-awareness: a heading found while inside an open fence is
+    # an example, not real document structure).
+    if (has-redundant-when-to-use-section "```markdown\n## When to Use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\n```\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 9 (whole section fenced) wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 10: H3 "### When to Use" + bullets, NO H2 -> pass (proves H2-only)
+    if (has-redundant-when-to-use-section "### When to Use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 10 (H3-only heading) wrongly flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 11: intro+bullets+trailing "See references/x.md" line -> FLAG
+    # (trailing prose does not exempt).
+    if not (has-redundant-when-to-use-section "## When to Use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z\nSee references/x.md for details.\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 11 (trailing pointer prose) not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 12: section is the LAST thing in the file (EOF-terminated, no
+    # trailing "## ") with bullets ending at EOF -> FLAG.
+    if not (has-redundant-when-to-use-section "## When to Use\n\nActivate when:\n- doing X\n- doing Y\n- doing Z") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 12 (EOF-terminated section) not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 13: same as case 1 but using "* " bullets instead of "- " -> FLAG
+    # (proves the bullet-marker alternation).
+    if not (has-redundant-when-to-use-section "## When to Use\n\nActivate when:\n* doing X\n* doing Y\n* doing Z\n") {
+        print $"(ansi red_bold)❌ redundant-when-to-use self-test: case 13 (star bullets) not flagged(ansi reset)"
+        $failed = true
+    }
+
+    if not $failed {
+        print $"(ansi green_bold)✅ redundant-when-to-use self-test passed \(13 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 # Embedded self-test for the skills: frontmatter checks (claude-skills-119):
 # every bad case must be flagged, every good case must pass clean. Exercises
 # check-agent-skills directly — the same implementation the Pass-2 agent
@@ -2845,7 +3039,8 @@ def main [--update-baseline, --self-test] {
         let pass2_eval_failed = (run-pass2-eval-self-test)
         let anti_fab_failed = (run-anti-fab-self-test)
         let braced_claude_failed = (run-braced-claude-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed { exit 1 }
+        let redundant_when_to_use_failed = (run-redundant-when-to-use-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed { exit 1 }
         exit 0
     }
 
@@ -3052,6 +3247,16 @@ def main [--update-baseline, --self-test] {
             let unsafe_refs = ($ref_reads | where {|r| $r.unsafe})
             if ($unsafe_refs | length) > 0 { $failed = ($failed | append "ref_unsafe") }
 
+            # 20. Redundant "When to Use" section (claude-skills-296): a body
+            # "## When to Use"/"## When to Activate" H2 section that is only
+            # a restated trigger-bullet list duplicates the description,
+            # which is the sole text Claude sees at discovery time. Not a
+            # DETAIL_CHECK — a ratchet on "how many redundant sections" buys
+            # nothing per skill; this is a single boolean per file.
+            if (has-redundant-when-to-use-section $content) {
+                $failed = ($failed | append "redundant_when_to_use")
+            }
+
             # 8. Has examples: code fence / example header in SKILL.md, or a
             # code fence in a reference file SKILL.md mentions (see has-examples)
             if not (has-examples $content $refs) { $failed = ($failed | append "examples") }
@@ -3186,7 +3391,7 @@ def main [--update-baseline, --self-test] {
                 {check: "ref_unsafe", count: ($unsafe_refs | length)}
             ])
 
-            let check_count = 19
+            let check_count = 20
             let score = $check_count - ($failed | length)
 
             $results = ($results | append {

@@ -8,17 +8,6 @@ license: MIT
 
 Guide for proper application configuration in Elixir, with emphasis on understanding and correctly using runtime vs compile-time configuration.
 
-## When to Activate
-
-Use this skill when:
-- Setting up or modifying application configuration
-- Choosing between `config.exs` and `runtime.exs`
-- Deciding between `Application.compile_env` and `Application.get_env`
-- Debugging configuration-related issues
-- Working with releases or deployment configuration
-- Migrating from `use Mix.Config` to `import Config`
-- Writing libraries that need configuration
-
 ## Critical Principle
 
 > **Runtime configuration is the preferred approach.** Only use compile-time configuration when values must affect compilation itself.

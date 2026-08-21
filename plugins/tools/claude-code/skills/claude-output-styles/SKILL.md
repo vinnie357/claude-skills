@@ -8,17 +8,6 @@ license: MIT
 
 Guide for the native Claude Code output style feature and for applying the same response-contract pattern to agents, slash commands, teams, and skills.
 
-## When to Use This Skill
-
-Activate this skill when:
-
-- Creating a custom output style for a session or plugin
-- Shipping output styles from a plugin via the `output-styles/` directory
-- Deciding whether a need is best served by an output style, a skill, CLAUDE.md, or `--append-system-prompt`
-- Standardizing the response shape a worker agent must return so a team lead can filter and parse it
-- Writing reusable response-format contracts that multiple agents, commands, or skills reference
-- Debugging why a subagent is not honoring the session's output style
-
 ## Two Things This Skill Covers
 
 1. **The Claude Code feature**: a session-level system prompt modification selected via `/config`, shipped as Markdown files, optionally bundled in plugins.

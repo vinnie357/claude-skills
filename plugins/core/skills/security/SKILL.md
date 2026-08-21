@@ -15,16 +15,6 @@ hooks:
 
 This skill activates when performing secret detection, credential scanning, or implementing security checks for leaked sensitive data in code repositories.
 
-## When to Use This Skill
-
-Activate when:
-- Scanning repositories for leaked secrets, API keys, or credentials
-- Setting up pre-commit hooks for secret detection
-- Auditing codebases for exposed passwords or tokens
-- Implementing CI/CD security pipelines
-- Checking git history for accidentally committed secrets
-- Validating that .gitignore excludes sensitive files
-
 ## Pre-Commit Hook (Automatic)
 
 When this skill is loaded, a pre-commit hook automatically scans staged files for secrets before every `git commit` command, providing defense-in-depth by catching secrets before they enter git history. Only staged files are scanned (not the entire working tree); `.gitleaks-baseline.json` and `.gitleaks.toml`, when present, are honored for known false positives and custom rules.

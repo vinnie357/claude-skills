@@ -8,16 +8,6 @@ license: MIT
 
 Async patterns, streams, module systems, package managers, and mise/CI integration for Node.js TypeScript projects.
 
-## When to Use This Skill
-
-Activate when:
-- Writing async/await code, chaining Promises, or using `EventEmitter`
-- Reading, writing, or piping Node streams (`Readable`/`Writable`/`Duplex`/`Transform`)
-- Deciding between ESM (`"type": "module"`) and CommonJS for a package
-- Writing a `package.json` `exports` field, including dual ESM/CJS conditional exports
-- Choosing between npm, pnpm, and Bun for a project
-- Pinning a Node version with mise or wiring Node into CI
-
 ## Async Patterns
 
 ### async/await over raw Promise chains

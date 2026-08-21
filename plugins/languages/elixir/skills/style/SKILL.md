@@ -6,18 +6,6 @@ license: MIT
 
 # Elixir Style and Conventions
 
-## When to Activate
-
-Activate when:
-- Writing or reviewing Elixir code for idiomatic style
-- Deciding between bang (`!`) and non-bang function variants
-- Handling errors from external APIs, user input, or DB operations
-- Designing Ecto schemas and changesets for validation
-- Building Phoenix forms connected to changeset validation
-- Chaining multi-step operations with `with` or `case`
-- Choosing between `map.key` and `map[:key]` access patterns
-- Implementing non-DB data structures (search forms, filter params)
-
 This skill complements `elixir:anti-patterns` — that skill covers what to avoid; this one covers what to do instead.
 
 ## Tagged Tuples and Return Conventions

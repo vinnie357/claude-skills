@@ -7,13 +7,6 @@ description: Guide for Slidev markdown-based presentation framework. Use when cr
 
 Entry point for Slidev development. Provides an overview and routes to focused skills.
 
-## When to Use This Skill
-
-Activate when:
-- Starting a new Slidev presentation project
-- Needing a general overview of Slidev capabilities
-- Unsure which specific Slidev skill to load
-
 ## Available Skills
 
 This plugin provides focused skills for specific Slidev topics:

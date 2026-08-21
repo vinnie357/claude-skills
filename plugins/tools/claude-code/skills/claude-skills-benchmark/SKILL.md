@@ -7,15 +7,6 @@ description: Evaluate and benchmark Agent Skills quality using static analysis a
 
 Evaluate Agent Skills through static analysis and evaluation-driven methodology. Source: Anthropic's skill evaluation guidance.
 
-## When to Use
-
-Activate when:
-- Assessing skill quality across a plugin or marketplace
-- Measuring skill activation accuracy (false positives/negatives)
-- Comparing skill versions or skill-vs-no-skill performance
-- Running the `/benchmark-skills` command
-- Reviewing skill descriptions for optimization
-
 ## Static Analysis Checks
 
 The check list, pass criteria, and failure keys are defined in `test/validate-skills-quality.nu` — that script is the single source of truth; do not restate its checks here. Run `mise run test:skills-quality` to produce the current scorecard.

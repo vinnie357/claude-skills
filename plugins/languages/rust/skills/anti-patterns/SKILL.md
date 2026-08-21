@@ -8,13 +8,6 @@ license: MIT
 
 Catalog of Rust anti-patterns and clippy anti-idioms for reviewers and implementers actively hunting code to fix or remove. Complements `/rust:troubleshooting` (which teaches the idiomatic GOOD patterns) by naming the BAD patterns explicitly, with detection hints.
 
-## When to Use This Skill
-
-Activate when:
-- Reviewing a Rust diff or module for anti-patterns
-- Refactoring code flagged by clippy or code review
-- Deciding whether a `.clone()`, `&Vec<T>` parameter, `unwrap()`, or sentinel return value is a bug to fix
-
 ## Sources
 
 Rust Design Patterns book ([anti-patterns](https://rust-unofficial.github.io/patterns/anti_patterns/), [idioms](https://rust-unofficial.github.io/patterns/idioms/)) and the [Clippy lint index](https://rust-lang.github.io/rust-clippy/master/index.html) — full attribution per entry in `references/anti-patterns.md`, dated URLs in `sources.md`.

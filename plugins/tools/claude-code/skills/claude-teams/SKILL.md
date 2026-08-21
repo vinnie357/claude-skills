@@ -18,15 +18,6 @@ Require each teammate to quote one sentence from each loaded skill in its first 
 
 Glob patterns like `/core:*` do not expand in Agent prompts. List skill names explicitly.
 
-## When to Use
-
-Activate when:
-- Setting up or configuring Agent Teams (experimental)
-- Creating custom subagents for task delegation
-- Building multi-agent workflows with the Claude Agent SDK
-- Designing coordination patterns for parallel agent work
-- Troubleshooting agent communication or task assignment
-
 ## Approaches
 
 Three approaches exist for multi-agent coordination, each with different trade-offs:

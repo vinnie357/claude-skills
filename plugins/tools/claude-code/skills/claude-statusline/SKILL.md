@@ -10,15 +10,6 @@ Guide for designing, configuring, and debugging the Claude Code status line — 
 
 Per `core:anti-fabrication`: test status-line scripts against the real stdin payload (see Testing Locally) before claiming a field renders — never assert output you have not observed.
 
-## When to Use This Skill
-
-Activate this skill when:
-- Creating or editing a status-line script
-- Configuring the `statusLine` block in `settings.json`
-- Surfacing token usage, model, cost, git, or project context at a glance
-- Debugging blank or stale status-line output
-- Customizing the subagent panel via `subagentStatusLine`
-
 ## What Is the Status Line?
 
 The status line is a shell command that Claude Code executes locally on each session update. Claude Code pipes a JSON payload (model, workspace, context-window, cost, etc.) to the script's stdin and renders the script's stdout verbatim as the bar at the bottom of the UI. It runs on the user's machine, consumes no API tokens, and is temporarily hidden during autocomplete, help menus, and permission prompts.

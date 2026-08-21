@@ -8,16 +8,6 @@ license: MIT
 
 This skill activates when working with Bees for issue tracking, dependency management, and AI-augmented workflows.
 
-## When to Use This Skill
-
-Activate when:
-- Managing issues with dependencies in a local repository
-- Exporting issue context for AI agents (`bees list --json`, `bees show --json`)
-- Tracking issue hierarchies and dependency graphs
-- Needing SQLite-backed performance for large issue sets
-- Syncing issues to JSONL for portability (`bees sync`)
-- Working with AI agents that need structured task queues
-
 ## What is Bees?
 
 Bees is a lightweight, local-first issue tracker designed for AI-augmented development:

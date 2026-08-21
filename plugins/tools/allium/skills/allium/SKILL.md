@@ -8,13 +8,6 @@ license: MIT
 
 Opinionated integration between [juxt/allium](https://github.com/juxt/allium) and the `/core:agent-loop` workflow. Allium captures observable behavior in `.allium` files using `entity`, `rule`, and `config` blocks — implementation-agnostic, co-located with code.
 
-## When to Use
-
-- Epic author is attaching a formal behavioral spec to a new epic
-- Worker needs to seed failing TDD tests from a spec before implementing
-- Validator has passed CI and needs to confirm the code matches the spec semantically
-- Refactor epic requires a behavioral baseline before decomposition
-
 ## Prerequisites
 
 Upstream Allium Claude plugin must be installed separately:

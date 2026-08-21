@@ -15,17 +15,6 @@ awman was previously named **amux**. See "Migrating from amux" below.
 Source: https://github.com/prettysmartdev/awman (accessed 2026-07-13)
 License: Apache-2.0 | Latest at research time: v0.11.0 (2026-07-13)
 
-## When to Use This Skill
-
-Activate when:
-- Setting up a project for parallel agent sessions (`awman init`, `awman ready`)
-- Running a chat session or one-off prompt via the awman CLI
-- Authoring or executing multi-step workflows (`awman new workflow`, `awman exec workflow`)
-- Driving the REST API server (`awman api`) from an automation script
-- Migrating an existing amux setup to awman
-- Troubleshooting container isolation, worktrees, or config resolution
-- Configuring agent selection, container runtimes, or environment passthrough
-
 ## Prerequisites
 
 A container runtime, set via the global-only `runtime` config key (`awman config set --global runtime <value>`, then `awman ready`):

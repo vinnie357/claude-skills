@@ -7,16 +7,6 @@ description: Guide for implementing Material Design 3 (Material You). Use when d
 
 Apply Google's Material Design 3 principles when designing and developing user interfaces with emphasis on personalization, accessibility, and cross-platform consistency.
 
-## When to Activate
-
-Use this skill when:
-- Designing or implementing Android applications
-- Building web applications following Material Design
-- Working with Flutter or Jetpack Compose
-- Implementing dynamic theming and color systems
-- Creating Material components
-- Reviewing designs for Material Design compliance
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. The claim area is the tonal-palette, type-

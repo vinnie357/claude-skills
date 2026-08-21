@@ -7,16 +7,6 @@ description: Guide for building Rust command-line applications. Use when parsing
 
 Argument parsing, user-facing output, exit codes, signal handling, and subprocess testing for command-line tools.
 
-## When to Use This Skill
-
-Activate when:
-- Parsing arguments and subcommands with clap's derive API
-- Adding an `anyhow::Context` to an error chain for a readable top-level failure message
-- Printing progress bars, verbosity-gated logs, or machine-readable output (JSON/TSV) for piped consumers
-- Handling Ctrl+C or other signals for graceful shutdown
-- Choosing a process exit code on success or failure
-- Testing a compiled binary as a subprocess with assert_cmd
-
 For argument parsing, error context, output, signals, exit codes, and testing patterns, see `references/cli.md`.
 
 ## Example

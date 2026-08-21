@@ -7,17 +7,6 @@ description: Guide for using the Dagu Web UI. Use when monitoring workflow execu
 
 Use this skill when working with Dagu's web interface to manage workflows, view execution history, monitor running workflows, or configure the UI.
 
-## When to Use This Skill
-
-Activate when:
-- Navigating the Dagu web interface
-- Starting, stopping, or retrying workflows via UI
-- Viewing workflow execution logs and status
-- Monitoring running workflows
-- Managing workflow history
-- Configuring workflow schedules through the UI
-- Troubleshooting workflow issues using the UI
-
 ## Core Capabilities
 
 The Dagu Web UI provides:

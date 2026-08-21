@@ -7,17 +7,6 @@ description: Guide for authoring Dagu workflows with YAML syntax. Use when creat
 
 This skill activates when creating or modifying Dagu workflow definitions, configuring workflow steps, scheduling, or composing complex workflows.
 
-## When to Use This Skill
-
-Activate when:
-- Writing Dagu workflow YAML files
-- Configuring workflow steps and executors
-- Setting up workflow scheduling with cron
-- Defining step dependencies and data flow
-- Implementing error handling and retries
-- Composing hierarchical workflows
-- Using environment variables and parameters
-
 ## Basic Workflow Structure
 
 ### Minimal Workflow

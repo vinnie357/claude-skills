@@ -7,16 +7,6 @@ description: Guide for writing technical documentation. Use when creating README
 
 This skill activates when writing or improving technical documentation, including README files, API documentation, user guides, and inline code documentation.
 
-## When to Use This Skill
-
-Activate when:
-- Writing README files
-- Creating API documentation
-- Writing user guides or tutorials
-- Documenting code with comments or docstrings
-- Creating architecture or design documents
-- Writing changelogs or release notes
-
 ## Anti-fabrication
 
 This skill follows `core:anti-fabrication`. Most of it is house convention — README

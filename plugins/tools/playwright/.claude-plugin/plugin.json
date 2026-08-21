@@ -1,13 +1,19 @@
 {
   "name": "playwright",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Playwright MCP browser automation for Claude Code",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["playwright", "mcp", "browser", "automation", "screenshots"],
+  "keywords": [
+    "playwright",
+    "mcp",
+    "browser",
+    "automation",
+    "screenshots"
+  ],
   "skills": [
     "./skills/playwright"
   ]

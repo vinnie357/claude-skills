@@ -8,12 +8,6 @@ license: MIT
 
 Agent Substrate is an Apache-2.0 Kubernetes runtime for agent-like workloads that multiplexes many stateful actors onto fewer worker pods, preserving in-memory + disk state via gVisor checkpoint/restore. It is **explicitly alpha** (v0.0.0, README quote: "VERY early development… APIs are almost guaranteed to change"). This skill is a short reference so you can evaluate it against `k8s-agent-sandbox`, not an operational guide.
 
-## When to use this skill
-
-- Comparing Substrate's control plane to `kubernetes-sigs/agent-sandbox` before choosing one.
-- Reading a Substrate `ActorTemplate` / `WorkerPool` YAML and wanting to know the field semantics.
-- Looking at the `demos/claude-code-multiplex/` example to understand Substrate's Claude Code integration shape.
-
 If the operational decision is already "use Substrate," read the upstream README directly — this skill is intentionally not a step-by-step install guide because Substrate is at v0.0.0 with API churn between commits, so pinning a recipe here would go stale.
 
 ## What Substrate is

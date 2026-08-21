@@ -7,13 +7,6 @@ description: Guide for Rust programming language. Use when writing Rust code, se
 
 Entry point for Rust development. Provides an overview and routes to focused skills.
 
-## When to Use This Skill
-
-Activate when:
-- Starting a new Rust project
-- Needing a general overview of Rust capabilities
-- Unsure which specific Rust skill to load
-
 ## Available Skills
 
 This plugin provides focused skills for specific Rust topics:

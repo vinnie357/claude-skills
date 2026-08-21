@@ -8,13 +8,6 @@ license: MIT
 
 Claude Code does not ship an officially maintained standalone OCI image. The supported path is the `@anthropic-ai/claude-code` npm CLI plus the Anthropic-published Dev Container Feature (`ghcr.io/anthropics/devcontainer-features/claude-code:1.0`). For sandboxed Kubernetes deployment, the pattern is: build a Dockerfile that installs Claude Code via mise (using the registry short name), wire it into a `SandboxTemplate` that pins a `runtimeClassName`, and let agent-sandbox provision per-session pods from that template.
 
-## When to use
-
-- Building a Dockerfile that packages Claude Code for in-cluster execution.
-- Deploying Claude Code as a `SandboxTemplate` workload on a kind/Kata, GKE/Kata, or kina cluster.
-- Persisting `~/.claude` (auth, settings, sessions) across SandboxClaims via a PVC.
-- Locking down outbound traffic to Anthropic's API only.
-
 ## Mise-based Dockerfile
 
 The plugin ships `templates/Dockerfile.claude-code` and `templates/mise.toml.claude-code`. Use them verbatim or adapt.

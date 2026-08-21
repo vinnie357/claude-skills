@@ -8,18 +8,6 @@ license: MIT
 
 This skill activates when working with Apple Container for running Linux containers natively on Apple silicon Macs.
 
-## When to Use This Skill
-
-Activate when:
-- Running Linux containers on macOS 26+ with Apple silicon
-- Managing container lifecycle (run, stop, exec, logs, inspect)
-- Building OCI-compatible container images
-- Managing container images (pull, push, tag, save, load)
-- Configuring container networks and volumes
-- Managing the container system service
-- Running long-lived Linux machine environments with `container machine` (1.0.0+)
-- Migrating between Apple Container versions (0.5.x to 1.0.0)
-
 ## What is Apple Container?
 
 Apple Container is a macOS-native tool for running Linux containers as lightweight virtual machines on Apple silicon:
