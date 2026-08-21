@@ -15,6 +15,7 @@ Invoke each with the Skill tool and quote one sentence from each as proof:
 
 - /core:mise
 - /core:anti-fabrication
+- /core:restraint
 
 ## Workflow
 

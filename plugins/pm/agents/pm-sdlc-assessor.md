@@ -6,6 +6,7 @@ skills:
   - pm:spec-harvest
   - core:anti-fabrication
   - core:security
+  - core:restraint
 model: sonnet
 ---
 

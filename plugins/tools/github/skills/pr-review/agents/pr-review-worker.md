@@ -17,6 +17,7 @@ Invoke each with the Skill tool and quote one sentence from each as proof. Alway
 - /core:mise
 - /core:security
 - /core:anti-fabrication
+- /core:restraint
 
 Plus the stack-specific skills named in your dispatch (for example `/rust:rust`,
 `/rust:testing`, `/rust:error-handling`; `/core:documentation`; `/github:workflows`,
