@@ -232,18 +232,10 @@ end
 - **[security]**: Security concern
 - **[performance]**: Performance concern
 
-**Example:**
+**Example** (SQL-injection-shaped BAD/GOOD code for a `[blocking]` label: [references/checklist-examples.md](references/checklist-examples.md)):
 
 ```markdown
-[blocking] This creates a SQL injection vulnerability. Use parameterized queries:
-
-```elixir
-# Instead of:
-query = "SELECT * FROM users WHERE name = '#{name}'"
-
-# Use:
-from(u in User, where: u.name == ^name)
-```
+[blocking] This creates a SQL injection vulnerability. Use parameterized queries.
 
 [suggestion] Consider extracting this logic into a separate function for reusability.
 
@@ -258,157 +250,6 @@ from(u in User, where: u.name == ^name)
 2. **Re-review after changes**
 3. **Approve when satisfied**
 4. **Celebrate good code**
-
-## Language-Specific Considerations
-
-### Elixir
-
-- Pattern matching is used effectively
-- Functions leverage pipe operator for readability
-- Atoms aren't created dynamically from untrusted input
-- `with` statements handle errors properly
-- Changesets validate all input
-- No direct database queries in controllers/LiveViews (use contexts)
-
-### JavaScript/TypeScript
-
-- Types are properly defined (TypeScript)
-- Promises are handled with .catch() or try/catch
-- == vs === is used correctly
-- Arrays/objects aren't mutated unexpectedly
-- this binding is correct
-- Async operations are properly awaited
-
-### Python
-
-- Type hints are used
-- List comprehensions aren't overly complex
-- Exceptions are specific (not bare except:)
-- Resources are closed (use with statements)
-- Code follows PEP 8
-
-### Rust
-
-- Ownership and borrowing are correct
-- Error handling uses Result/Option properly
-- Unsafe blocks are justified and minimal
-- Clone/copy is used appropriately
-- Lifetimes are correctly specified
-
-## Common Code Smells
-
-### Complexity Smells
-
-- **Long functions** - Function does too much
-- **Long parameter list** - Too many parameters
-- **Deep nesting** - Too many levels of indentation
-- **Complex conditionals** - Hard to understand if statements
-
-### Duplication Smells
-
-- **Copy-paste code** - Same code in multiple places
-- **Similar functions** - Functions that do almost the same thing
-- **Magic numbers** - Repeated literal values
-
-### Naming Smells
-
-- **Unclear names** - Variables like x, tmp, data
-- **Misleading names** - Name doesn't match behavior
-- **Inconsistent names** - Same concept called different things
-
-### Design Smells
-
-- **God object** - Class/module doing everything
-- **Feature envy** - Function using another object's data more than its own
-- **Inappropriate intimacy** - Too much coupling between modules
-
-## Anti-Patterns to Watch For
-
-### Premature Optimization
-
-```elixir
-# BAD: Optimizing before measuring
-def calculate(data) do
-  # Complex, hard-to-read optimization
-  # that saves 0.1ms
-end
-
-# GOOD: Start simple, optimize if needed
-def calculate(data) do
-  # Clear, simple code
-  # Optimize later if profiling shows bottleneck
-end
-```
-
-### Premature Abstraction
-
-```elixir
-# BAD: Abstract after one use
-defmodule AbstractDataProcessorFactoryBuilder do
-  # Complex abstraction for single use case
-end
-
-# GOOD: Wait for second use case
-def process_user_data(data) do
-  # Simple, direct implementation
-  # Abstract when pattern emerges
-end
-```
-
-### Error Swallowing
-
-```elixir
-# BAD: Hiding errors
-try do
-  risky_operation()
-rescue
-  _ -> :ok  # What went wrong?
-end
-
-# GOOD: Handle explicitly
-case risky_operation() do
-  {:ok, result} -> {:ok, result}
-  {:error, reason} ->
-    Logger.error("Operation failed: #{inspect(reason)}")
-    {:error, reason}
-end
-```
-
-## Review Etiquette
-
-### DO:
-
-- Be respectful and constructive
-- Assume good intent
-- Ask questions instead of making demands
-- Praise good code
-- Explain the "why" behind suggestions
-- Offer to pair program on complex issues
-- Respond promptly to author's replies
-
-### DON'T:
-
-- Be sarcastic or condescending
-- Bike-shed on minor style issues
-- Block on personal preferences
-- Review your own code without another reviewer
-- Approve code you don't understand
-- Nitpick excessively
-
-## Self-Review Checklist
-
-Before submitting code for review:
-
-- [ ] Code compiles and runs
-- [ ] All tests pass
-- [ ] Added tests for new functionality
-- [ ] No commented-out code
-- [ ] No debug print statements
-- [ ] Documentation is updated
-- [ ] Commit messages are clear
-- [ ] No secrets or sensitive data
-- [ ] Code follows project style guide
-- [ ] Changes are focused (no unrelated changes)
 
 ## Key Principles
 
@@ -425,3 +266,6 @@ Before submitting code for review:
 ## References
 
 - `references/no-todos-scan.md` — Scan PR diffs for new `TODO`/`FIXME`/`XXX`/`HACK`/`KLUDGE`/`DEFERRED` markers; treat as BLOCKER, not nit
+- [references/language-specifics.md](references/language-specifics.md) — read this when reviewing Elixir, JavaScript/TypeScript, Python, or Rust code for the per-language checklist items on top of the general checklist above
+- [references/smells-and-antipatterns.md](references/smells-and-antipatterns.md) — read this when naming a code smell (complexity, duplication, naming, design) or checking a diff against premature optimization, premature abstraction, or error-swallowing anti-patterns with worked BAD/GOOD examples
+- [references/review-etiquette.md](references/review-etiquette.md) — read this for how to conduct yourself during a review (DO/DON'T etiquette) or the self-review checklist an author runs before submitting code
