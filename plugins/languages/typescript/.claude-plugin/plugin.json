@@ -1,13 +1,21 @@
 {
   "name": "typescript",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript development skills: language and type system, Vitest/Jest/Playwright testing, ESLint/typescript-eslint/Biome linting, and the Node.js runtime",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["typescript", "javascript", "node", "vitest", "eslint", "testing", "linting"],
+  "keywords": [
+    "typescript",
+    "javascript",
+    "node",
+    "vitest",
+    "eslint",
+    "testing",
+    "linting"
+  ],
   "skills": [
     "./skills/language",
     "./skills/testing",

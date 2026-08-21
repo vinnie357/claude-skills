@@ -1,13 +1,19 @@
 {
   "name": "rust",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Rust programming skills: ownership, borrowing, lifetimes, async, best practices, anti-patterns, CLI apps, and adversarial-TDD worker agents",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["rust", "systems-programming", "memory-safety", "agents", "tdd"],
+  "keywords": [
+    "rust",
+    "systems-programming",
+    "memory-safety",
+    "agents",
+    "tdd"
+  ],
   "skills": [
     "./skills/rust",
     "./skills/ownership",

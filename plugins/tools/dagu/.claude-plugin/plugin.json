@@ -1,13 +1,18 @@
 {
   "name": "dagu",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Dagu workflow orchestration: workflow authoring, web UI, and REST API",
   "author": {
     "name": "vinnie357"
   },
   "repository": "https://github.com/vinnie357/claude-skills",
   "license": "MIT",
-  "keywords": ["dagu", "workflow", "orchestration", "automation"],
+  "keywords": [
+    "dagu",
+    "workflow",
+    "orchestration",
+    "automation"
+  ],
   "skills": [
     "./skills/workflows",
     "./skills/webui",
