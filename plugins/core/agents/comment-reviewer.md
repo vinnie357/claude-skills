@@ -52,7 +52,7 @@ End your report with a `## VERDICTS` block, one line per entry:
   categories are flagged in one file, the roll-up category is the single most severe by this
   order: `contradicts-code > missing-purpose > missing-inputs > over-explains > restates-code`.
 - `<category>` is always one of the five defects, or `none` for a NO-FLAG roll-up.
-- A file with no comments at all produces exactly one line: `NO-FLAG | none | -`.
+- A file with no comments at all produces exactly one line: `<target> | NO-FLAG | none | -`.
 
 ## Model fallback
 
