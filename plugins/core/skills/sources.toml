@@ -70,6 +70,22 @@ breaking_changes_likely = false
 notes = "Docs-based reference, no version pinned. Confirms the `workflow` scope entry (\"Grants the ability to add and update GitHub Actions workflow files\") — covers only the HTTPS/OAuth-token side of the skill's SSH-vs-HTTPS claim. No GitHub docs page found stating the SSH-side exemption as a general principle; that half is described in the skill as observed behavior (a workflow-file push rejected over HTTPS without the scope, identical push succeeding over SSH), not as a citable claim."
 
 # ----------------------------------------------------------------------------
+# GitLab CLI (glab) Documentation — per-command reference for the GitLab MR
+# equivalents added to the skill body and references/gitlab-mr.md.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["git"]
+name = "gitlab-cli-docs"
+url = "https://docs.gitlab.com/cli/"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-08-21"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Per-command reference for glab; source for the GitLab MR content in the skill body and references/gitlab-mr.md. Pages used: /cli/mr/create/, /cli/mr/list/, /cli/mr/view/, /cli/mr/checkout/, /cli/mr/note/, /cli/mr/note/create/, /cli/mr/merge/, /cli/ci/status/, /cli/auth/login/. Docs-based only -- glab was not installed on the authoring machine and no command was executed, so current_version is 'unknown' rather than a guessed release; the skill body pins no glab version either, which keeps the version_pin check inapplicable."
+
+# ----------------------------------------------------------------------------
 # mise — tool version manager and task runner. CalVer releases via GitHub.
 # current_version is the version the skill content was verified against per
 # sources.md ("Version v2026.3.15", accessed 2026-03-25), not
