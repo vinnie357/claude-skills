@@ -77,7 +77,10 @@ Run the same gate set as step 1.
 Read `git diff main...<headRefName>` against `../references/review-rubric.md`: correctness,
 security, test coverage, no leaked secrets, match to the PR's stated intent. Verify claims
 against the real source with Read/Grep — do not assume. For Actions/digest PRs, confirm pins
-are full commit SHAs and digests are correct.
+are full commit SHAs and digests are correct. Apply the rubric's optional comment-quality
+dimension inline yourself (you have no Task tool, so you never spawn a dedicated reviewer for
+it) — dispatching a separate `comment-reviewer` agent, if the orchestrator chooses to, is the
+orchestrator's job per `SKILL.md`'s "Dispatch one `pr-review-worker` per PR" line.
 
 ### 6. Return to main
 

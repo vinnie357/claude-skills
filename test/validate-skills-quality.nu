@@ -3451,7 +3451,7 @@ def main [--update-baseline, --self-test] {
     # own doc comment. What DID change: the per-file wiring is hermetically
     # tested, and a WHOLE deletion of the merge call is caught by the full
     # run via a baseline stale-key failure.
-    let known_models = ["haiku" "sonnet" "opus"]
+    let known_models = ["haiku" "sonnet" "opus" "fable" "inherit"]
     let known_hook_events = ["PreToolUse" "PostToolUse" "SessionStart" "SessionEnd" "UserPromptSubmit" "Stop" "SubagentStop" "PreCompact" "Notification"]
     mut surface_results = []
 

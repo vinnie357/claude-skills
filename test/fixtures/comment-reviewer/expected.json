@@ -1,0 +1,69 @@
+{
+  "contract_version": 1,
+  "categories": ["restates-code", "over-explains", "missing-purpose", "missing-inputs", "contradicts-code", "none"],
+  "fixtures": [
+    {
+      "file": "f01.py",
+      "verdict": "FLAG",
+      "category": "restates-code",
+      "why": "Four inline comments each restate the line below; the docstring already carries purpose.",
+      "example_replacement": "delete all four inline comments; keep the docstring"
+    },
+    {
+      "file": "f02.js",
+      "verdict": "FLAG",
+      "category": "over-explains",
+      "why": "The docblock spends nine lines explaining what `+` and `return` do — language basics, not project-specific knowledge — while burying the one caveat worth keeping.",
+      "example_replacement": "/** Sum of `a` and `b`. Non-numeric args coerce per JS rules. */"
+    },
+    {
+      "file": "f03.ex",
+      "verdict": "FLAG",
+      "category": "missing-purpose",
+      "why": "Three lines of provenance (date, ticket, reviewer, ownership) and zero lines explaining what normalize_rate does, why precision/currency order matters, or what minor_unit conversion means.",
+      "example_replacement": "# Rounds `rate` to `precision` decimal places, then scales it to `currency`'s minor unit (e.g. dollars -> cents)."
+    },
+    {
+      "file": "f04.rs",
+      "verdict": "NO-FLAG",
+      "category": "none",
+      "why": "States purpose, and the caveat (release-build i64 addition wraps via two's complement on overflow instead of panicking, so an out-of-range `delta` silently corrupts `balance_cents`) is real and not recoverable from the `+` expression alone — it's a compiler/build-profile fact, per the Rust Book's Integer Overflow section, not something the code reveals.",
+      "example_replacement": "n/a — already a good comment, no change"
+    },
+    {
+      "file": "f05.py",
+      "verdict": "NO-FLAG",
+      "category": "none",
+      "why": "Over-correction guard: three lines for one line of code looks verbose by line-count alone, but the comment documents a genuinely non-obvious race (edge cache serving a stale 503 for ~200ms post-restart) that justifies the sleep. Do not flag on length alone.",
+      "example_replacement": "n/a — already a good comment, no change"
+    },
+    {
+      "file": "f06.go",
+      "verdict": "NO-FLAG",
+      "category": "none",
+      "why": "Scope boundary: no comments exist at all, and this agent reviews comment quality, not comment presence. An uncommented obvious function is never a finding.",
+      "example_replacement": "n/a — no comment to review"
+    },
+    {
+      "file": "f07.ts",
+      "verdict": "FLAG",
+      "category": "contradicts-code",
+      "why": "The docblock claims retry-with-backoff behavior (up to 3 attempts, throws only after the third) that the function body does not implement — it makes exactly one fetch call. A wrong comment is worse than no comment.",
+      "example_replacement": "/** Fetches `url` with a 5s timeout. No retry — throws on the first failure. */"
+    },
+    {
+      "file": "f08.nu",
+      "verdict": "FLAG",
+      "category": "missing-inputs",
+      "why": "Purpose is stated (\"Publishes the bundle\") but none of the three parameters is described, and `dest` is easy to misread as an endpoint when it is actually a base URL the function appends a path to.",
+      "example_replacement": "# Publishes the bundle. `dest` is the base URL of the target Runex instance; the /api/bundles/import path is appended."
+    },
+    {
+      "file": "f09.py",
+      "verdict": "NO-FLAG",
+      "category": "none",
+      "why": "Keyword-matcher trap: the two-word lead-in \"Reverse order:\" looks terse enough to flag as under-explained, but the sentence that follows it fully justifies the non-obvious reverse-iteration choice (forward deletion skips the following entry). Freeze this wording — lengthening the lead-in into a full restating sentence would make the fixture genuinely ambiguous and void its NO-FLAG verdict.",
+      "example_replacement": "n/a — already a good comment, no change"
+    }
+  ]
+}

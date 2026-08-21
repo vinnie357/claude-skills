@@ -23,6 +23,12 @@ Check each dimension against the diff and the surrounding code:
   changes smuggled in; docs claims match the code they describe.
 - **Scope and size** — the change is reviewable; unexpectedly large or cross-cutting diffs
   get called out for the operator.
+- **Comment quality** (optional; requires the `core` plugin) — comments state purpose and
+  inputs in the minimum viable language. Flag comments that restate the code, over-explain,
+  omit purpose or inputs, or describe behavior the code no longer has. When `core@vinnie357`
+  is installed, the orchestrator may dispatch its `comment-reviewer` agent for this
+  dimension. When it is not installed, skip the dimension — its absence is never itself a
+  finding.
 
 ## Findings
 

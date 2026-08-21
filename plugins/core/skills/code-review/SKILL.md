@@ -75,7 +75,7 @@ Worked BAD/GOOD examples (N+1 queries, loading full datasets, list vs set lookup
 - Clear, descriptive variable and function names
 - Functions are small and focused (single responsibility)
 - No code duplication (DRY principle)
-- Comments explain "why", not "what"
+- Comments explain "why", not "what" — watch for restated, over-explained, missing-purpose, missing-inputs, or contradicting comments. See `comment-reviewer` for a dedicated pass.
 - Code follows project conventions and style guide
 - Magic numbers are replaced with named constants
 - Complexity is minimized
