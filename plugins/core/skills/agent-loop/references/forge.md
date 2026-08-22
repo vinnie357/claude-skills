@@ -19,19 +19,37 @@ are the current defaults, not fixed values.
 
 | Pair | Principal | Hands / partner | Fan-out |
 |------|-----------|-----------------|---------|
-| Plan | Test Planner (opus) | Research hands (smallest) | 1 |
-| Author tests | Test Author (sonnet) | Test Reviewer (opus) + its own hands (smallest) | 1 |
+| Plan | Test Planner (opus) | Plan Reviewer (fable) + research hands (smallest) | 1 |
+| Author tests | Test Author (sonnet) | Test Reviewer (fable) + its own hands (smallest) | 1 |
 | Implement | Implementor (sonnet) | Test Runner (haiku) | × N slices, parallel by dep wave |
-| Review | Reviewer (opus) | Research hands (smallest) + Comment Reviewer (fable) | 1 |
-| Final review | Final Reviewer (opus) | Research hands (smallest) | 1 |
+| Review | Reviewer (fable) | Research hands (smallest) + Comment Reviewer (fable) | 1 |
+| Final review | Final Reviewer (fable) | Research hands (smallest) | 1 |
 | Remediate | Implementor (sonnet) | Test Runner (haiku) | per review-finding batch |
 
 ## Reviewers are the best-thinker tier
 
-Every reviewing role — the Test Reviewer in the author pair, the Reviewer, and the Final Reviewer —
-defaults to opus, each paired with haiku hands. Thinking is expensive and stays on the strong
-model; fetching is cheap and stays on the small model. The reviewer never searches; its hands
-surface the exact artifact to judge.
+Every reviewing role — the Plan Reviewer in the plan pair, the Test Reviewer in the author pair,
+the Reviewer, and the Final Reviewer — defaults to `fable`, each paired with haiku hands.
+Thinking is expensive and stays on the strong model; fetching is cheap and stays on the small
+model. The reviewer never searches; its hands surface the exact artifact to judge.
+
+Each of the four honors its own env-var override — the Plan Reviewer reads
+`AGENT_LOOP_PLAN_REVIEWER_MODEL`, the Test Reviewer reads `AGENT_LOOP_TEST_REVIEWER_MODEL`, the
+Reviewer reads `AGENT_LOOP_REVIEWER_MODEL`, and the Final Reviewer reads
+`AGENT_LOOP_FINAL_REVIEWER_MODEL` — and all four share the exact fable-to-opus capability
+fallback already shipped on `core:comment-reviewer` (`plugins/core/agents/comment-reviewer.md`,
+"Model fallback" section) rather than defining a second mechanism. All four also load
+`/core:restraint`, mirroring `core:comment-reviewer`'s own `skills:` frontmatter.
+
+The **Plan Reviewer** has a specific charter — the one genuinely new gate this update adds, since
+the Plan pair was previously the only pair without a reviewer. Using hands to surface only the
+Test Planner's slice list and the issue's acceptance criteria, it checks three things: does every
+acceptance criterion map to at least one slice, is any slice unsatisfiable as written, and do the
+dependency edges among slices admit a valid wave order. It approves the plan or returns it to the
+Test Planner for revision — it never edits the plan itself. Implementation note:
+`templates/forge-issue.workflow.js` does not yet encode a `planRev` stage for this gate — tracked
+in a follow-up bees issue, "Add planRev stage to forge-issue.workflow.js for the Plan Reviewer
+gate (claude-skills-294 follow-up)".
 
 The **Test Reviewer** has a specific charter: using haiku hands to surface *only* the Test Author's
 new tests, verify the tests follow the Test Planner's plan and carry no redundancy. Catching
@@ -70,13 +88,18 @@ the same path, just narrower. Width scales to the work; the structure is constan
 
 ## Gates between pairs
 
+- The plan reviewed by the Plan Reviewer before the Test Author is spawned.
 - Tests reviewed by the Test Reviewer before any implementor starts.
 - Diff-boundary: an implementor cannot modify the frozen test files (assert the diff is empty;
   check both committed diff and the working tree).
 - CI green per slice before that slice's pair reports done.
 - The Reviewer consumes its hands index rather than searching the tree itself.
 - Review findings route to the Remediation pair (Implementor + Test Runner), which fixes and
-  re-runs; the Final Reviewer then re-checks against the remediation diff.
+  re-runs; the Final Reviewer then re-checks against the remediation diff. A non-approval is not
+  automatically an escalation — a fixable finding goes back through this remediation loop. The
+  user is involved only when a finding can't be resolved in code, or when the remediation pair
+  hits the existing two-promotion escalation cap described in `/core:agent-loop`'s "Model
+  Escalation" section.
 
 ## Why this beats threshold-gating
 

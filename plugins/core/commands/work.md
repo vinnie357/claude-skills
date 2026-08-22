@@ -39,10 +39,10 @@ Quote one sentence from `/core:agent-loop` describing Forge as proof of loading.
 Apply the agent-loop 4-phase execution with Forge as the operating model — no need to ask which tier system to use, Forge is the default:
 
 1. **Pre-flight** — load skills (above), confirm the tracker item, branch from fresh `origin/main` (`feat/<slug>`).
-2. **Plan** — spawn a Test Planner (opus) preceded by a hands pass that builds its `## Starting index`; the planner slices the issue into independent test groups. See `references/forge.md`.
-3. **Author + review tests** — Test Author (sonnet) writes failing tests; the Test Reviewer (opus, with haiku hands) verifies plan-conformance and non-redundancy before any implementor starts.
+2. **Plan** — spawn a Test Planner (opus) preceded by a hands pass that builds its `## Starting index`; the planner slices the issue into independent test groups. The Plan Reviewer (fable) checks AC-to-slice coverage, unsatisfiable slices, and dep-wave validity before the Test Author is spawned — the plan pair's own reviewer gate. See `references/forge.md`.
+3. **Author + review tests** — Test Author (sonnet) writes failing tests; the Test Reviewer (fable, with haiku hands) verifies plan-conformance and non-redundancy before any implementor starts.
 4. **Implement (fan out)** — one Implementor + Test Runner pair per slice, dispatched in dependency waves. `N=1` for a one-slice issue.
-5. **Review** — Reviewer then Final Reviewer (opus, each with haiku hands consuming a startup index, never searching themselves); review findings route to a Remediation pair, then re-review.
+5. **Review** — Reviewer then Final Reviewer (fable, each with haiku hands consuming a startup index, never searching themselves); review findings route to a Remediation pair, then re-review.
 6. **Validate + submit** — `mise run ci` green, gitleaks, push, open the PR. Agents never merge — report the PR URL and wait for operator approval.
 
 Principals never run their own `Grep`/`Glob`/large-`Read` sweeps — they spawn focused read-only hands and read only the returned `file:line` index. Vision research (screenshots, rendered pages, Playwright output) uses a multimodal hands model. See the hands pattern in `references/researcher.md`.

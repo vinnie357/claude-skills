@@ -91,12 +91,24 @@ Model defaults per tier are exactly that — defaults. Each tier honors an env v
 | 3 Agent Worker | `AGENT_LOOP_WORKER_MODEL` | `haiku` |
 | 4 Validator | `AGENT_LOOP_VALIDATOR_MODEL` | `haiku` |
 | 5 Fix Agent | `AGENT_LOOP_FIX_MODEL` | `haiku` |
+| Plan Reviewer | `AGENT_LOOP_PLAN_REVIEWER_MODEL` | `fable, falling back to opus` |
+| Test Reviewer | `AGENT_LOOP_TEST_REVIEWER_MODEL` | `fable, falling back to opus` |
+| Reviewer | `AGENT_LOOP_REVIEWER_MODEL` | `fable, falling back to opus` |
+| Final Reviewer | `AGENT_LOOP_FINAL_REVIEWER_MODEL` | `fable, falling back to opus` |
 | Research hands (text) | `AGENT_LOOP_HANDS_MODEL` | smallest fast model (`Explore`) |
 | Research hands (vision) | `AGENT_LOOP_HANDS_VISION_MODEL` | a multimodal-capable model the harness offers |
 
 The two hands vars follow the same contract as the tier vars: the launching process resolves them and passes the model to the spawn; no model name appears as a literal in the prompt body. The vision var is set by capability, not by a fixed name — the available multimodal model shifts with the harness and model family. See `references/researcher.md`.
 
 **Contract:** whoever launches the spawning process (shell command, CI job, parent Claude session, external orchestrator) sets these env vars; the spawn script reads `$AGENT_LOOP_*` and passes the resolved model to the Task tool invocation (`subagent_type`/`model` argument) — never as a literal in the prompt body. An empty string (`AGENT_LOOP_LEAD_MODEL=""`) is treated identically to unset, falling through to the default, so orchestrators can emit "" to mean "use default" without special-casing.
+
+The four Forge reviewer vars added above default to a capability fallback: attempt `fable`, and
+retry `opus` if the fable spawn fails due to unavailability. This is explicitly the REVERSE of the
+haiku-to-sonnet-to-opus escalation-on-failure ladder described next — that one promotes on
+repeated failure of the task itself; this one degrades on model unavailability and never fires
+because a review came back unfavorable. The mechanism is already shipped and documented on
+`core:comment-reviewer` (`plugins/core/agents/comment-reviewer.md`, "Model fallback" section);
+these four vars reuse that exact contract rather than defining a second one.
 
 The escalation chain is also overridable: `AGENT_LOOP_ESCALATION_CHAIN` (comma-separated names; default `haiku,sonnet,opus`).
 
@@ -109,6 +121,10 @@ haiku -> sonnet -> opus
 ```
 
 Maximum 2 promotions per agent. If opus fails, escalate to the upstream tier (sub-lead to lead, lead to user).
+
+This ladder is failure-driven and applies to task-executing tiers; it is not the reviewer
+capability fallback described under Model overrides above — that one degrades on unavailability
+and never fires on a bad review.
 
 ## Five-Tier Decomposition Pipeline
 
@@ -124,9 +140,15 @@ For each issue, the Sub-team Leader spawns distinct Agent invocations in order. 
 | P2 Test Author | sonnet | Write failing tests against P1's spec | Reading impl source; modifying after handoff |
 | P3 Implementer | sonnet | Make tests pass | Modifying test files; reading P2's chat context |
 | P4 CI Runner | haiku | Run CI, capture verbatim output, report green/red | Judging correctness; touching code |
-| P5 Reviewer | opus | Verify tests exercise AC, no overfit, no missed edges | Authoring fixes (sends back to P2 or P3 with findings) |
+| P5 Reviewer | fable | Verify tests exercise AC, no overfit, no missed edges | Authoring fixes (sends back to P2 or P3 with findings) |
 
 Each stage owes the restraint ladder its phase duty — see `/core:restraint`'s agent-loop-phases reference for the row mapping (P1 → Test planning, P2 → Test authoring, P3 → Implementation, P5 → Review).
+
+P1 Test Planner and Forge's Plan-pair Test Planner both stay `opus` — decomposition errors
+compound downstream, so the planner stays on the deepest-reasoning model available. P2 Test
+Author and P3 Implementer stay `sonnet`, per the Model Selection table's sonnet row below. P4
+stays `haiku`. Only P5 moves from `opus` to `fable`, tracking Forge's Reviewer row in the pairs
+table — the same role in different fan-out shapes, not two roles.
 
 ### When to apply
 
@@ -273,6 +295,9 @@ Scale the team to the work — choose by role, not by a trivial-vs-complex guess
 | Multi-file implementation | sonnet | New API endpoint, adapter refactor |
 | Test planning, architecture design | opus (or `Plan` subagent) | Test-list design, system integration |
 | Simple ops, monitoring, status checks | haiku | Deploy monitor, log reader, port check |
+| Text-based search / inventory | haiku | Hands passes, file:line index building, catalog sweeps |
+| Running test / CI commands | haiku | `mise run ci` runner, verbatim log capture, green/red report |
+| Playwright- or MCP-tool-driving agents | sonnet | Browser-driven QA, Tidewave runtime introspection |
 
 Hands and reviewer models follow the Forge convention — see "Model overrides" above and `references/forge.md`.
 
@@ -353,4 +378,4 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 - `references/secret-provisioning.md` — Tier 1 plans include symmetric secret provisioning (generation, store creation, prod/dev deploy diffs); Tier 5 blocker check
 - `references/workflows-execution.md` — Optional workflow substrate for the five-tier pipeline: pipeline-as-script, stage gates, escalation ladder, teams-of-teams; decomposition/merge stay interactive
 - `templates/five-tier-issue.workflow.js` — Runnable `N=1` five-tier pipeline template: stage prompts, `skillProof` schemas, diff-boundary gate, escalation ladder, bounded fix loop
-- `templates/forge-issue.workflow.js` — Runnable Forge workflow: startup-index hands, planner slicing, dep-wave fan-out, opus reviewers with haiku hands, remediation pair
+- `templates/forge-issue.workflow.js` — Runnable Forge workflow: startup-index hands, planner slicing, dep-wave fan-out, fable reviewers paired with haiku hands, remediation pair

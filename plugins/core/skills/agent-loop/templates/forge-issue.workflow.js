@@ -18,13 +18,17 @@
 //     "stageModels": {
 //       "plan":     "opus",    // Test Planner
 //       "author":   "sonnet",  // Test Author
-//       "testRev":  "opus",    // Test Reviewer (best-thinker tier)
+//       "testRev":  "fable",   // Test Reviewer (best-thinker tier)
 //       "impl":     "sonnet",  // Implementor (× N slices)
 //       "ci":       "haiku",   // Test Runner
-//       "review":   "opus",    // Reviewer
-//       "final":    "opus"     // Final Reviewer
+//       "review":   "fable",   // Reviewer
+//       "final":    "fable"    // Final Reviewer
 //     }
 //   }
+//
+// Implementation note: the Plan Reviewer gate described in references/forge.md is not yet
+// encoded here as a "planRev" stage — tracked in a follow-up bees issue, "Add planRev stage
+// to forge-issue.workflow.js for the Plan Reviewer gate (claude-skills-294 follow-up)".
 //
 // Models are config (12-factor): no model name is hardcoded in a prompt body, and
 // the hands model is selected by capability — handsVisionModel for visual objectives,
@@ -35,14 +39,14 @@
 
 export const meta = {
   name: 'forge-issue',
-  description: 'Run one issue through Forge: hands-indexed plan, fanned-out impl pairs, opus reviews',
+  description: 'Run one issue through Forge: hands-indexed plan, fanned-out impl pairs, fable reviews',
   phases: [
     { title: 'Plan', detail: 'Hands index → Test Planner slices the issue' },
     { title: 'Author', detail: 'Test Author writes failing tests' },
-    { title: 'Review-tests', detail: 'Test Reviewer (opus + hands) checks plan-conformance + non-redundancy' },
+    { title: 'Review-tests', detail: 'Test Reviewer (fable + hands) checks plan-conformance + non-redundancy' },
     { title: 'Impl', detail: 'One Implementor + Test Runner pair per slice, by dep wave' },
-    { title: 'Review', detail: 'Reviewer (opus + hands) verifies acceptance criteria' },
-    { title: 'Final', detail: 'Final Reviewer (opus + hands) checks the remediation diff' },
+    { title: 'Review', detail: 'Reviewer (fable + hands) verifies acceptance criteria' },
+    { title: 'Final', detail: 'Final Reviewer (fable + hands) checks the remediation diff' },
     { title: 'Remediate', detail: 'Implementor + Test Runner pair addresses review findings' },
   ],
 }
@@ -342,7 +346,7 @@ phase('Author')
 const testSha = await withEscalation(authorPrompt(args, plan), { phase: 'Author', schema: COMMIT }, args.stageModels.author)
 if (!testSha) return escalate('Test Author failed across escalation chain', { plan })
 
-// Review tests — opus reviewer, haiku hands showing ONLY the new tests.
+// Review tests — fable reviewer, haiku hands showing ONLY the new tests.
 phase('Review-tests')
 const testReviewIndex = await handsPass(
   `Index only the test changes in ${testSha.sha} across ${allTestFiles.join(', ')} — one pointer per new test.`,
@@ -379,7 +383,7 @@ while (remaining.length > 0) {
   log(`forge-issue: ${done.size}/${plan.slices.length} slices green`)
 }
 
-// Review — opus reviewer with a hands-built startup index (diff + ADRs).
+// Review — fable reviewer with a hands-built startup index (diff + ADRs).
 phase('Review')
 const reviewIndex = await handsPass(
   `Index git diff main...HEAD for issue ${args.issueId} plus any decision records (ADRs) it touches.`,
@@ -411,7 +415,7 @@ while (review && !review.approved && cycles < 3) {
 }
 if (!review || !review.approved) return escalate('review unresolved after remediation', { review, cycles })
 
-// Final review — opus, fresh context, hands index of prior notes + remediation diff.
+// Final review — fable, fresh context, hands index of prior notes + remediation diff.
 phase('Final')
 const finalIndex = await handsPass(
   `Index the prior review notes and the full git diff main...HEAD for issue ${args.issueId}.`,
