@@ -9,7 +9,7 @@ gate itself is execution, which is out of scope for this issue.
 
 ## Why this is frozen instead of executed
 
-`claude plugin eval init --bare` exits 1 with `plugin eval` is currently in early access` —
+`claude plugin eval init --bare` exits 1 with `plugin eval` is currently in early access — —
 independently reconfirmed by re-running the exact command in this environment (see also the
 Test Reviewer's prior confirmation). Per `/core:anti-fabrication`, no activation-rate claim, no
 drop/keep decision, and no change to the six skills' mandatory status may ship without an
@@ -24,10 +24,11 @@ Until 295c runs and produces real numbers, all six situational skills stay
 
 No prompt may contain the skill name, the plugin name, or a distinctive phrase lifted from the
 skill's `description` field — doing so would measure keyword-matching against the description,
-not real activation from task shape. Spot-checked against the prompt sets below: none of the
-48 targeted or 10 ambient prompts names `tdd`, `twelve-factor`, `mise`, `nushell`,
-`agent-loop`, or `bees`, nor phrases like "test-driven", "12-factor", "structured data
-pipelines", or "Forge".
+not real activation from task shape. Full pass verified against all 48 targeted and 10 ambient
+prompts: none name `tdd`, `twelve-factor`, `mise`, `nushell`, `agent-loop`, or `bees`, nor
+phrases like "test-driven", "12-factor", "structured data pipelines", or "Forge". Two
+initial leakage instances (nushell "cross-platform automation", bees "local-first tracker")
+were identified and corrected by rewording to preserve task intent.
 
 ## Prompt sets
 
@@ -92,7 +93,7 @@ false-positive baseline.
 1. "Write the section of our style guide that says which scripting language new automation should use and why."
 2. "Document the validation scripts in `test/` — what each one checks and how to run it."
 3. "Draft an ADR on replacing our bash test harness."
-4. "Write a skill that teaches an agent how to write cross-platform automation scripts for this repo."
+4. "Write a skill that teaches an agent how to write scripts that run reliably on any OS and handle edge cases like spaces in filenames."
 
 ### Agent-loop
 
@@ -119,7 +120,7 @@ false-positive baseline.
 **Doc-shaped:**
 1. "Write the section of CONTRIBUTING.md that explains how we track work in this repo."
 2. "Plan this epic and file the resulting slices."
-3. "Draft an ADR comparing our local-first tracker against a hosted one."
+3. "Draft an ADR comparing our on-premises issue tracker against a cloud-hosted alternative."
 4. "Document the labels we use on issues and what each one drives."
 
 ### Ambient (false-positive baseline, no skill named or implied as primary target)
