@@ -168,6 +168,8 @@ Every agent at every tier loads these before any work, with one bounded exemptio
 /core:bees
 ```
 
+Skill *weight* (how much each skill costs once loaded — reduced by claude-skills-288's skeleton+references conversion) and mandatory *count* (which skills must be force-invoked at all — this list, claude-skills-295) are two separate, additive reductions to the same token-loading tax. Cutting the mandatory list does not make the remaining skills lighter, and a lighter skeleton does not reduce how many skills a session force-invokes — both landed, neither substitutes for the other.
+
 This block is the canonical copy. `test/validate-core-list.nu` drift-checks it against the ten sites it lists — this skill, six tier references (including the two subsetting satellites below, each checked against its declared subset rather than the full list), `/core:work`, the core session-start hook, and the operator CLAUDE.md template. Other files that enumerate core skills are not covered; add a site to that script when it starts carrying the full stack.
 
 **The exemption: a tier may omit an individual skill its role cannot exercise — nothing more.** Apply the test per skill, not per tier. `/core:tdd` is the worked case: `references/validator.md` runs the suite and reports failures without writing code, so it omits `/core:tdd`; `references/fix-agent.md` writes the fix, so it keeps it. `/core:anti-fabrication` is never omissible — every tier reports, and a fabricated pass is worse than a red build. A subsetting tier states what it omits and why in its own pre-flight step, so the omission is a decision on the record rather than an accident.
@@ -253,6 +255,10 @@ Key: always reference existing code and functions to reuse. "Implement X" is vag
 ### Proof of loading
 
 Require each spawned agent to quote one sentence from each loaded skill in its first response. Do not proceed with the agent's work until proof is received. Listing skill names in the prompt is not the same as the agent loading them — proof prevents skipped loads.
+
+**Exemption (claude-skills-295):** `/core:anti-fabrication`, `/core:restraint`, `/core:git`, and `/core:security` are exempt from the quote-back — their standing-principle-broad nature means a citation adds no verification value beyond "I invoked it." Agents still must invoke these four by exact name; only the quote requirement is dropped. Every other loaded skill — the six situational core skills (`/core:tdd`, `/core:twelve-factor`, `/core:mise`, `/core:nushell`, `/core:agent-loop`, `/core:bees`) plus any domain skills — still owes the quote-back in full.
+
+Two sites intentionally stay stricter than this exemption pending separate follow-up bees issues: `/core:bees`'s `bees-manager` agent definition and this skill's `skillProof` schema in `references/workflows-execution.md` both still require full proof-of-loading for every skill, including the four exempt here. That is not drift — a carve-out permits skipping the quote, it does not prohibit carrying it — so a future reader should not "fix" those two sites to match this exemption without a tracked issue first.
 
 ### Leader spawn — concrete example
 

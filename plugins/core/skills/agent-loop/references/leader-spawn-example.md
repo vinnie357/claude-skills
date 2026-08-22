@@ -42,7 +42,9 @@ WorkflowController already exposes /export at lib/runex_web/controllers/workflow
 
 ## Execution order
 Follow the 9-step Agent Worker Execution Order. After step 2 (write tests),
-quote one sentence from each loaded skill and post your test code before
+quote one sentence from each loaded skill — except /core:anti-fabrication,
+/core:restraint, /core:git, and /core:security, which are invoked but not
+quoted (see "Proof of loading" exemption) — and post your test code before
 proceeding to step 3.
 ```
 
