@@ -21,7 +21,7 @@
 //       "test":   "sonnet",  // P2 — doctrine default: sonnet
 //       "impl":   "sonnet",  // P3 — doctrine default: sonnet
 //       "ci":     "haiku",   // P4 — doctrine default: haiku
-//       "review": "opus"     // P5 — doctrine default: opus
+//       "review": "fable"    // P5 — doctrine default: fable
 //     },
 //     "repo": "/absolute/path/to/repo"
 //   }

@@ -206,7 +206,7 @@ Use it only for agents that mutate files in parallel; it is expensive and pointl
 
 ## Budget-gated P5 review panel
 
-The single-opus P5 reviewer is the default. When `budget.total` is set and `budget.remaining()` leaves headroom, run P5 as a panel of distinct lenses — acceptance-criteria coverage, overfit-to-tests, missed edge cases — one `agent()` per lens via `parallel()`. Take the majority verdict; forward the rejecting lenses' findings to the rework dispatch. Guard on `budget.total`, not `remaining()`: `budget.total` is `null` when no target is set, which makes `remaining()` `Infinity` and the guard always true.
+The single P5 reviewer, on the reviewer default (`fable`), is the default shape. When `budget.total` is set and `budget.remaining()` leaves headroom, run P5 as a panel of distinct lenses — acceptance-criteria coverage, overfit-to-tests, missed edge cases — one `agent()` per lens via `parallel()`. Take the majority verdict; forward the rejecting lenses' findings to the rework dispatch. Guard on `budget.total`, not `remaining()`: `budget.total` is `null` when no target is set, which makes `remaining()` `Infinity` and the guard always true.
 
 ```javascript
 let review
@@ -261,7 +261,7 @@ const results = await parallel(ready.map(slice => async () => {
 }))
 ```
 
-Reviewers run on the best-thinker model (`stageModels.review` / `.final`, opus by default) with
+Reviewers run on the best-thinker model (`stageModels.review` / `.final`, `fable` by default) with
 haiku hands; the Reviewer's findings drive a Remediation pair (implementor + test-runner) bounded at
 three cycles, then a fresh-context Final Reviewer with its own hands index.
 
