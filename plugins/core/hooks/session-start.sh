@@ -32,8 +32,11 @@ when the trigger condition arises.
 
 3. Every spawned agent's prompt starts with a "## Load skills" block
    listing exact skill names. Require the agent to quote one sentence
-   from each loaded skill in its first response as proof of loading.
-   Do not proceed with the agent's work until proof is received.
+   from each loaded skill in its first response as proof of loading,
+   EXCEPT /core:anti-fabrication, /core:restraint, /core:git, and
+   /core:security — invoke these four by exact name but skip the
+   quote-back. Do not proceed with the agent's work until proof is
+   received for every other loaded skill.
 
 4. Code without tests is not complete. `mise run ci` must pass before
    any commit, push, PR, or merge.

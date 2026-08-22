@@ -61,12 +61,12 @@ This rule applies in every context. A host that runs without a human supplies th
 
 Before invoking the Task tool to spawn any agent, verify:
 
-- [ ] Core skills still loaded (quote one sentence from each as self-check)
+- [ ] Core skills still loaded (quote one sentence from each as self-check, except `/core:anti-fabrication`, `/core:restraint`, `/core:git`, `/core:security` — invoked but not quoted, per the Proof of loading exemption)
 - [ ] `/claude-code:claude-agents` loaded (always)
 - [ ] `/claude-code:claude-teams` loaded (if spawning ≥2 parallel workers)
 - [ ] Spawn prompt names specific files and functions to reuse, not generic goals
 - [ ] Spawn prompt opens with a `## Load skills` block listing exact skill names
-- [ ] Spawn prompt requires the agent to quote one sentence from each loaded skill in its first response
+- [ ] Spawn prompt requires the agent to quote one sentence from each loaded skill in its first response, except the four exempt skills above
 
 A failed checkbox blocks the spawn. Fix it before invoking Task.
 
