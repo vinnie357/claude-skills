@@ -32,6 +32,8 @@ Output styles are **always active** once selected, for the whole session. They a
 | Style | Behavior |
 | :--- | :--- |
 | **Default** | Standard software-engineering system prompt |
+| **Proactive** | Executes immediately, makes reasonable assumptions instead of pausing for routine decisions, and prefers action over planning — stronger autonomous-execution guidance than auto mode, applied without changing the permission mode |
+| **Concise** | Leads with the result, skips preamble and narration, keeps responses short by default, while doing the engineering work as thoroughly as Default; error reports, security warnings, and destructive-action confirmations stay in full. Requires Claude Code v2.1.237+ |
 | **Explanatory** | Adds educational "Insights" during task completion |
 | **Learning** | Collaborative mode — Claude inserts `TODO(human)` markers for the user to fill in |
 
@@ -62,6 +64,7 @@ You are an interactive CLI tool that helps users with [domain].
 | `name` | Display name (inherits from filename if omitted) | filename |
 | `description` | Shown in `/config` picker | none |
 | `keep-coding-instructions` | Retain Claude Code's coding-specific system prompt sections | `false` |
+| `force-for-plugin` | Plugin output styles only: apply this style automatically whenever the plugin is enabled, without the user selecting it. Overrides the user's `outputStyle` setting. If multiple enabled plugins set this, Claude Code uses the first one loaded. | `false` |
 
 Set `keep-coding-instructions: true` when the custom style *augments* coding behavior rather than replacing it.
 
@@ -71,7 +74,10 @@ Set `keep-coding-instructions: true` when the custom style *augments* coding beh
 | :--- | :--- |
 | User-level | `~/.claude/output-styles/` |
 | Project-level | `.claude/output-styles/` |
+| Managed policy | `.claude/output-styles/` inside the managed settings directory |
 | Plugin-shipped | `<plugin-root>/output-styles/` |
+
+Project-level resolution is not one flat path — it loads from every `.claude/output-styles/` between the working directory and the repository root. When more than one of these nested directories defines a style with the same name, Claude Code uses the one closest to the working directory.
 
 ### Selecting a Style
 
@@ -121,6 +127,8 @@ The session-level output style modifies the **main agent loop's** system prompt.
 - Skills loaded within a subagent
 
 If you need a subagent to produce output in a specific shape, encode the contract in the agent's own definition or reference a shared contract file.
+
+**Exception: forks.** A fork (`Agent` tool with `subagent_type: "fork"`) is not an independent subagent — it's a continuation of the same conversation, so it inherits the parent's full system prompt, output style included. Regular subagents (any other `subagent_type`) still do not inherit it.
 
 ### Where to Place a Contract
 
