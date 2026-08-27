@@ -1,6 +1,6 @@
 {
   "name": "all-skills",
-  "version": "0.4.160",
+  "version": "0.4.161",
   "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
   "author": {
     "name": "vinnie357"
@@ -54,6 +54,7 @@
     "./plugins/core/skills/tdd",
     "./plugins/core/skills/agent-loop",
     "./plugins/core/skills/restraint",
+    "./plugins/core/skills/technical-english",
     "./plugins/tools/dagu/skills/workflows",
     "./plugins/tools/dagu/skills/webui",
     "./plugins/tools/dagu/skills/rest-api",

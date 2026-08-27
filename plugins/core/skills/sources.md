@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the core plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits`, `github-rest-troubleshooting`, `github-oauth-scopes`, `gitlab-cli-docs` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model` (Agent Loop Skill).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits`, `github-rest-troubleshooting`, `github-oauth-scopes`, `gitlab-cli-docs` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model` (Agent Loop Skill); `asd-ste100`, `zinsser-on-writing-well`, `openste-wordset` (Technical English Skill).
 
 ## Git Skill
 
@@ -308,3 +308,28 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 ### mise Sandboxing
 - https://mise.jdx.dev/sandboxing.html — mise sandboxing (experimental). Extracted: allow/deny flags, task-level config, Landlock/Seatbelt platform support, limitations. Accessed 2026-05-22.
+
+## Technical English Skill
+
+### ASD-STE100 Simplified Technical English
+- **URL**: https://www.asd-ste100.org/
+- **Purpose**: Shape for the strict register (edition: Issue 9, January 2025) — the rule categories behind one-term-one-meaning, active voice, simple tenses, one instruction per sentence, sentence and paragraph budgets, and warnings-before-the-step
+- **Date Accessed**: 2026-08-27
+- **Author**: ASD Simplified Technical English Maintenance Group (STEMG), Brussels
+- **License**: Proprietary — © STEMG, all rights reserved. Used as shape only: rule categories paraphrased in this repo's own words, no rule text reproduced, no dictionary reproduced, no conformance claimed
+- **Key Topics**: Controlled language, procedural vs descriptive text, restricted vocabulary, unambiguous instructions
+
+### On Writing Well
+- **URL**: https://www.harpercollins.com/products/on-writing-well-william-zinsser
+- **Purpose**: Source for the flavored register — the four principles (clarity, simplicity, brevity, humanity) and the cut-the-clutter discipline
+- **Date Accessed**: 2026-08-27
+- **Author**: William Zinsser
+- **License**: Copyrighted book. Principle names and general method used; no passage quoted
+- **Key Topics**: Clutter, qualifiers, duplicating adverbs, active voice, rewriting
+
+### OpenSTE Wordset
+- **URL**: https://github.com/openste/openste
+- **Purpose**: MIT-licensed open approximation of an STE approved-word list; intended vocabulary source for the Vale gate, since ASD's dictionary cannot be redistributed
+- **Date Accessed**: 2026-08-27
+- **License**: MIT — © openSTE.org. Not yet vendored; verify the LICENSE file in-repo before vendoring
+- **Key Topics**: Approved vocabulary, one word per concept, open licensing

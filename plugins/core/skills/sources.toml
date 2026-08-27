@@ -351,3 +351,40 @@ name = "forge-operating-model"
 check_method = "none"
 last_checked = "2026-06-14"
 notes = "sources.md states this explicitly: 'internal doctrine (no external source) — operator-confirmed production learnings, 2026-06-14'. Source for the Forge operating model added to /core:agent-loop — the hands pattern, paired teams + implementor fan-out, the AGENT_LOOP_HANDS_MODEL / AGENT_LOOP_HANDS_VISION_MODEL capability-based selection, the /work command, and the forge-issue.workflow.js template. agent-loop's coverage does not depend on this entry (allium and workflow-execution-substrate above already cover the skill); it exists to record 'no upstream' as a stated claim for this specific provenance thread rather than a silent gap."
+
+# ----------------------------------------------------------------------------
+# Technical English Skill sources — three works. ASD-STE100 is copyrighted with
+# no published reproduction license, so it is used as SHAPE only: rule
+# categories paraphrased in this repo's own words, no rule text, no dictionary,
+# and no conformance claim anywhere in the skill.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["technical-english"]
+name = "asd-ste100"
+url = "https://www.asd-ste100.org/"
+check_method = "manual"
+current_version = "issue-9"
+version_constraint = "stable"
+last_checked = "2026-08-27"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "ASD-STE100 Simplified Technical English, Issue 9 (January 2025), maintained by the ASD Simplified Technical English Maintenance Group (STEMG), Brussels. Copyright STEMG, all rights reserved; the specification is free on request but publishes no reproduction license. The skill paraphrases rule categories and principles in its own words; it reproduces no rule text and no part of the approved/unapproved dictionary, and claims no STE conformance. current_version encodes the issue designator as issue-9 because VERSION_SHAPE_RE rejects the literal 'Issue 9' (the space is outside its alphabet). Recorded so a future Issue 10 is detectable; the specification is not vendored."
+
+[[sources]]
+skills = ["technical-english"]
+name = "zinsser-on-writing-well"
+check_method = "none"
+last_checked = "2026-08-27"
+notes = "William Zinsser, On Writing Well (1976). Source for the four principles named in references/flavored-prose.md — clarity, simplicity, brevity, humanity — and for the cut-the-clutter, cut-qualifiers, cut-duplicating-adverbs discipline. A book has no upstream release feed to poll, so check_method = none and the network keys are omitted. No passage is quoted; the substitution rows in the skill are this repo's own, chosen from words that appear in this corpus."
+
+[[sources]]
+skills = ["technical-english"]
+name = "openste-wordset"
+url = "https://github.com/openste/openste"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-08-27"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "MIT-licensed open approximation of an STE approved-word list, published at openste.org. Recorded now because it is the intended vocabulary source for the Vale gate (claude-skills-306), which needs a word list that ASD's copyrighted dictionary cannot supply. Not yet vendored: verify the LICENSE file in-repo before vendoring under a third_party/ path with its provenance. OpenSTE is an open approximation, not the certified standard, so using it licenses no STE conformance claim."

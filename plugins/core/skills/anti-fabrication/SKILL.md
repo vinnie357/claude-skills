@@ -20,7 +20,17 @@ Strict requirements for ensuring factual, measurable, and validated outputs in a
 - Mark uncertain information as "requires analysis", "needs validation", or "requires investigation"
 - State when information cannot be verified: "Unable to confirm without [specific check]"
 - Acknowledge knowledge limitations rather than fabricating plausible-sounding content
-- Use conditional language when appropriate: "may", "likely", "appears to"
+
+### Hedges vs directives
+
+Hedge about the world. Never hedge about the instruction.
+
+- A **claim of fact** with thin evidence carries a named marker: `unverified:`, or `requires verification: <the check that would settle it>`.
+- A **directive** carries no hedging verb. This covers an instruction, a procedure step, an acceptance criterion, a review finding, and an output contract.
+- Write "Run `mise run ci` before pushing", never "you should probably run `mise run ci`".
+- The named-marker form replaces bare conditionals on claims too. "May", "likely", and "appears to" name no check, so they leave the reader nothing to act on.
+
+Test a sentence by putting "You" in front of it. If it still reads as advice, it is a directive, so strip the hedge. If it answers "is this true?", keep the uncertainty and name the check.
 
 ### Factual Language
 - Use precise, factual language without superlatives or unsubstantiated performance claims
