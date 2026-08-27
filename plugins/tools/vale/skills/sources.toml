@@ -1,0 +1,38 @@
+# sources.toml - Machine-readable version tracking for skill dependencies.
+# Run `mise sources:check` to compare against the latest upstream release.
+
+[meta]
+plugin = "vale"
+reviewed_at_plugin_version = "0.1.0"
+last_full_check = "2026-08-27"
+
+# ----------------------------------------------------------------------------
+# Vale documentation — the upstream reference for extension points, scopes,
+# alert levels, and config structure.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["vale"]
+name = "vale-docs"
+url = "https://docs.vale.sh/"
+check_method = "manual"
+current_version = "3.18.0"
+version_constraint = "semver"
+last_checked = "2026-08-27"
+update_priority = "medium"
+breaking_changes_likely = false
+notes = "Source for the eleven extension points, scope options including text.frontmatter.<field>, MinAlertLevel and per-rule alert levels, .vale.ini section globs, and inline suppression syntax. current_version tracks the binary this repo pins in mise.toml; rule semantics can shift between minors, which is why the pin is exact rather than latest."
+
+# ----------------------------------------------------------------------------
+# Vale package registry — the published styles `vale sync` installs.
+# ----------------------------------------------------------------------------
+[[sources]]
+skills = ["vale"]
+name = "vale-package-registry"
+url = "https://vale.sh/explorer"
+check_method = "manual"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-08-27"
+update_priority = "low"
+breaking_changes_likely = false
+notes = "The published style packages (Google, Microsoft, write-good, proselint, alex, Readability) reachable through the Packages key and vale sync. This repo ships its own Strict and Flavored styles and installs no package today; the entry records the registry as the place to look before authoring a rule that may already exist upstream."

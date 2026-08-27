@@ -1,0 +1,20 @@
+{
+  "name": "vale",
+  "version": "0.1.0",
+  "description": "Vale prose linting: mise setup, rule authoring across the eleven extension points, scopes, alert levels, and suppression",
+  "author": {
+    "name": "vinnie357"
+  },
+  "repository": "https://github.com/vinnie357/claude-skills",
+  "license": "MIT",
+  "keywords": [
+    "vale",
+    "prose",
+    "linting",
+    "documentation",
+    "style"
+  ],
+  "skills": [
+    "./skills/vale"
+  ]
+}
