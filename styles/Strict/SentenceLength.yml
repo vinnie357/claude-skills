@@ -1,0 +1,7 @@
+extends: occurrence
+message: "Sentence runs past the 25-word cap for description text — split it."
+level: warning
+scope: sentence
+ignorecase: false
+max: 25
+token: '\b\w+\b'

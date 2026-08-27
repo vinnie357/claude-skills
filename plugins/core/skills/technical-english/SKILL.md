@@ -80,13 +80,17 @@ State a warning, a caution, or a precondition before the step it governs, never 
 | Main-loop conversation | The active output style — `core` ships **Plain Technical**, opt-in |
 | Subagent prompts and reports | This skill plus the response contract |
 | Authored artifacts (skills, ADRs, READMEs) | This skill plus review |
-| CI | Vale, once claude-skills-306 lands; no prose gate runs today |
+| CI | Vale, via `mise run test:prose` |
 
 Select the shipped style with `/config` → Output style → **Plain Technical**, or set `"outputStyle": "Plain Technical"` in `.claude/settings.local.json`. It takes effect after `/clear` or in a new session. It is never forced on you: it does not override a style you already chose. The style ships with the `core` plugin and with `all-skills`; a plugin that vendors this skill alone does not carry it.
 
 ## What CI checks and what it cannot
 
-**No prose gate runs in CI today.** Adopting Vale is tracked as claude-skills-306. Once it lands, Vale will check term consistency, passive voice, sentence-length caps, and banned words. Two things stay a review-time judgment call either way: whether a sentence carries exactly one instruction, and whether a paragraph needs to exist at all. Until the gate exists, every rule here is enforced by review alone.
+Vale runs as `mise run test:prose`, inside `mise run test`. It checks banned superlatives, clutter phrases, weak qualifiers, hedged directives, sentence length, and nominalizations. Rule files live in `styles/Strict/` and `styles/Flavored/`; `.vale.ini` picks the register by path.
+
+Every rule ships at `warning`, so the gate reports without blocking. A rule moves to `error` once its findings reach zero, one rule at a time. Burn-down is tracked as claude-skills-307.
+
+Two things stay a review-time judgment call whatever the tooling does. Vale cannot tell whether a sentence carries exactly one instruction. It cannot tell whether a paragraph needed to exist. Both belong to review.
 
 ## Anti-fabrication
 

@@ -1,0 +1,18 @@
+extends: existence
+message: "'%s' is an unverified superlative — state the measured fact instead."
+level: warning
+link: https://github.com/vinnie357/claude-skills/blob/main/plugins/core/skills/anti-fabrication/SKILL.md
+ignorecase: true
+tokens:
+  - comprehensive
+  - excellent
+  - optimal
+  - perfect
+  - robust
+  - seamless
+  - cutting-edge
+  - state-of-the-art
+  - industry-leading
+  - production-ready
+  - blazing
+  - world-class

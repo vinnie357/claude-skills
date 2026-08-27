@@ -9,6 +9,7 @@
 act = "latest"  # Local GitHub Actions testing
 claude = "latest"  # Self-contained Bun binary; bypasses npm/node toolchain breakage
 gitleaks = "latest"  # Native binary preferred by scripts/gitleaks.nu over container runtimes (claude-skills-209)
+vale = "3.18.0"  # Prose linter, pinned — rule semantics shift between minors and CI would absorb it silently (claude-skills-306)
 
 # Note: Lima and Colima are macOS-only tools for local act testing
 # Install manually on Mac: mise install lima colima
@@ -33,7 +34,7 @@ depends = ["test"]
 # "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
 # Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:gitleaks-invocation", "test:no-symlinks", "test:comment-fixtures"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:gitleaks-invocation", "test:no-symlinks", "test:comment-fixtures", "test:prose"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -265,6 +266,24 @@ run = """
 let repo_root = (git rev-parse --show-toplevel | str trim)
 nu ($repo_root | path join "test" "validate-core-list.nu") --self-test
 nu ($repo_root | path join "test" "validate-core-list.nu")
+"""
+
+[tasks."test:prose"]
+description = "Prose gate: Vale, two registers (strict for agents/commands, flavored elsewhere)"
+run = """
+nu -c '
+  # git ls-files lists CLAUDE.md, a symlink to AGENTS.md — Vale would scan
+  # the same bytes twice and double-count every finding. Drop symlinks.
+  let files = (
+    git ls-files "*.md"
+    | lines
+    | where {|f| ($f | path exists) and (($f | path expand) == ($f | path expand --no-symlink)) }
+  )
+  if ($files | is-empty) { print "no markdown files"; exit 0 }
+  vale --no-exit --output=line ...$files
+  # Only error-level rules gate the build; MinAlertLevel keeps warnings visible.
+  vale --minAlertLevel error ...$files
+'
 """
 
 [tasks."test:disclosure"]
