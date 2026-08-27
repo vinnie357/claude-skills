@@ -3210,10 +3210,19 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
 # evaluate-output-style-file (unknown key, missing name, missing
 # description, a clean four-key file, and — as a regression guard — the one
 # style this repo actually ships, plugins/core/output-styles/plain-technical.md,
-# which must stay clean). Cases 7-10 exercise check-output-styles-path
-# (missing path, present path, no outputStyles field, and an
+# which must stay clean). Cases 7-10 exercise check-output-styles-path's
+# STRING form (missing path, present path, no outputStyles field, and an
 # output-styles/ dir with no outputStyles field — convention discovery,
 # which must not be flagged either).
+#
+# Cases 11-14 exercise the ARRAY form the plugins reference also documents
+# for `outputStyles` (string or array of output-style files/directories).
+# `check-output-styles-path` throws on it today (`path join` against a
+# list<string> is a type error, not a caught one) — a crash on documented
+# valid input, and because it throws instead of returning a finding it
+# would abort the WHOLE validator run, not just miss this one check. Each
+# call is wrapped in try/catch so that crash is reported as a failed
+# assertion here instead of aborting this self-test suite itself.
 def run-output-style-self-test [] {
     mut failed = false
     let root = (mktemp -d)
@@ -3320,9 +3329,47 @@ Body prose.
         $failed = true
     }
 
+    # Array form (claude-skills-313): the plugins reference documents
+    # `outputStyles` as string OR array of output-style files/directories.
+    # try/catch turns a crash into a reported failure rather than aborting
+    # this whole self-test suite — see the doc comment above.
+    let arr_one_bad_json = {name: "pluginX", outputStyles: ["./does-not-exist/"]}
+    let arr_one_bad_res = (try { check-output-styles-path $arr_one_bad_json $plugin_dir } catch { |e| null })
+    if ($arr_one_bad_res == null) or ($arr_one_bad_res | is-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: array outputStyles with one bad path crashed or was not flagged \(got ($arr_one_bad_res)\)(ansi reset)"
+        $failed = true
+    }
+
+    let arr_mixed_json = {name: "pluginX", outputStyles: ["./output-styles/" "./also-missing/"]}
+    let arr_mixed_res = (try { check-output-styles-path $arr_mixed_json $plugin_dir } catch { |e| null })
+    if ($arr_mixed_res == null) or ($arr_mixed_res | is-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: array outputStyles with one good and one bad path crashed or was not flagged \(got ($arr_mixed_res)\)(ansi reset)"
+        $failed = true
+    }
+
+    let arr_all_good_json = {name: "pluginX", outputStyles: ["./output-styles/"]}
+    let arr_all_good_res = (try { check-output-styles-path $arr_all_good_json $plugin_dir } catch { |e| null })
+    if ($arr_all_good_res == null) {
+        print "❌ output-style self-test: array outputStyles with an existing path crashed"
+        $failed = true
+    } else if ($arr_all_good_res | is-not-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: array outputStyles with an existing path wrongly flagged \(got ($arr_all_good_res | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    let arr_empty_json = {name: "pluginX", outputStyles: []}
+    let arr_empty_res = (try { check-output-styles-path $arr_empty_json $plugin_dir } catch { |e| null })
+    if ($arr_empty_res == null) {
+        print "❌ output-style self-test: empty array outputStyles crashed"
+        $failed = true
+    } else if ($arr_empty_res | is-not-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: empty array outputStyles wrongly flagged \(got ($arr_empty_res | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
     rm -rf $root
     if not $failed {
-        print $"(ansi green_bold)✅ Output-style self-test passed \(10 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Output-style self-test passed \(14 cases\)(ansi reset)"
     }
     $failed
 }
@@ -4007,9 +4054,9 @@ def main [--update-baseline, --self-test] {
 
     print ""
     if ($surface_results | is-empty) {
-        print "agents/commands/hooks surfaces: all clean"
+        print "agents/commands/hooks/output-styles surfaces: all clean"
     } else {
-        print $"agents/commands/hooks surfaces: ($surface_results | length) finding\(s\)"
+        print $"agents/commands/hooks/output-styles surfaces: ($surface_results | length) finding\(s\)"
         print ($surface_results | table --expand --width 220)
     }
 
