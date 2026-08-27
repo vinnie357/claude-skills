@@ -3242,7 +3242,23 @@ def read-plugin-json [path: string]: nothing -> record {
         {status: "missing", data: null, file: $path}
     } else {
         try {
-            {status: "ok", data: (open $path), file: $path}
+            let parsed = (open $path)
+            # A parse that succeeds but yields something other than a
+            # record (a JSON list/string/null, an empty file, or a
+            # BOM-prefixed file that falls back to raw text — claude-skills-
+            # 314) is just as unusable to every downstream `get -o skills`/
+            # `.name` field access as a throw would have been, so it's
+            # normalized to the same "invalid" status here rather than
+            # returning "ok" with unusable data. `describe` on a record
+            # returns the full field signature (e.g. `record<name: string,
+            # ...>`), not the bare word "record" — str starts-with is
+            # required, an equality check would reject every well-formed
+            # manifest too.
+            if ($parsed | describe | str starts-with "record") {
+                {status: "ok", data: $parsed, file: $path}
+            } else {
+                {status: "invalid", data: null, file: $path}
+            }
         } catch {
             {status: "invalid", data: null, file: $path}
         }
