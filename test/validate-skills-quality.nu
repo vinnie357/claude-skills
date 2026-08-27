@@ -290,12 +290,21 @@ def pass2-dir-in-scope [top: string, own_dir: string, plugin_dir: string]: nothi
 #   literal substring "references/", so a bare sibling link carries no such
 #   token and is invisible to it (PR #263: `attribution.md` linking
 #   `[flavored-prose.md](flavored-prose.md)` was never flagged, even though
-#   the reverse direction was). Detection against this parameter is not yet
-#   implemented in the body below — this is the signature the fix lands
-#   against.
+#   the reverse direction was). This is a separate branch of logic, checked
+#   per line alongside the references/ token scan (either one flags the
+#   line): a markdown link `[text](target)` whose target string EXACTLY
+#   equals an entry in `sibling_basenames` (no suffix/basename extraction,
+#   so a path with any directory component never matches a bare filename).
+#   A target starting with a URL scheme (`scheme://`) is rejected before the
+#   equality check — belt-and-suspenders with the exact-match requirement,
+#   since exact-match alone already can't equate a full URL string with a
+#   bare basename. Accepted residual: a link written with a directory
+#   prefix to the same file (e.g. `[x](./attribution.md)`) escapes, same as
+#   the bare-directory-mention residual above — no file extension/path
+#   normalization is attempted, matching this function's existing minimalism.
 def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list, sibling_basenames: list]: nothing -> bool {
     ($content | lines | any {|line|
-        if not ($line | str contains "references/") {
+        let ref_flag = if not ($line | str contains "references/") {
             false
         } else if (($line | parse --regex '^\s{0,3}#{1,6} ') | is-not-empty) {
             false
@@ -309,6 +318,19 @@ def has-unqualified-references-token [content: string, dir_name: string, skill_d
             } else {
                 not (cross-skill-qualified $prefix $dir_name ($path_match | first | get path) $skill_dir_map $known_plugins)
             }
+        }
+        if $ref_flag {
+            true
+        } else {
+            let link_matches = ($line | parse --regex '\[[^\]]*\]\((?P<target>[^)]+)\)')
+            ($link_matches | any {|m|
+                let target = ($m.target | str trim)
+                if (($target | parse --regex '^[A-Za-z][A-Za-z0-9+.-]*://') | is-not-empty) {
+                    false
+                } else {
+                    $target in $sibling_basenames
+                }
+            })
         }
     })
 }
