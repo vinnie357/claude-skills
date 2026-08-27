@@ -86,7 +86,7 @@ Select the shipped style with `/config` → Output style → **Plain Technical**
 
 ## What CI checks and what it cannot
 
-Vale runs as `mise run test:prose`, inside `mise run test`. It checks banned superlatives, clutter phrases, weak qualifiers, hedged directives, sentence length, and nominalizations. Rule files live in `styles/Strict/` and `styles/Flavored/`; `.vale.ini` picks the register by path.
+Vale runs as `mise run test:prose`, inside `mise run test`. It checks banned superlatives, clutter phrases, weak qualifiers, hedged directives, sentence length, and nominalizations. Rule files live in `styles/Strict/` and `styles/Flavored/`; `.vale.ini` picks the register by path. See `/vale:vale` for the tool itself — extension points, scopes, alert levels, and how to author a rule.
 
 A rule reports at `warning` while its findings burn down, then moves to `error` once it reaches zero. Clutter gates today; the rest report. Burn-down is claude-skills-307.
 

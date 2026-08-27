@@ -252,6 +252,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rust**: rustdoc - `cargo doc`
 - **Static sites**: VitePress, Docusaurus, GitBook
 
+### Prose Linting
+
+- **Vale**: `mise run test:prose` — checks banned words, clutter, sentence length, and hedged directives. See `/vale:vale` for the tool and `/core:technical-english` for the register rules it enforces.
+
 ### Diagram Tools
 
 - **Mermaid**: Diagrams in Markdown
