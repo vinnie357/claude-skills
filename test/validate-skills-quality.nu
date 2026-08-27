@@ -3461,10 +3461,22 @@ def run-root-manifest-self-test [] {
     # at the top of the $registry-building loop must still exist verbatim —
     # deleting it would double-count the corpus. See doc comment above for
     # why this is a source-text guard and not a numeric one.
+    #
+    # A plain `str contains` for the needle is vacuous: this guard's own
+    # source line is itself a match (the needle string is quoted right
+    # here), so `str contains` returns true even after the real exclusion at
+    # the top of the $registry-building loop is deleted — the guard would
+    # match itself and never fire. Counting occurrences instead of checking
+    # presence fixes it: this guard's own line always contributes exactly
+    # one match, so requiring at least TWO occurrences only passes when the
+    # real exclusion is also still present. Deleting the real one drops the
+    # count from 2 to 1 and fails the guard.
     let script_path = ($repo_root | path join "test" "validate-skills-quality.nu")
     let script_text = (open --raw $script_path)
-    if not ($script_text | str contains 'if ($plugin.name == "all-skills") { continue }') {
-        print $"(ansi red_bold)❌ root-manifest self-test: all-skills exclusion line missing from the \$registry-building loop — corpus would double-count(ansi reset)"
+    let exclusion_needle = 'if ($plugin.name == "all-skills") { continue }'
+    let exclusion_occurrences = (($script_text | split row $exclusion_needle | length) - 1)
+    if $exclusion_occurrences < 2 {
+        print $"(ansi red_bold)❌ root-manifest self-test: all-skills exclusion line missing from the \$registry-building loop — corpus would double-count \(found ($exclusion_occurrences) occurrence\(s\), need >= 2: this guard's own line plus the real exclusion\)(ansi reset)"
         $failed = true
     }
 
