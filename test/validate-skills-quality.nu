@@ -3468,9 +3468,17 @@ def run-root-manifest-self-test [] {
     # the top of the $registry-building loop is deleted — the guard would
     # match itself and never fire. Counting occurrences instead of checking
     # presence fixes it: this guard's own line always contributes exactly
-    # one match, so requiring at least TWO occurrences only passes when the
-    # real exclusion is also still present. Deleting the real one drops the
-    # count from 2 to 1 and fails the guard.
+    # one match, so requiring at least TWO occurrences means the literal must
+    # appear somewhere besides this guard. Deleting or rewording the real
+    # exclusion drops the count from 2 to 1 and fails.
+    #
+    # Known residual: this counts text, not behaviour. Commenting the real
+    # line out while keeping the literal keeps the count at 2 and passes, and
+    # any future comment quoting the literal verbatim would do the same. The
+    # load-bearing guard is the corpus run itself — with the exclusion gone,
+    # a full validation reports 216 skills instead of 108 and fails on the
+    # duplicated anti_fab findings. This check is an early tripwire, not the
+    # backstop.
     let script_path = ($repo_root | path join "test" "validate-skills-quality.nu")
     let script_text = (open --raw $script_path)
     let exclusion_needle = 'if ($plugin.name == "all-skills") { continue }'
