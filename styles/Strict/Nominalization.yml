@@ -1,0 +1,10 @@
+extends: substitution
+message: "Use the verb '%s' instead of the noun phrase '%s'."
+level: warning
+ignorecase: true
+swap:
+  "perform an? (\\w+)ation of": "$1ate"
+  "make a decision": decide
+  "provide a description of": describe
+  "give consideration to": consider
+  "carry out an analysis of": analyse

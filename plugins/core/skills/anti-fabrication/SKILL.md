@@ -41,6 +41,7 @@ Test a sentence by putting "You" in front of it. If it still reads as advice, it
 ## Prohibited Language and Claims
 
 ### Superlatives to Avoid
+<!-- vale Flavored.Superlatives = NO -->
 Never use unverified superlatives:
 - ❌ "excellent", "comprehensive", "advanced", "optimal", "perfect"
 - ❌ "best practice", "industry-leading", "cutting-edge", "state-of-the-art"
@@ -50,6 +51,7 @@ Instead, use factual descriptions:
 - ✅ "follows the specification defined in [source]"
 - ✅ "implements [specific pattern] as documented in [reference]"
 - ✅ "tested with [specific conditions] and produced [specific results]"
+<!-- vale Flavored.Superlatives = YES -->
 
 ### Unsubstantiated Metrics
 Never fabricate quantitative data:

@@ -1,0 +1,12 @@
+extends: existence
+message: "'%s' hedges an instruction — state the directive plainly."
+level: warning
+link: https://github.com/vinnie357/claude-skills/blob/main/plugins/core/skills/anti-fabrication/SKILL.md
+ignorecase: true
+tokens:
+  - should probably
+  - you may want to
+  - you might want to
+  - it would be good to
+  - consider using
+  - try to

@@ -1,0 +1,18 @@
+# At zero findings on this corpus, so it gates: new clutter fails the build.
+extends: substitution
+message: "Use '%s' instead of '%s'."
+level: error
+ignorecase: true
+swap:
+  "at the present time": now
+  "at this point in time": now
+  "due to the fact that": because
+  "in order to": to
+  "in the event that": if
+  "has the ability to": can
+  "is able to": can
+  "it should be noted that": ""
+  "make use of": use
+  "prior to": before
+  "subsequent to": after
+  "a large number of": many

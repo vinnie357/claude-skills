@@ -310,7 +310,9 @@ All skills MUST adhere to strict anti-fabrication requirements to ensure factual
 - Validate integration recommendations through actual framework detection using tool analysis
 
 **Prohibited Language and Claims:**
+<!-- vale Flavored.Superlatives = NO -->
 - **Superlatives**: Avoid "excellent", "comprehensive", "advanced", "optimal", "perfect"
+<!-- vale Flavored.Superlatives = YES -->
 - **Unsubstantiated Metrics**: Never fabricate percentages, success rates, or performance numbers
 - **Assumed Capabilities**: Don't claim features exist without tool verification
 - **Generic Claims**: Replace vague statements with specific, measurable observations
