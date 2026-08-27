@@ -1,6 +1,6 @@
 # Flavored Prose
 
-Flavored mode governs explanatory writing: SKILL.md context sections, references, READMEs, ADR rationale, and PR bodies. It borrows its shape from four principles William Zinsser set out in *On Writing Well*, restated here in this repo's own words. See [attribution.md](attribution.md) for the source.
+Flavored mode governs explanatory writing: SKILL.md context sections, references, READMEs, ADR rationale, and PR bodies. It borrows its shape from four principles William Zinsser set out in *On Writing Well*, restated here in this repo's own words. The skill's References section names the attribution file that records the source.
 
 ## The four principles, restated
 
