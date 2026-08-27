@@ -14,7 +14,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 ### The Rust Programming Language Book
 - **URL**: https://doc.rust-lang.org/book/
-- **Purpose**: Comprehensive guide to learning Rust
+- **Purpose**: Guide to learning Rust
 - **Key Topics**:
   - Ownership and borrowing
   - Lifetimes

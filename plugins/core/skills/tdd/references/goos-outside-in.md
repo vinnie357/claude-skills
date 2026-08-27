@@ -247,7 +247,7 @@ if order.status == "paid":
 
 Problems: controller knows too much about order internals, warehouse mechanics, and the fulfillment process.
 
-### Tell (Robust)
+### Tell (Encapsulated)
 
 ```
 # Controller tells order to fulfill itself with the warehouse

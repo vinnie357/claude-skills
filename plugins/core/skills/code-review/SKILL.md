@@ -249,7 +249,9 @@ end
 - **Be respectful**: Kind, constructive communication
 - **Focus on important issues**: Don't bike-shed
 - **Explain reasoning**: Help author learn, don't just dictate
+<!-- vale Flavored.Superlatives = NO -->
 - **Approve good code**: Don't let perfect be enemy of good
+<!-- vale Flavored.Superlatives = YES -->
 - **Collaborate**: You're on the same team
 - **Check restraint**: Every new symbol earns its place on the ladder — see `/core:restraint`
 

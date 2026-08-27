@@ -59,7 +59,9 @@ Slide 9 (optional): Code Walkthrough
 - Direct and precise — no hedging
 - State tradeoffs explicitly: "This approach sacrifices consistency for availability"
 - Cite sources for claims: "Per the Postgres docs on MVCC..." or "Benchmark run on m5.xlarge..."
+<!-- vale Flavored.Superlatives = NO -->
 - Avoid: "seamless", "powerful", "simple", "easy", "just"
+<!-- vale Flavored.Superlatives = YES -->
 - Use: specific version numbers, benchmark results, error rates, latency percentiles
 
 ### Visual Approach

@@ -41,7 +41,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 ### Phoenix Guides
 - **URL**: https://hexdocs.pm/phoenix/overview.html
-- **Purpose**: Comprehensive guides for building Phoenix applications
+- **Purpose**: Guides for building Phoenix applications
 - **Key Topics**: Routing, controllers, views, templates, contexts, testing
 
 ### Phoenix Hex Package

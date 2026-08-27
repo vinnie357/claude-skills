@@ -85,7 +85,9 @@ Information and UI operation must be understandable.
 <div id="email-help">We'll never share your email</div>
 ```
 
+<!-- vale Flavored.Superlatives = NO -->
 ### 4. Robust
+<!-- vale Flavored.Superlatives = YES -->
 
 Content must work reliably across user agents and assistive technologies.
 

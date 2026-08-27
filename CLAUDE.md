@@ -576,7 +576,7 @@ The key is identifying areas where having deep, specialized knowledge improves C
 
 ## Practical Learning with the Skills Cookbook
 
-The [Claude Skills Cookbook](https://github.com/anthropics/claude-cookbooks/tree/main/skills) provides hands-on learning resources for creating and using skills with production-ready examples.
+The [Claude Skills Cookbook](https://github.com/anthropics/claude-cookbooks/tree/main/skills) provides hands-on learning resources for creating and using skills, with runnable example code.
 
 ### Built-in Document Skills
 
@@ -599,7 +599,7 @@ The cookbook includes three progressive Jupyter notebooks:
 2. **Financial Applications**: Building dashboards, portfolio analysis, cross-format workflows
 3. **Custom Development**: Creating domain-specific skills with real business logic
 
-Each module includes production-ready code that can be adapted for immediate deployment.
+Each module includes example code intended as a starting point for further adaptation.
 
 ### Working with Skill-Generated Files
 
@@ -674,7 +674,7 @@ This structure aligns with the Agent Skills Specification while adding cookbook-
 
 ## Plugin Development
 
-The `claude-code` plugin provides comprehensive tools for building your own Claude Code plugins and marketplaces:
+The `claude-code` plugin provides skills and validation scripts for building your own Claude Code plugins and marketplaces:
 
 ### Skills
 - **plugin-marketplace** - Marketplace.json schema, validation, and management

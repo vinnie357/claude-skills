@@ -1,7 +1,7 @@
 {
   "name": "design",
-  "version": "0.1.4",
-  "description": "Framework-agnostic standards and design systems: accessibility (WCAG) and Material Design 3 — what you review an implementation against, and plan a compliant new one from",
+  "version": "0.1.5",
+  "description": "Framework-agnostic standards and design systems: accessibility (WCAG) and Material Design 3 \u2014 what you review an implementation against, and plan a compliant new one from",
   "author": {
     "name": "vinnie357"
   },

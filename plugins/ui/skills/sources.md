@@ -60,5 +60,5 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 - **Name**: ui
 - **Description**: UI framework skills: daisyUI components, theming, and responsive design
-- **Skills**: 1 comprehensive daisyUI skill
+- **Skills**: 1 daisyUI skill
 - **Created**: 2025-11-15

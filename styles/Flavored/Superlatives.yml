@@ -1,6 +1,7 @@
+# At zero findings on this corpus, so it gates: a new superlative fails the build.
 extends: existence
 message: "'%s' is an unverified superlative — state the measured fact instead."
-level: warning
+level: error
 link: https://github.com/vinnie357/claude-skills/blob/main/plugins/core/skills/anti-fabrication/SKILL.md
 ignorecase: true
 tokens:
