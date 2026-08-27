@@ -3213,6 +3213,39 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
     }
 }
 
+# claude-skills-313: shared guard for `open`-ing a plugin.json manifest.
+# Four call sites open a plugin.json with no guard today — a malformed
+# manifest throws and aborts the WHOLE validator run instead of producing a
+# finding ("Total skills" never prints and every other finding in that run
+# is masked). Verified by grep at this branch point: check-root-manifest
+# (below this comment), the $registry-building loop, the pass-2 skills
+# loop, and the outputStyles plugin-json check. Same class of bug as the
+# outputStyles array crash fixed in claude-skills-269 — a crash aborts, a
+# finding reports.
+#
+# Contract: never throws. Returns {status, data, file} where status is
+# "ok" (parsed successfully, data is the record), "invalid" (path exists
+# but failed to parse, data is null), or "missing" (path does not exist,
+# data is null). `file` always echoes the input path, so a caller building
+# a finding can name the offending manifest without threading the path
+# through separately.
+#
+# STUB (claude-skills-313, test-author phase): the "missing" branch is real
+# — every current call site already guards on `path exists` before opening,
+# so folding that logic in here is a no-op change in behavior. The parse
+# step is deliberately left unguarded (no try/catch around `open`) so the
+# malformed-manifest cases in run-invalid-manifest-self-test are RED until
+# the implementer adds the guard. The implementer must also wire the four
+# call sites named above to call this instead of opening the manifest
+# directly.
+def read-plugin-json [path: string]: nothing -> record {
+    if not ($path | path exists) {
+        {status: "missing", data: null, file: $path}
+    } else {
+        {status: "ok", data: (open $path), file: $path}
+    }
+}
+
 # claude-skills-312: the root `.claude-plugin/plugin.json` (name
 # "all-skills", the meta-plugin manifest that re-lists every other plugin's
 # skills) is skipped when building $registry — `if ($plugin.name ==
@@ -3495,6 +3528,94 @@ def run-root-manifest-self-test [] {
     $failed
 }
 
+# Embedded self-test for read-plugin-json (claude-skills-313) — the shared
+# guard around `open`-ing a plugin.json manifest, defined above
+# check-root-manifest. Case 1 and Case 2 are the must-flag red cases: a
+# malformed manifest throws today (the stub has no try/catch around its
+# `open` call), so both are RED until the implementer adds the guard.
+# Case 3 and Case 4 are regression guards that already pass — well-formed
+# manifests and missing manifests are handled correctly by the stub as
+# shipped (the "missing" branch is real, not stubbed; parsing a real
+# well-formed manifest never hits the missing try/catch at all).
+#
+# Every call is wrapped in try/catch, mirroring run-output-style-self-test's
+# precedent for a stub that can still throw: a crash here must fail this
+# case's assertion, not abort the whole self-test suite.
+def run-invalid-manifest-self-test [] {
+    mut failed = false
+
+    # Case 1 (must-flag, RED until implemented): a malformed plugin.json —
+    # unparseable JSON — must report status "invalid" rather than throwing.
+    let bad_root = (mktemp -d)
+    mkdir ($bad_root | path join ".claude-plugin")
+    let bad_path = ($bad_root | path join ".claude-plugin" "plugin.json")
+    "{ broken" | save $bad_path
+    # The catch fallback deliberately does NOT know $bad_path — file: null,
+    # not file: $bad_path. A fallback that echoed the known path back would
+    # make Case 2 pass vacuously whenever the stub throws, regardless of
+    # whether the real implementation ever names the file correctly. Only
+    # the implementation's own return value may satisfy Case 2.
+    let bad_res = (try {
+        read-plugin-json $bad_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $bad_res.status != "invalid" {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: malformed plugin.json not flagged as invalid \(got status: ($bad_res.status)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2 (must-flag, RED until implemented): the result names the
+    # offending file, so a finding built from it can say which manifest is
+    # broken.
+    if $bad_res.file != $bad_path {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: malformed-manifest result does not name the offending file \(got: ($bad_res.file)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $bad_root
+
+    # Case 3 (regression guard, must already pass): a well-formed manifest
+    # from the real corpus parses clean — status "ok", with the actual
+    # parsed content, not "invalid".
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let real_manifest = ($repo_root | path join "plugins" "core" ".claude-plugin" "plugin.json")
+    let real_res = (try {
+        read-plugin-json $real_manifest
+    } catch {
+        {status: "threw", data: null, file: $real_manifest}
+    })
+    if $real_res.status != "ok" {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: real core plugin.json wrongly flagged \(got status: ($real_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    if ($real_res.data | get -o name) != "core" {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: real core plugin.json parsed content missing or wrong \(got name: ($real_res.data | get -o name)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4 (regression guard, must already pass): a missing manifest is
+    # status "missing", never "invalid" — absent and malformed are
+    # different states, and the existing call sites already skip absent
+    # manifests via a `path exists` check before opening.
+    let missing_root = (mktemp -d)
+    let missing_path = ($missing_root | path join ".claude-plugin" "plugin.json")
+    let missing_res = (try {
+        read-plugin-json $missing_path
+    } catch {
+        {status: "threw", data: null, file: $missing_path}
+    })
+    if $missing_res.status != "missing" {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: missing plugin.json wrongly reported as ($missing_res.status), expected missing(ansi reset)"
+        $failed = true
+    }
+    rm -rf $missing_root
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Invalid-manifest self-test passed \(4 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -3515,7 +3636,8 @@ def main [--update-baseline, --self-test] {
         let redundant_when_to_use_failed = (run-redundant-when-to-use-self-test)
         let output_style_failed = (run-output-style-self-test)
         let root_manifest_failed = (run-root-manifest-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed { exit 1 }
+        let invalid_manifest_failed = (run-invalid-manifest-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed { exit 1 }
         exit 0
     }
 
