@@ -292,16 +292,25 @@ def pass2-dir-in-scope [top: string, own_dir: string, plugin_dir: string]: nothi
 #   `[flavored-prose.md](flavored-prose.md)` was never flagged, even though
 #   the reverse direction was). This is a separate branch of logic, checked
 #   per line alongside the references/ token scan (either one flags the
-#   line): a markdown link `[text](target)` whose target string EXACTLY
-#   equals an entry in `sibling_basenames` (no suffix/basename extraction,
-#   so a path with any directory component never matches a bare filename).
-#   A target starting with a URL scheme (`scheme://`) is rejected before the
-#   equality check — belt-and-suspenders with the exact-match requirement,
-#   since exact-match alone already can't equate a full URL string with a
-#   bare basename. Accepted residual: a link written with a directory
-#   prefix to the same file (e.g. `[x](./attribution.md)`) escapes, same as
-#   the bare-directory-mention residual above — no file extension/path
-#   normalization is attempted, matching this function's existing minimalism.
+#   line): a markdown link `[text](target)` whose target, after stripping a
+#   trailing link title (`target "Title"`) and then a trailing `#fragment`,
+#   EXACTLY equals an entry in `sibling_basenames` (no suffix/basename
+#   extraction beyond that — a path with any directory component never
+#   matches a bare filename). The fragment strip keeps this branch aligned
+#   with the references/ token branch above, which already flags
+#   `references/foo.md#anchor` (Gate 3 finding: the two branches used to
+#   disagree on the identical evasion applied to a bare link). No explicit
+#   URL-scheme rejection: exact-match after stripping already can't equate a
+#   full URL string (which still carries its `scheme://host/` prefix once
+#   the fragment is gone) with a bare basename — verified against
+#   `https://example.com/attribution.md#usage`, which still fails the
+#   equality check with no separate guard. Accepted residuals: a link
+#   written with a directory prefix to the same file (e.g.
+#   `[x](./attribution.md)`), an angle-bracket target
+#   (`[x](<attribution.md>)`), and nested brackets in the link text
+#   (`[see [note]](attribution.md)`) all escape — no path normalization,
+#   angle-bracket unwrapping, or bracket-nesting-aware link parsing is
+#   attempted, matching this function's existing minimalism.
 def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list, sibling_basenames: list]: nothing -> bool {
     ($content | lines | any {|line|
         let ref_flag = if not ($line | str contains "references/") {
@@ -324,12 +333,12 @@ def has-unqualified-references-token [content: string, dir_name: string, skill_d
         } else {
             let link_matches = ($line | parse --regex '\[[^\]]*\]\((?P<target>[^)]+)\)')
             ($link_matches | any {|m|
-                let target = ($m.target | str trim)
-                if (($target | parse --regex '^[A-Za-z][A-Za-z0-9+.-]*://') | is-not-empty) {
-                    false
-                } else {
-                    $target in $sibling_basenames
-                }
+                let raw_target = ($m.target | str trim)
+                let de_titled = ($raw_target | parse --regex '^(?P<base>.*?)\s+"[^"]*"$')
+                let after_title = if ($de_titled | is-not-empty) { $de_titled | first | get base } else { $raw_target }
+                let de_fragmented = ($after_title | parse --regex '^(?P<base>[^#]*)#.*$')
+                let target = if ($de_fragmented | is-not-empty) { $de_fragmented | first | get base } else { $after_title }
+                $target in $sibling_basenames
             })
         }
     })
