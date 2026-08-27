@@ -3191,16 +3191,25 @@ def evaluate-output-style-file [f: string, plugin_name: string]: nothing -> reco
 # not exist on disk (claude-skills-310). A plugin with no `outputStyles`
 # field at all — the common case, and how `core` worked before an explicit
 # field was added — is never flagged; this check only fires when the field
-# is present and wrong. Path is resolved relative to `plugin_dir`.
+# is present and wrong. Each path is resolved relative to `plugin_dir`.
 #
+# The plugins reference documents `outputStyles` as EITHER a single string
+# OR an array of output-style files/directories (claude-skills-313) —
+# `[$output_styles] | flatten` normalizes both shapes to a flat list of
+# strings (a bare string becomes a one-element list; a list stays as-is;
+# an empty list stays empty) so the same existence check below applies to
+# every entry without branching on `describe`.
 def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing -> list {
     let output_styles = ($plugin_json | get -o outputStyles)
     if $output_styles == null {
         []
-    } else if not ($plugin_dir | path join $output_styles | path exists) {
-        ["missing_path"]
     } else {
-        []
+        let paths = ([$output_styles] | flatten)
+        if ($paths | any {|p| not ($plugin_dir | path join $p | path exists) }) {
+            ["missing_path"]
+        } else {
+            []
+        }
     }
 }
 
