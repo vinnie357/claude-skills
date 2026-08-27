@@ -128,6 +128,6 @@ When a workflow bounds coverage (top-N, no-retry, sampling), `log()` what was dr
 
 ## Scaling to the request
 
-Match orchestration depth to what the user asked for. "Find any bugs" → a few finders, single-vote verify. "Thoroughly audit this" or "be comprehensive" → a larger finder pool, a 3–5 vote adversarial pass, and a synthesis stage. When unsure, lean toward thoroughness for research/review/audit requests and toward brevity for quick checks.
+Match orchestration depth to what the user asked for. "Find any bugs" → a few finders, single-vote verify. "Thoroughly audit this" or "don't miss anything" → a larger finder pool, a 3–5 vote adversarial pass, and a synthesis stage. When unsure, lean toward thoroughness for research/review/audit requests and toward brevity for quick checks.
 
 These patterns are not exhaustive — compose novel harnesses when the task calls for it (tournament brackets, self-repair loops, staged escalation).

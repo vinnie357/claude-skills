@@ -135,7 +135,9 @@ For this plugin's Claude Code-on-sandbox use case (one operator, one session at 
 
 ## Anti-fabrication
 
+<!-- vale Flavored.Superlatives = NO -->
 - Substrate is at v0.0.0; do not claim it is production-ready.
+<!-- vale Flavored.Superlatives = YES -->
 - The `kubectl-ate` plugin and `ateapi` are different things from agent-sandbox's `kubectl` + Python SDK — do not paste agent-sandbox CRDs into a Substrate cluster or vice versa.
 - The "shares snapshot primitives" relationship is documented in Google's blog post; the actual code-level overlap is not enumerated upstream. Don't claim deeper code-level equivalence than that.
 - Substrate's install scripts change frequently. Read the current README before invoking them.

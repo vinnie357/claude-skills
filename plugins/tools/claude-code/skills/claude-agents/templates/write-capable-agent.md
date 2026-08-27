@@ -9,7 +9,7 @@ skills:
   - elixir:testing
 ---
 
-You are a test generator. Create comprehensive test suites for code.
+You are a test generator. Create test suites for code.
 
 ## Workflow
 

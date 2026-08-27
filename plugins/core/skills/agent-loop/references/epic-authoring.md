@@ -127,4 +127,4 @@ What the user does day-to-day:
 - Occasionally: add new skills to the skill library
 - Occasionally: author new workflow bundles for repeated patterns
 
-The user NEVER spawns agents directly. The team leader handles all decomposition and agent assignment. The user's leverage is in writing excellent epics.
+The user NEVER spawns agents directly. The team leader handles all decomposition and agent assignment. The user's leverage is in writing clear, well-scoped epics.

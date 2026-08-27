@@ -119,7 +119,9 @@ Session-store example: `references/factor-examples.md`. Deployment manifest: `re
 
 - Minimize startup time (under 10 seconds ideal) — fast startup enables rapid scaling
 - Handle SIGTERM: finish in-flight requests, close connections, then exit
+<!-- vale Flavored.Superlatives = NO -->
 - Stay robust against sudden death
+<!-- vale Flavored.Superlatives = YES -->
 
 Graceful-shutdown example: `references/factor-examples.md`.
 
@@ -234,7 +236,7 @@ const db = connect(process.env.DATABASE_URL);
 7. **Graceful shutdown handling**
 8. **Fast startup times (< 10s)**
 9. **Immutable releases with unique IDs**
-10. **Comprehensive monitoring and telemetry**
+10. **Monitoring and telemetry via metrics and tracing**
 
 ## Resources
 

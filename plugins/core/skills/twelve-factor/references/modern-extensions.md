@@ -29,7 +29,7 @@ paths:
 
 ## XIV. Telemetry
 
-Comprehensive observability with metrics, tracing, and monitoring:
+Observability via metrics, tracing, and monitoring:
 
 ```yaml
 # Prometheus ServiceMonitor

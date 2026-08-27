@@ -1,9 +1,9 @@
 ---
-description: "Research topics and create comprehensive planning documentation"
+description: "Research topics and create multi-file planning documentation"
 argument-hint: "<category> <topic> [--complexity=low|medium|high]"
 ---
 
-Research a topic and create comprehensive documentation for planning, understanding, and working with the subject.
+Research a topic and create multi-file documentation for planning, understanding, and working with the subject.
 
 **Document Creation:**
 - **Directory Structure**: Creates `research/<category>/<topic>/`
@@ -88,7 +88,7 @@ Use Task tool with subagent_type: "general-purpose" to:
    - Plan document organization
 
 3. **Content Generation**:
-   - Write comprehensive `overview.md` with:
+   - Write `overview.md` covering:
      * Clear purpose and use cases
      * Core concepts and architecture
      * Implementation patterns
@@ -107,4 +107,4 @@ Use Task tool with subagent_type: "general-purpose" to:
    - Check for completeness and clarity
    - Add timestamps and version info
 
-The agent should produce comprehensive, actionable documentation that helps users understand and work with the topic effectively.
+The agent should produce actionable documentation, covering the sections listed above, that helps users understand and work with the topic.

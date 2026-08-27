@@ -107,5 +107,5 @@ cited paths, or via Codeberg — not via github.com/ziglang/zig at a tag.
 
 - **Name**: zig
 - **Description**: Zig programming skills: build system, comptime, allocators, error handling, C interop, and best practices
-- **Skills**: 1 comprehensive Zig skill
+- **Skills**: 1 Zig skill
 - **Created**: 2026-02-21

@@ -8,14 +8,18 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 ### W3C Web Accessibility Initiative (WAI)
 - **URL**: https://www.w3.org/WAI/fundamentals/accessibility-principles/
-- **Purpose**: Foundation for accessibility skill - comprehensive web accessibility principles
+- **Purpose**: Foundation for accessibility skill - core web accessibility principles
 - **Date Accessed**: 2025-11-15
+<!-- vale Flavored.Superlatives = NO -->
 - **Key Topics**: WCAG guidelines, POUR principles (Perceivable, Operable, Understandable, Robust)
+<!-- vale Flavored.Superlatives = YES -->
 - **Key Concepts**:
   - Text alternatives for non-text content
   - Keyboard accessibility
   - Readable and understandable text
+<!-- vale Flavored.Superlatives = NO -->
   - Robust content compatible with assistive technologies
+<!-- vale Flavored.Superlatives = YES -->
   - ARIA (Accessible Rich Internet Applications)
 
 ## Material Design Skill

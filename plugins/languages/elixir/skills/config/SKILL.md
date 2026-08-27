@@ -70,7 +70,7 @@ end
 **Key characteristics:**
 - Runs at application startup (both dev and prod)
 - Executes in both Mix projects and releases
-- Perfect for environment variables and runtime values
+- Used for environment variables and runtime values
 - **Does NOT support `import_config/1`**
 - Can use `System.get_env` and `System.fetch_env!`
 

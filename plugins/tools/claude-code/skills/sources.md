@@ -38,7 +38,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - Financial applications and data analysis
   - Custom skill development
   - API configuration and file handling
-  - Production-ready Jupyter notebooks
+  - Runnable Jupyter notebooks
 - **Used In**: skills/claude-skills/SKILL.md
 
 ### Agent Skills Specification
@@ -172,7 +172,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Purpose**: Advanced marketplace configuration options
 - **Date Accessed**: 2025-11-15
 - **Key Features**:
-  - Inline plugin definitions: Comprehensive configuration directly in marketplace.json
+  - Inline plugin definitions: full plugin configuration directly in marketplace.json
   - Component override: Custom paths for commands, agents, hooks, MCP servers
   - Dynamic path resolution: Use `${CLAUDE_PLUGIN_ROOT}` in paths to adapt to installation directory
   - Manifest supplementation: Marketplace fields can override or supplement plugin.json values
@@ -355,7 +355,7 @@ Create a modular Claude Code plugin marketplace that:
 
 ### The Complete Guide to Building Skills for Claude
 - **URL**: https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
-- **Purpose**: Comprehensive guide to skill design patterns, categories, and best practices
+- **Purpose**: Guide to skill design patterns, categories, and best practices
 - **Date Accessed**: 2026-03-07
 - **Key Concepts**:
   - Skill categories: Capability Uplift vs Encoded Preference

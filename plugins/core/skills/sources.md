@@ -67,7 +67,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 ### Technical Writing Best Practices
 - **URL**: https://developers.google.com/tech-writing
-- **Purpose**: Guide for writing clear, comprehensive technical documentation
+- **Purpose**: Guide for writing clear technical documentation
 - **Key Topics**: README files, API docs, guides, inline documentation
 
 ## Code Review Skill
