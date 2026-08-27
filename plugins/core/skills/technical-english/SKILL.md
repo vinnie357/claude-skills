@@ -90,7 +90,7 @@ Vale runs as `mise run test:prose`, inside `mise run test`. It checks banned sup
 
 A rule reports at `warning` while its findings burn down, then moves to `error` once it reaches zero. Clutter gates today; the rest report. Burn-down is claude-skills-307.
 
-Sentence length is measured per sentence and skips headings and code, but a long list item still counts — a reader parses it either way.
+Sentence length skips code. Headings, table rows, and list items all count, because a reader parses each of them the same way.
 
 Two things stay a review-time judgment call whatever the tooling does. Vale cannot tell whether a sentence carries exactly one instruction. It cannot tell whether a paragraph needed to exist. Both belong to review.
 
