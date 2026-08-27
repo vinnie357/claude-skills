@@ -82,7 +82,7 @@ State a warning, a caution, or a precondition before the step it governs, never 
 | Authored artifacts (skills, ADRs, READMEs) | This skill plus review |
 | CI | Vale, once claude-skills-306 lands; no prose gate runs today |
 
-Select the shipped style with `/config` → Output style → **Plain Technical**, or set `"outputStyle": "Plain Technical"` in `.claude/settings.local.json`. It takes effect after `/clear` or in a new session. It is never forced on you: it does not override a style you already chose.
+Select the shipped style with `/config` → Output style → **Plain Technical**, or set `"outputStyle": "Plain Technical"` in `.claude/settings.local.json`. It takes effect after `/clear` or in a new session. It is never forced on you: it does not override a style you already chose. The style ships with the `core` plugin and with `all-skills`; a plugin that vendors this skill alone does not carry it.
 
 ## What CI checks and what it cannot
 
