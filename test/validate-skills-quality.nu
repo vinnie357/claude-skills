@@ -4193,6 +4193,36 @@ def run-marketplace-json-self-test [] {
     $failed
 }
 
+# claude-skills-315: guard around the corpus-root marketplace.json read.
+# Mirrors read-plugin-json's status contract (ok | invalid | missing |
+# missing_required_field), checking for `plugins` instead of `name` — the
+# field main's Pass 1 loop (`for plugin in $marketplace.plugins`) depends on.
+# A missing or null `plugins` key both fold into "missing_required_field"
+# (get -o returns null for either), matching how read-plugin-json treats a
+# missing `name`. Deliberately does not check `plugins`' type when present —
+# see the doc comment on run-marketplace-json-self-test for why that's out
+# of scope here.
+def read-marketplace-json [path: string]: nothing -> record {
+    if not ($path | path exists) {
+        {status: "missing", data: null, file: $path}
+    } else {
+        try {
+            let parsed = (open $path)
+            if ($parsed | describe | str starts-with "record") {
+                if ($parsed | get -o plugins) == null {
+                    {status: "missing_required_field", data: null, file: $path}
+                } else {
+                    {status: "ok", data: $parsed, file: $path}
+                }
+            } else {
+                {status: "invalid", data: null, file: $path}
+            }
+        } catch {
+            {status: "invalid", data: null, file: $path}
+        }
+    }
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -4226,7 +4256,12 @@ def main [--update-baseline, --self-test] {
 
     let repo_root = (git rev-parse --show-toplevel | str trim)
     let marketplace_path = ($repo_root | path join ".claude-plugin" "marketplace.json")
-    let marketplace = (open $marketplace_path)
+    let marketplace_read = (read-marketplace-json $marketplace_path)
+    if $marketplace_read.status != "ok" {
+        print $"(ansi red_bold)❌ Cannot validate: ($marketplace_path) is unusable \(status: ($marketplace_read.status)\)(ansi reset)"
+        exit 1
+    }
+    let marketplace = $marketplace_read.data
 
     let baseline_path = ($repo_root | path join "test" "quality-baseline.json")
     let baseline = if ($baseline_path | path exists) {
