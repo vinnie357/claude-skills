@@ -4,7 +4,7 @@ One YAML example per extension point. Each example marked **Verified** ran again
 
 ## existence
 
-Flags a fixed list of tokens. This repo's `styles/Strict/HedgedDirective.yml`:
+Flags a fixed list of tokens. Abridged from this repo's `styles/Strict/HedgedDirective.yml` — the shipped file lists six tokens and a `link:` field:
 
 ```yaml
 extends: existence
@@ -21,7 +21,7 @@ tokens:
 
 ## substitution
 
-Flags a token and names its replacement in the same rule. This repo's `styles/Flavored/Clutter.yml`:
+Flags a token and names its replacement in the same rule. Abridged from this repo's `styles/Flavored/Clutter.yml` — the shipped file carries eleven swaps:
 
 ```yaml
 extends: substitution
@@ -33,11 +33,11 @@ swap:
   "prior to": before
 ```
 
-**Verified**: this is the one repo rule already at `error` level. Every clean CI run on this repo is itself a passing verification of it.
+**Verified** by positive control, not by a clean run: a file containing `in order to` produces a `Flavored.Clutter` error and exits 1. A clean CI run alone would prove nothing here, since a typo in a swap key also yields no findings.
 
 ## occurrence
 
-Caps how many times a pattern appears within a scope — most often a sentence, for a word-count cap. This repo's `styles/Strict/SentenceLength.yml`:
+Caps how many times a pattern appears within a scope — most often a sentence, for a word-count cap. Abridged from this repo's `styles/Strict/SentenceLength.yml` — the shipped file also sets `ignorecase: false`:
 
 ```yaml
 extends: occurrence
