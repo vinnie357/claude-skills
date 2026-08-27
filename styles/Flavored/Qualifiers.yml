@@ -1,12 +1,14 @@
+# "rather" is deliberately absent: 156 of 227 corpus hits were "rather than",
+# a legitimate construction and not a qualifier. A rule whose most frequent
+# match is a false positive teaches authors to ignore the gate.
 extends: existence
 message: "'%s' weakens the sentence without adding information — cut it."
-level: suggestion
+level: warning
 ignorecase: true
 tokens:
   - very
   - quite
   - fairly
-  - rather
   - somewhat
   - really
   - basically

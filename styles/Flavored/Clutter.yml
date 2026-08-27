@@ -1,6 +1,7 @@
+# At zero findings on this corpus, so it gates: new clutter fails the build.
 extends: substitution
 message: "Use '%s' instead of '%s'."
-level: warning
+level: error
 ignorecase: true
 swap:
   "at the present time": now

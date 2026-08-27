@@ -272,17 +272,25 @@ nu ($repo_root | path join "test" "validate-core-list.nu")
 description = "Prose gate: Vale, two registers (strict for agents/commands, flavored elsewhere)"
 run = """
 nu -c '
-  # git ls-files lists CLAUDE.md, a symlink to AGENTS.md — Vale would scan
-  # the same bytes twice and double-count every finding. Drop symlinks.
+  # AGENTS.md is a symlink to CLAUDE.md, so git ls-files yields both and Vale
+  # would scan the same bytes twice, double-counting every finding. Drop
+  # symlinks; the real file is still scanned.
   let files = (
     git ls-files "*.md"
     | lines
     | where {|f| ($f | path exists) and (($f | path expand) == ($f | path expand --no-symlink)) }
   )
   if ($files | is-empty) { print "no markdown files"; exit 0 }
+  # One pass prints every finding. A second pass would print them all again,
+  # so the gate re-runs quietly and speaks only through its exit code.
   vale --no-exit --output=line ...$files
-  # Only error-level rules gate the build; MinAlertLevel keeps warnings visible.
-  vale --minAlertLevel error ...$files
+  # `| ignore` would discard the exit code along with the output and silently
+  # disable the gate, so capture the status explicitly and re-raise it.
+  let gate = (vale --minAlertLevel error --output=JSON ...$files | complete)
+  if $gate.exit_code != 0 {
+    print $"(ansi red_bold)Prose gate failed: error-level findings above.(ansi reset)"
+    exit 1
+  }
 '
 """
 

@@ -20,7 +20,9 @@ Flavored prose is not strict prose with the leash off. It still owes the reader 
 
 ## Clutter, qualifiers, adverbs
 
+<!-- vale Flavored.Clutter = NO -->
 Clutter is any word doing no work. "In order to" means "to." "At this point in time" means "now." "Due to the fact that" means "because."
+<!-- vale Flavored.Clutter = YES -->
 
 A qualifier that restates its verb is clutter wearing a technical excuse. Delete words like "actually," "properly," or "really" and check whether the sentence lost anything. It almost never has.
 
