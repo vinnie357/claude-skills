@@ -368,7 +368,7 @@ version_constraint = "stable"
 last_checked = "2026-08-27"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "ASD-STE100 Simplified Technical English, Issue 9 (January 2025), maintained by the ASD Simplified Technical English Maintenance Group (STEMG), Brussels. Copyright STEMG, all rights reserved; the specification is free on request but publishes no reproduction license. The skill paraphrases rule categories and principles in its own words; it reproduces no rule text and no part of the approved/unapproved dictionary, and claims no STE conformance. current_version encodes the issue designator as issue-9 because VERSION_SHAPE_RE rejects the literal 'Issue 9' (the space is outside its alphabet). Recorded so a future Issue 10 is detectable; the specification is not vendored."
+notes = "ASD-STE100 Simplified Technical English, Issue 9 (January 2025). Fully owned by ASD (Aerospace, Security and Defence Industries Association of Europe), Brussels; developed, published, and maintained by the ASD Simplified Technical English Maintenance Group (STEMG), whose copyright notice on the specification site reserves all rights. the specification is free on request but publishes no reproduction license. The skill paraphrases rule categories and principles in its own words; it reproduces no rule text and no part of the approved/unapproved dictionary, and claims no STE conformance. current_version encodes the issue designator as issue-9 because VERSION_SHAPE_RE rejects the literal 'Issue 9' (the space is outside its alphabet). Recorded so a future Issue 10 is detectable; the specification is not vendored."
 
 [[sources]]
 skills = ["technical-english"]

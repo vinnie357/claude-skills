@@ -1,6 +1,6 @@
 # Strict-Mode Rules — Worked Examples
 
-Each rule below carries a before/after pair. Seven pairs cite a real repo line, verified by reading the file. The other five use a constructed example, since no repo line failed that specific rule.
+Eleven of the twelve rules carry a before/after pair. Six of those pairs cite a real repo line, verified by reading the file. The other five use a constructed example, since no repo line failed that rule. Rule 9 cites a repo line that already follows it, so it has no pair.
 
 ## 1. One term, one meaning
 
@@ -24,16 +24,16 @@ After:  Create the branch before work starts.
 
 ```
 Before: Authentication and authorization are properly implemented.
-After:  The code authenticates and authorizes every request.
+After:  The code authenticates and authorizes requests.
 ```
 
 ## 4. Simple tenses only
 
-A question is not one of the five simple tenses, and it turns a checklist item into something the reader must answer instead of verify. `plugins/core/skills/code-review/SKILL.md:101` phrases a checklist row as a question.
+A question is not one of the five simple tenses. `plugins/core/skills/code-review/SKILL.md:101` phrases a checklist row as a question. The rewrite keeps the reviewer's verifying role and drops only the untestable adverb.
 
 ```
 Before: Is the code properly tested?
-After:  Test the code.
+After:  Confirm the code has tests.
 ```
 
 ## 5. One instruction per sentence
@@ -67,7 +67,7 @@ After:  Use when coordinating feature delivery, or working an issue or epic.
         clarifying questions before decomposing.
 ```
 
-Longest rewritten sentence: 26 words — inside the descriptive cap, and none carries more than one topic.
+Longest rewritten sentence: 13 words — inside the descriptive cap, and none carries more than one topic.
 
 ## 7. Paragraph length and topic
 

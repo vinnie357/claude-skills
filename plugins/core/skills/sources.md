@@ -315,8 +315,8 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **URL**: https://www.asd-ste100.org/
 - **Purpose**: Shape for the strict register (edition: Issue 9, January 2025) — the rule categories behind one-term-one-meaning, active voice, simple tenses, one instruction per sentence, sentence and paragraph budgets, and warnings-before-the-step
 - **Date Accessed**: 2026-08-27
-- **Author**: ASD Simplified Technical English Maintenance Group (STEMG), Brussels
-- **License**: Proprietary — © STEMG, all rights reserved. Used as shape only: rule categories paraphrased in this repo's own words, no rule text reproduced, no dictionary reproduced, no conformance claimed
+- **Owner**: ASD (Aerospace, Security and Defence Industries Association of Europe), Brussels — maintained and published by the ASD Simplified Technical English Maintenance Group (STEMG)
+- **License**: Proprietary — owned by ASD; the specification site carries a STEMG copyright notice reserving all rights. Used as shape only: rule categories paraphrased in this repo's own words, no rule text reproduced, no dictionary reproduced, no conformance claimed
 - **Key Topics**: Controlled language, procedural vs descriptive text, restricted vocabulary, unambiguous instructions
 
 ### On Writing Well

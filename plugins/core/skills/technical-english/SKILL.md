@@ -44,17 +44,17 @@ Pick the register from the artifact, not from taste.
 11. Cut a qualifier or an adverb that only restates its verb.
 12. Reread the draft once, and cut what the first pass missed.
 
-Worked before/after pairs for all twelve, several pulled from this repo's own text: [references/strict-mode-rules.md](references/strict-mode-rules.md).
+Worked before/after pairs for eleven of the twelve, several pulled from this repo's own text: [references/strict-mode-rules.md](references/strict-mode-rules.md).
 
 ## Word choice
 
 Pick the plainest available word, and use it the same way every time. The pairs below recur in this repo; the plain form wins in strict-mode text.
 
+Substitute only where the plain word carries the same meaning. A term of art stays: `implement` names a tier and a Behaviour relationship here, and `ensure` states a guarantee that `confirm` (a verification) does not.
+
 | Wordy | Plain |
 |---|---|
 | leverage | use |
-| implement | build |
-| ensure | confirm |
 | perform | do |
 | additional | more |
 | functionality | feature |
@@ -80,11 +80,11 @@ State a warning, a caution, or a precondition before the step it governs, never 
 | Main-loop conversation | The active output style |
 | Subagent prompts and reports | This skill plus the response contract |
 | Authored artifacts (skills, ADRs, READMEs) | This skill plus review |
-| CI | Vale |
+| CI | Vale, once claude-skills-306 lands; no prose gate runs today |
 
 ## What CI checks and what it cannot
 
-Vale enforces the mechanical rules: term consistency, passive-voice detection, sentence-length caps, and banned words. Vale cannot judge two things: whether a sentence carries exactly one instruction, and whether a paragraph needs to exist at all. Both stay a review-time judgment call, not a lint rule.
+**No prose gate runs in CI today.** Adopting Vale is tracked as claude-skills-306. Once it lands, Vale will check term consistency, passive voice, sentence-length caps, and banned words. Two things stay a review-time judgment call either way: whether a sentence carries exactly one instruction, and whether a paragraph needs to exist at all. Until the gate exists, every rule here is enforced by review alone.
 
 ## Anti-fabrication
 

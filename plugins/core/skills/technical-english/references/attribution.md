@@ -4,9 +4,9 @@
 
 ## Strict mode — informed by ASD-STE100
 
-The strict rule set is informed by the shape of ASD-STE100 (Simplified Technical English), a controlled-language standard for aerospace and defense maintenance documentation. ASD-STE100 is © STEMG (the ASD Simplified Technical English Maintenance Group), Brussels — all rights reserved, with no published reproduction license.
+The strict rule set is informed by the shape of ASD-STE100 (Simplified Technical English), a controlled-language standard for aerospace and defense maintenance documentation. ASD-STE100 is fully owned by ASD (Aerospace, Security and Defence Industries Association of Europe), Brussels. The ASD Simplified Technical English Maintenance Group (STEMG) develops, publishes, and maintains it, and the specification site carries a STEMG copyright notice reserving all rights. No reproduction license is published.
 
-Verifiable facts about the standard, safe to state:
+Facts about the standard, safe to state. All were read from https://www.asd-ste100.org/about_STE.html on 2026-08-27:
 
 - Current edition: Issue 9, January 2025.
 - 53 writing rules across 9 sections, plus a controlled dictionary.
