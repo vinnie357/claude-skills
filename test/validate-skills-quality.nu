@@ -308,7 +308,9 @@ def pass2-dir-in-scope [top: string, own_dir: string, plugin_dir: string]: nothi
 #   written with a directory prefix to the same file (e.g.
 #   `[x](./attribution.md)`), an angle-bracket target
 #   (`[x](<attribution.md>)`), and nested brackets in the link text
-#   (`[see [note]](attribution.md)`) all escape — no path normalization,
+#   (`[see [note]](attribution.md)`), and a title delimited by anything
+#   other than double quotes (`[x](attribution.md 'Title')`, CommonMark also
+#   allows single quotes and parentheses) all escape — no path normalization,
 #   angle-bracket unwrapping, or bracket-nesting-aware link parsing is
 #   attempted, matching this function's existing minimalism.
 def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list, sibling_basenames: list]: nothing -> bool {
