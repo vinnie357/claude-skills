@@ -3226,12 +3226,13 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
 # manifest specifically, independent of $registry, so the all-skills skip
 # stays correct while the root manifest still gets checked.
 def check-root-manifest [repo_root: string]: nothing -> list {
-    # STUB (claude-skills-312): must open
-    # $repo_root/.claude-plugin/plugin.json and delegate to
-    # check-output-styles-path against it and $repo_root, returning its
-    # result. Returning [] unconditionally is what keeps
-    # run-root-manifest-self-test's must-flag case red.
-    []
+    let plugin_json_path = ($repo_root | path join ".claude-plugin" "plugin.json")
+    if not ($plugin_json_path | path exists) {
+        []
+    } else {
+        let plugin_json = (open $plugin_json_path)
+        check-output-styles-path $plugin_json $repo_root
+    }
 }
 
 # Embedded self-test for evaluate-output-style-file and
@@ -4024,6 +4025,28 @@ def main [--update-baseline, --self-test] {
                 })
             }
         }
+    }
+
+    # Root manifest (claude-skills-312): the root .claude-plugin/plugin.json
+    # ("all-skills") is excluded from $registry above to avoid double-
+    # counting the corpus — that exclusion stays. But it is the only
+    # manifest in this repo that sets `outputStyles`, so being outside
+    # $registry meant it never ran through check-output-styles-path. This
+    # is a one-shot check, not a per-plugin loop iteration — no plugin is
+    # named "root-manifest", so that key prefix can't collide with a real
+    # plugin's findings. Only the outputStyles-path check applies here;
+    # everything else check-output-styles-path's siblings cover (agents/
+    # commands/hooks/output-style-file frontmatter) has no root-level
+    # equivalent, since the root manifest owns no agents/commands/hooks/
+    # output-styles of its own — those live under each real plugin dir.
+    let root_bad_paths = (check-root-manifest $repo_root)
+    if ($root_bad_paths | is-not-empty) {
+        let key_base = "root-manifest/.claude-plugin/plugin.json"
+        $failing_keys = ($failing_keys | append ($root_bad_paths | each {|c| $"($key_base):($c)"}))
+        $surface_results = ($surface_results | append {
+            plugin: "root-manifest", kind: "plugin-json", file: "plugin.json", failed: ($root_bad_paths | str join " ")
+            details: ""
+        })
     }
 
     # Pass 3: corpus-wide duplicate-block check (claude-skills-124). Corpus is
