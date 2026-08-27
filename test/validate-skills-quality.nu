@@ -282,9 +282,40 @@ def pass2-dir-in-scope [top: string, own_dir: string, plugin_dir: string]: nothi
 #   (prefix-first, whole-line fallback only when the citing skill does not
 #   own the cited path) was evaluated and deferred until a real instance
 #   needs it.
-def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list]: nothing -> bool {
+# - claude-skills-309: `sibling_basenames` (the current skill's own
+#   references/*.md basenames, e.g. "attribution.md") is the caller-supplied
+#   list a bare same-skill markdown link (`[attribution.md](attribution.md)`,
+#   naming no `references/` prefix at all) must be checked against. The
+#   original token scan above only ever inspects lines containing the
+#   literal substring "references/", so a bare sibling link carries no such
+#   token and is invisible to it (PR #263: `attribution.md` linking
+#   `[flavored-prose.md](flavored-prose.md)` was never flagged, even though
+#   the reverse direction was). This is a separate branch of logic, checked
+#   per line alongside the references/ token scan (either one flags the
+#   line): a markdown link `[text](target)` whose target, after stripping a
+#   trailing link title (`target "Title"`) and then a trailing `#fragment`,
+#   EXACTLY equals an entry in `sibling_basenames` (no suffix/basename
+#   extraction beyond that — a path with any directory component never
+#   matches a bare filename). The fragment strip keeps this branch aligned
+#   with the references/ token branch above, which already flags
+#   `references/foo.md#anchor` (Gate 3 finding: the two branches used to
+#   disagree on the identical evasion applied to a bare link). No explicit
+#   URL-scheme rejection: exact-match after stripping already can't equate a
+#   full URL string (which still carries its `scheme://host/` prefix once
+#   the fragment is gone) with a bare basename — verified against
+#   `https://example.com/attribution.md#usage`, which still fails the
+#   equality check with no separate guard. Accepted residuals: a link
+#   written with a directory prefix to the same file (e.g.
+#   `[x](./attribution.md)`), an angle-bracket target
+#   (`[x](<attribution.md>)`), and nested brackets in the link text
+#   (`[see [note]](attribution.md)`), and a title delimited by anything
+#   other than double quotes (`[x](attribution.md 'Title')`, CommonMark also
+#   allows single quotes and parentheses) all escape — no path normalization,
+#   angle-bracket unwrapping, or bracket-nesting-aware link parsing is
+#   attempted, matching this function's existing minimalism.
+def has-unqualified-references-token [content: string, dir_name: string, skill_dir_map: list, known_plugins: list, sibling_basenames: list]: nothing -> bool {
     ($content | lines | any {|line|
-        if not ($line | str contains "references/") {
+        let ref_flag = if not ($line | str contains "references/") {
             false
         } else if (($line | parse --regex '^\s{0,3}#{1,6} ') | is-not-empty) {
             false
@@ -298,6 +329,19 @@ def has-unqualified-references-token [content: string, dir_name: string, skill_d
             } else {
                 not (cross-skill-qualified $prefix $dir_name ($path_match | first | get path) $skill_dir_map $known_plugins)
             }
+        }
+        if $ref_flag {
+            true
+        } else {
+            let link_matches = ($line | parse --regex '\[[^\]]*\]\((?P<target>[^)]+)\)')
+            ($link_matches | any {|m|
+                let raw_target = ($m.target | str trim)
+                let de_titled = ($raw_target | parse --regex '^(?P<base>.*?)\s+"[^"]*"$')
+                let after_title = if ($de_titled | is-not-empty) { $de_titled | first | get base } else { $raw_target }
+                let de_fragmented = ($after_title | parse --regex '^(?P<base>[^#]*)#.*$')
+                let target = if ($de_fragmented | is-not-empty) { $de_fragmented | first | get base } else { $after_title }
+                $target in $sibling_basenames
+            })
         }
     })
 }
@@ -1661,26 +1705,92 @@ def run-check-fixes-self-test [] {
     }
 
     # --- ref_depth token scan (heading + bare-directory exemptions) ---
-    if (has-unqualified-references-token "### references/command-reference.md (if present)" "myskill" [] []) {
+    if (has-unqualified-references-token "### references/command-reference.md (if present)" "myskill" [] [] []) {
         print $"(ansi red_bold)❌ check-fix self-test: heading line wrongly counted as nested reference(ansi reset)"
         $failed = true
     }
-    if not (has-unqualified-references-token "See references/foo.md for detail." "myskill" [] []) {
+    if not (has-unqualified-references-token "See references/foo.md for detail." "myskill" [] [] []) {
         print $"(ansi red_bold)❌ check-fix self-test: genuine sibling reference link not flagged(ansi reset)"
         $failed = true
     }
-    if (has-unqualified-references-token $"- Move detailed reference material to ($tick1)references/($tick1)" "myskill" [] []) {
+    if (has-unqualified-references-token $"- Move detailed reference material to ($tick1)references/($tick1)" "myskill" [] [] []) {
         print $"(ansi red_bold)❌ check-fix self-test: bare references/ directory mention wrongly flagged(ansi reset)"
         $failed = true
     }
     # Composition with strip-fences: a sibling link INSIDE a 4-backtick outer
     # fence is example content (not flagged); outside any fence it is flagged.
-    if (has-unqualified-references-token (strip-fences $nested) "myskill" [] []) {
+    if (has-unqualified-references-token (strip-fences $nested) "myskill" [] [] []) {
         print $"(ansi red_bold)❌ check-fix self-test: sibling link inside nested fence wrongly flagged(ansi reset)"
         $failed = true
     }
-    if not (has-unqualified-references-token (strip-fences ([$tick3 "code" $tick3 "see references/foo.md"] | str join "\n")) "myskill" [] []) {
+    if not (has-unqualified-references-token (strip-fences ([$tick3 "code" $tick3 "see references/foo.md"] | str join "\n")) "myskill" [] [] []) {
         print $"(ansi red_bold)❌ check-fix self-test: sibling link outside fences not flagged after stripping(ansi reset)"
+        $failed = true
+    }
+
+    # --- ref_depth bare sibling link detection (claude-skills-309) ---
+    # A markdown link naming a sibling reference file by bare filename
+    # (`[attribution.md](attribution.md)`, no `references/` prefix) violates
+    # the same one-level rule as a `references/foo.md` token but carries no
+    # such token, so the scan above never sees it (shipped in PR #263:
+    # `attribution.md` linking `references/flavored-prose.md` WAS flagged;
+    # `flavored-prose.md` linking `[attribution.md](attribution.md)` was
+    # NOT). These cases pin the fix via the new `sibling_basenames`
+    # parameter — the current skill's own references/*.md basenames, as
+    # computed at the real call site from the other files in the same
+    # references/ dir.
+    let rd_siblings = ["attribution.md" "flavored-prose.md"]
+    if not (has-unqualified-references-token "[attribution.md](attribution.md)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare sibling markdown link not flagged(ansi reset)"
+        $failed = true
+    }
+    if not (has-unqualified-references-token "See [flavored-prose.md](flavored-prose.md) for detail." "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare sibling markdown link in prose not flagged(ansi reset)"
+        $failed = true
+    }
+    if (has-unqualified-references-token "[other.md](other.md)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare link to a NON-sibling file wrongly flagged(ansi reset)"
+        $failed = true
+    }
+    # Composition with strip-fences: a bare sibling link inside a fence is
+    # example content (not flagged), same rule as a references/ token.
+    let fenced_sibling_link = (strip-fences ([$tick3 "code" "[attribution.md](attribution.md)" $tick3] | str join "\n"))
+    if (has-unqualified-references-token $fenced_sibling_link "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare sibling link inside fence wrongly flagged(ansi reset)"
+        $failed = true
+    }
+    # An external URL whose final path segment happens to match a sibling
+    # basename is not a same-skill link — must not be flagged.
+    if (has-unqualified-references-token "[link](https://example.com/attribution.md)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: external URL ending in a sibling basename wrongly flagged(ansi reset)"
+        $failed = true
+    }
+    # Existing glob-in-prose exemption (references/*.md as prose, not a
+    # concrete path) must still pass with the new parameter threaded through.
+    if (has-unqualified-references-token "See a `references/*.md` file for the pattern." "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: glob-in-prose exemption wrongly flagged(ansi reset)"
+        $failed = true
+    }
+    # Anchor and title forms on a bare sibling link (Gate 3 finding): the OLD
+    # `references/` token branch DOES flag `references/foo.md#anchor`, so a
+    # bare-link branch that misses `attribution.md#usage` disagrees with the
+    # established behavior for the identical evasion. Both must still flag.
+    if not (has-unqualified-references-token "[attribution.md](attribution.md#usage)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare sibling link with anchor not flagged(ansi reset)"
+        $failed = true
+    }
+    if not (has-unqualified-references-token $"[x]\(attribution.md \"Some Title\"\)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare sibling link with title not flagged(ansi reset)"
+        $failed = true
+    }
+    # Guard the widening: fragment-stripping must not make an external URL
+    # match, and an anchor must not turn a NON-sibling target into a match.
+    if (has-unqualified-references-token "[x](https://example.com/attribution.md#usage)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: external URL with anchor wrongly flagged(ansi reset)"
+        $failed = true
+    }
+    if (has-unqualified-references-token "[x](other.md#usage)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: NON-sibling link with anchor wrongly flagged(ansi reset)"
         $failed = true
     }
 
@@ -1706,7 +1816,7 @@ def run-check-fixes-self-test [] {
 
     # Case: qualifier BEFORE the path — a real cross-skill pointer whose
     # target file exists in the other skill's own tree. NOT flagged.
-    if (has-unqualified-references-token "Per `/otherns:otherskill`'s `references/foo.md`: see there for detail." "myskill" $rd_map $rd_plugins) {
+    if (has-unqualified-references-token "Per `/otherns:otherskill`'s `references/foo.md`: see there for detail." "myskill" $rd_map $rd_plugins []) {
         print $"(ansi red_bold)❌ check-fix self-test: qualifier-before cross-skill pointer wrongly flagged(ansi reset)"
         $failed = true
     }
@@ -1715,7 +1825,7 @@ def run-check-fixes-self-test [] {
     # path. This is the documented residual, not a bug — the test's purpose
     # is to make a silent future widening (to whole-line matching)
     # impossible without a failing test alerting the author.
-    if not (has-unqualified-references-token "Per `references/foo.md` in `/otherns:otherskill`: see there for detail." "myskill" $rd_map $rd_plugins) {
+    if not (has-unqualified-references-token "Per `references/foo.md` in `/otherns:otherskill`: see there for detail." "myskill" $rd_map $rd_plugins []) {
         print $"(ansi red_bold)❌ check-fix self-test: qualifier-after cross-skill pointer no longer flagged \(documented residual regressed\)(ansi reset)"
         $failed = true
     }
@@ -1730,7 +1840,7 @@ def run-check-fixes-self-test [] {
     # against whole-line widening: gate-verified that widening resolves
     # `otherskill` and finds ITS bar.md exists, flipping this to wrongly
     # exempt even though the path never named otherskill at all.
-    if not (has-unqualified-references-token "See references/bar.md for detail, mirroring the layout in /otherns:otherskill." "myskill" $rd_map $rd_plugins) {
+    if not (has-unqualified-references-token "See references/bar.md for detail, mirroring the layout in /otherns:otherskill." "myskill" $rd_map $rd_plugins []) {
         print $"(ansi red_bold)❌ check-fix self-test: same-skill link with trailing same-basename sibling mention wrongly exempted(ansi reset)"
         $failed = true
     }
@@ -1747,7 +1857,7 @@ def run-check-fixes-self-test [] {
     # lookup-skill-dir, gets "" back (truly unknown), and that empty-target
     # branch (line ~128-130) returns true unconditionally — flipping this
     # to wrongly exempt via a namespace that owns nothing at all.
-    if not (has-unqualified-references-token "See references/qux.md for detail; the equivalent for Codex lives in /openai:codex." "myskill" $rd_map $rd_plugins) {
+    if not (has-unqualified-references-token "See references/qux.md for detail; the equivalent for Codex lives in /openai:codex." "myskill" $rd_map $rd_plugins []) {
         print $"(ansi red_bold)❌ check-fix self-test: same-skill link with trailing unknown-namespace mention wrongly exempted(ansi reset)"
         $failed = true
     }
@@ -3265,7 +3375,8 @@ def main [--update-baseline, --self-test] {
             # A references/ token qualified as pointing at another skill (see
             # cross-skill-qualified above) is not a same-skill nesting violation.
             let nested = ($refs | where {|r|
-                has-unqualified-references-token (strip-fences $r.content) $dir_name $skill_dir_map ($registry | get name)
+                let siblings = ($refs | where name != $r.name | get name)
+                has-unqualified-references-token (strip-fences $r.content) $dir_name $skill_dir_map ($registry | get name) $siblings
             })
             if ($nested | length) > 0 { $failed = ($failed | append "ref_depth") }
 
