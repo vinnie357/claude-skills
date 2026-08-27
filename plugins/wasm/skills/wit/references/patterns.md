@@ -2,8 +2,8 @@
 
 Worked WIT shapes for the three cases that come up most: a plugin world, a
 service interface built on resources, and a shared type library imported across
-packages. Syntax rules for the constructs used here are in
-[syntax-reference.md](syntax-reference.md).
+packages. Syntax rules for the constructs used here are in this skill's
+syntax-reference.md.
 
 ## Plugin Interface
 
