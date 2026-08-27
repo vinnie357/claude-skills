@@ -3213,6 +3213,27 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
     }
 }
 
+# claude-skills-312: the root `.claude-plugin/plugin.json` (name
+# "all-skills", the meta-plugin manifest that re-lists every other plugin's
+# skills) is skipped when building $registry — `if ($plugin.name ==
+# "all-skills") { continue }` — because including it would double-count the
+# whole corpus. That exclusion is correct and must stay. The side effect:
+# the root manifest is the ONLY manifest in this repo that sets
+# `outputStyles` (verified via `grep -rl outputStyles --include=plugin.json
+# .`), and being excluded from $registry means it never runs through
+# check-output-styles-path — a typo there ships no output styles with no
+# finding at all. check-root-manifest re-applies that same check to the root
+# manifest specifically, independent of $registry, so the all-skills skip
+# stays correct while the root manifest still gets checked.
+def check-root-manifest [repo_root: string]: nothing -> list {
+    # STUB (claude-skills-312): must open
+    # $repo_root/.claude-plugin/plugin.json and delegate to
+    # check-output-styles-path against it and $repo_root, returning its
+    # result. Returning [] unconditionally is what keeps
+    # run-root-manifest-self-test's must-flag case red.
+    []
+}
+
 # Embedded self-test for evaluate-output-style-file and
 # check-output-styles-path (claude-skills-310). Mirrors run-pass2-eval-self-test's
 # shape for the new output-styles surface. Cases 1-6 exercise
@@ -3383,6 +3404,76 @@ Body prose.
     $failed
 }
 
+# Embedded self-test for check-root-manifest (claude-skills-312). The root
+# .claude-plugin/plugin.json is excluded from $registry (the "all-skills"
+# check at the top of the $registry-building loop) to avoid double-counting
+# the corpus; check-root-manifest re-checks that manifest's outputStyles
+# field independent of $registry so the exclusion can stay. Case 1 is the
+# must-flag red case (a root manifest with a broken outputStyles path).
+# Cases 2-3 are regression guards: the real shipped root manifest
+# (outputStyles -> ./plugins/core/output-styles/, which exists) must stay
+# clean, and a root manifest with no outputStyles field must stay clean too.
+# Case 4 is a structural guard, not a behavioral one: it greps this very
+# script for the exact all-skills exclusion line and fails if it's gone or
+# reworded — a numeric "skill count unchanged" assertion can't observe that
+# line directly because the $registry-building loop lives inline in main()
+# and isn't exposed as a callable unit, so this guard pins the source text
+# instead, which is exactly what would break if an implementer "fixed" this
+# gap by deleting the exclusion instead of adding a root-manifest call site.
+def run-root-manifest-self-test [] {
+    mut failed = false
+    let root = (mktemp -d)
+    mkdir ($root | path join ".claude-plugin")
+
+    # Case 1 (must-flag, RED until implemented): outputStyles points at a
+    # path that does not exist.
+    {name: "all-skills", outputStyles: "./does-not-exist/"} | to json | save ($root | path join ".claude-plugin" "plugin.json")
+    let broken_res = (check-root-manifest $root)
+    if ($broken_res | is-empty) {
+        print $"(ansi red_bold)❌ root-manifest self-test: broken outputStyles path on root manifest not flagged(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2 (regression guard, must already pass): the real shipped root
+    # manifest sets outputStyles to ./plugins/core/output-styles/, which
+    # exists — must stay clean.
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let shipped_res = (check-root-manifest $repo_root)
+    if ($shipped_res | is-not-empty) {
+        print $"(ansi red_bold)❌ root-manifest self-test: real root manifest wrongly flagged \(got ($shipped_res | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 3 (regression guard, must already pass): no outputStyles field at
+    # all must not be flagged.
+    let no_field_root = (mktemp -d)
+    mkdir ($no_field_root | path join ".claude-plugin")
+    {name: "all-skills"} | to json | save ($no_field_root | path join ".claude-plugin" "plugin.json")
+    let no_field_res = (check-root-manifest $no_field_root)
+    if ($no_field_res | is-not-empty) {
+        print $"(ansi red_bold)❌ root-manifest self-test: root manifest with no outputStyles field wrongly flagged \(got ($no_field_res | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $no_field_root
+
+    # Case 4 (structural guard, must already pass): the all-skills exclusion
+    # at the top of the $registry-building loop must still exist verbatim —
+    # deleting it would double-count the corpus. See doc comment above for
+    # why this is a source-text guard and not a numeric one.
+    let script_path = ($repo_root | path join "test" "validate-skills-quality.nu")
+    let script_text = (open --raw $script_path)
+    if not ($script_text | str contains 'if ($plugin.name == "all-skills") { continue }') {
+        print $"(ansi red_bold)❌ root-manifest self-test: all-skills exclusion line missing from the \$registry-building loop — corpus would double-count(ansi reset)"
+        $failed = true
+    }
+
+    rm -rf $root
+    if not $failed {
+        print $"(ansi green_bold)✅ Root-manifest self-test passed \(4 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -3402,7 +3493,8 @@ def main [--update-baseline, --self-test] {
         let braced_claude_failed = (run-braced-claude-self-test)
         let redundant_when_to_use_failed = (run-redundant-when-to-use-self-test)
         let output_style_failed = (run-output-style-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed { exit 1 }
+        let root_manifest_failed = (run-root-manifest-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed { exit 1 }
         exit 0
     }
 
