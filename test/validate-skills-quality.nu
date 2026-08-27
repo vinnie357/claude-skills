@@ -1599,6 +1599,16 @@ const AGENT_FM_KEYS = [
     "isolation" "color" "initialPrompt"
 ]
 
+# Output-style frontmatter is a THIRD schema — verified against the upstream
+# output-styles reference (https://code.claude.com/docs/en/output-styles)
+# during PR #264: exactly four documented fields. `name` and `description`
+# are optional upstream (name defaults to filename, description is merely
+# shown in the `/config` picker) but are required by THIS marketplace's
+# house rule — an undescribed style is invisible in the picker (claude-skills-310).
+const OUTPUT_STYLE_FM_KEYS = [
+    "name" "description" "keep-coding-instructions" "force-for-plugin"
+]
+
 # Returns frontmatter keys not present in `allowed`. Keys only — values are
 # other checks' business. A block with no frontmatter yields no findings.
 #
@@ -1633,6 +1643,8 @@ def run-frontmatter-schema-self-test [] {
         ["camelCase agent keys are valid" ["name: x" "maxTurns: 5" "disallowedTools: Bash"] $AGENT_FM_KEYS []]
         ["compatibility is valid (open standard)" ["name: x" "compatibility: needs git"] $SKILL_FM_KEYS []]
         ["empty frontmatter yields nothing" [] $SKILL_FM_KEYS []]
+        ["output-style schema accepts all four documented keys" ["name: x" "description: y" "keep-coding-instructions: true" "force-for-plugin: false"] $OUTPUT_STYLE_FM_KEYS []]
+        ["unknown key rejected on an output style" ["name: x" "description: y" "badkey: z"] $OUTPUT_STYLE_FM_KEYS ["badkey"]]
     ]
     for c in $cases {
         let got = (unknown-frontmatter-keys ($c | get 1) ($c | get 2))
@@ -3132,6 +3144,167 @@ See references/does-not-exist.md for detail.
     $failed
 }
 
+# Evaluate one output-style file against Pass-2's output-style-surface
+# checks (claude-skills-310): output-styles/ is the one plugin surface Pass
+# 2 does not cover today (agents/, commands/, hooks/hooks.json are covered).
+# Same shape as evaluate-agent-file/evaluate-command-file: missing_name and
+# missing_desc are a house-rule addition on top of the upstream-optional
+# schema (see OUTPUT_STYLE_FM_KEYS), fm_schema reuses unknown-frontmatter-keys.
+#
+# NOT YET IMPLEMENTED — stub always reports a clean file. Implementer: fill
+# in the missing_name/missing_desc/fm_schema checks per
+# run-output-style-self-test below; keep the returned record shape
+# (failed/failing_keys/failing_counts/surface_result) so apply-surface-finding
+# keeps working unchanged.
+def evaluate-output-style-file [f: string, plugin_name: string]: nothing -> record {
+    let key_base = $"($plugin_name)/output-styles/($f | path basename)"
+    {
+        failed: []
+        failing_keys: []
+        failing_counts: []
+        surface_result: {
+            plugin: $plugin_name, kind: "output-style", file: ($f | path basename), failed: ""
+            details: ""
+        }
+    }
+}
+
+# Flags a plugin.json whose `outputStyles` field points at a path that does
+# not exist on disk (claude-skills-310). A plugin with no `outputStyles`
+# field at all — the common case, and how `core` worked before an explicit
+# field was added — is never flagged; this check only fires when the field
+# is present and wrong. Path is resolved relative to `plugin_dir`.
+#
+# NOT YET IMPLEMENTED — stub always reports no issue. Implementer: resolve
+# `plugin_json.outputStyles` (when present) against `plugin_dir` and return
+# a non-empty list (e.g. ["missing_path"]) when it does not exist.
+def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing -> list {
+    []
+}
+
+# Embedded self-test for evaluate-output-style-file and
+# check-output-styles-path (claude-skills-310). Mirrors run-pass2-eval-self-test's
+# shape for the new output-styles surface. Cases 1-6 exercise
+# evaluate-output-style-file (unknown key, missing name, missing
+# description, a clean four-key file, and — as a regression guard — the one
+# style this repo actually ships, plugins/core/output-styles/plain-technical.md,
+# which must stay clean). Cases 7-10 exercise check-output-styles-path
+# (missing path, present path, no outputStyles field, and an
+# output-styles/ dir with no outputStyles field — convention discovery,
+# which must not be flagged either).
+def run-output-style-self-test [] {
+    mut failed = false
+    let root = (mktemp -d)
+    let plugin_dir = ($root | path join "pluginX")
+    mkdir ($plugin_dir | path join "output-styles")
+
+    "---
+name: broken-style
+description: test fixture
+badkey: nope
+---
+
+Body prose.
+" | save ($plugin_dir | path join "output-styles" "broken-style.md")
+    let broken_res = (evaluate-output-style-file ($plugin_dir | path join "output-styles" "broken-style.md") "pluginX")
+    let broken_key_base = "pluginX/output-styles/broken-style.md"
+    if "fm_schema" not-in $broken_res.failed {
+        print $"(ansi red_bold)❌ output-style self-test: unknown frontmatter key not flagged \(got ($broken_res.failed | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+    if ({key: $"($broken_key_base):fm_schema", count: 1} not-in $broken_res.failing_counts) {
+        print $"(ansi red_bold)❌ output-style self-test: fm_schema finding missing from failing_counts(ansi reset)"
+        $failed = true
+    }
+
+    "---
+description: test fixture
+---
+
+Body prose.
+" | save ($plugin_dir | path join "output-styles" "no-name.md")
+    let no_name_res = (evaluate-output-style-file ($plugin_dir | path join "output-styles" "no-name.md") "pluginX")
+    if "missing_name" not-in $no_name_res.failed {
+        print $"(ansi red_bold)❌ output-style self-test: missing name not flagged \(got ($no_name_res.failed | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    "---
+name: no-desc
+---
+
+Body prose.
+" | save ($plugin_dir | path join "output-styles" "no-desc.md")
+    let no_desc_res = (evaluate-output-style-file ($plugin_dir | path join "output-styles" "no-desc.md") "pluginX")
+    if "missing_desc" not-in $no_desc_res.failed {
+        print $"(ansi red_bold)❌ output-style self-test: missing description not flagged \(got ($no_desc_res.failed | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    "---
+name: clean-style
+description: test fixture
+keep-coding-instructions: true
+force-for-plugin: false
+---
+
+Body prose.
+" | save ($plugin_dir | path join "output-styles" "clean-style.md")
+    let clean_res = (evaluate-output-style-file ($plugin_dir | path join "output-styles" "clean-style.md") "pluginX")
+    if ($clean_res.failed | is-not-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: style with all four documented keys wrongly flagged \(got ($clean_res.failed | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    # Regression guard: the one style this repo actually ships must stay clean.
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let shipped_style = ($repo_root | path join "plugins" "core" "output-styles" "plain-technical.md")
+    let shipped_res = (evaluate-output-style-file $shipped_style "core")
+    if ($shipped_res.failed | is-not-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: shipped plain-technical.md wrongly flagged \(got ($shipped_res.failed | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    let missing_path_json = {name: "pluginX", outputStyles: "./does-not-exist/"}
+    let missing_path_res = (check-output-styles-path $missing_path_json $plugin_dir)
+    if ($missing_path_res | is-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: nonexistent outputStyles path not flagged(ansi reset)"
+        $failed = true
+    }
+
+    let present_path_json = {name: "pluginX", outputStyles: "./output-styles/"}
+    let present_path_res = (check-output-styles-path $present_path_json $plugin_dir)
+    if ($present_path_res | is-not-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: existing outputStyles path wrongly flagged \(got ($present_path_res | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    let no_field_json = {name: "pluginX"}
+    let no_field_res = (check-output-styles-path $no_field_json $plugin_dir)
+    if ($no_field_res | is-not-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: plugin with no outputStyles field wrongly flagged \(got ($no_field_res | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    # A plugin with an output-styles/ dir but no `outputStyles` field in
+    # plugin.json — convention discovery, how `core` worked before an
+    # explicit field was added — must not be flagged either.
+    let convention_plugin_dir = ($root | path join "pluginY")
+    mkdir ($convention_plugin_dir | path join "output-styles")
+    let convention_json = {name: "pluginY"}
+    let convention_res = (check-output-styles-path $convention_json $convention_plugin_dir)
+    if ($convention_res | is-not-empty) {
+        print $"(ansi red_bold)❌ output-style self-test: convention-only output-styles/ dir wrongly flagged \(got ($convention_res | str join ' ')\)(ansi reset)"
+        $failed = true
+    }
+
+    rm -rf $root
+    if not $failed {
+        print $"(ansi green_bold)✅ Output-style self-test passed \(10 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -3150,7 +3323,8 @@ def main [--update-baseline, --self-test] {
         let anti_fab_failed = (run-anti-fab-self-test)
         let braced_claude_failed = (run-braced-claude-self-test)
         let redundant_when_to_use_failed = (run-redundant-when-to-use-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed { exit 1 }
+        let output_style_failed = (run-output-style-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed { exit 1 }
         exit 0
     }
 
