@@ -78,7 +78,7 @@ BasedOnStyles = Flavored, Strict
 
 `StylesPath` points at the directory holding one subdirectory per style — `Strict/` and `Flavored/` here. Each `[glob]` section maps a path pattern to the styles active for matching files.
 
-**Verified**: sections do not merge. When a file matches more than one section, the **last matching section wins wholesale** — not the most specific one. Two style sets in separate sections gave a deeper file only the later section's findings. Flipping the section order flipped which one applied. So a section that lists one style silently drops every other style from those files. That is why this repo's strict sections list `Flavored, Strict` rather than `Strict` alone.
+**Verified**: two sections with **different** globs do not merge. When a file matches both, the **last matching section wins wholesale** — not the most specific one. A third overlapping section does not change that; the last one still wins. Repeating the **same** glob string is the one exception: those styles accumulate. Two style sets in separate sections gave a deeper file only the later section's findings. Flipping the section order flipped which one applied. So a section that lists one style silently drops every other style from those files. That is why this repo's strict sections list `Flavored, Strict` rather than `Strict` alone.
 
 **Verified**: a `*` in a Vale section glob crosses `/`. `plugins/*/agents/*.md` matches both `plugins/aaa/agents/x.md` and a file three levels deeper, `plugins/aaa/bbb/ccc/agents/x.md`. Fixtures at each depth, tested directly against the Vale binary, both flagged by the same section. A second, more specific pattern written to catch deeper nesting is dead configuration — the shallow glob already covers it.
 

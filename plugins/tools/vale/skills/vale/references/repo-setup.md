@@ -46,7 +46,7 @@ BasedOnStyles = Flavored, Strict
 
 Every Markdown file in the repo matches `[*.md]` and gets the `Flavored` style. A file under a `plugins/<any>/agents/` or `plugins/<any>/commands/` directory, at any depth, matches a later section too.
 
-That later section wins outright: Vale takes the last matching section's `BasedOnStyles` and discards the earlier one. It does not merge them. A strict-scoped file keeps its flavored findings — clutter, superlatives, weak qualifiers — only because those sections spell out `Flavored, Strict`. Writing `Strict` alone there would silently drop every flavored rule from exactly the files held to the tightest standard.
+That later section wins outright: Vale takes the last matching section's `BasedOnStyles` and discards the earlier one. Two sections with different globs never merge. Only a repeated identical glob accumulates styles. A strict-scoped file keeps its flavored findings — clutter, superlatives, weak qualifiers — only because those sections spell out `Flavored, Strict`. Writing `Strict` alone there would silently drop every flavored rule from exactly the files held to the tightest standard.
 
 ## The two style directories
 

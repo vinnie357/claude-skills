@@ -21,7 +21,7 @@ tokens:
 
 ## substitution
 
-Flags a token and names its replacement in the same rule. Abridged from this repo's `styles/Flavored/Clutter.yml` — the shipped file carries eleven swaps:
+Flags a token and names its replacement in the same rule. Abridged from this repo's `styles/Flavored/Clutter.yml` — the shipped file carries twelve swaps:
 
 ```yaml
 extends: substitution
