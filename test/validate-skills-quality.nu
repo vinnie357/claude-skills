@@ -1760,6 +1760,28 @@ def run-check-fixes-self-test [] {
         print $"(ansi red_bold)❌ check-fix self-test: glob-in-prose exemption wrongly flagged(ansi reset)"
         $failed = true
     }
+    # Anchor and title forms on a bare sibling link (Gate 3 finding): the OLD
+    # `references/` token branch DOES flag `references/foo.md#anchor`, so a
+    # bare-link branch that misses `attribution.md#usage` disagrees with the
+    # established behavior for the identical evasion. Both must still flag.
+    if not (has-unqualified-references-token "[attribution.md](attribution.md#usage)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare sibling link with anchor not flagged(ansi reset)"
+        $failed = true
+    }
+    if not (has-unqualified-references-token $"[x]\(attribution.md \"Some Title\"\)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: bare sibling link with title not flagged(ansi reset)"
+        $failed = true
+    }
+    # Guard the widening: fragment-stripping must not make an external URL
+    # match, and an anchor must not turn a NON-sibling target into a match.
+    if (has-unqualified-references-token "[x](https://example.com/attribution.md#usage)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: external URL with anchor wrongly flagged(ansi reset)"
+        $failed = true
+    }
+    if (has-unqualified-references-token "[x](other.md#usage)" "myskill" [] [] $rd_siblings) {
+        print $"(ansi red_bold)❌ check-fix self-test: NON-sibling link with anchor wrongly flagged(ansi reset)"
+        $failed = true
+    }
 
     # --- ref_depth cross-skill exemption is word-order sensitive (claude-skills-195) ---
     # These four cases pin the documented residual on
