@@ -3255,7 +3255,17 @@ def read-plugin-json [path: string]: nothing -> record {
             # required, an equality check would reject every well-formed
             # manifest too.
             if ($parsed | describe | str starts-with "record") {
-                {status: "ok", data: $parsed, file: $path}
+                # A record that parses clean but lacks `name` is a distinct
+                # failure from "invalid" (claude-skills-316): the JSON is
+                # perfectly valid, it's a schema gap, not a parse failure.
+                # `name` is checked for PRESENCE, not the record for
+                # emptiness — {"foo": 1} has fields but still lacks `name`
+                # and must be caught the same as {}.
+                if ($parsed | get -o name) == null {
+                    {status: "missing_required_field", data: null, file: $path}
+                } else {
+                    {status: "ok", data: $parsed, file: $path}
+                }
             } else {
                 {status: "invalid", data: null, file: $path}
             }
@@ -3284,6 +3294,8 @@ def check-root-manifest [repo_root: string]: nothing -> list {
         []
     } else if $read.status == "invalid" {
         ["invalid_json"]
+    } else if $read.status == "missing_required_field" {
+        ["missing_required_field"]
     } else {
         check-output-styles-path $read.data $repo_root
     }
@@ -4055,6 +4067,20 @@ def main [--update-baseline, --self-test] {
             $failing_keys = ($failing_keys | append $"($key_base):invalid_json")
             $surface_results = ($surface_results | append {
                 plugin: $plugin.name, kind: "plugin-json", file: "plugin.json", failed: "invalid_json"
+                details: ""
+            })
+            continue
+        }
+        if $plugin_read.status == "missing_required_field" {
+            # claude-skills-316: valid JSON, valid record, but missing the
+            # one field this loop dereferences unguarded ($plugin_json.name,
+            # three sites below). Same shape as "invalid" above — a distinct
+            # `failed` value so the finding doesn't misreport a schema gap
+            # as a parse failure.
+            let key_base = $"($plugin.name)/.claude-plugin/plugin.json"
+            $failing_keys = ($failing_keys | append $"($key_base):missing_required_field")
+            $surface_results = ($surface_results | append {
+                plugin: $plugin.name, kind: "plugin-json", file: "plugin.json", failed: "missing_required_field"
                 details: ""
             })
             continue
