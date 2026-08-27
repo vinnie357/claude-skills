@@ -3986,6 +3986,213 @@ def run-missing-field-manifest-self-test [] {
     $failed
 }
 
+# Embedded self-test for read-marketplace-json (claude-skills-315) — the
+# guard around `open`-ing the corpus-root .claude-plugin/marketplace.json at
+# what was line 4021 before this fix, the last unguarded manifest read in
+# this file. Mirrors read-plugin-json's shape (claude-skills-313/314/316)
+# but marketplace.json is not a plugin manifest — it is the corpus root:
+# without it there is no plugin list to validate at all, so unlike a broken
+# plugin.json (which is skipped and reported as a finding while the rest of
+# the run continues), a broken marketplace.json must halt the whole run
+# rather than continue with an empty, vacuously-passing corpus.
+#
+# Scope decision, deliberately narrower than the shapes this function could
+# check: `plugins` present but of the WRONG type (a string, a record, a
+# number) is NOT covered here. Verified empirically (nu 0.113.1): a string
+# `plugins` value does not throw inside the guard itself — `for plugin in
+# "notalist"` treats the whole string as one item — so unlike a missing or
+# null `plugins`, this shape still crashes loudly downstream (at the first
+# `$plugin.source`/`.name` field access, one loop iteration later) rather
+# than silently validating an empty corpus. `plugins/tools/claude-code/
+# skills/plugin-marketplace/scripts/validate-marketplace.nu` (run via `mise
+# run test:marketplace`, part of `mise test`) already enforces `plugins` as
+# an array as a schema rule; duplicating that type check here would be scope
+# creep onto a sibling validator's job, not a fix for the raw-trace defect
+# claude-skills-315 reports.
+#
+# `plugins: null` folds into the SAME "missing_required_field" status as an
+# absent `plugins` key, not a distinct status — matching read-plugin-json's
+# treatment of a missing `name`, and confirmed empirically that nushell's
+# `get -o plugins` already returns null for both an absent key and an
+# explicit `null` value, so no extra branching is needed to unify them. This
+# distinction matters: a `plugins: null` marketplace.json does NOT throw
+# today — the for-loop it drives silently iterates zero times, exit 0, no
+# findings, no raw trace. That silent vacuous pass is a worse failure mode
+# than any of the three shapes that throw, and is why it is pinned here
+# rather than left uncovered.
+def run-marketplace-json-self-test [] {
+    mut failed = false
+
+    # Case 1 (must-flag, RED until implemented): a missing marketplace.json
+    # is status "missing" — the same missing/malformed distinction
+    # read-plugin-json draws for plugin.json.
+    let missing_root = (mktemp -d)
+    let missing_path = ($missing_root | path join ".claude-plugin" "marketplace.json")
+    let missing_res = (try {
+        read-marketplace-json $missing_path
+    } catch {
+        {status: "threw", data: null, file: $missing_path}
+    })
+    if $missing_res.status != "missing" {
+        print $"(ansi red_bold)❌ marketplace-json self-test: missing marketplace.json wrongly reported as ($missing_res.status), expected missing(ansi reset)"
+        $failed = true
+    }
+    rm -rf $missing_root
+
+    # Case 2 (must-flag, RED until implemented): unparseable JSON — the
+    # actual claude-skills-315 defect — must report "invalid", never throw
+    # the raw nushell parser trace seen today (the `nu::shell::error` /
+    # `,-[...]` boxed-source markers on stderr, with stdout stopping mid-run
+    # and no explanation of what broke or where).
+    let bad_root = (mktemp -d)
+    mkdir ($bad_root | path join ".claude-plugin")
+    let bad_path = ($bad_root | path join ".claude-plugin" "marketplace.json")
+    "{ broken" | save $bad_path
+    let bad_res = (try {
+        read-marketplace-json $bad_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $bad_res.status != "invalid" {
+        print $"(ansi red_bold)❌ marketplace-json self-test: malformed marketplace.json not flagged as invalid \(got status: ($bad_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    if $bad_res.file != $bad_path {
+        print $"(ansi red_bold)❌ marketplace-json self-test: malformed-manifest result does not name the offending file \(got: ($bad_res.file)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $bad_root
+
+    # Case 3 (must-flag, RED until implemented): valid JSON that parses to a
+    # non-record top level (a JSON list) must also be "invalid" — mirrors
+    # claude-skills-314's non-record-manifest fix for plugin.json.
+    let list_root = (mktemp -d)
+    mkdir ($list_root | path join ".claude-plugin")
+    let list_path = ($list_root | path join ".claude-plugin" "marketplace.json")
+    "[1, 2, 3]" | save $list_path
+    let list_res = (try {
+        read-marketplace-json $list_path
+    } catch {
+        {status: "threw", data: null, file: $list_path}
+    })
+    if $list_res.status != "invalid" {
+        print $"(ansi red_bold)❌ marketplace-json self-test: non-record marketplace.json \(JSON list\) not flagged as invalid \(got status: ($list_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $list_root
+
+    # Case 4 (must-flag, RED until implemented): a well-formed record with
+    # no `plugins` key at all — mirrors claude-skills-316's missing-
+    # required-field fix, but for `plugins` instead of `name`.
+    let no_key_root = (mktemp -d)
+    mkdir ($no_key_root | path join ".claude-plugin")
+    let no_key_path = ($no_key_root | path join ".claude-plugin" "marketplace.json")
+    {name: "test-marketplace"} | to json | save $no_key_path
+    let no_key_res = (try {
+        read-marketplace-json $no_key_path
+    } catch {
+        {status: "threw", data: null, file: $no_key_path}
+    })
+    if $no_key_res.status != "missing_required_field" {
+        print $"(ansi red_bold)❌ marketplace-json self-test: marketplace.json with no plugins key not flagged \(got status: ($no_key_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $no_key_root
+
+    # Case 5 (must-flag, RED until implemented): `plugins: null` — distinct
+    # from Case 4 only in that the key IS present — must fold into the same
+    # "missing_required_field" status. See the doc comment above this
+    # function for why: without this, "Total skills: 0" prints silently,
+    # exit 0, with no indication the corpus root was broken.
+    let null_root = (mktemp -d)
+    mkdir ($null_root | path join ".claude-plugin")
+    let null_path = ($null_root | path join ".claude-plugin" "marketplace.json")
+    {name: "test-marketplace", plugins: null} | to json | save $null_path
+    let null_res = (try {
+        read-marketplace-json $null_path
+    } catch {
+        {status: "threw", data: null, file: $null_path}
+    })
+    if $null_res.status != "missing_required_field" {
+        print $"(ansi red_bold)❌ marketplace-json self-test: marketplace.json with plugins: null not flagged \(got status: ($null_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $null_root
+
+    # Case 6 (must-flag, RED until implemented — read-marketplace-json does
+    # not exist yet, so even the real corpus manifest reports "threw"): the
+    # real shipped marketplace.json parses clean — status "ok", with an
+    # actual non-empty plugins list, not "invalid" or
+    # "missing_required_field". `get -o` throughout (never a bare
+    # `.plugins` dot-path) so a still-null `data` on a failing
+    # implementation reports a clean assertion failure instead of an
+    # unrelated crash inside this self-test itself.
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let real_path = ($repo_root | path join ".claude-plugin" "marketplace.json")
+    let real_res = (try {
+        read-marketplace-json $real_path
+    } catch {
+        {status: "threw", data: null, file: $real_path}
+    })
+    if $real_res.status != "ok" {
+        print $"(ansi red_bold)❌ marketplace-json self-test: real marketplace.json wrongly flagged \(got status: ($real_res.status)\)(ansi reset)"
+        $failed = true
+    } else {
+        let plugins_val = ($real_res.data | get -o plugins)
+        # A JSON array of objects describes as "table", not "list<record<...
+        # >>" (verified empirically, nu 0.113.1: [{a:1}] | describe => table,
+        # [1,2,3] | describe => list<int>) — a table IS a list of records in
+        # nushell, so both prefixes count as "a list".
+        let plugins_type = ($plugins_val | describe)
+        if not (($plugins_type | str starts-with "list") or ($plugins_type | str starts-with "table")) {
+            print $"(ansi red_bold)❌ marketplace-json self-test: real marketplace.json parsed content has no plugins list \(got: ($plugins_type)\)(ansi reset)"
+            $failed = true
+        } else if ($plugins_val | length) == 0 {
+            print $"(ansi red_bold)❌ marketplace-json self-test: real marketplace.json parsed to an empty plugins list(ansi reset)"
+            $failed = true
+        }
+    }
+
+    # Case 7 (must-flag, RED until implemented): `main` itself must act on
+    # a bad status by halting with a readable message that names the file —
+    # never main's current behaviour, an unguarded `open` whose raw nushell
+    # parser trace reaches stderr with zero explanation on stdout. This is a
+    # full subprocess run of the script, not a call against
+    # read-marketplace-json directly: whether to halt-with-message vs.
+    # report-and-continue is main's decision, and no unit call against the
+    # helper alone can pin it — only running main can. main must also NOT
+    # continue into Pass 1: "Total skills" must never print, since any
+    # scoring emitted past a broken corpus root is meaningless, and the run
+    # must exit non-zero so CI catches it.
+    let harness_root = (mktemp -d)
+    mkdir ($harness_root | path join ".claude-plugin")
+    "{ broken" | save ($harness_root | path join ".claude-plugin" "marketplace.json")
+    let script_path = ($repo_root | path join "test" "validate-skills-quality.nu")
+    let run_res = (do { cd $harness_root; ^git init -q out+err> /dev/null; ^nu $script_path } | complete)
+    if ($run_res.stderr | str contains "nu::shell::") {
+        print $"(ansi red_bold)❌ marketplace-json self-test: main still leaks a raw nushell parser trace to stderr on malformed marketplace.json(ansi reset)"
+        $failed = true
+    }
+    if not ($run_res.stdout | str contains "marketplace.json") {
+        print $"(ansi red_bold)❌ marketplace-json self-test: main's halt message does not name marketplace.json \(stdout: ($run_res.stdout)\)(ansi reset)"
+        $failed = true
+    }
+    if ($run_res.stdout | str contains "Total skills") {
+        print $"(ansi red_bold)❌ marketplace-json self-test: main continued past a malformed marketplace.json and printed a skills total(ansi reset)"
+        $failed = true
+    }
+    if $run_res.exit_code == 0 {
+        print $"(ansi red_bold)❌ marketplace-json self-test: main exited 0 on a malformed marketplace.json — a broken corpus root must fail the run(ansi reset)"
+        $failed = true
+    }
+    rm -rf $harness_root
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Marketplace-json self-test passed \(7 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -4009,7 +4216,8 @@ def main [--update-baseline, --self-test] {
         let invalid_manifest_failed = (run-invalid-manifest-self-test)
         let non_record_manifest_failed = (run-non-record-manifest-self-test)
         let missing_field_manifest_failed = (run-missing-field-manifest-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed or $non_record_manifest_failed or $missing_field_manifest_failed { exit 1 }
+        let marketplace_json_failed = (run-marketplace-json-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed or $non_record_manifest_failed or $missing_field_manifest_failed or $marketplace_json_failed { exit 1 }
         exit 0
     }
 
