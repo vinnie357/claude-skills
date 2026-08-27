@@ -66,7 +66,7 @@ Before writing or editing any SKILL.md, verify each item. Named checks live in `
 | References stay one level deep (SKILL.md → reference, not reference → reference) | `ref_depth` check |
 | Anti-fabrication rules present — and every claim about a tool, file, or behavior verifiable | `anti_fab` check (presence only; soundness is on the author) |
 | Combined `description` + `when_to_use` under 1,536 characters (Claude Code's listing truncation) | judgment — no check; the `desc` check caps `description` alone at 1024 |
-| Zero hedging verbs: should, may, might, consider, try to, offer to, it would be good to | judgment — no check |
+| Zero hedging verbs in directives: should, may, might, consider, try to, offer to, it would be good to. A hedge on a thin *claim* is required, not banned — see `/core:anti-fabrication` "Hedges vs directives" for the boundary | judgment — no check |
 
 A failed enforced item is a blocker — the validator rejects it. A failed judgment item is a review-time flag: fix it or state why it stays.
 

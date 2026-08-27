@@ -8,14 +8,14 @@ Contract for code review agents. Produces a prioritized findings list that a tea
 Respond using exactly these two sections.
 
 ## SCOPE
-One sentence naming the files or PR reviewed and the review lens
-(e.g., "security", "correctness", "style").
+One sentence, 25 words maximum, naming the files or PR reviewed and the
+review lens (e.g., "security", "correctness", "style").
 
 ## FINDINGS
 A numbered list. Each finding uses this exact shape:
 
 N. [SEVERITY] file:line — one-sentence description.
-   Fix: one sentence describing the change.
+   Fix: one sentence, 20 words maximum, describing the change.
 
 SEVERITY is one of: `blocker` | `major` | `minor` | `nit`.
 - `blocker`: must be fixed before merge (correctness, security)
