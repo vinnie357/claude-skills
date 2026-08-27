@@ -3223,12 +3223,19 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
 # outputStyles array crash fixed in claude-skills-269 — a crash aborts, a
 # finding reports.
 #
-# Contract: never throws. Returns {status, data, file} where status is
-# "ok" (parsed successfully, data is the record), "invalid" (path exists
-# but failed to parse, data is null), or "missing" (path does not exist,
-# data is null). `file` always echoes the input path, so a caller building
-# a finding can name the offending manifest without threading the path
+# Contract: never throws. Returns {status, data, file} where status is one
+# of four values: "ok" (parsed successfully, data is the record), "invalid"
+# (path exists but failed to parse, or parsed to a non-record; data is
+# null), "missing" (path does not exist, data is null), or
+# "missing_required_field" (parsed to a record lacking `name`, data is
+# null). `file` always echoes the input path, so a caller building a
+# finding can name the offending manifest without threading the path
 # through separately.
+#
+# Known residual (claude-skills-317): this validates that `name` is
+# PRESENT, not that it is a string. A non-string `name` returns "ok" and
+# then aborts the run at evaluate-agent-file's string-typed parameter —
+# a type axis this helper does not cover.
 #
 # The "missing" branch needs no guard — a nonexistent path never reaches
 # `open`. The parse step DOES need one: `open` on a path that exists but
@@ -3840,7 +3847,7 @@ def run-non-record-manifest-self-test [] {
 # `name` — the only field the Pass-1 registry loop dereferences unguarded
 # ($plugin_json.name, three sites: the skill_dir_map append, the
 # upstream_cmds `where ns ==` filter, and the $registry append itself, all
-# inside the loop at test/validate-skills-quality.nu around line 3892).
+# inside the $registry-building loop in main).
 # Every other plugin_json field access in this file already goes through
 # `get -o` (safe). This self-test pins a fourth, distinct status —
 # "missing_required_field" — rather than reusing "invalid": a parse failure
