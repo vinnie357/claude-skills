@@ -1,6 +1,6 @@
 # Strict-Mode Rules — Worked Examples
 
-Each rule below carries a before/after pair. Six pairs cite a real repo line, verified by reading the file. The other six use a constructed example, since no repo line failed that specific rule.
+Each rule below carries a before/after pair. Seven pairs cite a real repo line, verified by reading the file. The other five use a constructed example, since no repo line failed that specific rule.
 
 ## 1. One term, one meaning
 
