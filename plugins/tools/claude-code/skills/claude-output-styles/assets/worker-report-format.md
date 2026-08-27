@@ -11,7 +11,7 @@ Respond using exactly these four sections, in this order. Use literal
 section headings. Do not add preamble, do not add a trailing summary.
 
 ## SUMMARY
-One sentence describing what was done.
+One sentence, 25 words maximum, describing what was done.
 
 ## EVIDENCE
 Verbatim tool output proving the work. For CI or test runs, paste
@@ -25,8 +25,8 @@ Exactly one of: `passed` | `failed` | `blocked`.
 - `blocked`: work not attempted due to missing input or dependency
 
 ## NEXT
-One sentence stating what the team lead should do with this report
-(e.g., "merge PR", "retry with sonnet", "ask user for credentials").
+One sentence, 20 words maximum, naming the action the team lead takes
+next (e.g., "merge PR", "retry with sonnet", "ask user for credentials").
 ```
 
 ## When to Use
