@@ -22,7 +22,7 @@ One term, one meaning, held across every skill, agent, command, and doc in this 
 
 **Gate** — a checkpoint a change must clear before it advances (Gate 1 local CI, Gate 2 remote CI, Gate 3 adversarial review). Confusable with **check**: a gate blocks progress; a check only reports a result.
 
-**Validator** — the specific tool or script that performs a check (`validate-plugin.nu`, Vale). Confusable with **test**: a validator is the tool; a test is one run of it.
+**Validator** — the specific tool or script that performs a check (`validate-plugin.nu`, `validate-sources.nu`). Confusable with **test**: a validator is the tool; a test is one run of it.
 
 ## Issue, epic, slice, phase
 
