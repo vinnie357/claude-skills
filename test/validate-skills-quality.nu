@@ -4015,11 +4015,15 @@ def run-missing-field-manifest-self-test [] {
 # treatment of a missing `name`, and confirmed empirically that nushell's
 # `get -o plugins` already returns null for both an absent key and an
 # explicit `null` value, so no extra branching is needed to unify them. This
-# distinction matters: a `plugins: null` marketplace.json does NOT throw
-# today — the for-loop it drives silently iterates zero times, exit 0, no
-# findings, no raw trace. That silent vacuous pass is a worse failure mode
-# than any of the three shapes that throw, and is why it is pinned here
-# rather than left uncovered.
+# distinction matters, though not for the reason an earlier draft of this
+# comment gave. Measured against origin/main on a full corpus: a
+# `plugins: null` marketplace.json does NOT throw — the for-loop it drives
+# iterates zero times — but the run does NOT then pass. A pre-existing
+# empty-corpus guard catches it and exits 1 with "No skills found to
+# validate." So the defect is a MISDIAGNOSIS, not a silent green run: that
+# message names a symptom and never mentions the unusable corpus root that
+# caused it. The claim of an "exit 0 silent vacuous pass" was fabricated —
+# nobody measured the baseline before arguing from it.
 def run-marketplace-json-self-test [] {
     mut failed = false
 
@@ -4102,8 +4106,8 @@ def run-marketplace-json-self-test [] {
     # Case 5 (must-flag, RED until implemented): `plugins: null` — distinct
     # from Case 4 only in that the key IS present — must fold into the same
     # "missing_required_field" status. See the doc comment above this
-    # function for why: without this, "Total skills: 0" prints silently,
-    # exit 0, with no indication the corpus root was broken.
+    # function for why: without this, the run exits 1 with the unexplained
+    # "No skills found to validate." and never names the broken corpus root.
     let null_root = (mktemp -d)
     mkdir ($null_root | path join ".claude-plugin")
     let null_path = ($null_root | path join ".claude-plugin" "marketplace.json")
@@ -4187,8 +4191,42 @@ def run-marketplace-json-self-test [] {
     }
     rm -rf $harness_root
 
+    # Case 8 (mutation-survivor fix, claude-skills-315 Gate 3 finding): pins
+    # the `describe | str starts-with "record"` check specifically, a
+    # dimension Case 3's `[1,2,3]` fixture does NOT exercise. Deleting that
+    # check (replacing it with `if true`) leaves Case 3 green regardless —
+    # `get -o plugins` on a `list<int>` throws, and the surrounding
+    # try/catch converts the throw to "invalid" on its own, with or without
+    # the record check ever running. `[1,2,3]` therefore must NOT be read as
+    # covering the record check, and must not be deleted as "redundant"
+    # with this case — the two pin different lines of the implementation.
+    #
+    # `[{"plugins": []}]` is the shape that only the record check catches:
+    # a JSON array containing one record. Verified empirically (nu 0.113.1):
+    # it parses to a `table<plugins: list<any>>`, and `get -o plugins` on
+    # that table returns a non-null value (a one-row list wrapping the
+    # empty inner list), NOT null. So with the record check removed, this
+    # shape flows straight to the `get -o plugins == null` branch, finds a
+    # non-null value, and reports "ok" — silently treating a corpus-root
+    # array as a usable marketplace record. Only the record check catches
+    # it; this case exists to keep that check from being deleted unnoticed.
+    let array_of_records_root = (mktemp -d)
+    mkdir ($array_of_records_root | path join ".claude-plugin")
+    let array_of_records_path = ($array_of_records_root | path join ".claude-plugin" "marketplace.json")
+    '[{"plugins": []}]' | save $array_of_records_path
+    let array_of_records_res = (try {
+        read-marketplace-json $array_of_records_path
+    } catch {
+        {status: "threw", data: null, file: $array_of_records_path}
+    })
+    if $array_of_records_res.status != "invalid" {
+        print $"(ansi red_bold)❌ marketplace-json self-test: array-of-records marketplace.json \(non-record top level\) not flagged as invalid \(got status: ($array_of_records_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $array_of_records_root
+
     if not $failed {
-        print $"(ansi green_bold)✅ Marketplace-json self-test passed \(7 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Marketplace-json self-test passed \(8 cases\)(ansi reset)"
     }
     $failed
 }
