@@ -3151,20 +3151,38 @@ See references/does-not-exist.md for detail.
 # missing_desc are a house-rule addition on top of the upstream-optional
 # schema (see OUTPUT_STYLE_FM_KEYS), fm_schema reuses unknown-frontmatter-keys.
 #
-# NOT YET IMPLEMENTED — stub always reports a clean file. Implementer: fill
-# in the missing_name/missing_desc/fm_schema checks per
-# run-output-style-self-test below; keep the returned record shape
-# (failed/failing_keys/failing_counts/surface_result) so apply-surface-finding
-# keeps working unchanged.
 def evaluate-output-style-file [f: string, plugin_name: string]: nothing -> record {
+    let content = (open --raw $f)
+    let all_lines = ($content | lines)
+    let fm_lines = if ($all_lines | first | default "" | str trim) == "---" {
+        let rest = ($all_lines | skip 1)
+        let end_matches = ($rest | enumerate | where {|item| ($item.item | str trim) == "---"})
+        if ($end_matches | is-not-empty) {
+            $rest | first ($end_matches | first | get index)
+        } else { [] }
+    } else { [] }
+
+    mut failed = []
+    if not ($fm_lines | any {|line| $line | str starts-with "name:"}) {
+        $failed = ($failed | append "missing_name")
+    }
+    if not ($fm_lines | any {|line| $line | str starts-with "description:"}) {
+        $failed = ($failed | append "missing_desc")
+    }
+
+    let fm_unknown = (unknown-frontmatter-keys $fm_lines $OUTPUT_STYLE_FM_KEYS)
+    if ($fm_unknown | is-not-empty) { $failed = ($failed | append "fm_schema") }
+
     let key_base = $"($plugin_name)/output-styles/($f | path basename)"
     {
-        failed: []
-        failing_keys: []
-        failing_counts: []
+        failed: $failed
+        failing_keys: ($failed | each {|c| $"($key_base):($c)"})
+        failing_counts: (accumulate-detail-counts [] $key_base $failed [
+            {check: "fm_schema", count: ($fm_unknown | length)}
+        ])
         surface_result: {
-            plugin: $plugin_name, kind: "output-style", file: ($f | path basename), failed: ""
-            details: ""
+            plugin: $plugin_name, kind: "output-style", file: ($f | path basename), failed: ($failed | str join " ")
+            details: ($fm_unknown | each {|k| $"frontmatter:($k)"} | str join " ")
         }
     }
 }
@@ -3175,11 +3193,15 @@ def evaluate-output-style-file [f: string, plugin_name: string]: nothing -> reco
 # field was added — is never flagged; this check only fires when the field
 # is present and wrong. Path is resolved relative to `plugin_dir`.
 #
-# NOT YET IMPLEMENTED — stub always reports no issue. Implementer: resolve
-# `plugin_json.outputStyles` (when present) against `plugin_dir` and return
-# a non-empty list (e.g. ["missing_path"]) when it does not exist.
 def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing -> list {
-    []
+    let output_styles = ($plugin_json | get -o outputStyles)
+    if $output_styles == null {
+        []
+    } else if not ($plugin_dir | path join $output_styles | path exists) {
+        ["missing_path"]
+    } else {
+        []
+    }
 }
 
 # Embedded self-test for evaluate-output-style-file and
@@ -3792,6 +3814,39 @@ def main [--update-baseline, --self-test] {
             $failing_keys = $acc.failing_keys
             $failing_counts = $acc.failing_counts
             $surface_results = $acc.surface_results
+        }
+
+        # Output styles (claude-skills-310): plugin-level output-styles/ dir
+        # only. Same merge-step shape as agents/commands above — evaluate-
+        # output-style-file owns the checks and detail-count wiring.
+        let output_styles_dir = ($plugin_dir | path join "output-styles")
+        let output_style_files = if ($output_styles_dir | path exists) {
+            glob ($output_styles_dir | path join "*.md")
+        } else { [] }
+
+        for f in $output_style_files {
+            let res = (evaluate-output-style-file $f $plugin_name)
+            let acc = (apply-surface-finding $failing_keys $failing_counts $surface_results $res)
+            $failing_keys = $acc.failing_keys
+            $failing_counts = $acc.failing_counts
+            $surface_results = $acc.surface_results
+        }
+
+        # A plugin.json `outputStyles` field pointing at a nonexistent path
+        # is a boolean finding (not in DETAIL_CHECKS) — one check per plugin,
+        # keyed off the plugin.json file itself rather than a specific style.
+        let plugin_json_path = ($plugin_dir | path join ".claude-plugin" "plugin.json")
+        if ($plugin_json_path | path exists) {
+            let plugin_json = (open $plugin_json_path)
+            let bad_paths = (check-output-styles-path $plugin_json $plugin_dir)
+            if ($bad_paths | is-not-empty) {
+                let key_base = $"($plugin_name)/.claude-plugin/plugin.json"
+                $failing_keys = ($failing_keys | append ($bad_paths | each {|c| $"($key_base):($c)"}))
+                $surface_results = ($surface_results | append {
+                    plugin: $plugin_name, kind: "plugin-json", file: "plugin.json", failed: ($bad_paths | str join " ")
+                    details: ""
+                })
+            }
         }
 
         # Hooks: plugin-level hooks/hooks.json only.
