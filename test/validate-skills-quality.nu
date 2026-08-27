@@ -3194,7 +3194,7 @@ def evaluate-output-style-file [f: string, plugin_name: string]: nothing -> reco
 # is present and wrong. Each path is resolved relative to `plugin_dir`.
 #
 # The plugins reference documents `outputStyles` as EITHER a single string
-# OR an array of output-style files/directories (claude-skills-313) —
+# OR an array of output-style files/directories (claude-skills-310) —
 # `[$output_styles] | flatten` normalizes both shapes to a flat list of
 # strings (a bare string becomes a one-element list; a list stays as-is;
 # an empty list stays empty) so the same existence check below applies to
@@ -3338,7 +3338,7 @@ Body prose.
         $failed = true
     }
 
-    # Array form (claude-skills-313): the plugins reference documents
+    # Array form (claude-skills-310): the plugins reference documents
     # `outputStyles` as string OR array of output-style files/directories.
     # try/catch turns a crash into a reported failure rather than aborting
     # this whole self-test suite — see the doc comment above.
