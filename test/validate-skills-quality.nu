@@ -3213,6 +3213,42 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
     }
 }
 
+# claude-skills-313: shared guard for `open`-ing a plugin.json manifest.
+# Four call sites open a plugin.json with no guard today — a malformed
+# manifest throws and aborts the WHOLE validator run instead of producing a
+# finding ("Total skills" never prints and every other finding in that run
+# is masked). Verified by grep at this branch point: check-root-manifest
+# (below this comment), the $registry-building loop, the pass-2 skills
+# loop, and the outputStyles plugin-json check. Same class of bug as the
+# outputStyles array crash fixed in claude-skills-269 — a crash aborts, a
+# finding reports.
+#
+# Contract: never throws. Returns {status, data, file} where status is
+# "ok" (parsed successfully, data is the record), "invalid" (path exists
+# but failed to parse, data is null), or "missing" (path does not exist,
+# data is null). `file` always echoes the input path, so a caller building
+# a finding can name the offending manifest without threading the path
+# through separately.
+#
+# The "missing" branch needs no guard — a nonexistent path never reaches
+# `open`. The parse step DOES need one: `open` on a path that exists but
+# contains unparseable JSON throws, and an uncaught throw here would abort
+# the whole validator run (the exact failure mode this function exists to
+# prevent). try/catch turns that throw into a reported "invalid" status
+# instead, with the offending path still in `file` so a caller can build a
+# finding naming it.
+def read-plugin-json [path: string]: nothing -> record {
+    if not ($path | path exists) {
+        {status: "missing", data: null, file: $path}
+    } else {
+        try {
+            {status: "ok", data: (open $path), file: $path}
+        } catch {
+            {status: "invalid", data: null, file: $path}
+        }
+    }
+}
+
 # claude-skills-312: the root `.claude-plugin/plugin.json` (name
 # "all-skills", the meta-plugin manifest that re-lists every other plugin's
 # skills) is skipped when building $registry — `if ($plugin.name ==
@@ -3227,11 +3263,13 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
 # stays correct while the root manifest still gets checked.
 def check-root-manifest [repo_root: string]: nothing -> list {
     let plugin_json_path = ($repo_root | path join ".claude-plugin" "plugin.json")
-    if not ($plugin_json_path | path exists) {
+    let read = (read-plugin-json $plugin_json_path)
+    if $read.status == "missing" {
         []
+    } else if $read.status == "invalid" {
+        ["invalid_json"]
     } else {
-        let plugin_json = (open $plugin_json_path)
-        check-output-styles-path $plugin_json $repo_root
+        check-output-styles-path $read.data $repo_root
     }
 }
 
@@ -3495,6 +3533,94 @@ def run-root-manifest-self-test [] {
     $failed
 }
 
+# Embedded self-test for read-plugin-json (claude-skills-313) — the shared
+# guard around `open`-ing a plugin.json manifest, defined above
+# check-root-manifest. Case 1 and Case 2 are the must-flag red cases: a
+# malformed manifest throws today (the stub has no try/catch around its
+# `open` call), so both are RED until the implementer adds the guard.
+# Case 3 and Case 4 are regression guards that already pass — well-formed
+# manifests and missing manifests are handled correctly by the stub as
+# shipped (the "missing" branch is real, not stubbed; parsing a real
+# well-formed manifest never hits the missing try/catch at all).
+#
+# Every call is wrapped in try/catch, mirroring run-output-style-self-test's
+# precedent for a stub that can still throw: a crash here must fail this
+# case's assertion, not abort the whole self-test suite.
+def run-invalid-manifest-self-test [] {
+    mut failed = false
+
+    # Case 1 (must-flag, RED until implemented): a malformed plugin.json —
+    # unparseable JSON — must report status "invalid" rather than throwing.
+    let bad_root = (mktemp -d)
+    mkdir ($bad_root | path join ".claude-plugin")
+    let bad_path = ($bad_root | path join ".claude-plugin" "plugin.json")
+    "{ broken" | save $bad_path
+    # The catch fallback deliberately does NOT know $bad_path — file: null,
+    # not file: $bad_path. A fallback that echoed the known path back would
+    # make Case 2 pass vacuously whenever the stub throws, regardless of
+    # whether the real implementation ever names the file correctly. Only
+    # the implementation's own return value may satisfy Case 2.
+    let bad_res = (try {
+        read-plugin-json $bad_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $bad_res.status != "invalid" {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: malformed plugin.json not flagged as invalid \(got status: ($bad_res.status)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2 (must-flag, RED until implemented): the result names the
+    # offending file, so a finding built from it can say which manifest is
+    # broken.
+    if $bad_res.file != $bad_path {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: malformed-manifest result does not name the offending file \(got: ($bad_res.file)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $bad_root
+
+    # Case 3 (regression guard, must already pass): a well-formed manifest
+    # from the real corpus parses clean — status "ok", with the actual
+    # parsed content, not "invalid".
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let real_manifest = ($repo_root | path join "plugins" "core" ".claude-plugin" "plugin.json")
+    let real_res = (try {
+        read-plugin-json $real_manifest
+    } catch {
+        {status: "threw", data: null, file: $real_manifest}
+    })
+    if $real_res.status != "ok" {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: real core plugin.json wrongly flagged \(got status: ($real_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    if ($real_res.data | get -o name) != "core" {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: real core plugin.json parsed content missing or wrong \(got name: ($real_res.data | get -o name)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 4 (regression guard, must already pass): a missing manifest is
+    # status "missing", never "invalid" — absent and malformed are
+    # different states, and the existing call sites already skip absent
+    # manifests via a `path exists` check before opening.
+    let missing_root = (mktemp -d)
+    let missing_path = ($missing_root | path join ".claude-plugin" "plugin.json")
+    let missing_res = (try {
+        read-plugin-json $missing_path
+    } catch {
+        {status: "threw", data: null, file: $missing_path}
+    })
+    if $missing_res.status != "missing" {
+        print $"(ansi red_bold)❌ invalid-manifest self-test: missing plugin.json wrongly reported as ($missing_res.status), expected missing(ansi reset)"
+        $failed = true
+    }
+    rm -rf $missing_root
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Invalid-manifest self-test passed \(4 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -3515,7 +3641,8 @@ def main [--update-baseline, --self-test] {
         let redundant_when_to_use_failed = (run-redundant-when-to-use-self-test)
         let output_style_failed = (run-output-style-self-test)
         let root_manifest_failed = (run-root-manifest-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed { exit 1 }
+        let invalid_manifest_failed = (run-invalid-manifest-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed { exit 1 }
         exit 0
     }
 
@@ -3549,6 +3676,18 @@ def main [--update-baseline, --self-test] {
     # namespace-aware when a skill name collides across two local plugins.
     mut registry = []
     mut skill_dir_map = []
+    # failing_keys/failing_counts/surface_results are declared here, ahead of
+    # Pass 1, rather than at their previous later declaration points
+    # (claude-skills-313): a malformed plugin.json can now be caught and
+    # reported as a finding from INSIDE Pass 1's registry-building loop
+    # below, before either of those later points existed. Declaring the
+    # accumulators once, up front, lets every pass — Pass 1's manifest read,
+    # the skills-scoring loop, and the agents/commands/hooks/output-styles
+    # loop further down — append into the same three lists rather than
+    # threading a parallel accumulator that would need merging in later.
+    mut failing_keys = []
+    mut failing_counts = []
+    mut surface_results = []
     for plugin in $marketplace.plugins {
         let source_type = ($plugin.source | describe)
         if ($source_type | str starts-with "record") { continue }
@@ -3556,9 +3695,24 @@ def main [--update-baseline, --self-test] {
 
         let plugin_dir = ($repo_root | path join ($plugin.source | str replace --regex '^\./' ''))
         let plugin_json_path = ($plugin_dir | path join ".claude-plugin" "plugin.json")
-        if not ($plugin_json_path | path exists) { continue }
+        let plugin_read = (read-plugin-json $plugin_json_path)
+        if $plugin_read.status == "missing" { continue }
+        if $plugin_read.status == "invalid" {
+            # A malformed manifest can't be registered — same shape as the
+            # hooks.json bad_wrapper finding below, keyed off the manifest
+            # itself. $plugin.name (from marketplace.json) rather than
+            # $plugin_json.name, since the latter is unavailable when the
+            # parse itself is what failed.
+            let key_base = $"($plugin.name)/.claude-plugin/plugin.json"
+            $failing_keys = ($failing_keys | append $"($key_base):invalid_json")
+            $surface_results = ($surface_results | append {
+                plugin: $plugin.name, kind: "plugin-json", file: "plugin.json", failed: "invalid_json"
+                details: ""
+            })
+            continue
+        }
 
-        let plugin_json = (open $plugin_json_path)
+        let plugin_json = $plugin_read.data
         let skill_paths = ($plugin_json | get -o skills | default [])
         let skill_names = ($skill_paths | each {|p|
             $p | str replace --regex '^\./' '' | path basename
@@ -3592,13 +3746,20 @@ def main [--update-baseline, --self-test] {
     mut results = []
     mut total_skills = 0
     mut total_pass = 0
-    mut failing_keys = []
-    mut failing_counts = []
 
     for plugin in $registry {
         let plugin_dir = $plugin.dir
         let plugin_name = $plugin.name
-        let plugin_json = (open ($plugin_dir | path join ".claude-plugin" "plugin.json"))
+        # $registry only contains plugins that already parsed clean in Pass
+        # 1 above (a malformed manifest is reported there and never makes it
+        # into $registry), so this read-plugin-json call should always
+        # return "ok" in practice. It is still guarded rather than a bare
+        # `open`, matching claude-skills-313's four named call sites — a
+        # defense-in-depth guard costs nothing and this function must never
+        # throw regardless of what Pass 1 already checked.
+        let plugin_read = (read-plugin-json ($plugin_dir | path join ".claude-plugin" "plugin.json"))
+        if $plugin_read.status != "ok" { continue }
+        let plugin_json = $plugin_read.data
         let skills = ($plugin_json | get -o skills | default [])
 
         # Check 17's sole acceptance path (claude-skills-184, C2): a prose
@@ -3929,7 +4090,8 @@ def main [--update-baseline, --self-test] {
     # run via a baseline stale-key failure.
     let known_models = ["haiku" "sonnet" "opus" "fable" "inherit"]
     let known_hook_events = ["PreToolUse" "PostToolUse" "SessionStart" "SessionEnd" "UserPromptSubmit" "Stop" "SubagentStop" "PreCompact" "Notification"]
-    mut surface_results = []
+    # surface_results is declared once, ahead of Pass 1 (claude-skills-313)
+    # — no re-declaration here.
 
     for plugin in $registry {
         let plugin_dir = $plugin.dir
@@ -4004,9 +4166,15 @@ def main [--update-baseline, --self-test] {
         # A plugin.json `outputStyles` field pointing at a nonexistent path
         # is a boolean finding (not in DETAIL_CHECKS) — one check per plugin,
         # keyed off the plugin.json file itself rather than a specific style.
-        let plugin_json_path = ($plugin_dir | path join ".claude-plugin" "plugin.json")
-        if ($plugin_json_path | path exists) {
-            let plugin_json = (open $plugin_json_path)
+        # Same defense-in-depth note as the skills-scoring loop above: a
+        # malformed manifest is already caught and reported by Pass 1, so
+        # $registry only ever holds plugins whose manifest parsed clean —
+        # this guard exists so the contract holds regardless, not because
+        # this branch is reachable in practice. On "invalid" it skips rather
+        # than re-reporting, since Pass 1 already filed that finding once.
+        let plugin_read = (read-plugin-json ($plugin_dir | path join ".claude-plugin" "plugin.json"))
+        if $plugin_read.status == "ok" {
+            let plugin_json = $plugin_read.data
             let bad_paths = (check-output-styles-path $plugin_json $plugin_dir)
             if ($bad_paths | is-not-empty) {
                 let key_base = $"($plugin_name)/.claude-plugin/plugin.json"
