@@ -3821,6 +3821,152 @@ def run-non-record-manifest-self-test [] {
     $failed
 }
 
+# Embedded self-test for read-plugin-json missing-required-field handling
+# (claude-skills-316) — the third shape of this crash class. claude-skills-
+# 313 caught unparseable JSON; claude-skills-314 caught a clean parse to a
+# non-record. Both leave a manifest that PARSES CLEAN TO A RECORD but lacks
+# `name` — the only field the Pass-1 registry loop dereferences unguarded
+# ($plugin_json.name, three sites: the skill_dir_map append, the
+# upstream_cmds `where ns ==` filter, and the $registry append itself, all
+# inside the loop at test/validate-skills-quality.nu around line 3892).
+# Every other plugin_json field access in this file already goes through
+# `get -o` (safe). This self-test pins a fourth, distinct status —
+# "missing_required_field" — rather than reusing "invalid": a parse failure
+# and a schema gap are different states, matching the same distinction the
+# helper already draws between "missing" (absent) and "invalid" (unparseable
+# or non-record). Reusing "invalid" for a file that IS valid JSON would
+# mislead a maintainer reading the finding.
+#
+# Case 3 (fields present, `name` absent) exists specifically to catch an
+# implementation that only checks "is the record completely empty" rather
+# than "is `name` present" — `{}` alone would pass a narrower, wrong check.
+def run-missing-field-manifest-self-test [] {
+    mut failed = false
+
+    # Case 1 (must-flag, RED until implemented): a record with no fields at
+    # all is missing `name`.
+    let empty_record_root = (mktemp -d)
+    mkdir ($empty_record_root | path join ".claude-plugin")
+    let empty_record_path = ($empty_record_root | path join ".claude-plugin" "plugin.json")
+    "{}" | save $empty_record_path
+    let empty_record_res = (try {
+        read-plugin-json $empty_record_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $empty_record_res.status != "missing_required_field" {
+        print $"(ansi red_bold)❌ missing-field-manifest self-test: empty-record manifest not flagged as missing_required_field \(got status: ($empty_record_res.status)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 2 (must-flag, RED until implemented): the result names the
+    # offending file, so a finding built from it can say which manifest is
+    # broken. Same fixture as Case 1, mirroring run-invalid-manifest-self-
+    # test's Case 1/Case 2 split.
+    if $empty_record_res.file != $empty_record_path {
+        print $"(ansi red_bold)❌ missing-field-manifest self-test: empty-record result does not name the offending file \(got: ($empty_record_res.file)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $empty_record_root
+
+    # Case 3 (must-flag, RED until implemented): a record WITH fields, but
+    # not `name`, must also be flagged — not just the degenerate {} case.
+    let no_name_root = (mktemp -d)
+    mkdir ($no_name_root | path join ".claude-plugin")
+    let no_name_path = ($no_name_root | path join ".claude-plugin" "plugin.json")
+    '{"foo": 1}' | save $no_name_path
+    let no_name_res = (try {
+        read-plugin-json $no_name_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $no_name_res.status != "missing_required_field" {
+        print $"(ansi red_bold)❌ missing-field-manifest self-test: manifest with fields but no name not flagged as missing_required_field \(got status: ($no_name_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $no_name_root
+
+    # Case 4 (regression guard, must already pass): a well-formed manifest
+    # from the real corpus, which DOES have `name`, still returns "ok" with
+    # usable, record-typed data.
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let real_manifest = ($repo_root | path join "plugins" "core" ".claude-plugin" "plugin.json")
+    let real_res = (try {
+        read-plugin-json $real_manifest
+    } catch {
+        {status: "threw", data: null, file: $real_manifest}
+    })
+    if $real_res.status != "ok" {
+        print $"(ansi red_bold)❌ missing-field-manifest self-test: real core plugin.json wrongly flagged \(got status: ($real_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    if ($real_res.data | get -o name) != "core" {
+        print $"(ansi red_bold)❌ missing-field-manifest self-test: real core plugin.json parsed content missing or wrong \(got name: ($real_res.data | get -o name)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 5 (regression guard, must already pass): a missing manifest is
+    # still status "missing", never "missing_required_field" — absent and
+    # schema-incomplete are different states, and the required-field check
+    # must not run ahead of, or interfere with, the existing `path exists`
+    # gate.
+    let missing_root = (mktemp -d)
+    let missing_path = ($missing_root | path join ".claude-plugin" "plugin.json")
+    let missing_res = (try {
+        read-plugin-json $missing_path
+    } catch {
+        {status: "threw", data: null, file: $missing_path}
+    })
+    if $missing_res.status != "missing" {
+        print $"(ansi red_bold)❌ missing-field-manifest self-test: missing plugin.json wrongly reported as ($missing_res.status), expected missing(ansi reset)"
+        $failed = true
+    }
+    rm -rf $missing_root
+
+    # Case 6 (regression guard, must already pass — claude-skills-313's fix
+    # must not regress): genuinely malformed (unparseable) JSON still
+    # returns "invalid", never "missing_required_field".
+    let malformed_root = (mktemp -d)
+    mkdir ($malformed_root | path join ".claude-plugin")
+    let malformed_path = ($malformed_root | path join ".claude-plugin" "plugin.json")
+    "{ broken" | save $malformed_path
+    let malformed_res = (try {
+        read-plugin-json $malformed_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $malformed_res.status != "invalid" {
+        print $"(ansi red_bold)❌ missing-field-manifest self-test: malformed plugin.json regressed \(got status: ($malformed_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $malformed_root
+
+    # Case 7 (regression guard, must already pass — claude-skills-314's fix
+    # must not regress): a manifest that parses clean to a non-record (a
+    # JSON list) still returns "invalid", not "missing_required_field" — the
+    # required-field check must not misclassify a non-record as a record
+    # that's merely missing one field.
+    let list_root = (mktemp -d)
+    mkdir ($list_root | path join ".claude-plugin")
+    let list_path = ($list_root | path join ".claude-plugin" "plugin.json")
+    "[1, 2, 3]" | save $list_path
+    let list_res = (try {
+        read-plugin-json $list_path
+    } catch {
+        {status: "threw", data: null, file: $list_path}
+    })
+    if $list_res.status != "invalid" {
+        print $"(ansi red_bold)❌ missing-field-manifest self-test: non-record manifest regressed \(got status: ($list_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $list_root
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Missing-field-manifest self-test passed \(7 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -3843,7 +3989,8 @@ def main [--update-baseline, --self-test] {
         let root_manifest_failed = (run-root-manifest-self-test)
         let invalid_manifest_failed = (run-invalid-manifest-self-test)
         let non_record_manifest_failed = (run-non-record-manifest-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed or $non_record_manifest_failed { exit 1 }
+        let missing_field_manifest_failed = (run-missing-field-manifest-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed or $non_record_manifest_failed or $missing_field_manifest_failed { exit 1 }
         exit 0
     }
 
