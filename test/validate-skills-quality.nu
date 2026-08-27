@@ -3242,7 +3242,23 @@ def read-plugin-json [path: string]: nothing -> record {
         {status: "missing", data: null, file: $path}
     } else {
         try {
-            {status: "ok", data: (open $path), file: $path}
+            let parsed = (open $path)
+            # A parse that succeeds but yields something other than a
+            # record (a JSON list/string/null, an empty file, or a
+            # BOM-prefixed file that falls back to raw text — claude-skills-
+            # 314) is just as unusable to every downstream `get -o skills`/
+            # `.name` field access as a throw would have been, so it's
+            # normalized to the same "invalid" status here rather than
+            # returning "ok" with unusable data. `describe` on a record
+            # returns the full field signature (e.g. `record<name: string,
+            # ...>`), not the bare word "record" — str starts-with is
+            # required, an equality check would reject every well-formed
+            # manifest too.
+            if ($parsed | describe | str starts-with "record") {
+                {status: "ok", data: $parsed, file: $path}
+            } else {
+                {status: "invalid", data: null, file: $path}
+            }
         } catch {
             {status: "invalid", data: null, file: $path}
         }
@@ -3621,6 +3637,190 @@ def run-invalid-manifest-self-test [] {
     $failed
 }
 
+# Embedded self-test for read-plugin-json non-record handling
+# (claude-skills-314). claude-skills-313 made an unparseable manifest report
+# "invalid" instead of crashing the whole run, but a manifest that PARSES
+# CLEAN to something other than a record (a list, a string, null, or an
+# empty file) still slips through as status "ok" — the crash then lands
+# downstream, at the first field access (`get -o skills`, `.name`) in the
+# Pass-1 registry loop. This self-test pins the fix: a successful parse
+# must ALSO check that the parsed value is a record before returning "ok".
+#
+# Case 5 (BOM) is the nastiest and does NOT behave like the others: a UTF-8
+# BOM followed by otherwise-valid JSON does not throw in nushell's `open`
+# — empirically verified (0.113.1): `open` on such a path returns status
+# "ok" with `data` as a plain STRING containing the BOM character, not a
+# record, because the BOM byte breaks `from json`'s auto-detection and nu
+# falls back to returning raw text instead of raising. The existing
+# try/catch in read-plugin-json never fires for this case — only a
+# post-parse type check on the successfully-returned value catches it.
+#
+# `describe` on a record does NOT return the bare word "record" — it
+# returns the full field signature, e.g. `record<name: string, ...>`
+# (confirmed against the real core plugin.json below). A fix that checks
+# `(... | describe) == "record"` will always be false and reject every
+# well-formed manifest too. Check with `str starts-with "record"` instead.
+def run-non-record-manifest-self-test [] {
+    mut failed = false
+
+    # Case 1 (must-flag, RED until implemented): a manifest that parses
+    # clean to a JSON list must be flagged, not returned as "ok" with
+    # list-typed data.
+    let list_root = (mktemp -d)
+    mkdir ($list_root | path join ".claude-plugin")
+    let list_path = ($list_root | path join ".claude-plugin" "plugin.json")
+    "[1, 2, 3]" | save $list_path
+    let list_res = (try {
+        read-plugin-json $list_path
+    } catch {
+        {status: "threw", data: null, file: $list_path}
+    })
+    if $list_res.status != "invalid" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: JSON list manifest not flagged as invalid \(got status: ($list_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $list_root
+
+    # Case 2 (must-flag, RED until implemented): a manifest that parses
+    # clean to a JSON string.
+    let string_root = (mktemp -d)
+    mkdir ($string_root | path join ".claude-plugin")
+    let string_path = ($string_root | path join ".claude-plugin" "plugin.json")
+    '"juststring"' | save $string_path
+    let string_res = (try {
+        read-plugin-json $string_path
+    } catch {
+        {status: "threw", data: null, file: $string_path}
+    })
+    if $string_res.status != "invalid" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: JSON string manifest not flagged as invalid \(got status: ($string_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $string_root
+
+    # Case 3 (must-flag, RED until implemented): a manifest that parses
+    # clean to JSON null.
+    let null_root = (mktemp -d)
+    mkdir ($null_root | path join ".claude-plugin")
+    let null_path = ($null_root | path join ".claude-plugin" "plugin.json")
+    "null" | save $null_path
+    let null_res = (try {
+        read-plugin-json $null_path
+    } catch {
+        {status: "threw", data: null, file: $null_path}
+    })
+    if $null_res.status != "invalid" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: JSON null manifest not flagged as invalid \(got status: ($null_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $null_root
+
+    # Case 4 (must-flag, RED until implemented): an empty file. `open` on
+    # an empty .json file does not throw (empirically verified: it returns
+    # status "ok" with data type "nothing"), so this needs the same
+    # record-type guard as the other non-record cases.
+    let empty_root = (mktemp -d)
+    mkdir ($empty_root | path join ".claude-plugin")
+    let empty_path = ($empty_root | path join ".claude-plugin" "plugin.json")
+    "" | save $empty_path
+    let empty_res = (try {
+        read-plugin-json $empty_path
+    } catch {
+        {status: "threw", data: null, file: $empty_path}
+    })
+    if $empty_res.status != "invalid" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: empty-file manifest not flagged as invalid \(got status: ($empty_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $empty_root
+
+    # Case 5 (must-flag, RED until implemented, the nasty one): a UTF-8 BOM
+    # (0xEF 0xBB 0xBF) followed by otherwise-valid JSON. Written with
+    # `save --raw` on each half — a plain `save` (no --raw) on a binary
+    # literal serializes it as a pretty-printed list representation instead
+    # of the raw bytes (confirmed: without --raw the "BOM" file came out as
+    # 23 bytes of literal text "[\n  239,\n  187,\n  191\n]", not 3 raw
+    # bytes) — so --raw is load-bearing for the fixture to be real BOM
+    # bytes, not just a nicety.
+    let bom_root = (mktemp -d)
+    mkdir ($bom_root | path join ".claude-plugin")
+    let bom_path = ($bom_root | path join ".claude-plugin" "plugin.json")
+    (0x[EF BB BF]) | save -f --raw $bom_path
+    '{"name": "bom-test"}' | save -a --raw $bom_path
+    let bom_res = (try {
+        read-plugin-json $bom_path
+    } catch {
+        {status: "threw", data: null, file: $bom_path}
+    })
+    if $bom_res.status != "invalid" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: BOM-prefixed manifest not flagged as invalid \(got status: ($bom_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $bom_root
+
+    # Case 6 (regression guard, must already pass): a well-formed record
+    # manifest from the real corpus still returns "ok" with usable,
+    # record-typed data.
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let real_manifest = ($repo_root | path join "plugins" "core" ".claude-plugin" "plugin.json")
+    let real_res = (try {
+        read-plugin-json $real_manifest
+    } catch {
+        {status: "threw", data: null, file: $real_manifest}
+    })
+    if $real_res.status != "ok" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: real core plugin.json wrongly flagged \(got status: ($real_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    if not ($real_res.data | describe | str starts-with "record") {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: real core plugin.json data is not a record \(got: ($real_res.data | describe)\)(ansi reset)"
+        $failed = true
+    }
+    if ($real_res.data | get -o name) != "core" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: real core plugin.json parsed content missing or wrong \(got name: ($real_res.data | get -o name)\)(ansi reset)"
+        $failed = true
+    }
+
+    # Case 7 (regression guard, must already pass): a missing manifest is
+    # still status "missing", never "invalid" — the non-record check must
+    # not run ahead of, or interfere with, the existing `path exists` gate.
+    let missing_root = (mktemp -d)
+    let missing_path = ($missing_root | path join ".claude-plugin" "plugin.json")
+    let missing_res = (try {
+        read-plugin-json $missing_path
+    } catch {
+        {status: "threw", data: null, file: $missing_path}
+    })
+    if $missing_res.status != "missing" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: missing plugin.json wrongly reported as ($missing_res.status), expected missing(ansi reset)"
+        $failed = true
+    }
+    rm -rf $missing_root
+
+    # Case 8 (regression guard, must already pass — claude-skills-313's fix
+    # must not regress): genuinely malformed (unparseable) JSON still
+    # returns "invalid" via the existing try/catch.
+    let malformed_root = (mktemp -d)
+    mkdir ($malformed_root | path join ".claude-plugin")
+    let malformed_path = ($malformed_root | path join ".claude-plugin" "plugin.json")
+    "{ broken" | save $malformed_path
+    let malformed_res = (try {
+        read-plugin-json $malformed_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $malformed_res.status != "invalid" {
+        print $"(ansi red_bold)❌ non-record-manifest self-test: malformed plugin.json regressed \(got status: ($malformed_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $malformed_root
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Non-record-manifest self-test passed \(8 cases\)(ansi reset)"
+    }
+    $failed
+}
+
 def main [--update-baseline, --self-test] {
     if $self_test {
         # All suites always execute; aggregate before exiting so a failure in
@@ -3642,7 +3842,8 @@ def main [--update-baseline, --self-test] {
         let output_style_failed = (run-output-style-self-test)
         let root_manifest_failed = (run-root-manifest-self-test)
         let invalid_manifest_failed = (run-invalid-manifest-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed { exit 1 }
+        let non_record_manifest_failed = (run-non-record-manifest-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed or $non_record_manifest_failed { exit 1 }
         exit 0
     }
 
