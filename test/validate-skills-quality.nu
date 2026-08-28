@@ -3224,18 +3224,35 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
 # finding reports.
 #
 # Contract: never throws. Returns {status, data, file} where status is one
-# of four values: "ok" (parsed successfully, data is the record), "invalid"
+# of five values: "ok" (parsed successfully, data is the record), "invalid"
 # (path exists but failed to parse, or parsed to a non-record; data is
-# null), "missing" (path does not exist, data is null), or
+# null), "missing" (path does not exist, data is null),
 # "missing_required_field" (parsed to a record lacking `name`, data is
-# null). `file` always echoes the input path, so a caller building a
-# finding can name the offending manifest without threading the path
-# through separately.
+# null), or "invalid_field_type" (parsed to a record with `name` present
+# but not a string, data is null). `file` always echoes the input path, so
+# a caller building a finding can name the offending manifest without
+# threading the path through separately.
 #
-# Known residual (claude-skills-317): this validates that `name` is
-# PRESENT, not that it is a string. A non-string `name` returns "ok" and
-# then aborts the run at evaluate-agent-file's string-typed parameter —
-# a type axis this helper does not cover.
+# Two residuals stay open after this status (claude-skills-317 closes the
+# non-string-name crash, not every type defect a manifest can carry):
+#
+# - `{"name": ""}` still returns "ok". It does not crash: the run
+#   completes, reports, and exits 1 on a baseline mismatch, but every
+#   finding key for that plugin degrades to a bare-slash path. Deliberately
+#   out of scope for this crash-class fix, pinned as a non-goal by Case 8,
+#   tracked as claude-skills-322.
+# - The AC4 audit found two more live crash shapes on OTHER fields of the
+#   same manifest, both measured against this script in scratch clones.
+#   Neither is fixed here (`/core:restraint`):
+#   - `plugin.json` with `"skills": 7` — a scalar that is neither list nor
+#     string — aborts at the `each {|p| $p | str replace ...}` around line
+#     4380 with `nu::shell::only_supports_this_input_type`. A string value
+#     does NOT abort. Tracked as claude-skills-320.
+#   - `plugin.json` with `"outputStyles": 5` aborts in
+#     check-output-styles-path at the `path join` around line 3208 with
+#     `nu::shell::cant_convert`. claude-skills-310 covered the
+#     string-vs-array shape axis but not element type. Tracked as
+#     claude-skills-321.
 #
 # The "missing" branch needs no guard — a nonexistent path never reaches
 # `open`. The parse step DOES need one: `open` on a path that exists but
@@ -3270,6 +3287,17 @@ def read-plugin-json [path: string]: nothing -> record {
                 # and must be caught the same as {}.
                 if ($parsed | get -o name) == null {
                     {status: "missing_required_field", data: null, file: $path}
+                } else if ($parsed | get -o name | describe) != "string" {
+                    # claude-skills-317: `name` is present but not a string
+                    # (int, list, record, bool). Checked AFTER the null
+                    # check above — `get -o name` collapses a JSON `null`
+                    # onto absent, and that case must stay
+                    # "missing_required_field" (Case 6), not fall through
+                    # to this type check. An empty string ("") IS type
+                    # string and so still returns "ok" below — Case 8 pins
+                    # that as a deliberate non-goal, tracked separately as
+                    # claude-skills-322.
+                    {status: "invalid_field_type", data: null, file: $path}
                 } else {
                     {status: "ok", data: $parsed, file: $path}
                 }
@@ -3303,6 +3331,8 @@ def check-root-manifest [repo_root: string]: nothing -> list {
         ["invalid_json"]
     } else if $read.status == "missing_required_field" {
         ["missing_required_field"]
+    } else if $read.status == "invalid_field_type" {
+        ["invalid_field_type"]
     } else {
         check-output-styles-path $read.data $repo_root
     }
@@ -4783,7 +4813,20 @@ def main [--update-baseline, --self-test] {
             })
             continue
         }
-
+        if $plugin_read.status == "invalid_field_type" {
+            # claude-skills-317: valid JSON, valid record, `name` present
+            # but not a string. Keyed off $plugin.name (from
+            # marketplace.json), NEVER $plugin_json.name — the latter is
+            # exactly the unusable, wrongly-typed value this branch exists
+            # to keep out of $registry. Same shape as the two arms above.
+            let key_base = $"($plugin.name)/.claude-plugin/plugin.json"
+            $failing_keys = ($failing_keys | append $"($key_base):invalid_field_type")
+            $surface_results = ($surface_results | append {
+                plugin: $plugin.name, kind: "plugin-json", file: "plugin.json", failed: "invalid_field_type"
+                details: ""
+            })
+            continue
+        }
         let plugin_json = $plugin_read.data
         let skill_paths = ($plugin_json | get -o skills | default [])
         let skill_names = ($skill_paths | each {|p|
