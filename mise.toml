@@ -34,7 +34,7 @@ depends = ["test"]
 # "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
 # Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:gitleaks-invocation", "test:no-symlinks", "test:comment-fixtures", "test:prose"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:gitleaks-invocation", "test:no-symlinks", "test:comment-fixtures", "test:prose-fixtures", "test:prose"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -385,6 +385,18 @@ run = """
 let repo_root = (git rev-parse --show-toplevel | str trim)
 nu ($repo_root | path join "test" "validate-comment-reviewer-fixtures.nu") --self-test
 nu ($repo_root | path join "test" "validate-comment-reviewer-fixtures.nu")
+"""
+
+[tasks."test:prose-fixtures"]
+description = "Validate prose-reviewer eval fixture set / manifest consistency (claude-skills-308)"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+let script = ($repo_root | path join "test" "validate-comment-reviewer-fixtures.nu")
+let dir = ($repo_root | path join "test" "fixtures" "prose-reviewer")
+nu $script --self-test
+nu $script --dir $dir --categories "hedged-directive,split-term,passive-agent-hidden,long-sentence,clutter,none"
 """
 
 [tasks."test:plugin"]

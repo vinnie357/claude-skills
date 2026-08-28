@@ -73,8 +73,8 @@ def check-bijection [snippet_files: list<string>, fixture_entries: list<string>]
 def check-verdict-category-shape [fixtures: list<record>, expected_categories: list<string>]: nothing -> list<string> {
   mut errors = []
   for fx in $fixtures {
-    if ($fx.category not-in $EXPECTED_CATEGORIES) {
-      $errors = ($errors | append $"($fx.file): category '($fx.category)' is not in the closed set \(($EXPECTED_CATEGORIES | str join ', ')\)")
+    if ($fx.category not-in $expected_categories) {
+      $errors = ($errors | append $"($fx.file): category '($fx.category)' is not in the closed set \(($expected_categories | str join ', ')\)")
     }
     if ($fx.verdict not-in $VALID_VERDICTS) {
       $errors = ($errors | append $"($fx.file): verdict '($fx.verdict)' must be exactly 'FLAG' or 'NO-FLAG'")
@@ -119,8 +119,8 @@ def check-verdict-diversity [fixtures: list<record>]: nothing -> list<string> {
 # the comparisons below, in place of the module-level const, is the
 # implementer's job.
 def check-categories-closed-set [declared: list<string>, expected_categories: list<string>]: nothing -> list<string> {
-  let missing = ($EXPECTED_CATEGORIES | where { |c| $c not-in $declared })
-  let extra = ($declared | where { |c| $c not-in $EXPECTED_CATEGORIES })
+  let missing = ($expected_categories | where { |c| $c not-in $declared })
+  let extra = ($declared | where { |c| $c not-in $expected_categories })
   mut errors = []
   if ($missing | is-not-empty) {
     $errors = ($errors | append $"categories missing from manifest declaration — ($missing | str join ', ')")
@@ -133,17 +133,19 @@ def check-categories-closed-set [declared: list<string>, expected_categories: li
 
 # ---- Orchestration (I/O) ------------------------------------------------
 
-def main [--self-test] {
+def main [--self-test, --dir: string = $FIXTURE_DIR, --categories: string = ($EXPECTED_CATEGORIES | str join ',')] {
   if $self_test {
     self-test
     return
   }
 
+  let expected_categories = ($categories | split row ',')
+
   let repo_root = (git rev-parse --show-toplevel | str trim)
   cd $repo_root
 
-  let manifest_path = ([$FIXTURE_DIR "expected.json"] | path join)
-  let snippets_dir = ([$FIXTURE_DIR "snippets"] | path join)
+  let manifest_path = ([$dir "expected.json"] | path join)
+  let snippets_dir = ([$dir "snippets"] | path join)
 
   if not ($manifest_path | path exists) {
     print $"(ansi red_bold)❌ manifest not found: ($manifest_path)(ansi reset)"
@@ -184,7 +186,7 @@ def main [--self-test] {
   }
 
   # Check 3
-  $errors = ($errors | append (check-verdict-category-shape $fixtures $EXPECTED_CATEGORIES))
+  $errors = ($errors | append (check-verdict-category-shape $fixtures $expected_categories))
 
   # Check 4
   $errors = ($errors | append (check-flag-none-consistency $fixtures))
@@ -194,7 +196,7 @@ def main [--self-test] {
 
   # Check 6
   let declared_categories = ($manifest | get -o categories | default [])
-  $errors = ($errors | append (check-categories-closed-set $declared_categories $EXPECTED_CATEGORIES))
+  $errors = ($errors | append (check-categories-closed-set $declared_categories $expected_categories))
 
   if ($errors | is-not-empty) {
     print $"(ansi red_bold)❌ comment-reviewer fixture validation failed \(($errors | length) issue\(s\)\):(ansi reset)\n"
