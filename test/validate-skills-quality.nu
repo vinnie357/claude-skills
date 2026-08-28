@@ -4306,14 +4306,24 @@ def run-non-string-name-manifest-self-test [] {
     let script_path = ($repo_root | path join "test" "validate-skills-quality.nu")
     let e2e_res = (do { cd $e2e_root; ^nu $script_path } | complete)
     let e2e_has_raw_trace = ($e2e_res.stderr | str contains "nu::shell::")
-    let e2e_names_file = ($e2e_res.stdout | str contains "plugin.json")
+    # Asserts the SPECIFIC key Pass 1's registry loop builds from
+    # $plugin.name — "core/.claude-plugin/plugin.json" — not a bare
+    # "plugin.json" substring. A bare substring check is satisfiable by a
+    # finding against any OTHER plugin's manifest; it cannot distinguish
+    # "core was correctly excluded and reported" from "some unrelated
+    # plugin.json finding happened to print, and core's mutation was never
+    # even reached." Printed via the default (non --update-baseline) run's
+    # unbaselined-failure report ("FAIL: N quality violations not in the
+    # baseline:" followed by one key per line), the only path this harness
+    # exercises.
+    let e2e_names_file = ($e2e_res.stdout | str contains "core/.claude-plugin/plugin.json")
     let e2e_has_total = ($e2e_res.stdout | str contains "Total skills")
     if $e2e_has_raw_trace {
         print $"(ansi red_bold)❌ non-string-name self-test: main leaks a raw nushell parser trace to stderr on a non-string plugin name(ansi reset)"
         $failed = true
     }
     if not $e2e_names_file {
-        print $"(ansi red_bold)❌ non-string-name self-test: main's output does not name the offending plugin.json \(stdout tail: ($e2e_res.stdout | str substring (-400)..)\)(ansi reset)"
+        print $"(ansi red_bold)❌ non-string-name self-test: main's output does not name core/.claude-plugin/plugin.json as the offending manifest \(stdout tail: ($e2e_res.stdout | str substring (-400)..)\)(ansi reset)"
         $failed = true
     }
     if not $e2e_has_total {
