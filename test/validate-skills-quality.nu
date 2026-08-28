@@ -3985,6 +3985,332 @@ def run-missing-field-manifest-self-test [] {
     }
     $failed
 }
+# Embedded self-test for read-plugin-json's non-string `name` handling
+# (claude-skills-317) — the fourth shape of this crash class. claude-skills-
+# 313 caught unparseable JSON; claude-skills-314 caught a clean parse to a
+# non-record; claude-skills-316 caught a clean parse to a record missing
+# `name` entirely. All three leave one gap open, documented in
+# read-plugin-json's own doc comment above: `name` is checked for PRESENCE
+# ONLY. A manifest like `{"name": 42}` parses to a record, has a `name`
+# field, and so returns "ok" — the value then flows into $registry (Pass 1,
+# ~line 4401) and is rebound as `plugin_name` (~line 4760), which aborts the
+# WHOLE validator run the first time a plugin with at least one agents/*.md
+# file reaches evaluate-agent-file's `plugin_name: string` parameter
+# (~line 4789) with a raw, uncaught `nu::shell::cant_convert` trace — the
+# exact failure mode every status in this contract exists to prevent.
+#
+# New status: "invalid_field_type" — not a reuse of "missing_required_field".
+# The field IS present; reporting "missing_required_field" on `{"name": 42}`
+# sends a reader grepping for a key that is right there in the file, and the
+# status string is user-visible in the finding key
+# (`<plugin>/.claude-plugin/plugin.json:<status>`) built by Pass 1's
+# registry loop. A type defect and a presence defect are different states,
+# matching the same distinction already drawn between "missing" (absent
+# path) and "invalid" (unparseable or non-record) — reusing an existing
+# code for a new failure mode would mislead a maintainer reading the
+# finding, same rationale as claude-skills-316's choice of a fourth status
+# over reusing "invalid".
+#
+# Deliberate non-goal: `{"name": ""}` stays "ok". Measured empirically (nu
+# 0.113.1, this branch point): an empty-string name does NOT crash — the
+# run completes, `plugin_name` conversion to string succeeds trivially
+# (empty string IS a string), findings built from it degrade to an empty
+# name segment in their keys, and the run still exits 1 on any resulting
+# baseline mismatch. That is a reporting-quality defect (a confusing finding
+# key), not a crash — a different problem than the one claude-skills-317
+# tracks. Case 8 below pins "" as "ok" so a future widening of the type
+# check to also reject empty strings is a deliberate, reviewed act, not an
+# accidental side effect of fixing the crash.
+def run-non-string-name-manifest-self-test [] {
+    mut failed = false
+
+    # Case 1 (must-flag, RED until implemented): an integer `name`.
+    let int_root = (mktemp -d)
+    mkdir ($int_root | path join ".claude-plugin")
+    let int_path = ($int_root | path join ".claude-plugin" "plugin.json")
+    '{"name": 42, "version": "0.1.0", "skills": []}' | save $int_path
+    let int_res = (try {
+        read-plugin-json $int_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $int_res.status != "invalid_field_type" {
+        print $"(ansi red_bold)❌ non-string-name self-test: integer name not flagged as invalid_field_type \(got status: ($int_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $int_root
+
+    # Case 2 (must-flag, RED until implemented): a list `name`.
+    let list_name_root = (mktemp -d)
+    mkdir ($list_name_root | path join ".claude-plugin")
+    let list_name_path = ($list_name_root | path join ".claude-plugin" "plugin.json")
+    '{"name": [1, 2], "version": "0.1.0", "skills": []}' | save $list_name_path
+    let list_name_res = (try {
+        read-plugin-json $list_name_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $list_name_res.status != "invalid_field_type" {
+        print $"(ansi red_bold)❌ non-string-name self-test: list name not flagged as invalid_field_type \(got status: ($list_name_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $list_name_root
+
+    # Case 3 (must-flag, RED until implemented): a record (nested object)
+    # `name`.
+    let record_name_root = (mktemp -d)
+    mkdir ($record_name_root | path join ".claude-plugin")
+    let record_name_path = ($record_name_root | path join ".claude-plugin" "plugin.json")
+    '{"name": {"a": 1}, "version": "0.1.0", "skills": []}' | save $record_name_path
+    let record_name_res = (try {
+        read-plugin-json $record_name_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $record_name_res.status != "invalid_field_type" {
+        print $"(ansi red_bold)❌ non-string-name self-test: record name not flagged as invalid_field_type \(got status: ($record_name_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $record_name_root
+
+    # Case 4 (must-flag, RED until implemented): a boolean `name`.
+    let bool_root = (mktemp -d)
+    mkdir ($bool_root | path join ".claude-plugin")
+    let bool_path = ($bool_root | path join ".claude-plugin" "plugin.json")
+    '{"name": true, "version": "0.1.0", "skills": []}' | save $bool_path
+    let bool_res = (try {
+        read-plugin-json $bool_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $bool_res.status != "invalid_field_type" {
+        print $"(ansi red_bold)❌ non-string-name self-test: boolean name not flagged as invalid_field_type \(got status: ($bool_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $bool_root
+
+    # Case 5 (must-flag, RED until implemented — names the file): the result
+    # names the offending manifest, so a finding built from it can say which
+    # file is broken. Same fixture shape as Case 1, mirroring the file-
+    # naming case every prior shape in this family also carries.
+    let named_root = (mktemp -d)
+    mkdir ($named_root | path join ".claude-plugin")
+    let named_path = ($named_root | path join ".claude-plugin" "plugin.json")
+    '{"name": 42, "version": "0.1.0", "skills": []}' | save $named_path
+    let named_res = (try {
+        read-plugin-json $named_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $named_res.file != $named_path {
+        print $"(ansi red_bold)❌ non-string-name self-test: non-string-name result does not name the offending file \(got: ($named_res.file)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $named_root
+
+    # Case 6 (regression guard, must already pass — claude-skills-316's fix
+    # must not regress): `name: null` is a JSON-present key whose value is
+    # absent, and must still resolve to "missing_required_field", not the
+    # new "invalid_field_type" — the new type-check branch must not steal
+    # 316's null-name case out from under it. `get -o name` on a JSON `null`
+    # value returns null in nushell, indistinguishable from a genuinely
+    # missing key, so this is the same code path 316 already covers; it
+    # must stay that way.
+    let null_name_root = (mktemp -d)
+    mkdir ($null_name_root | path join ".claude-plugin")
+    let null_name_path = ($null_name_root | path join ".claude-plugin" "plugin.json")
+    '{"name": null, "version": "0.1.0", "skills": []}' | save $null_name_path
+    let null_name_res = (try {
+        read-plugin-json $null_name_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $null_name_res.status != "missing_required_field" {
+        print $"(ansi red_bold)❌ non-string-name self-test: null name regressed off missing_required_field \(got status: ($null_name_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $null_name_root
+
+    # Case 7 (regression guard, must already pass — claude-skills-316's fix
+    # must not regress): a record with fields but no `name` key at all.
+    let no_name_root = (mktemp -d)
+    mkdir ($no_name_root | path join ".claude-plugin")
+    let no_name_path = ($no_name_root | path join ".claude-plugin" "plugin.json")
+    '{"foo": 1}' | save $no_name_path
+    let no_name_res = (try {
+        read-plugin-json $no_name_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $no_name_res.status != "missing_required_field" {
+        print $"(ansi red_bold)❌ non-string-name self-test: fields-but-no-name regressed off missing_required_field \(got status: ($no_name_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $no_name_root
+
+    # Case 8 (deliberate non-goal, must stay "ok"): an empty-string `name`.
+    # See the doc comment above this function for the empirical basis —
+    # this does not crash today, so widening the type check to also reject
+    # "" is out of scope for claude-skills-317 and must be a deliberate,
+    # separate, reviewed change.
+    let empty_string_root = (mktemp -d)
+    mkdir ($empty_string_root | path join ".claude-plugin")
+    let empty_string_path = ($empty_string_root | path join ".claude-plugin" "plugin.json")
+    '{"name": "", "version": "0.1.0", "skills": []}' | save $empty_string_path
+    let empty_string_res = (try {
+        read-plugin-json $empty_string_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $empty_string_res.status != "ok" {
+        print $"(ansi red_bold)❌ non-string-name self-test: empty-string name wrongly rejected \(got status: ($empty_string_res.status), expected ok\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $empty_string_root
+
+    # Case 9 (regression guard, must already pass — claude-skills-313's fix
+    # must not regress): genuinely unparseable JSON stays "invalid".
+    let malformed_root = (mktemp -d)
+    mkdir ($malformed_root | path join ".claude-plugin")
+    let malformed_path = ($malformed_root | path join ".claude-plugin" "plugin.json")
+    "{not json" | save $malformed_path
+    let malformed_res = (try {
+        read-plugin-json $malformed_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $malformed_res.status != "invalid" {
+        print $"(ansi red_bold)❌ non-string-name self-test: malformed plugin.json regressed \(got status: ($malformed_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $malformed_root
+
+    # Case 10 (regression guard, must already pass — claude-skills-314's fix
+    # must not regress): a clean parse to a non-record (a JSON list) stays
+    # "invalid", never misclassified as a name-type defect.
+    let list_root = (mktemp -d)
+    mkdir ($list_root | path join ".claude-plugin")
+    let list_path = ($list_root | path join ".claude-plugin" "plugin.json")
+    "[1, 2, 3]" | save $list_path
+    let list_res = (try {
+        read-plugin-json $list_path
+    } catch {
+        {status: "threw", data: null, file: null}
+    })
+    if $list_res.status != "invalid" {
+        print $"(ansi red_bold)❌ non-string-name self-test: non-record manifest regressed \(got status: ($list_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $list_root
+
+    # Case 11 (regression guard, real corpus): a well-formed manifest from
+    # the real corpus, with a genuine string `name`, still returns "ok" with
+    # usable, record-typed data — the type check must not reject a
+    # legitimate string.
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let real_manifest = ($repo_root | path join "plugins" "core" ".claude-plugin" "plugin.json")
+    let real_res = (try {
+        read-plugin-json $real_manifest
+    } catch {
+        {status: "threw", data: null, file: $real_manifest}
+    })
+    if $real_res.status != "ok" {
+        print $"(ansi red_bold)❌ non-string-name self-test: real core plugin.json wrongly flagged \(got status: ($real_res.status)\)(ansi reset)"
+        $failed = true
+    }
+    if ($real_res.data | get -o name) != "core" {
+        print $"(ansi red_bold)❌ non-string-name self-test: real core plugin.json parsed content missing or wrong \(got name: ($real_res.data | get -o name)\)(ansi reset)"
+        $failed = true
+    }
+
+
+    # Case 12 (end-to-end, AC1 + AC5): main itself must not leak
+    # evaluate-agent-file's raw nu::shell::cant_convert trace, must still
+    # complete the run and print totals for the rest of a legitimate
+    # corpus, must name the offending manifest, and must exit non-zero so
+    # CI catches it. This is the inverse of run-marketplace-json-self-
+    # test's Case 7: a broken CORPUS-ROOT manifest there must halt before
+    # Pass 1 and never print "Total skills"; a broken SINGLE PLUGIN
+    # manifest here must be excluded and reported, while every other
+    # plugin's real work still completes — "Total skills" MUST print.
+    #
+    # Fixture shape, and why it is heavier than every other harness in this
+    # file: a scratch corpus containing ONLY the synthetic bad plugin can
+    # never reach "Total skills", fix or no fix, independent of claude-
+    # skills-317 — Pass 4's vocabulary cross-check hard-fails
+    # ("hard error, not a baselineable finding") whenever the corpus has
+    # fewer than VOCAB_REAL_FLOORS (commands: 25, agents: 29, hooks: 2)
+    # real command/agent/hook files, and Pass 3's duplicate check reads
+    # real content via `git -C $repo_root ls-files`. Measured directly
+    # (nu 0.113.1, this branch point): a from-scratch single-plugin fixture
+    # crashes on an UNRELATED missing-file error before ever reaching Pass
+    # 3, so this harness instead runs against a full copy of THIS repo's
+    # real corpus (its own `.git`, so `git ls-files` and the doc-vocabulary
+    # files Pass 4 needs are all genuinely present) with one additional
+    # synthetic "badplug" plugin appended into the copied marketplace.json.
+    # That copy-and-run costs roughly 8s on the machine this was authored on
+    # while the defect is still present (the run crashes early, inside Pass
+    # 2, before reaching the expensive Pass 3/4 real-corpus checks) and
+    # roughly 27s once the fix lands and the run proceeds through Pass 3/4
+    # to completion — against ~0.4s for the rest of this file's --self-test
+    # suite combined. Accepted as a deliberate, isolated cost because no
+    # lighter fixture can exercise the actual acceptance criterion (the run
+    # completing past the crash site with a real corpus behind it).
+    #
+    # The badplug fixture itself carries one agent file under `agents/` —
+    # load-bearing, not incidental: with `skills: []` and no agents/
+    # directory, plugin_name is never passed to a string-typed parameter at
+    # all, so the crash this case exists to catch simply never fires.
+    # Verified empirically: the identical badplug/plugin.json alone, with no
+    # agent file, runs to the SAME unrelated Pass-3 missing-file error as
+    # the empty-corpus fixture above, never touching evaluate-agent-file.
+    let repo_root = (git rev-parse --show-toplevel | str trim)
+    let e2e_root = (mktemp -d)
+    cp -r ($repo_root | path join ".git") ($e2e_root | path join ".git")
+    cp -r ($repo_root | path join "plugins") ($e2e_root | path join "plugins")
+    cp -r ($repo_root | path join ".claude-plugin") ($e2e_root | path join ".claude-plugin")
+    mkdir ($e2e_root | path join "test")
+    cp ($repo_root | path join "test" "validate-core-list.nu") ($e2e_root | path join "test" "validate-core-list.nu")
+    cp ($repo_root | path join "test" "quality-baseline.json") ($e2e_root | path join "test" "quality-baseline.json")
+    cp ($repo_root | path join "CLAUDE.md") ($e2e_root | path join "CLAUDE.md")
+
+    let badplug_dir = ($e2e_root | path join "plugins" "badplug")
+    mkdir ($badplug_dir | path join ".claude-plugin")
+    mkdir ($badplug_dir | path join "agents")
+    '{"name": 42, "version": "0.1.0", "skills": []}' | save ($badplug_dir | path join ".claude-plugin" "plugin.json")
+    "---\nname: test-agent\ndescription: \"A minimal test agent.\"\ntools: Bash\nmodel: haiku\n---\n\nTest agent body.\n" | save ($badplug_dir | path join "agents" "test-agent.md")
+
+    let e2e_marketplace_path = ($e2e_root | path join ".claude-plugin" "marketplace.json")
+    let e2e_marketplace = (open $e2e_marketplace_path)
+    let e2e_marketplace_plugins = ($e2e_marketplace.plugins | append {name: "badplug", source: "./plugins/badplug", description: "test"})
+    ($e2e_marketplace | update plugins $e2e_marketplace_plugins | to json) | save --force ($e2e_root | path join ".claude-plugin" "marketplace.json.new")
+    mv ($e2e_root | path join ".claude-plugin" "marketplace.json.new") $e2e_marketplace_path
+
+    let script_path = ($repo_root | path join "test" "validate-skills-quality.nu")
+    let e2e_res = (do { cd $e2e_root; ^nu $script_path } | complete)
+    if ($e2e_res.stderr | str contains "nu::shell::") {
+        print $"(ansi red_bold)❌ non-string-name self-test: main leaks a raw nushell parser trace to stderr on a non-string plugin name(ansi reset)"
+        $failed = true
+    }
+    if not ($e2e_res.stdout | str contains "plugin.json") {
+        print $"(ansi red_bold)❌ non-string-name self-test: main's output does not name the offending plugin.json \(stdout tail: ($e2e_res.stdout | str substring (-400)..)\)(ansi reset)"
+        $failed = true
+    }
+    if not ($e2e_res.stdout | str contains "Total skills") {
+        print $"(ansi red_bold)❌ non-string-name self-test: main did not complete past the bad manifest and never printed a skills total(ansi reset)"
+        $failed = true
+    }
+    if $e2e_res.exit_code == 0 {
+        print $"(ansi red_bold)❌ non-string-name self-test: main exited 0 with a non-string plugin name in the corpus(ansi reset)"
+        $failed = true
+    }
+    rm -rf $e2e_root
+
+    if not $failed {
+        print $"(ansi green_bold)✅ Non-string-name-manifest self-test passed \(12 cases\)(ansi reset)"
+    }
+    $failed
+}
 
 # Embedded self-test for read-marketplace-json (claude-skills-315) — the
 # guard around `open`-ing the corpus-root .claude-plugin/marketplace.json at
@@ -4285,7 +4611,8 @@ def main [--update-baseline, --self-test] {
         let non_record_manifest_failed = (run-non-record-manifest-self-test)
         let missing_field_manifest_failed = (run-missing-field-manifest-self-test)
         let marketplace_json_failed = (run-marketplace-json-self-test)
-        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed or $non_record_manifest_failed or $missing_field_manifest_failed or $marketplace_json_failed { exit 1 }
+        let non_string_name_failed = (run-non-string-name-manifest-self-test)
+        if $skills_failed or $baseline_failed or $checks_failed or $duplicate_failed or $vocab_failed or $pass2_links_failed or $orphans_failed or $safe_read_ref_failed or $fm_schema_failed or $accumulator_failed or $pass2_eval_failed or $anti_fab_failed or $braced_claude_failed or $redundant_when_to_use_failed or $output_style_failed or $root_manifest_failed or $invalid_manifest_failed or $non_record_manifest_failed or $missing_field_manifest_failed or $marketplace_json_failed or $non_string_name_failed { exit 1 }
         exit 0
     }
 
