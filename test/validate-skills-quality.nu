@@ -3245,12 +3245,13 @@ def check-output-styles-path [plugin_json: record, plugin_dir: string]: nothing 
 #   same manifest, both measured against this script in scratch clones.
 #   Neither is fixed here (`/core:restraint`):
 #   - `plugin.json` with `"skills": 7` — a scalar that is neither list nor
-#     string — aborts at the `each {|p| $p | str replace ...}` around line
-#     4380 with `nu::shell::only_supports_this_input_type`. A string value
-#     does NOT abort. Tracked as claude-skills-320.
+#     string — aborts at the Pass-1 registry loop's `skill_names` mapping
+#     over `$skill_paths` (the `each {|p| $p | str replace ...}`
+#     expression) with `nu::shell::only_supports_this_input_type`. A string
+#     value does NOT abort. Tracked as claude-skills-320.
 #   - `plugin.json` with `"outputStyles": 5` aborts in
-#     check-output-styles-path at the `path join` around line 3208 with
-#     `nu::shell::cant_convert`. claude-skills-310 covered the
+#     check-output-styles-path's `path join` inside the `any` predicate
+#     with `nu::shell::cant_convert`. claude-skills-310 covered the
 #     string-vs-array shape axis but not element type. Tracked as
 #     claude-skills-321.
 #
