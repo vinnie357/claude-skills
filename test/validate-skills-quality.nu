@@ -4232,71 +4232,91 @@ def run-non-string-name-manifest-self-test [] {
     # test's Case 7: a broken CORPUS-ROOT manifest there must halt before
     # Pass 1 and never print "Total skills"; a broken SINGLE PLUGIN
     # manifest here must be excluded and reported, while every other
-    # plugin's real work still completes — "Total skills" MUST print.
+    # plugin's real work still completes — "Total skills" MUST print. A
+    # helper-only test (Cases 1-11 above) cannot pin this: if the
+    # implementer adds the new "invalid_field_type" status to
+    # read-plugin-json but forgets to add the matching arm in Pass 1's
+    # registry-building loop, execution falls through to
+    # `let plugin_json = $plugin_read.data` with `data` null, and the very
+    # next dot-access — `$plugin_json.name` at the skill_dir_map append, the
+    # upstream_cmds filter, or the $registry append itself — throws on
+    # nothing. Cases 1-11 would all report green; the binary would still
+    # crash. Only running the real `main` proves the wiring, not just the
+    # helper, is fixed.
     #
     # Fixture shape, and why it is heavier than every other harness in this
-    # file: a scratch corpus containing ONLY the synthetic bad plugin can
+    # file: a scratch corpus containing ONLY a synthetic bad plugin can
     # never reach "Total skills", fix or no fix, independent of claude-
-    # skills-317 — Pass 4's vocabulary cross-check hard-fails
-    # ("hard error, not a baselineable finding") whenever the corpus has
-    # fewer than VOCAB_REAL_FLOORS (commands: 25, agents: 29, hooks: 2)
-    # real command/agent/hook files, and Pass 3's duplicate check reads
-    # real content via `git -C $repo_root ls-files`. Measured directly
-    # (nu 0.113.1, this branch point): a from-scratch single-plugin fixture
-    # crashes on an UNRELATED missing-file error before ever reaching Pass
-    # 3, so this harness instead runs against a full copy of THIS repo's
-    # real corpus (its own `.git`, so `git ls-files` and the doc-vocabulary
-    # files Pass 4 needs are all genuinely present) with one additional
-    # synthetic "badplug" plugin appended into the copied marketplace.json.
-    # That copy-and-run costs roughly 8s on the machine this was authored on
-    # while the defect is still present (the run crashes early, inside Pass
-    # 2, before reaching the expensive Pass 3/4 real-corpus checks) and
-    # roughly 27s once the fix lands and the run proceeds through Pass 3/4
-    # to completion — against ~0.4s for the rest of this file's --self-test
-    # suite combined. Accepted as a deliberate, isolated cost because no
-    # lighter fixture can exercise the actual acceptance criterion (the run
-    # completing past the crash site with a real corpus behind it).
+    # skills-317. Three separate aborts stack up in sequence before "Total
+    # skills" could ever print: core-list-satellites throws
+    # nu::shell::io::file_not_found opening a nonexistent
+    # test/validate-core-list.nu; a missing test/quality-baseline.json (or
+    # one without an `allowed_failures` key) throws column_not_found; and
+    # Pass 4's vocabulary cross-check hard-fails ("hard error, not a
+    # baselineable finding") whenever the corpus has fewer than
+    # VOCAB_REAL_FLOORS (commands: 25, agents: 29, hooks: 2) real
+    # command/agent/hook files, checked via a filesystem glob over
+    # `plugins/**`. Pruning a full clone down to a cheaper subset doesn't
+    # dodge this either — deleting non-essential skills/ dirs drops the
+    # agent-file count below the 29 floor, and deleting the vocabulary-
+    # documenting skills themselves crashes the extractor instead. The
+    # floors are deliberately designed to reject a corpus this thin; the
+    # only way to clear them is a real corpus.
     #
-    # The badplug fixture itself carries one agent file under `agents/` —
-    # load-bearing, not incidental: with `skills: []` and no agents/
-    # directory, plugin_name is never passed to a string-typed parameter at
-    # all, so the crash this case exists to catch simply never fires.
-    # Verified empirically: the identical badplug/plugin.json alone, with no
-    # agent file, runs to the SAME unrelated Pass-3 missing-file error as
-    # the empty-corpus fixture above, never touching evaluate-agent-file.
+    # This harness therefore clones THIS repo itself with
+    # `git clone --local` (0.15s measured — cheap because it's a local
+    # hardlinked clone, not a copy, and gets .git, plugins/, .claude-plugin/
+    # and test/ in one step with no hand-maintained file list to rot) and
+    # mutates ONE REAL manifest inside the clone — plugins/core's — rather
+    # than appending a synthetic plugin. `git clone` copies HEAD's committed
+    # tree, which is what makes the corpus stable regardless of what's
+    # uncommitted in the working tree; `$script_path` stays the absolute
+    # path to the REAL script under test (outside the clone), so the fix
+    # under test is the current working tree's, while the corpus the fix
+    # runs against is the frozen clone. This also gets the load-bearing
+    # agent file for free: without at least one plugin owning an
+    # agents/*.md file, plugin_name is never passed to a string-typed
+    # parameter at all, and the crash this case exists to catch simply
+    # never fires (verified empirically against a skills-only, agent-less
+    # fixture) — core already ships agents/*.md and
+    # skills/bees/agents/*.md, so mutating core's manifest exercises the
+    # real defect without a fixture-maintenance burden.
+    #
+    # Measured costs (nu 0.113.1, this branch point, on the machine this was
+    # authored on): the whole --self-test suite runs in ~0.4s without this
+    # case. Against the UNFIXED script, this harness reproduces the crash
+    # in single-digit seconds (dominated by the clone + one Pass-2 pass
+    # before the crash, well short of a full run). Once the fix lands and
+    # the run proceeds through Pass 3/4 to completion, a full pass over the
+    # real corpus costs roughly 27s measured directly with a plain
+    # (unmutated) run of this same script — so this one case takes
+    # --self-test from ~0.4s to roughly 27s once green. That is a
+    # deliberate, operator-visible trade, not an oversight: it is the only
+    # case in this suite that actually pins AC1, for the reason given above
+    # (a fix that satisfies every helper test can still leave the binary
+    # crashing). No --fast/skip flag short-circuits this cost, and the
+    # "Total skills" assertion below is not weakened to dodge it.
     let repo_root = (git rev-parse --show-toplevel | str trim)
     let e2e_root = (mktemp -d)
-    cp -r ($repo_root | path join ".git") ($e2e_root | path join ".git")
-    cp -r ($repo_root | path join "plugins") ($e2e_root | path join "plugins")
-    cp -r ($repo_root | path join ".claude-plugin") ($e2e_root | path join ".claude-plugin")
-    mkdir ($e2e_root | path join "test")
-    cp ($repo_root | path join "test" "validate-core-list.nu") ($e2e_root | path join "test" "validate-core-list.nu")
-    cp ($repo_root | path join "test" "quality-baseline.json") ($e2e_root | path join "test" "quality-baseline.json")
-    cp ($repo_root | path join "CLAUDE.md") ($e2e_root | path join "CLAUDE.md")
-
-    let badplug_dir = ($e2e_root | path join "plugins" "badplug")
-    mkdir ($badplug_dir | path join ".claude-plugin")
-    mkdir ($badplug_dir | path join "agents")
-    '{"name": 42, "version": "0.1.0", "skills": []}' | save ($badplug_dir | path join ".claude-plugin" "plugin.json")
-    "---\nname: test-agent\ndescription: \"A minimal test agent.\"\ntools: Bash\nmodel: haiku\n---\n\nTest agent body.\n" | save ($badplug_dir | path join "agents" "test-agent.md")
-
-    let e2e_marketplace_path = ($e2e_root | path join ".claude-plugin" "marketplace.json")
-    let e2e_marketplace = (open $e2e_marketplace_path)
-    let e2e_marketplace_plugins = ($e2e_marketplace.plugins | append {name: "badplug", source: "./plugins/badplug", description: "test"})
-    ($e2e_marketplace | update plugins $e2e_marketplace_plugins | to json) | save --force ($e2e_root | path join ".claude-plugin" "marketplace.json.new")
-    mv ($e2e_root | path join ".claude-plugin" "marketplace.json.new") $e2e_marketplace_path
+    ^git clone -q --local $repo_root $e2e_root
+    let mutated_manifest = ($e2e_root | path join "plugins" "core" ".claude-plugin" "plugin.json")
+    let original_manifest = (open $mutated_manifest)
+    ($original_manifest | update name 42 | to json) | save --force $mutated_manifest
 
     let script_path = ($repo_root | path join "test" "validate-skills-quality.nu")
     let e2e_res = (do { cd $e2e_root; ^nu $script_path } | complete)
-    if ($e2e_res.stderr | str contains "nu::shell::") {
+    let e2e_has_raw_trace = ($e2e_res.stderr | str contains "nu::shell::")
+    let e2e_names_file = ($e2e_res.stdout | str contains "plugin.json")
+    let e2e_has_total = ($e2e_res.stdout | str contains "Total skills")
+    if $e2e_has_raw_trace {
         print $"(ansi red_bold)❌ non-string-name self-test: main leaks a raw nushell parser trace to stderr on a non-string plugin name(ansi reset)"
         $failed = true
     }
-    if not ($e2e_res.stdout | str contains "plugin.json") {
+    if not $e2e_names_file {
         print $"(ansi red_bold)❌ non-string-name self-test: main's output does not name the offending plugin.json \(stdout tail: ($e2e_res.stdout | str substring (-400)..)\)(ansi reset)"
         $failed = true
     }
-    if not ($e2e_res.stdout | str contains "Total skills") {
+    if not $e2e_has_total {
         print $"(ansi red_bold)❌ non-string-name self-test: main did not complete past the bad manifest and never printed a skills total(ansi reset)"
         $failed = true
     }
