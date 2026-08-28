@@ -29,9 +29,14 @@
 #
 # `why` and `example_replacement` are advisory prose, not checked here.
 #
+# --self-test is mostly pure-function fixtures with no filesystem access,
+# plus five subprocess-based cases (claude-skills-308) pinning the
+# --dir/--categories parameterization that lets a second fixture set (e.g.
+# the prose-reviewer's) reuse this validator instead of a copied script.
+#
 # Usage:
 #   nu test/validate-comment-reviewer-fixtures.nu
-#   nu test/validate-comment-reviewer-fixtures.nu --self-test   # pure-function fixtures, no filesystem
+#   nu test/validate-comment-reviewer-fixtures.nu --self-test
 
 const FIXTURE_DIR = "test/fixtures/comment-reviewer"
 const EXPECTED_CATEGORIES = ["restates-code" "over-explains" "missing-purpose" "missing-inputs" "contradicts-code" "none"]
@@ -59,7 +64,13 @@ def check-bijection [snippet_files: list<string>, fixture_entries: list<string>]
 # Check 3: for each fixture, is its category in the closed set and its
 # verdict exactly "FLAG" or "NO-FLAG"? Returns a list of error strings,
 # empty when clean.
-def check-verdict-category-shape [fixtures: list<record>]: nothing -> list<string> {
+#
+# `expected_categories` is accepted so a second fixture set (e.g. the
+# prose-reviewer's) can supply its own closed set instead of the
+# comment-reviewer's six (claude-skills-308) — threading that value into the
+# check below, in place of the module-level const, is the implementer's
+# job.
+def check-verdict-category-shape [fixtures: list<record>, expected_categories: list<string>]: nothing -> list<string> {
   mut errors = []
   for fx in $fixtures {
     if ($fx.category not-in $EXPECTED_CATEGORIES) {
@@ -102,7 +113,12 @@ def check-verdict-diversity [fixtures: list<record>]: nothing -> list<string> {
 
 # Check 6: the manifest's declared `categories` array matches the fixed
 # six-category list, order-independent, both directions.
-def check-categories-closed-set [declared: list<string>]: nothing -> list<string> {
+#
+# `expected_categories` is accepted for the same reason as in
+# check-verdict-category-shape above (claude-skills-308) — threading it into
+# the comparisons below, in place of the module-level const, is the
+# implementer's job.
+def check-categories-closed-set [declared: list<string>, expected_categories: list<string>]: nothing -> list<string> {
   let missing = ($EXPECTED_CATEGORIES | where { |c| $c not-in $declared })
   let extra = ($declared | where { |c| $c not-in $EXPECTED_CATEGORIES })
   mut errors = []
@@ -168,7 +184,7 @@ def main [--self-test] {
   }
 
   # Check 3
-  $errors = ($errors | append (check-verdict-category-shape $fixtures))
+  $errors = ($errors | append (check-verdict-category-shape $fixtures $EXPECTED_CATEGORIES))
 
   # Check 4
   $errors = ($errors | append (check-flag-none-consistency $fixtures))
@@ -178,7 +194,7 @@ def main [--self-test] {
 
   # Check 6
   let declared_categories = ($manifest | get -o categories | default [])
-  $errors = ($errors | append (check-categories-closed-set $declared_categories))
+  $errors = ($errors | append (check-categories-closed-set $declared_categories $EXPECTED_CATEGORIES))
 
   if ($errors | is-not-empty) {
     print $"(ansi red_bold)❌ comment-reviewer fixture validation failed \(($errors | length) issue\(s\)\):(ansi reset)\n"
@@ -222,15 +238,15 @@ def self-test [] {
   }
 
   # check-verdict-category-shape
-  let shape_clean = (check-verdict-category-shape [{file: "f01.py" verdict: "FLAG" category: "restates-code"}])
+  let shape_clean = (check-verdict-category-shape [{file: "f01.py" verdict: "FLAG" category: "restates-code"}] $EXPECTED_CATEGORIES)
   if ($shape_clean | is-not-empty) {
     $failures = ($failures | append $"check-verdict-category-shape: expected clean, got ($shape_clean)")
   }
-  let shape_bad_category = (check-verdict-category-shape [{file: "f01.py" verdict: "FLAG" category: "bogus-category"}])
+  let shape_bad_category = (check-verdict-category-shape [{file: "f01.py" verdict: "FLAG" category: "bogus-category"}] $EXPECTED_CATEGORIES)
   if ($shape_bad_category | is-empty) {
     $failures = ($failures | append "check-verdict-category-shape: expected an error for a category not in the closed set")
   }
-  let shape_bad_verdict = (check-verdict-category-shape [{file: "f01.py" verdict: "maybe" category: "none"}])
+  let shape_bad_verdict = (check-verdict-category-shape [{file: "f01.py" verdict: "maybe" category: "none"}] $EXPECTED_CATEGORIES)
   if ($shape_bad_verdict | is-empty) {
     $failures = ($failures | append "check-verdict-category-shape: expected an error for a verdict that is not FLAG/NO-FLAG")
   }
@@ -270,14 +286,141 @@ def self-test [] {
   }
 
   # check-categories-closed-set
-  if (check-categories-closed-set $EXPECTED_CATEGORIES) != [] {
+  if (check-categories-closed-set $EXPECTED_CATEGORIES $EXPECTED_CATEGORIES) != [] {
     $failures = ($failures | append "check-categories-closed-set: expected clean for the exact fixed list")
   }
-  if (check-categories-closed-set ($EXPECTED_CATEGORIES | where $it != "none")) == [] {
+  if (check-categories-closed-set ($EXPECTED_CATEGORIES | where $it != "none") $EXPECTED_CATEGORIES) == [] {
     $failures = ($failures | append "check-categories-closed-set: expected an error when 'none' is missing")
   }
-  if (check-categories-closed-set ($EXPECTED_CATEGORIES | append "bogus")) == [] {
+  if (check-categories-closed-set ($EXPECTED_CATEGORIES | append "bogus") $EXPECTED_CATEGORIES) == [] {
     $failures = ($failures | append "check-categories-closed-set: expected an error for an extra undeclared category")
+  }
+
+  # ---- claude-skills-308: --dir/--categories threading (frozen) ---------
+  #
+  # Pins the "parameter accepted but not threaded through" defect: main
+  # can gain --dir/--categories flags while the check functions above keep
+  # reading the module-level consts, and every pre-existing self-test case
+  # stays green because none of them exercise a caller-supplied list that
+  # disagrees with the const. Cases 1, 3, and 4 below are RED until the
+  # check functions actually use their `expected_categories` parameter
+  # (not just accept it) AND `main` threads `--dir`/`--categories` down to
+  # them. Case 2 and case 5 are regression guards that must stay GREEN
+  # throughout.
+
+  # Case 1 (must-flag, RED until implemented): a category list that omits
+  # "restates-code", checked against a fixture entry whose category IS
+  # "restates-code". A caller-supplied-list-aware implementation must flag
+  # it; today's implementation still consults the hardcoded const (which
+  # DOES contain "restates-code"), so it reports nothing.
+  let case1_result = (try {
+    let categories_without_restates_code = ["over-explains" "missing-purpose" "missing-inputs" "contradicts-code" "none"]
+    let errs = (check-verdict-category-shape [{file: "f01.py" verdict: "FLAG" category: "restates-code"}] $categories_without_restates_code)
+    {status: "ok" errors: $errs}
+  } catch { |err|
+    {status: "threw" errors: [] msg: $err.msg}
+  })
+  if $case1_result.status != "ok" or ($case1_result.errors | is-empty) {
+    $failures = ($failures | append $"claude-skills-308 case 1: expected check-verdict-category-shape to flag a category absent from the caller-supplied list \(got status=($case1_result.status), errors=($case1_result.errors)\)")
+  }
+
+  # Case 2 (regression guard, must stay GREEN): passing the
+  # comment-reviewer's own six categories explicitly must not reject a
+  # valid entry — guards against a fix that satisfies case 1 by rejecting
+  # everything regardless of the supplied list.
+  let case2_result = (try {
+    let errs = (check-verdict-category-shape [{file: "f01.py" verdict: "FLAG" category: "restates-code"}] $EXPECTED_CATEGORIES)
+    {status: "ok" errors: $errs}
+  } catch { |err|
+    {status: "threw" errors: [] msg: $err.msg}
+  })
+  if $case2_result.status != "ok" or ($case2_result.errors | is-not-empty) {
+    $failures = ($failures | append $"claude-skills-308 case 2: expected no error for a valid entry checked against the caller-supplied comment-reviewer categories \(got status=($case2_result.status), errors=($case2_result.errors)\)")
+  }
+
+  # Case 3 (must-flag, RED until implemented): check-categories-closed-set
+  # honors a caller-supplied expected list, both directions.
+  #
+  # 3a: a manifest declaring exactly the caller-supplied set reports no
+  # error. Today's implementation still diffs against the six-category
+  # const, so a two-element declared/expected pair reports missing
+  # categories that aren't actually missing from what the caller asked for.
+  let case3a_result = (try {
+    let two_category_set = ["restates-code" "none"]
+    let errs = (check-categories-closed-set $two_category_set $two_category_set)
+    {status: "ok" errors: $errs}
+  } catch { |err|
+    {status: "threw" errors: [] msg: $err.msg}
+  })
+  if $case3a_result.status != "ok" or ($case3a_result.errors | is-not-empty) {
+    $failures = ($failures | append $"claude-skills-308 case 3a: expected no error when the declared set exactly matches the caller-supplied expected set \(got status=($case3a_result.status), errors=($case3a_result.errors)\)")
+  }
+
+  # 3b: a manifest declaring the comment-reviewer six, checked against a
+  # caller-supplied two-element expected set, reports BOTH a
+  # missing-category error (for the supplied category the six doesn't
+  # have) and an extra-category error (for the six's categories the
+  # supplied set doesn't have). Today's implementation ignores the supplied
+  # set and compares the six against itself, reporting neither.
+  let case3b_result = (try {
+    let two_category_set = ["restates-code" "totally-different-category"]
+    let errs = (check-categories-closed-set $EXPECTED_CATEGORIES $two_category_set)
+    {status: "ok" errors: $errs}
+  } catch { |err|
+    {status: "threw" errors: [] msg: $err.msg}
+  })
+  if $case3b_result.status != "ok" or (($case3b_result.errors | length) < 2) {
+    $failures = ($failures | append $"claude-skills-308 case 3b: expected BOTH a missing-category and an extra-category error \(got status=($case3b_result.status), errors=($case3b_result.errors)\)")
+  }
+
+  # Case 4 (must-flag, RED until implemented): `main` accepts --dir and
+  # --categories and threads them end to end. Runs the real script as a
+  # subprocess (not `main` in-process) against a throwaway fixture set
+  # built under mktemp -d — a category set that is NOT the
+  # comment-reviewer's — because whether the flags actually reach the check
+  # functions is main's decision, and only running the script proves the
+  # wiring. Does not depend on test/fixtures/prose-reviewer/, which does
+  # not exist yet.
+  let case4_tmp_dir = (mktemp -d)
+  let case4_result = (try {
+    let snippets_dir = ($case4_tmp_dir | path join "snippets")
+    mkdir $snippets_dir
+    "# flagged snippet\ndef foo [] {}\n" | save ($snippets_dir | path join "flag01.py")
+    "# clean snippet\ndef bar [] {}\n" | save ($snippets_dir | path join "noflag01.py")
+    let manifest = {
+      contract_version: 1
+      categories: ["custom-defect" "none"]
+      fixtures: [
+        {file: "flag01.py" verdict: "FLAG" category: "custom-defect"}
+        {file: "noflag01.py" verdict: "NO-FLAG" category: "none"}
+      ]
+    }
+    $manifest | to json | save ($case4_tmp_dir | path join "expected.json")
+    let repo_root = (^git rev-parse --show-toplevel | str trim)
+    let script_path = ($repo_root | path join "test" "validate-comment-reviewer-fixtures.nu")
+    let result = (^nu $script_path --dir $case4_tmp_dir --categories "custom-defect,none" | complete)
+    {status: "ran" exit_code: $result.exit_code}
+  } catch { |err|
+    {status: "threw" exit_code: -1 msg: $err.msg}
+  })
+  rm -rf $case4_tmp_dir
+  if $case4_result.exit_code != 0 {
+    $failures = ($failures | append $"claude-skills-308 case 4: expected exit 0 running the script with --dir/--categories pointed at a throwaway non-comment-reviewer fixture set \(got status=($case4_result.status), exit_code=($case4_result.exit_code)\)")
+  }
+
+  # Case 5 (regression guard, must stay GREEN): running the script with no
+  # flags at all must still validate the comment-reviewer set and exit 0 —
+  # defaults stay behavior-preserving while the parameterization lands.
+  let case5_result = (try {
+    let repo_root = (^git rev-parse --show-toplevel | str trim)
+    let script_path = ($repo_root | path join "test" "validate-comment-reviewer-fixtures.nu")
+    let result = (^nu $script_path | complete)
+    {status: "ran" exit_code: $result.exit_code}
+  } catch { |err|
+    {status: "threw" exit_code: -1 msg: $err.msg}
+  })
+  if $case5_result.exit_code != 0 {
+    $failures = ($failures | append $"claude-skills-308 case 5: expected exit 0 running the script with no flags \(got status=($case5_result.status), exit_code=($case5_result.exit_code)\)")
   }
 
   if ($failures | is-not-empty) {
