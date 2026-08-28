@@ -125,7 +125,7 @@ Build the `name` parameter from four segments: `<issue>-<role>-<model>-<n>`. Eve
 
 | Segment | What goes there |
 |---|---|
-| `<issue>` | The tracker issue this agent's team works on (`318`). With no tracker issue, use a short task slug (`audit-ci`). |
+| `<issue>` | The number of the tracker issue this agent's team works on — `318` for `claude-skills-318`. With no tracker issue, use a short task slug (`audit-ci`). |
 | `<role>` | The agent's job on that team (`test-author`, `impl`, `ci`, `review`). |
 | `<model>` | The model tier the agent runs on (`haiku`, `sonnet`, `opus`, `fable`). |
 | `<n>` | The session-global spawn counter. |
@@ -139,7 +139,7 @@ A session that works issue 318 and then moves to 317 names its agents in this or
 - `318-ci-haiku-3`
 - `317-plan-fable-4`
 
-Read `318-ci-haiku-3` as the CI runner on issue 318's team, running haiku, third agent spawned this session. Agents on one team share a prefix, so `318-` selects that team.
+Read `318-ci-haiku-3` as the CI runner on issue 318's team, running haiku, third agent spawned this session. Each segment answers one question without opening the agent: the issue groups one team under a shared prefix, the role says what the agent does, and the model shows which tier it activated with.
 
 Example spawning:
 
