@@ -13,21 +13,21 @@
       "file": "p02-split-term.md",
       "verdict": "FLAG",
       "category": "split-term",
-      "why": "\"runner\" names two different things in the same document: the workflow-executing process in the first sentence, then the physical worker machine in the second.",
+      "why": "The heading self-identifies this as procedure steps (Strict per /core:technical-english's artifact table), so split-term (strict rule 1) applies. \"runner\" names two different things in the same document: the workflow-executing process in the first sentence, then the physical worker machine in the second.",
       "example_replacement": "The runner executes the workflow steps in order. The worker machine that Runex assigns the job to hosts that runner."
     },
     {
       "file": "p03-passive-agent-hidden.md",
       "verdict": "FLAG",
       "category": "passive-agent-hidden",
-      "why": "The step is written passively (\"is cleared\") and the actor performing the clear — the pre-commit hook — is knowable but left out.",
+      "why": "The heading self-identifies this as a procedure step (Strict per /core:technical-english's artifact table), so passive-agent-hidden (strict rules 2 and 3) applies. The step is written passively (\"is cleared\") and the actor performing the clear — the pre-commit hook — is knowable but left out.",
       "example_replacement": "The pre-commit hook clears the staging index before every commit."
     },
     {
       "file": "p04-long-sentence.md",
       "verdict": "FLAG",
       "category": "long-sentence",
-      "why": "The description sentence runs to 32 words, past the 25-word cap for description text, by chaining five clauses with commas instead of splitting them.",
+      "why": "The heading self-identifies this as an output contract (Strict per /core:technical-english's artifact table), so the strict word-count cap applies instead of the flavored exemption p07 relies on. The description sentence runs to 32 words, past the 25-word cap for description text, by chaining five clauses with commas instead of splitting them.",
       "example_replacement": "The bundle importer downloads the tarball and verifies its checksum. It then extracts the manifest, registers each workflow path, and writes the result to the shared cache."
     },
     {
@@ -41,7 +41,7 @@
       "file": "p06-justified-length.md",
       "verdict": "NO-FLAG",
       "category": "none",
-      "why": "Over-correction guard: four sentences for one warning looks verbose by sentence-count alone, but each sentence is under the length cap and carries real information — why the restart matters and what breaks without it. Do not flag on paragraph length alone.",
+      "why": "Over-correction guard: four sentences for one warning looks verbose by sentence-count alone, but each sentence is under the length cap and carries real information — why the restart matters and what breaks without it. Do not flag on paragraph length alone. Refers to the dev server consistently by one term throughout, so it does not also give a reviewer a split-term opening.",
       "example_replacement": "n/a — already a good warning, no change"
     },
     {

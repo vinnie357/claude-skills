@@ -65,11 +65,10 @@ def check-bijection [snippet_files: list<string>, fixture_entries: list<string>]
 # verdict exactly "FLAG" or "NO-FLAG"? Returns a list of error strings,
 # empty when clean.
 #
-# `expected_categories` is accepted so a second fixture set (e.g. the
-# prose-reviewer's) can supply its own closed set instead of the
-# comment-reviewer's six (claude-skills-308) — threading that value into the
-# check below, in place of the module-level const, is the implementer's
-# job.
+# `expected_categories` lets a second fixture set (e.g. the prose-reviewer's)
+# supply its own closed set instead of the comment-reviewer's six
+# (claude-skills-308) — the check below reads this parameter, not the
+# module-level const.
 def check-verdict-category-shape [fixtures: list<record>, expected_categories: list<string>]: nothing -> list<string> {
   mut errors = []
   for fx in $fixtures {
@@ -115,9 +114,8 @@ def check-verdict-diversity [fixtures: list<record>]: nothing -> list<string> {
 # six-category list, order-independent, both directions.
 #
 # `expected_categories` is accepted for the same reason as in
-# check-verdict-category-shape above (claude-skills-308) — threading it into
-# the comparisons below, in place of the module-level const, is the
-# implementer's job.
+# check-verdict-category-shape above (claude-skills-308) — the comparisons
+# below read this parameter, not the module-level const.
 def check-categories-closed-set [declared: list<string>, expected_categories: list<string>]: nothing -> list<string> {
   let missing = ($expected_categories | where { |c| $c not-in $declared })
   let extra = ($declared | where { |c| $c not-in $expected_categories })
@@ -140,6 +138,10 @@ def main [--self-test, --dir: string = $FIXTURE_DIR, --categories: string = ($EX
   }
 
   let expected_categories = ($categories | split row ',')
+  # Derives from --dir's basename so the printed label names the fixture set
+  # actually validated (claude-skills-308 F5) — "comment-reviewer" for the
+  # default dir, "prose-reviewer" for --dir test/fixtures/prose-reviewer.
+  let set_label = ($dir | path basename)
 
   let repo_root = (git rev-parse --show-toplevel | str trim)
   cd $repo_root
@@ -199,14 +201,14 @@ def main [--self-test, --dir: string = $FIXTURE_DIR, --categories: string = ($EX
   $errors = ($errors | append (check-categories-closed-set $declared_categories $expected_categories))
 
   if ($errors | is-not-empty) {
-    print $"(ansi red_bold)❌ comment-reviewer fixture validation failed \(($errors | length) issue\(s\)\):(ansi reset)\n"
+    print $"(ansi red_bold)❌ ($set_label) fixture validation failed \(($errors | length) issue\(s\)\):(ansi reset)\n"
     for e in $errors {
       print $"  • ($e)"
     }
     exit 1
   }
 
-  print $"(ansi green_bold)✅ comment-reviewer fixtures consistent \(($fixtures | length) fixtures, ($declared_categories | length) categories\)(ansi reset)"
+  print $"(ansi green_bold)✅ ($set_label) fixtures consistent \(($fixtures | length) fixtures, ($declared_categories | length) categories\)(ansi reset)"
   exit 0
 }
 
