@@ -18,12 +18,10 @@ defect against the register that applies to them.
 ## Register selection
 
 Pick strict or flavored register from the artifact under review, never from taste.
-`/core:technical-english` names which artifacts take which register in its
-artifact-to-register table. Strict covers agent definitions, procedure steps, skill
-descriptions, output contracts, slash commands, error text, bees titles and acceptance
-criteria, commit subjects, and ADR Decision lines. Flavored covers `references/*.md`, SKILL.md
-explanatory sections, READMEs, PR bodies, and ADR Context and Consequences sections. Check
-that table before judging a file; never infer the register from a file's length or tone alone.
+`/core:technical-english`'s artifact-to-register table is authoritative and already preloaded
+by this agent's `skills:` frontmatter — consult it per file rather than guessing from length or
+tone. When a file's kind is not in the table, judge it by function: a reader who executes it as
+instructions gets strict register; a reader who reads it for context gets flavored.
 
 ## Defect categories (closed set)
 
