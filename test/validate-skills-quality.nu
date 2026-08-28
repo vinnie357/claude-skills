@@ -4021,6 +4021,13 @@ def run-missing-field-manifest-self-test [] {
 # tracks. Case 8 below pins "" as "ok" so a future widening of the type
 # check to also reject empty strings is a deliberate, reviewed act, not an
 # accidental side effect of fixing the crash.
+#
+# Case 13 below pins check-root-manifest's matching arm for the new status.
+# Not in scope here: run-root-manifest-self-test has the same unpinned-arm
+# gap for claude-skills-313's "invalid" arm and claude-skills-316's
+# "missing_required_field" arm on check-root-manifest — neither is asserted
+# there either, and fixing those siblings is tracked separately, not folded
+# into this fix.
 def run-non-string-name-manifest-self-test [] {
     mut failed = false
 
@@ -4092,7 +4099,13 @@ def run-non-string-name-manifest-self-test [] {
     # Case 5 (must-flag, RED until implemented — names the file): the result
     # names the offending manifest, so a finding built from it can say which
     # file is broken. Same fixture shape as Case 1, mirroring the file-
-    # naming case every prior shape in this family also carries.
+    # naming case every prior shape in this family also carries. Fable
+    # review finding: checking `file` alone is not RED today —
+    # read-plugin-json's existing "ok" branch already returns `file: $path`
+    # for ANY status, so {"name": 42} satisfies a file-only check before
+    # this issue's fix exists. The status must be checked in the SAME
+    # assertion, not a separate one, so this case pins that the new branch
+    # carries the path, not just that some branch (today, "ok") does.
     let named_root = (mktemp -d)
     mkdir ($named_root | path join ".claude-plugin")
     let named_path = ($named_root | path join ".claude-plugin" "plugin.json")
@@ -4102,8 +4115,8 @@ def run-non-string-name-manifest-self-test [] {
     } catch {
         {status: "threw", data: null, file: null}
     })
-    if $named_res.file != $named_path {
-        print $"(ansi red_bold)❌ non-string-name self-test: non-string-name result does not name the offending file \(got: ($named_res.file)\)(ansi reset)"
+    if $named_res.status != "invalid_field_type" or $named_res.file != $named_path {
+        print $"(ansi red_bold)❌ non-string-name self-test: non-string-name result does not carry both invalid_field_type and the offending file \(got status: ($named_res.status), file: ($named_res.file)\)(ansi reset)"
         $failed = true
     }
     rm -rf $named_root
@@ -4352,8 +4365,32 @@ def run-non-string-name-manifest-self-test [] {
     }
     rm -rf $e2e_root
 
+    # Case 13 (must-flag, RED until implemented): check-root-manifest has
+    # its own three explicit status arms (missing/invalid/
+    # missing_required_field) mirroring read-plugin-json's statuses, falling
+    # through to check-output-styles-path for anything else. Fable review
+    # finding: no case above pins this arm — every fixture in Cases 1-12
+    # uses a scratch plugin, never the ROOT manifest read by
+    # check-root-manifest, and the real root manifest's name is
+    # "all-skills", a string, in every one of this file's other suites. A
+    # reviewer's prototype fix that added the new status to read-plugin-json
+    # but omitted the matching arm in check-root-manifest passed all 12
+    # cases above — an unforced branch this issue's own review process
+    # exists to catch. check-root-manifest takes a repo_root and builds the
+    # manifest path itself (mirrors run-root-manifest-self-test's Case 1),
+    # so the fixture is a scratch root, not a bare file.
+    let root_case_root = (mktemp -d)
+    mkdir ($root_case_root | path join ".claude-plugin")
+    {name: 42} | to json | save ($root_case_root | path join ".claude-plugin" "plugin.json")
+    let root_case_res = (check-root-manifest $root_case_root)
+    if $root_case_res != ["invalid_field_type"] {
+        print $"(ansi red_bold)❌ non-string-name self-test: check-root-manifest does not flag a non-string root name as invalid_field_type \(got: ($root_case_res)\)(ansi reset)"
+        $failed = true
+    }
+    rm -rf $root_case_root
+
     if not $failed {
-        print $"(ansi green_bold)✅ Non-string-name-manifest self-test passed \(12 cases\)(ansi reset)"
+        print $"(ansi green_bold)✅ Non-string-name-manifest self-test passed \(13 cases\)(ansi reset)"
     }
     $failed
 }
