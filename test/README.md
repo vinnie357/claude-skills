@@ -99,6 +99,33 @@ and proceeds on the cached ref if offline. Run `nu test/check-version-bumps.nu
 --self-test` to run the pure-function fixture suite alone (no git, no base
 ref needed).
 
+### Test Reviewer Fixture Sets
+
+`validate-comment-reviewer-fixtures.nu` checks a reviewer-agent eval fixture
+set (manifest + snippets) for internal consistency — bijection between
+snippets and manifest entries, closed-set category/verdict shape, and
+verdict diversity. It does not invoke a live agent; a separate live-inference
+eval run diffs actual agent verdicts against `expected.json`.
+
+The script defaults to the comment-reviewer's own fixture set and six
+categories, and accepts `--dir` (fixture set directory) and `--categories`
+(comma-separated closed set) so a second reviewer's fixtures can reuse it
+instead of a copied script:
+
+```bash
+mise test:comment-fixtures
+# or
+nu test/validate-comment-reviewer-fixtures.nu --self-test
+nu test/validate-comment-reviewer-fixtures.nu
+
+mise test:prose-fixtures
+# or
+nu test/validate-comment-reviewer-fixtures.nu --self-test
+nu test/validate-comment-reviewer-fixtures.nu \
+  --dir test/fixtures/prose-reviewer \
+  --categories "hedged-directive,split-term,passive-agent-hidden,long-sentence,clutter,none"
+```
+
 ### Direct Script Usage
 
 You can also run the Nushell scripts directly. `test:marketplace` and
@@ -335,6 +362,7 @@ frontmatter; both sides normalise named args to one `$name` family marker.
 - **validate-core-list.nu** — Verifies the mandatory core skill list is identical across the canonical block and all anchored satellite load lists, and sweeps for unregistered files carrying a near-complete copy (`--self-test` runs its fixtures)
 - **check-version-bumps.nu** — Verifies every plugin with changed files bumped `plugin.json` and `marketplace.json` versions against a base ref; hard-fails on a missing/invalid base ref
 - **validate-security-hook.nu** — Regression test for `check-secrets-before-commit.sh`'s gitleaks exit-code handling: stubs a `gitleaks` binary on PATH with a scripted exit code and asserts 0 → allow, 1 → block, any other code → fail closed (claude-skills-224), plus the pre-existing documented fail-open when no scanner is available at all
+- **validate-comment-reviewer-fixtures.nu** — Validates a reviewer-agent eval fixture set (manifest ↔ snippets bijection, closed-set category/verdict shape, verdict diversity). Defaults to `test/fixtures/comment-reviewer` and its six categories; `--dir`/`--categories` (comma-separated) let `test/fixtures/prose-reviewer` reuse the same script instead of a copy (`--self-test` runs its fixtures)
 
 `quality-baseline.json` is the ratchet baseline data file consumed by `validate-skills-quality.nu` — not a script, but tracked here since it gates CI.
 

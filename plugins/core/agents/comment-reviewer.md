@@ -6,6 +6,7 @@ model: fable
 skills:
   - core:restraint
   - core:anti-fabrication
+  - core:technical-english
 ---
 
 # Comment Reviewer

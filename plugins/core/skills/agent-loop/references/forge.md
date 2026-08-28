@@ -64,6 +64,13 @@ and reports through the `## VERDICTS` contract. It defaults to `model: fable`, f
 `opus` when fable is unavailable — a capability substitution, not the escalation-on-failure
 ladder.
 
+The **Prose Reviewer** (`core:prose-reviewer`) has the same narrow shape, aimed at authored
+prose instead of comments: hedged directives, split terms, hidden-agent passives, overlong
+sentences, and clutter, reported through its own `## VERDICTS` contract. The Review pair spawns
+it only when the diff touches authored-prose paths — skills, agents, commands, references,
+READMEs, ADRs — and skips it on a code-only diff. It defaults to `model: fable`, falling back
+to `opus` when fable is unavailable, the same capability substitution as its sibling.
+
 ## Startup index per principal
 
 Before each principal is spawned, its lead runs a hands pass scoped to that principal's job and
