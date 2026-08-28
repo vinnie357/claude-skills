@@ -54,14 +54,14 @@ Compact. Names files and functions to reuse. Anchors the proof-of-loading checkp
 
 ## Agent naming convention
 
-When spawning the agent via the Agent tool, use the naming convention `task-<model>-<instance>`:
+Name the agent `<issue>-<role>-<model>-<n>`. The worker below is the implementer on issue `runex-142`, running sonnet, and the second agent spawned this session:
 
 ```
 Agent({
-  name: 'task-sonnet-1',
+  name: '142-impl-sonnet-2',
   description: 'Implement /api/workflows/import endpoint',
   prompt: '(the prompt template above)'
 })
 ```
 
-The instance counter is per-session and monotonic: each spawn in the same session increments the counter independently, so the second sonnet worker would be named `task-sonnet-2`, and a haiku worker later in the same session would be `task-haiku-1`. This naming allows operators to see which model each running agent activated with at a glance. See `/claude-code:claude-agents` for complete details on agent spawning and naming conventions.
+`/claude-code:claude-agents` "Agent Spawning Naming Convention" defines each segment and states the counter rule. This file does not restate them.

@@ -121,19 +121,37 @@ Skills not listed in `skills` remain invocable through the Skill tool during the
 
 ## Agent Spawning Naming Convention
 
-When spawning agents via the Agent tool, embed the model tier and a per-session instance counter in the `name` parameter: `task-<model>-<instance>` (e.g., `task-sonnet-1`, `task-opus-2`, `task-haiku-1`). This naming convention allows operators to see which model each running agent activated with at a glance.
+Build the `name` parameter from four segments: `<issue>-<role>-<model>-<n>`. Every segment is a placeholder. None of the four is a literal.
+
+| Segment | What goes there |
+|---|---|
+| `<issue>` | The number of the tracker issue this agent's team works on — `318` for `claude-skills-318`. With no tracker issue, use a short task slug (`audit-ci`). |
+| `<role>` | The agent's job on that team (`test-author`, `impl`, `ci`, `review`). |
+| `<model>` | The model tier the agent runs on (`haiku`, `sonnet`, `opus`, `fable`). |
+| `<n>` | The session-global spawn counter. |
+
+Join the segments with hyphens. The assembled name must match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`. Keep every segment kebab-case, and never use a space.
+
+A session that works issue 318 and then moves to 317 names its agents in this order:
+
+- `318-test-author-sonnet-1`
+- `318-impl-sonnet-2`
+- `318-ci-haiku-3`
+- `317-plan-fable-4`
+
+Read `318-ci-haiku-3` as the CI runner on issue 318's team, running haiku, third agent spawned this session. Each segment answers one question without opening the agent: the issue groups one team under a shared prefix, the role says what the agent does, and the model shows which tier it activated with.
 
 Example spawning:
 
 ```
 Agent({
-  name: 'task-sonnet-1',
+  name: '318-impl-sonnet-2',
   description: 'Implement feature endpoint',
   prompt: '...'
 })
 ```
 
-Instance counters are PER-SESSION and MONOTONIC — each agent spawned in a session increments the counter independently (e.g., `task-haiku-1`, `task-sonnet-1`, `task-opus-1`, `task-sonnet-2`). This is a prompt-discipline convention, not an enforced mechanism — the counter is assigned at spawn time and never reset or persisted across sessions.
+The counter is ONE GLOBAL SERIES PER SESSION. The first agent spawned takes `1`, the second takes `2`, whatever its issue, role, or model tier. The trailing number therefore gives both a unique name and the agent's spawn order. Assign the counter at spawn time. Never reset it mid-session, and never carry it into another session. This is a prompt-discipline convention, not an enforced mechanism.
 
 ## Common Agent Patterns
 
