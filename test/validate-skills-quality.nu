@@ -4310,7 +4310,7 @@ def run-non-string-name-manifest-self-test [] {
     # `git clone --local` (0.15s measured — cheap because it's a local
     # hardlinked clone, not a copy, and gets .git, plugins/, .claude-plugin/
     # and test/ in one step with no hand-maintained file list to rot) and
-    # mutates ONE REAL manifest inside the clone — plugins/core's — rather
+    # mutates ONE REAL manifest inside the clone — plugins/wasm's — rather
     # than appending a synthetic plugin. `git clone` copies HEAD's committed
     # tree, which is what makes the corpus stable regardless of what's
     # uncommitted in the working tree; `$script_path` stays the absolute
@@ -4321,18 +4321,37 @@ def run-non-string-name-manifest-self-test [] {
     # agents/*.md file, plugin_name is never passed to a string-typed
     # parameter at all, and the crash this case exists to catch simply
     # never fires (verified empirically against a skills-only, agent-less
-    # fixture) — core already ships agents/*.md and
-    # skills/bees/agents/*.md, so mutating core's manifest exercises the
-    # real defect without a fixture-maintenance burden.
+    # fixture) — wasm already ships plugins/wasm/agents/wasm-inspector.md,
+    # so mutating wasm's manifest exercises the real defect without a
+    # fixture-maintenance burden.
+    #
+    # Why wasm and not core (fable review finding, verified independently
+    # before this fix): under the exit-code assertion below, `core` is a
+    # passenger. Mutating core's `name` drops core's skills from scoring,
+    # which vacates baseline entries — the run then also prints
+    # "FAIL: N baseline entries now pass" and exits 1 for THAT reason alone,
+    # whether or not the new finding is wired to anything. A mutant that
+    # drops the finding entirely still exits 1 under the core fixture, and
+    # the exit-code assertion stays green regardless. wasm carries no
+    # baseline entries, so under wasm exit 1 depends solely on the new
+    # finding: verified directly against the current (fixed) working tree —
+    # a wasm mutation produces exactly ONE unbaselined finding
+    # (`wasm/.claude-plugin/plugin.json:invalid_field_type`) and ZERO
+    # "baseline entries now pass" lines. `plugins/pm` would also work if
+    # `wasm` turns out to carry some property this reasoning missed; wasm is
+    # preferred as the smaller surface.
     #
     # Measured costs (nu 0.113.1, this branch point, on the machine this was
     # authored on): the whole --self-test suite runs in ~0.4s without this
-    # case. Against the UNFIXED script, this harness reproduces the crash
-    # in single-digit seconds (dominated by the clone + one Pass-2 pass
-    # before the crash, well short of a full run). Once the fix lands and
-    # the run proceeds through Pass 3/4 to completion, a full pass over the
-    # real corpus costs roughly 27s measured directly with a plain
-    # (unmutated) run of this same script — so this one case takes
+    # case. Against the UNFIXED script (verified against `git show
+    # 64fa2f5:test/validate-skills-quality.nu` written to a temp file, never
+    # the working tree, which now carries the fix), this harness reproduces
+    # the crash in single-digit seconds (dominated by the clone + one Pass-2
+    # pass before the crash, well short of a full run) — confirmed:
+    # `nu::shell::` in stderr, no "Total skills" in stdout, exit 1. Once the
+    # fix lands and the run proceeds through Pass 3/4 to completion, a full
+    # pass over the real corpus costs roughly 27s measured directly with a
+    # plain (unmutated) run of this same script — so this one case takes
     # --self-test from ~0.4s to roughly 27s once green. That is a
     # deliberate, operator-visible trade, not an oversight: it is the only
     # case in this suite that actually pins AC1, for the reason given above
@@ -4342,7 +4361,7 @@ def run-non-string-name-manifest-self-test [] {
     let repo_root = (git rev-parse --show-toplevel | str trim)
     let e2e_root = (mktemp -d)
     ^git clone -q --local $repo_root $e2e_root
-    let mutated_manifest = ($e2e_root | path join "plugins" "core" ".claude-plugin" "plugin.json")
+    let mutated_manifest = ($e2e_root | path join "plugins" "wasm" ".claude-plugin" "plugin.json")
     let original_manifest = (open $mutated_manifest)
     ($original_manifest | update name 42 | to json) | save --force $mutated_manifest
 
@@ -4350,31 +4369,33 @@ def run-non-string-name-manifest-self-test [] {
     let e2e_res = (do { cd $e2e_root; ^nu $script_path } | complete)
     let e2e_has_raw_trace = ($e2e_res.stderr | str contains "nu::shell::")
     # Asserts the SPECIFIC key Pass 1's registry loop builds from
-    # $plugin.name and the new status — "core/.claude-plugin/plugin.json:
+    # $plugin.name and the new status — "wasm/.claude-plugin/plugin.json:
     # invalid_field_type" — not a bare "plugin.json" or even bare
-    # "core/.claude-plugin/plugin.json" substring. Checking the full key
+    # "wasm/.claude-plugin/plugin.json" substring. Checking the full key
     # pins three things at once: the right plugin (not some other plugin's
-    # finding), the right file, and the right status (not core flagged for
+    # finding), the right file, and the right status (not wasm flagged for
     # an unrelated reason). No mutation of the implementation that still
     # satisfies Cases 1-11 can also satisfy this string by accident.
     #
     # The exact target string and print location were measured, not
     # guessed, using the ALREADY-IMPLEMENTED sibling path (316's
     # missing_required_field arm, the same Pass-1 code shape this fix
-    # extends) as a stand-in: `jq 'del(.name)'` on a cloned core manifest,
-    # then a real run of this script, reproduced independently — output
-    # contains the line `core/.claude-plugin/plugin.json:missing_required_
-    # field`, `Total skills: 94`, and exit code 1. That confirms two things
-    # as OBSERVED facts rather than assumptions about an unimplemented
-    # status: the key format Pass 1 actually builds and prints, and that
-    # Case 12 is demonstrably satisfiable — a completing full-corpus run
-    # with one bad core manifest really does finish and print a skills
-    # total, once the manifest is properly excluded and reported rather
-    # than crashing the whole process. Printed via the default (non
-    # --update-baseline) run's unbaselined-failure report ("FAIL: N quality
-    # violations not in the baseline:" followed by one key per line), the
-    # only reporting path this harness's plain invocation exercises.
-    let e2e_expected_key = "core/.claude-plugin/plugin.json:invalid_field_type"
+    # extends) as a stand-in against the (then-unfixed) core fixture:
+    # `jq 'del(.name)'` on a cloned core manifest, then a real run of this
+    # script, reproduced independently — output contains the line
+    # `core/.claude-plugin/plugin.json:missing_required_field`,
+    # `Total skills: 94`, and exit code 1. That confirmed the key format
+    # Pass 1 actually builds and prints as an OBSERVED fact rather than an
+    # assumption about an unimplemented status. Separately, against wasm
+    # specifically, once the real fix landed: a wasm mutation produces
+    # exactly the line `wasm/.claude-plugin/plugin.json:invalid_field_type`
+    # and nothing else unbaselined — see the fixture comment above for why
+    # wasm, not core, was chosen for THIS case's exit-code assertion.
+    # Printed via the default (non --update-baseline) run's
+    # unbaselined-failure report ("FAIL: N quality violations not in the
+    # baseline:" followed by one key per line), the only reporting path
+    # this harness's plain invocation exercises.
+    let e2e_expected_key = "wasm/.claude-plugin/plugin.json:invalid_field_type"
     let e2e_names_file = ($e2e_res.stdout | str contains $e2e_expected_key)
     let e2e_has_total = ($e2e_res.stdout | str contains "Total skills")
     if $e2e_has_raw_trace {
@@ -4409,10 +4430,31 @@ def run-non-string-name-manifest-self-test [] {
     # exists to catch. check-root-manifest takes a repo_root and builds the
     # manifest path itself (mirrors run-root-manifest-self-test's Case 1),
     # so the fixture is a scratch root, not a bare file.
+    #
+    # try/catch is REQUIRED here, unlike a bare call — the arm's absence
+    # doesn't return a wrong list, it THROWS. Without the matching arm,
+    # "invalid_field_type" falls through to
+    # `check-output-styles-path $read.data $repo_root`, whose first
+    # parameter is typed `record`; `$read.data` is null for
+    # "invalid_field_type" (per read-plugin-json's contract), so the call
+    # throws a type-conversion error at that boundary — the exact same
+    # failure shape claude-skills-317 exists to catch, just one function
+    # over. An unwrapped call would abort the whole --self-test run right
+    # after this case (verified: this is what happened before this fix, per
+    # the fable reviewer's mutation test), masking every case and suite
+    # after it — the identical "a check that crashes instead of reporting
+    # hides every other finding" failure mode Cases 1-12 all guard against
+    # with their own try/catch. The catch value below is a sentinel list
+    # that can never equal the expected `["invalid_field_type"]`, so a
+    # throw converts into a legible red line instead of a dead harness.
     let root_case_root = (mktemp -d)
     mkdir ($root_case_root | path join ".claude-plugin")
     {name: 42} | to json | save ($root_case_root | path join ".claude-plugin" "plugin.json")
-    let root_case_res = (check-root-manifest $root_case_root)
+    let root_case_res = (try {
+        check-root-manifest $root_case_root
+    } catch {
+        ["threw"]
+    })
     if $root_case_res != ["invalid_field_type"] {
         print $"(ansi red_bold)❌ non-string-name self-test: check-root-manifest does not flag a non-string root name as invalid_field_type \(got: ($root_case_res)\)(ansi reset)"
         $failed = true
