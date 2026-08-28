@@ -224,7 +224,7 @@ Glob patterns like `/core:*` do not expand in Agent prompts. List skill names ex
 - **Merge gates (three)**: Gate 1 — local `mise run ci` green before every commit; Gate 2 — local + remote `gh pr checks` green; Gate 3 — adversarial review of the PR by a separate agent on the strongest available model, findings addressed or answered. All three before any squash merge (see `/core:git` Three-Gate Merge Policy). Gate 3 is distinct from this skill's pipeline reviewers, including Forge's Final Reviewer — it is identified by its defeat-the-change brief, not by when it runs.
 - **Branches**: One feature branch per epic (`feature/<epic-slug>`)
 - **Merge**: Squash merge only, user approves
-- **Agent naming**: When spawning agents, embed the model tier and per-session instance counter in the `name` parameter as `task-<model>-<instance>` (e.g., `task-sonnet-1`, `task-opus-2`) — see `/claude-code:claude-agents` for details
+- **Agent naming**: Spawn names are `<issue>-<role>-<model>-<n>` (e.g. `318-test-author-sonnet-1`) — see `/claude-code:claude-agents` "Agent Spawning Naming Convention" for the segment definitions and the counter rule
 
 ## Agent Worker Execution Order
 
