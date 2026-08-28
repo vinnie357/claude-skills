@@ -4307,23 +4307,39 @@ def run-non-string-name-manifest-self-test [] {
     let e2e_res = (do { cd $e2e_root; ^nu $script_path } | complete)
     let e2e_has_raw_trace = ($e2e_res.stderr | str contains "nu::shell::")
     # Asserts the SPECIFIC key Pass 1's registry loop builds from
-    # $plugin.name — "core/.claude-plugin/plugin.json" — not a bare
-    # "plugin.json" substring. A bare substring check is satisfiable by a
-    # finding against any OTHER plugin's manifest; it cannot distinguish
-    # "core was correctly excluded and reported" from "some unrelated
-    # plugin.json finding happened to print, and core's mutation was never
-    # even reached." Printed via the default (non --update-baseline) run's
-    # unbaselined-failure report ("FAIL: N quality violations not in the
-    # baseline:" followed by one key per line), the only path this harness
-    # exercises.
-    let e2e_names_file = ($e2e_res.stdout | str contains "core/.claude-plugin/plugin.json")
+    # $plugin.name and the new status — "core/.claude-plugin/plugin.json:
+    # invalid_field_type" — not a bare "plugin.json" or even bare
+    # "core/.claude-plugin/plugin.json" substring. Checking the full key
+    # pins three things at once: the right plugin (not some other plugin's
+    # finding), the right file, and the right status (not core flagged for
+    # an unrelated reason). No mutation of the implementation that still
+    # satisfies Cases 1-11 can also satisfy this string by accident.
+    #
+    # The exact target string and print location were measured, not
+    # guessed, using the ALREADY-IMPLEMENTED sibling path (316's
+    # missing_required_field arm, the same Pass-1 code shape this fix
+    # extends) as a stand-in: `jq 'del(.name)'` on a cloned core manifest,
+    # then a real run of this script, reproduced independently — output
+    # contains the line `core/.claude-plugin/plugin.json:missing_required_
+    # field`, `Total skills: 94`, and exit code 1. That confirms two things
+    # as OBSERVED facts rather than assumptions about an unimplemented
+    # status: the key format Pass 1 actually builds and prints, and that
+    # Case 12 is demonstrably satisfiable — a completing full-corpus run
+    # with one bad core manifest really does finish and print a skills
+    # total, once the manifest is properly excluded and reported rather
+    # than crashing the whole process. Printed via the default (non
+    # --update-baseline) run's unbaselined-failure report ("FAIL: N quality
+    # violations not in the baseline:" followed by one key per line), the
+    # only reporting path this harness's plain invocation exercises.
+    let e2e_expected_key = "core/.claude-plugin/plugin.json:invalid_field_type"
+    let e2e_names_file = ($e2e_res.stdout | str contains $e2e_expected_key)
     let e2e_has_total = ($e2e_res.stdout | str contains "Total skills")
     if $e2e_has_raw_trace {
         print $"(ansi red_bold)❌ non-string-name self-test: main leaks a raw nushell parser trace to stderr on a non-string plugin name(ansi reset)"
         $failed = true
     }
     if not $e2e_names_file {
-        print $"(ansi red_bold)❌ non-string-name self-test: main's output does not name core/.claude-plugin/plugin.json as the offending manifest \(stdout tail: ($e2e_res.stdout | str substring (-400)..)\)(ansi reset)"
+        print $"(ansi red_bold)❌ non-string-name self-test: main's output does not contain the expected finding key '($e2e_expected_key)' \(stdout tail: ($e2e_res.stdout | str substring (-200)..)\)(ansi reset)"
         $failed = true
     }
     if not $e2e_has_total {
