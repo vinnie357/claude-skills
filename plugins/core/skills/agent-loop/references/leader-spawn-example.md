@@ -23,7 +23,9 @@ The explicit skill list at the top is mandatory — never use `/core:*` globs in
 ## Reporting back
 This spawn passes a `name` parameter (`142-impl-sonnet-2` below), so you are a teammate: your
 plain final text is never delivered to the leader. On completion, call `SendMessage` with your
-full report addressed to the leader by the name given in this spawn prompt.
+full report, addressed to `<leader-name>` — the leader fills its own name in here when it
+writes the prompt. If the prompt names no leader, address the lead given in your own identity
+context. Never address the report to your own name, and never hardcode a literal.
 
 ## Working directory
 cd /path/to/your-repo
