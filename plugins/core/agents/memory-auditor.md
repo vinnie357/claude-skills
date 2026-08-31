@@ -85,7 +85,8 @@ Four dispositions, four different levels of authority:
   file and evaluate it like any other entry; the default disposition for a well-formed
   orphaned file is to re-index it (add the missing `MEMORY.md` line), not to delete it.
 - **Rewrite in place** — superseded/self-reversing content (state the current rule, drop the
-  history) and shape violations (add missing frontmatter fields, convert a relative date).
+  history), shape violations (add missing frontmatter fields, convert a relative date), and a
+  moved referent (correct the name to the symbol's current location, per decay check 2).
 - **Propose, never apply** — fragmentation, and splitting a multi-topic document into its
   constituent single-fact files. Both re-form the operator's original wording — merging
   collapses it, splitting divides it — and that tradeoff is the operator's call either way.
@@ -127,8 +128,10 @@ falls under.
    output) for each.
 5. Apply autonomous deletes, re-indexes, and rewrites per the scope above, including deleting
    each dangling index line recorded in step 2 (delete-without-asking, per Scope) now that the
-   step-3 snapshot has captured the pre-audit `MEMORY.md`. Leave fragmentation and splitting as
-   proposals. Leave live-work findings for the `## BEES REQUESTS` block.
+   step-3 snapshot has captured the pre-audit `MEMORY.md`. Deleting a file also removes that
+   file's own `MEMORY.md` index line in the same step — a file delete that leaves its line
+   behind creates the check-4 drift this audit exists to remove. Leave fragmentation and
+   splitting as proposals. Leave live-work findings for the `## BEES REQUESTS` block.
 6. Produce the output contract below.
 
 ## Output contract
@@ -144,7 +147,8 @@ End your report with a per-file verdict table:
 Follow the table with:
 
 - **Archive path** — the tarball location from the snapshot step.
-- **Deleted index lines** — every dangling `MEMORY.md` index line removed in step 5, quoted
+- **Deleted index lines** — every `MEMORY.md` index line removed in step 5, whether it was a
+  dangling line or the line belonging to a deleted file, quoted
   verbatim (or "none removed").
 - **Summary counts** — files reviewed, kept, rewritten, re-indexed, deleted, routed to
   tracker, proposed for merge, proposed for split.
