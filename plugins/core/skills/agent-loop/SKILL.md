@@ -252,10 +252,13 @@ Team leaders structure agent prompts with these sections:
 <domain skills for this task, per the issue's labels and the tracker-state rule>
 
 ## Reporting back
-<if this spawn passes a `name` parameter, the agent is a teammate: its plain final text is
-never delivered to the leader. On completion it MUST call `SendMessage` with its full report.
-Address the leader by the name given in this spawn prompt, or by the agent's own identity
-context if no name was given here — never hardcode a literal leader name.>
+<on completion the agent MUST call `SendMessage` with its full report — always, whether or not
+this spawn passes a `name`. An agent cannot inspect its own spawn call, so it never decides
+this for itself. If the spawn passed a `name` the agent is a teammate and that call is the only
+channel reaching the leader, because its plain final text is never delivered; if the spawn
+passed no name, the call is harmless redundancy. Address the leader by the name given in this
+spawn prompt, or by the agent's own identity context if no name was given here — never hardcode
+a literal leader name.>
 
 ## Working directory
 cd /path/to/repo
