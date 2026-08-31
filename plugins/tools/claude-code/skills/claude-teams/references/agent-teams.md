@@ -40,8 +40,17 @@ Mechanisms:
 - **message**: Send to one specific teammate
 - **broadcast**: Send to all teammates (use sparingly due to token cost)
 - **Automatic delivery**: Messages arrive without polling
-- **Idle notifications**: Teammates notify the lead when they finish
+- **Idle notifications**: a liveness/presence signal only — it fires when a teammate finishes, but it does NOT carry the teammate's report. A teammate's plain final text is dropped; its report reaches the lead only through an explicit `SendMessage` call. An idle notification sometimes includes a message summary and sometimes does not, even for a teammate that did send a report — never infer delivery from the notification's shape.
 - **Shared task list**: All agents see task status and claim available work
+
+### Resuming a finished teammate
+
+Sending a message to a named teammate that has already reported RESUMES it: the teammate continues working and can push further commits. This is the recovery path when a report was never sent.
+
+Bound this carefully:
+- Message a finished teammate ONLY to request its report, with an instruction such as "send the report via SendMessage and take no other action."
+- Never message a finished teammate while a review of its work is in flight — a resumed agent with write tools can push commits mid-review, leaving the reviewer's verdict against a stale HEAD. A review needs no report to run: it reads the diff, so a lead can dispatch one on a teammate that idled without reporting. Recover a missing report before dispatching that review, or after its verdict lands — never while it is in flight.
+- "Reported done" does not mean "finished": reading a resumed agent's files mid-run can show a half-applied state.
 
 ## Task Coordination
 

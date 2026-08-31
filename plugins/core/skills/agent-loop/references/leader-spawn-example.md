@@ -20,6 +20,14 @@ The explicit skill list at the top is mandatory — never use `/core:*` globs in
 /elixir:testing
 /elixir:style
 
+## Reporting back
+On completion, call `SendMessage` with your full report — always, without first deciding whether
+this spawn passed a `name`. If it did, you are a teammate and that call is the only channel that
+reaches the leader: your plain final text is never delivered. If it did not, the call is harmless
+redundancy. Address the report to `<leader-name>` — the leader fills its own name in here when it
+writes the prompt. If the prompt names no leader, address the lead given in your own identity
+context. Never address the report to your own name, and never hardcode a literal leader name.
+
 ## Working directory
 cd /path/to/your-repo
 

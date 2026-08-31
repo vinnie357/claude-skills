@@ -158,7 +158,7 @@ Fan-out happens at the Sub-team Leader, not at the epic decomposer or the bees-w
 
 ### Orchestration rules
 
-- Each stage is a separate Agent invocation (no SendMessage continuations between tiers).
+- Each stage is a separate Agent invocation (no SendMessage continuations between tiers). This bans a finished stage from performing the next stage's work inside its own context — it does not ban reporting up to the dispatching leader. A stage spawned with a `name` still calls `SendMessage` to deliver its report; that call is not a continuation.
 - The leader verifies stage transitions before dispatching the next: test commit present before P3, test files unmodified before P5.
 - P4 reports verbatim CI output; on red the leader dispatches a fresh P3 (no chat continuity).
 - P5 reads `git diff main...HEAD`, tests, and the acceptance criteria; approves with one line or rejects with a structured findings list. P5 reviews per `/core:code-review`, including its Restraint and Scope checklist item.
@@ -238,9 +238,9 @@ Every agent worker (Tier 3) follows these steps:
 6. Run gitleaks scan on committed changes — fix if secrets detected
 7. Push, create PR
 8. **Gate 2** — Watch remote CI (`gh pr checks --watch`) — fix and push until local + remote are green
-9. Close bees issue, notify leader of PR status and URL. The PR is NOT merge-ready yet: **Gate 3** — adversarial review by a separate agent — is the leader's to arrange, and merge waits on it
+9. Close bees issue, notify leader of PR status and URL by calling `SendMessage`. A named agent's plain final text is never delivered to the leader — ending the turn without calling `SendMessage` reports nothing. The PR is NOT merge-ready yet: **Gate 3** — adversarial review by a separate agent — is the leader's to arrange, and merge waits on it
 
-Agents never merge — they report the PR URL to the team leader.
+Agents never merge — they report the PR URL to the team leader via `SendMessage`.
 
 ## Agent Prompt Template
 
@@ -250,6 +250,15 @@ Team leaders structure agent prompts with these sections:
 ## Load skills
 <every name from "Core Skills (Mandatory)", one per line — never this placeholder, never a glob>
 <domain skills for this task, per the issue's labels and the tracker-state rule>
+
+## Reporting back
+<on completion the agent MUST call `SendMessage` with its full report — always, whether or not
+this spawn passes a `name`. An agent cannot inspect its own spawn call, so it never decides
+this for itself. If the spawn passed a `name`, the agent is a teammate and that call is the
+only channel reaching the leader — its plain final text is never delivered. If the spawn passed
+no name, the call is harmless redundancy. Address the leader by the name given in this
+spawn prompt, or by the agent's own identity context if no name was given here — never hardcode
+a literal leader name.>
 
 ## Working directory
 cd /path/to/repo
