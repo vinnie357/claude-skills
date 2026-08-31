@@ -254,9 +254,9 @@ Team leaders structure agent prompts with these sections:
 ## Reporting back
 <on completion the agent MUST call `SendMessage` with its full report — always, whether or not
 this spawn passes a `name`. An agent cannot inspect its own spawn call, so it never decides
-this for itself. If the spawn passed a `name` the agent is a teammate and that call is the only
-channel reaching the leader, because its plain final text is never delivered; if the spawn
-passed no name, the call is harmless redundancy. Address the leader by the name given in this
+this for itself. If the spawn passed a `name`, the agent is a teammate and that call is the
+only channel reaching the leader — its plain final text is never delivered. If the spawn passed
+no name, the call is harmless redundancy. Address the leader by the name given in this
 spawn prompt, or by the agent's own identity context if no name was given here — never hardcode
 a literal leader name.>
 
