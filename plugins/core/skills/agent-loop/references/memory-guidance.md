@@ -1,6 +1,6 @@
 # Memory-Writing Guidance
 
-Memory entries in Claude Code (user memory, feedback memories, project notes, and reference guides) must generalize across sessions, repositories, and contexts. Memory that describes a single incident or issue, tied to a specific issue ID or one-off situation, becomes useless once that context closes.
+Memory entries in Claude Code (user memory, feedback memories, and reference guides) must generalize across sessions, repositories, and contexts. Memory that describes a single incident or issue, tied to a specific issue ID or one-off situation, becomes useless once that context closes.
 
 **The Rule:** Write memory that answers "what should I remember for future work?" not "what happened in this past incident?" A memory entry should apply to the next session, the next repository, and the next person picking up similar work.
 
@@ -124,6 +124,11 @@ open task is not a durable fact; it is a tracker row that escaped its tracker. W
 closes, its bees/epic row records that outcome — memory does not need a second copy, and a
 closed-but-still-asserted item ("RESOLVED 2026-07-28") is dead weight, not a fact.
 
+A durable fact does not stop being a fact because it narrates a closed incident as evidence
+for a rule that still applies — the discriminator is whether removing the closure sentence
+leaves a transferable rule behind. Only an entry whose entire content IS the closure status
+is dead weight.
+
 **A durable fact stays in memory even when it names a specific repo.** The discriminator is
 work-vs-fact, not project-scoped-vs-general. "This repo is on a private GitHub remote, so
 the mise github backend needs `GITHUB_TOKEN` or `ls-remote` returns empty" names one repo by
@@ -153,7 +158,11 @@ a judgment call.
    for `REVERSED`, `RESOLVED`, `no longer`, or a second date superseding the first. An entry
    carrying one of these markers is storing its own history instead of stating the current
    rule. Detection is a grep; producing the corrected, single-current-rule text is a judgment
-   call — decide what the rule now says, not what it used to say.
+   call — decide what the rule now says, not what it used to say. **Precedence:** an entry
+   that carries one of these markers AND also reads as dead work under the work-vs-fact
+   boundary is a rewrite candidate, not a delete candidate — this check wins the tiebreak,
+   because rewriting preserves whatever durable half the entry still carries and deleting
+   does not.
 2. **Stale referent — mechanical.** The entry names a file, function, flag, or command.
    Grep the repo it names for that exact symbol. A miss means either the referent moved (fix
    the name) or the referent is gone (the entry may be dead). Confirm the grep ran against the
@@ -164,10 +173,16 @@ a judgment call.
    detects this; it takes reading the index and noticing the topic split. Propose a merge
    rather than applying one — merging loses the operator's original wording, and that loss is
    a decision for the operator, not the auditor.
-4. **Index-file drift — mechanical, and the only class safe to fix without judgment.** Every
-   file in the memory directory has exactly one line in the index; every index line points at
-   a file that exists. `diff` the file listing against the index line count to catch both
-   directions — an orphaned file with no index line, and an index line with no backing file.
+4. **Index-file drift — mechanical to detect, but the two directions are not symmetric to
+   fix.** Every file in the memory directory has exactly one line in the index; every index
+   line points at a file that exists. `diff` the file listing against the index to catch both
+   directions. A dangling index line — no backing file — is judgment-free: delete the line.
+   An orphaned file — exists on disk, no index line — is NOT safe to delete on sight: the
+   write-then-append convention (write the file, then append its index line) means a session
+   that dies between those two steps leaves a valid, unindexed entry, and deleting it destroys
+   good content over a bookkeeping race. Route an orphaned file through the same content
+   evaluation as any other entry; the default disposition for a well-formed one is to
+   re-index it, not to delete it.
 5. **Shape violations — mechanical to detect.** Missing YAML frontmatter, a `feedback`-typed
    entry missing its `**Why:**` or `**How to apply:**` lines, a relative date ("yesterday",
    "last week") never converted to absolute, or a file that reads as a multi-topic document

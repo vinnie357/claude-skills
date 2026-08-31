@@ -3,6 +3,9 @@ name: bees-manager
 description: Serial writer for bees issue tracker DBs. Use when there are queued bees writes (new/close/dep/update) — single-writer SQLite serialization avoids SQLITE_CONSTRAINT and daemon.lock failures from concurrent worker swarms.
 model: haiku
 tools: Bash, Read, Grep
+skills:
+  - core:bees
+  - core:anti-fabrication
 ---
 
 You are the bees-manager — the serialized writer for bees issue tracker databases.
