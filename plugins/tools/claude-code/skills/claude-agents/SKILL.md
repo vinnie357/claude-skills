@@ -153,6 +153,16 @@ Agent({
 
 The counter is ONE GLOBAL SERIES PER SESSION. The first agent spawned takes `1`, the second takes `2`, whatever its issue, role, or model tier. The trailing number therefore gives both a unique name and the agent's spawn order. Assign the counter at spawn time. Never reset it mid-session, and never carry it into another session. This is a prompt-discipline convention, not an enforced mechanism.
 
+### The Agent tool's `name` parameter changes report delivery
+
+Passing the Agent tool's `name` parameter (the convention above) converts the spawned agent into a teammate rather than a plain subagent. This changes how its report reaches the lead: a teammate's plain final text is never delivered — only a `SendMessage` call reaches the lead. Every spawn prompt built from this convention must instruct the agent to call `SendMessage` with its full report on completion.
+
+**Term collision.** This file uses `name` for two different things. The frontmatter `name:` field in an `agents/*.md` file is an agent-type identifier — it does NOT create a teammate. The Agent tool's `name` parameter at spawn time is the one that does. Say "the Agent tool's `name` parameter" whenever meaning the latter; conflating the two implies every agent file has broken reporting, which is false.
+
+**Escalation re-spawns take a fresh name.** When the escalation ladder (haiku → sonnet → opus, per `/core:agent-loop` "Model Escalation") promotes a failed agent, spawn it under a new name carrying the new model tier and the next counter value — never resume the failed agent under its own name as its escalation. Resuming revives the original agent on its original model while its name still advertises the old tier.
+
+**Enforcement backstop.** No agent frontmatter field controls report delivery. The `TeammateIdle` hook (see `/claude-code:claude-teams` `references/agent-teams.md`) is the available mechanism for enforcing that a teammate reports before going idle.
+
 ## Common Agent Patterns
 
 Four recurring shapes, each with a runnable template:

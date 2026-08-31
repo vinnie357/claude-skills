@@ -20,6 +20,11 @@ The explicit skill list at the top is mandatory — never use `/core:*` globs in
 /elixir:testing
 /elixir:style
 
+## Reporting back
+This spawn passes a `name` parameter (`142-impl-sonnet-2` below), so you are a teammate: your
+plain final text is never delivered to the leader. On completion, call `SendMessage` with your
+full report addressed to the leader by the name given in this spawn prompt.
+
 ## Working directory
 cd /path/to/your-repo
 
