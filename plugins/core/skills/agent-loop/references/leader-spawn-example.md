@@ -25,7 +25,7 @@ This spawn passes a `name` parameter (`142-impl-sonnet-2` below), so you are a t
 plain final text is never delivered to the leader. On completion, call `SendMessage` with your
 full report, addressed to `<leader-name>` — the leader fills its own name in here when it
 writes the prompt. If the prompt names no leader, address the lead given in your own identity
-context. Never address the report to your own name, and never hardcode a literal.
+context. Never address the report to your own name, and never hardcode a literal leader name.
 
 ## Working directory
 cd /path/to/your-repo

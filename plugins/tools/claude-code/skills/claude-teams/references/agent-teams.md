@@ -49,7 +49,7 @@ Sending a message to a named teammate that has already reported RESUMES it: the 
 
 Bound this carefully:
 - Message a finished teammate ONLY to request its report, with an instruction such as "send the report via SendMessage and take no other action."
-- Never message a finished teammate while a review of its work is in flight — a resumed agent with write tools can push commits mid-review, leaving the reviewer's verdict against a stale HEAD. The bounded report request above is the one exception, because recovering a report that was never sent necessarily happens before a review can be dispatched at all.
+- Never message a finished teammate while a review of its work is in flight — a resumed agent with write tools can push commits mid-review, leaving the reviewer's verdict against a stale HEAD. A review needs no report to run: it reads the diff, so a lead can dispatch one on a teammate that idled without reporting. Recover a missing report before dispatching that review, or after its verdict lands — never while it is in flight.
 - "Reported done" does not mean "finished": reading a resumed agent's files mid-run can show a half-applied state.
 
 ## Task Coordination
