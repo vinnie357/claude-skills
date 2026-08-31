@@ -162,7 +162,10 @@ a judgment call.
    that carries one of these markers AND also reads as dead work under the work-vs-fact
    boundary is a rewrite candidate, not a delete candidate — this check wins the tiebreak,
    because rewriting preserves whatever durable half the entry still carries and deleting
-   does not.
+   does not. **Exception:** if the rewrite would leave no durable content — nothing
+   transferable once the marker and its closure narration are stripped — the entry is a
+   delete, not a rewrite, and takes the dead-work evidence requirement (closure verification)
+   before deletion.
 2. **Stale referent — mechanical.** The entry names a file, function, flag, or command.
    Grep the repo it names for that exact symbol. A miss means either the referent moved (fix
    the name) or the referent is gone (the entry may be dead). Confirm the grep ran against the
@@ -186,5 +189,6 @@ a judgment call.
 5. **Shape violations — mechanical to detect.** Missing YAML frontmatter, a `feedback`-typed
    entry missing its `**Why:**` or `**How to apply:**` lines, a relative date ("yesterday",
    "last week") never converted to absolute, or a file that reads as a multi-topic document
-   rather than one fact. Each is a grep or a line-count check against the frontmatter schema
-   this skill's memory instructions define.
+   rather than one fact — the multi-topic case routes to the propose-only split path (decay
+   check 3), never an autonomous rewrite. Each other case is a grep or a line-count check
+   against the frontmatter schema this skill's memory instructions define.

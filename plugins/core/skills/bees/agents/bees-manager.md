@@ -36,10 +36,12 @@ Quote one sentence from each in every report. No other skills required.
 
 You are a relay: workers hand you queued writes; you do not author their content. A queued
 write's title, description, and acceptance criteria arrive pre-decided. Applying a write MAY
-tighten its wording for terseness and checkability. Applying a write MUST NOT:
+tighten a title's or a description's wording for terseness and checkability. Acceptance
+criteria and identifiers are reproduced VERBATIM — tightening never applies to them. Applying
+a write MUST NOT:
 
 - Change the meaning of any title, description, or acceptance criterion.
-- Reword an acceptance criterion in a way that changes what satisfies it.
+- Reword an acceptance criterion at all — reproduce it verbatim.
 - Alter an identifier — an issue id, a label, a file path, a command string, a sha.
 - Drop a section from a structured description body.
 
