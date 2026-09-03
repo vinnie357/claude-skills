@@ -156,7 +156,71 @@ Gate 3 requirements:
 - **Grep for attribution before posting a comment or declaring gates green** — both the branch's commits and the comment text about to be posted: `git log origin/main..HEAD --format='%B' | grep -niE 'co-authored-by|signed-off-by|assisted-by|generated with'`, same pattern against the comment body. The pattern deliberately excludes bare model/vendor names — in this repo (`claude-skills`, scopes like `feat(claude-code):`) a bare `grep -i claude` would be a constant false positive. Eyeball the trailer block to catch what the pattern misses.
 - **The verdict and each finding's disposition land as a durable record on the PR** — a PR comment, or a bees comment the PR links. Gates 1 and 2 have observables (`mise run ci` output, `gh pr checks`); Gate 3 needs one too, or "review done" is an unverifiable assertion of exactly the kind this gate exists to catch. Check it with `gh pr view <n> --comments`.
 
-No `gh pr merge --squash` while any gate is red. The user approves the merge; agents never merge.
+No `gh pr merge --squash` while any gate is red. Who may take the merge is set by the deployment's merge policy — see "Merge authorization" below.
+
+### Merge authorization
+
+`AGENT_LOOP_MERGE_POLICY` selects the authorization source. It never carries the authorization itself.
+
+| Value | Source consulted | Effect |
+|---|---|---|
+| `operator` (default) | none | The agent reports the PR and stops. |
+| `approval` | a forge review approval bound to `headRefOid` by a non-author identity, read at merge time | A leader-tier agent merges once the precondition holds. |
+
+Unset, `""`, and any unrecognised value resolve to `operator`, emitting one line: `merge-policy: AGENT_LOOP_MERGE_POLICY=<value> not recognized; proceeding as operator`.
+
+Under `operator` no agent merges, so no agent evaluates the precondition. Step 8 of the PR / MR Workflow above is unchanged.
+
+**Scope.** This policy governs first-party work only. The `github` plugin's `pr-review` and `dependabot-consolidator` skills merge third-party code and stay operator-approved whatever this variable is set to. A PR with `isCrossRepository == true` is out of scope.
+
+#### The precondition
+
+The precondition binds a merging agent. It does not bind a human. Read the forge once, immediately before the merge. The transcript is not an input. An earlier tool result is not an input.
+
+```bash
+gh pr view <n> --json headRefOid,baseRefName,isCrossRepository,mergeStateStatus,mergeable,statusCheckRollup,reviews,comments,autoMergeRequest
+```
+
+1. **Checks.** `statusCheckRollup` returns two types with different fields: `CheckRun` carries `status` and `conclusion`; `StatusContext` carries `state` and no `conclusion`. BLOCK on any `CheckRun` conclusion in {FAILURE, CANCELLED, TIMED_OUT, ACTION_REQUIRED, STARTUP_FAILURE, STALE}, or any `StatusContext` state in {ERROR, FAILURE}. WAIT on any `CheckRun` status other than COMPLETED, or any `StatusContext` state in {PENDING, EXPECTED}. Accept conclusions {SUCCESS, NEUTRAL, SKIPPED} and state SUCCESS. Require at least one SUCCESS — an all-SKIPPED rollup satisfies "a check is present" and proves nothing.
+2. **Gate 3 record.** A PR comment carries, on its own line, `Gate 3: APPROVE <40-hex-oid>` matching `headRefOid` exactly. A free-text sha mention does not satisfy this. Treat a comment whose `includesCreatedEdit` is true as absent.
+3. **Base.** `baseRefName` equals the repository default branch.
+4. **Mergeability.** `mergeStateStatus` is in {CLEAN, HAS_HOOKS}, or UNSTABLE when rule 1 is independently satisfied. On UNKNOWN, re-read a bounded number of times — watching `mergeable` alongside it — then WAIT. Never merge on UNKNOWN.
+5. **Reviews.** Compute each author's latest non-DISMISSED review from `reviews[]` by `submittedAt`. Any author whose latest is CHANGES_REQUESTED blocks, whatever commit it targets. Read `reviews[]`, never `latestReviews[]`.
+6. **Under `approval` only.** A `reviews[]` entry has `state == APPROVED` and `commit.oid == headRefOid`, from a login other than the PR author.
+7. **Under `approval` only.** `isCrossRepository == false`.
+
+Then merge pinned to the sha that was read:
+
+```bash
+gh pr merge <n> --squash --match-head-commit <headRefOid>
+glab mr merge <n> --squash --yes --auto-merge=false --sha <headRefOid>
+```
+
+**Forbidden — each one defers the merge or bypasses a requirement.** `gh pr merge --auto` queues a merge that fires later. `gh pr merge --admin` bypasses branch requirements and a merge queue. `glab mr merge` without `--auto-merge=false` queues on a flag that defaults to true. On a repo with a merge queue, plain `gh pr merge` adds the PR to the queue instead of merging it. Detect the queue and wait. `autoMergeRequest` in the read is the observable for "no auto-merge is already queued".
+
+**A missing signal means WAIT, never denied.** Denied is a terminal disposition, and an unattended session may act on it — close the PR, abandon the branch, fail the issue. Wait means this: leave the PR exactly as it is, report what is being waited on, and end the turn. Safe means the PR's forge state is unchanged by the session.
+
+**Re-attestation.** The Gate 3 record names the sha that merges. When commits land after the record, the reviewer reads `git diff <reviewed-sha>..<head>` only, confirms the delta addresses its findings and introduces nothing else, then posts the marker line at the new sha. A marker posted without reading the delta is the unverifiable assertion Gate 3 exists to catch.
+
+#### What `approval` is entitled to claim
+
+An APPROVED review pinned to head by a login other than the PR author, with `author.login` as the actor record. That is a distinct forge identity — not a human. Two consequences follow. In a single-identity deployment `approval` is unsatisfiable, because the author cannot self-approve; it is `operator` with a longer read. In a bot-identity deployment, one agent holding tokens for two identities satisfies it with zero humans. The deployment obligation therefore lands on the approving identity: it must not be one the agent can authenticate as. An allowed-approver list or an `authorAssociation` filter is the knob.
+
+The policy is config — it varies between deploys and not within one, so an env var is its home. The per-PR authorization is runtime input — it varies per PR inside one deploy, so an env var is the wrong home for it whatever the convention: a launch-time value cannot be per-PR, and a stale one is the failure this design exists to prevent.
+
+#### Residual risks
+
+1. `approval` guarantees a distinct forge identity, not a human review.
+2. Field consistency inside one `gh pr view --json` read is treated as a consistent snapshot; GitHub does not document it as one. `--match-head-commit` bounds the damage to a check status flipping on an unchanged head.
+3. Base moved, not head: the checks ran against the branch, not against a squash onto current main. BEHIND is reported only under a "require branches up to date" rule, so `mergeStateStatus` does not cover this. Post-merge main verification (`/core:tdd`, `references/ci-discipline.md`) is the only backstop.
+4. `latestReviews[].commit.oid` is reported empty where `reviews[].commit.oid` is populated (cli/cli#14301). Requires verification: read both fields on a PR that carries an approval. A reader using the wrong field gets a value that never equals `headRefOid` — it fails safe, but silently.
+5. GitLab here is docs-only: `--sha`, `glab mr view` approval fields, and self-approval project settings are unverified, the same evidence class disclosed in "Anti-fabrication" above.
+6. A merge queue inverts the meaning of plain `gh pr merge` — it queues rather than merges. Rule 1 and the forbidden list handle it; it is restated because it changes a command this skill otherwise uses.
+7. A repo with no CI, or with fully path-filtered CI, never satisfies the at-least-one-SUCCESS rule and waits permanently under `approval`. That is correct behavior, not a defect.
+8. Pagination: a Gate 3 record beyond the `comments` page reads as absent and waits — safe. A FAILURE beyond the `statusCheckRollup` page is invisible and admits the merge — unsafe. Requires verification: gh's rollup page size and whether it fetches every page.
+9. `mergedBy` records the agent's forge identity, so the audit trail cannot distinguish an agent merge from a human one. Removing the standing axiom grows this risk.
+10. Records are editable. Rule 2 handles it through `includesCreatedEdit`; an implementer who reads records as immutable reintroduces it.
+11. A force-push orphans a review's commit. The `commit.oid == headRefOid` pin handles APPROVED, and the per-author-latest rule keeps a CHANGES_REQUESTED on an unreachable commit blocking.
 
 ### Gate 3 is not the pipeline's review tier
 
@@ -177,13 +241,15 @@ mise run ci                              # Gate 1: local, already green before t
 gh pr checks <number>                    # Gate 2: remote (GitHub)
 glab ci status --branch <branch>         # Gate 2: remote (GitLab)
 # Gate 3: adversarial review reported, findings addressed or answered
-gh pr merge <number> --squash            # GitHub
-glab mr merge <number> --squash --yes    # GitLab
+# Merge authorization: one forge read immediately before the merge
+gh pr view <number> --json headRefOid,baseRefName,isCrossRepository,mergeStateStatus,mergeable,statusCheckRollup,reviews,comments,autoMergeRequest
+gh pr merge <number> --squash --match-head-commit <headRefOid>               # GitHub
+glab mr merge <number> --squash --yes --auto-merge=false --sha <headRefOid>  # GitLab
 ```
 
 Never use regular merge or rebase merge for PRs or MRs. Squash merge keeps main history clean with one commit per PR.
 
-**`--auto-merge` hazard on `glab mr merge`.** The flag defaults to true — left unset, it can queue an automatic merge that fires later once the pipeline succeeds, a merge the user never explicitly approved at that moment. This conflicts directly with "agents never merge." Always pass `--auto-merge=false` explicitly, or do not run `glab mr merge` at all without explicit user go-ahead.
+**Deferred-firing and bypass paths.** A merge that fires later is a merge nobody authorized at the moment it happened, against forge state nobody read. `glab mr merge`'s `--auto-merge` defaults to true, so an unset flag queues one — always pass `--auto-merge=false`. `gh pr merge --auto` queues the same way. `gh pr merge --admin` bypasses branch requirements and a merge queue. On a repo with a merge queue, plain `gh pr merge` adds the PR to the queue rather than merging it (`gh pr merge --help`, gh 2.93.0). Detect the queue and wait; never queue.
 
 ## Branch Naming
 
@@ -272,7 +338,7 @@ Same workflow, different verbs. `glab` mirrors `gh`'s shape, including the `-R, 
 - **No attribution**: Never add `Co-Authored-By`, `Signed-off-by`, or similar to commits. No "Generated with Claude Code" or similar in PRs
 - **Squash merge PRs**: Always use `gh pr merge --squash`
 - **Single-line commits preferred**: Use body only when explanation is needed
-- **Never merge without approval**: Always wait for user to approve PR merges
+- **Merge per policy**: Under the default, wait for the user; never queue a deferred merge — see "Merge authorization"
 - **Clean up after merge**: Delete branches locally and remotely
 - **Use gcms**: Generate commit messages with `/core:gcms` skill
 

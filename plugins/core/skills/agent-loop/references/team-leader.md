@@ -95,7 +95,7 @@ A failed checkbox blocks the spawn. Fix it before invoking Task.
 2. Open a PR on `feature/<epic-slug>` targeting main
 3. PR description: what the epic delivered (bullet list, no implementation details)
 4. Report: epic ready for user review, include PR link
-5. Wait for user to approve and merge
+5. Merge per the deployment's merge policy — see `/core:git` "Merge authorization"; the default waits for the user
 6. After merge: checkout main, pull, delete feature branch
 7. Report: epic complete, ready for next assignment
 

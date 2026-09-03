@@ -77,7 +77,7 @@ bd ready                         # Find next task
 2. **Claim before working** - `bd update --status in_progress`
 3. **Close with completion** - Document what was done
 4. **Minimal PRs** - Title + bullets only, no templates
-5. **Wait for user** - Never auto-merge or assume approval
+5. **Report, do not merge** - The default merge policy authorizes no agent merge; never assume approval
 6. **Clean up** - Delete local branch after merge
 
 ### AI Agent Task Loop (Automated)

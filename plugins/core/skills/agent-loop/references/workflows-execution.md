@@ -21,7 +21,7 @@ Absent either signal, use the default Task-spawn path. Also skip the substrate â
 A workflow has no mid-run user input; only an agent's own permission prompt pauses a run. Three responsibilities therefore never move into a workflow:
 
 - **Decomposition and Phase 1.5a clarifying questions** (`AskUserQuestion`). The Team Leader decomposes and clarifies in the main loop, then hands the issue list to the workflow. This matches the existing rule: fan-out happens at the Sub-team Leader, not the epic decomposer.
-- **Merge approval** (Phase 4). A workflow drives commit, push, and PR creation up to the squash-merge gate, which stays operator-owned.
+- **The merge decision** (Phase 4). A workflow drives commit, push, and PR creation up to the squash-merge gate. The deployment's merge policy sets who may take that gate â€” see `/core:git` "Merge authorization"; the default leaves it operator-owned.
 - **Escalation to the user** on opus-failure, dependency conflict, or ambiguity. The script surfaces the condition in its return value; the lead escalates.
 
 ## Five-tier pipeline as a script

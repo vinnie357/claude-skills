@@ -43,6 +43,6 @@ Apply the agent-loop 4-phase execution with Forge as the operating model — no 
 3. **Author + review tests** — Test Author (sonnet) writes failing tests; the Test Reviewer (fable, with haiku hands) verifies plan-conformance and non-redundancy before any implementor starts.
 4. **Implement (fan out)** — one Implementor + Test Runner pair per slice, dispatched in dependency waves. `N=1` for a one-slice issue.
 5. **Review** — Reviewer then Final Reviewer (fable, each with haiku hands consuming a startup index, never searching themselves); review findings route to a Remediation pair, then re-review.
-6. **Validate + submit** — `mise run ci` green, gitleaks, push, open the PR. Agents never merge — report the PR URL and wait for operator approval.
+6. **Validate + submit** — `mise run ci` green, gitleaks, push, open the PR. Merge per the deployment's merge policy (`/core:git` "Merge authorization"); under the default, report the PR URL and wait for operator approval.
 
 Principals never run their own `Grep`/`Glob`/large-`Read` sweeps — they spawn focused read-only hands and read only the returned `file:line` index. Vision research (screenshots, rendered pages, Playwright output) uses a multimodal hands model. See the hands pattern in `references/researcher.md`.
