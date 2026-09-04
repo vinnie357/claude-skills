@@ -154,7 +154,7 @@ Gate 3 requirements:
 - **Findings are addressed or answered, not waved through.** Applying a fix, disputing it with evidence, and filing it as a tracked follow-up all count. Silence does not.
 - **Verify the reviewer's claims independently** before acting on them. A review is evidence, not a verdict.
 - **Grep for attribution before posting a comment or declaring gates green** — both the branch's commits and the comment text about to be posted: `git log origin/main..HEAD --format='%B' | grep -niE 'co-authored-by|signed-off-by|assisted-by|generated with'`, same pattern against the comment body. The pattern deliberately excludes bare model/vendor names — in this repo (`claude-skills`, scopes like `feat(claude-code):`) a bare `grep -i claude` would be a constant false positive. Eyeball the trailer block to catch what the pattern misses.
-- **The verdict and each finding's disposition land as a durable record on the PR.** Under `approval`, the record is the PR comment carrying the marker line of "Merge authorization" rule 2. Under `operator`, a bees comment the PR links also counts.
+- **The verdict and each finding's disposition land as a durable record on the PR.** Under `approval`, the record is the PR comment carrying the marker line of "Merge authorization" rule 2. Post it with `gh pr comment`, never inside a review body: rule 2 reads `comments`, which excludes those. Under `operator`, a bees comment the PR links also counts, and it travels in the tracked `issues.jsonl` export.
 - **Confirm the record before declaring Gate 3 green.** Confirm a PR comment with `gh pr view <n> --comments`. Confirm a bees comment with `bees comment list <task-id>` and the link to it in the PR body or comments.
 
 No `gh pr merge --squash` while any gate is red. Who may take the merge is set by the deployment's merge policy — see "Merge authorization" below.
@@ -232,6 +232,8 @@ Gate 3 runs **on the PR** and judges whether the change is defensible against so
 ### Why three gates and not two
 
 Gates 1 and 2 prove the suite passes, not that the change is correct. A green build is evidence the tests ran, not evidence the work is right — and the defects worth catching here are the ones a passing suite cannot see: documentation that describes behaviour the code does not have, a check that reports success without checking, a claim in a PR body that nobody verified.
+
+Each gate therefore owes an observable. Gate 1 has `mise run ci` output and Gate 2 has `gh pr checks`; Gate 3 has the durable record, without which "review done" is an assertion nobody can check.
 
 ## Merge Strategy
 
