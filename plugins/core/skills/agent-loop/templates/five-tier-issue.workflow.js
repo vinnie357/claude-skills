@@ -346,7 +346,7 @@ if (!review) return escalate('P5 reviewer failed across escalation chain', { tes
 
 log(`five-tier-issue: ${args.issueId} → ${review.approved ? 'done' : 'rework'}`)
 
-// Merge approval stays operator-owned (Phase 4) — the workflow stops here.
+// Merge follows AGENT_LOOP_MERGE_POLICY (operator by default; see /core:git "Merge authorization") — the workflow stops here.
 return {
   status: review.approved ? 'done' : 'rework',
   issueId: args.issueId,

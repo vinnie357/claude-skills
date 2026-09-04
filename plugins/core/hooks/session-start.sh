@@ -42,7 +42,7 @@ when the trigger condition arises.
    any commit, push, PR, or merge.
 
 5. NO Co-Authored-By attribution in commits or PRs. Squash merge only.
-   User approves merges; agents never merge.
+   Merge per AGENT_LOOP_MERGE_POLICY; the default authorizes no agent merge.
 
 [END CORE SESSION-START CONTRACT]
 EOF

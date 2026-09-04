@@ -44,7 +44,7 @@ gh pr create --title "type(scope): description" --body "- Change one
 
 Notify user: "PR created: \<url\>"
 
-Then STOP and wait for user. Never auto-merge.
+Then STOP and report the PR URL. Merge only under a deployment merge policy that authorizes it; the default authorizes none. Never queue an automatic or deferred merge.
 
 #### After Merge (When User Returns)
 
@@ -59,7 +59,7 @@ bees ready                       # Find next issue
 1. **One issue = one branch = one PR**
 2. **Claim before working**: `bees update --status in_progress`
 3. **Minimal PRs**: Title + bullets only
-4. **Wait for user**: Never auto-merge or assume approval
+4. **Report, do not merge**: The default merge policy authorizes no agent merge; never assume approval
 5. **Clean up**: Delete local branch after merge
 
 ---

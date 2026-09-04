@@ -88,11 +88,12 @@ cannot be quietly amended; edits leave a visible history.
 | `-y, --yes` | Skip confirmation |
 | `--auto-merge` | Queue automatic merge once checks pass — **defaults to true** |
 
-**Hazard.** `--auto-merge` defaults to true. Left unset, `glab mr merge` can queue
-a merge that fires later when the pipeline succeeds — a merge the user never
-explicitly approved at that moment. Conflicts directly with "agents never merge."
-Always pass `--auto-merge=false`, or do not run `glab mr merge` at all without
-explicit user go-ahead.
+**Hazard — deferred firing.** `--auto-merge` defaults to true. Left unset,
+`glab mr merge` queues a merge that fires later when the pipeline succeeds — a
+merge nobody authorized at the moment it happened, against forge state nobody
+read. Always pass `--auto-merge=false`. Pin the head with `--sha` so a push
+between the read and the merge cannot slip through. `/core:git` "Merge
+authorization" carries the full rule.
 
 ## CI status — `glab ci status [flags]`
 

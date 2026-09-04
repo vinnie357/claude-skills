@@ -102,6 +102,14 @@ The two hands vars follow the same contract as the tier vars: the launching proc
 
 **Contract:** whoever launches the spawning process (shell command, CI job, parent Claude session, external orchestrator) sets these env vars; the spawn script reads `$AGENT_LOOP_*` and passes the resolved model to the Task tool invocation (`subagent_type`/`model` argument) — never as a literal in the prompt body. An empty string (`AGENT_LOOP_LEAD_MODEL=""`) is treated identically to unset, falling through to the default, so orchestrators can emit "" to mean "use default" without special-casing.
 
+One `AGENT_LOOP_*` var selects something other than a model, and the Contract above does not apply to it — the launcher sets it, but no spawn resolves it to a model:
+
+| Selects | Env var | Default |
+|---------|---------|---------|
+| Merge actor | `AGENT_LOOP_MERGE_POLICY` | `operator` |
+
+Its two values are `operator` and `approval`, defined in `/core:git` "Merge authorization"; the default authorizes no agent merge.
+
 The four Forge reviewer vars added above default to a capability fallback: attempt `fable`, and
 retry `opus` if the fable spawn fails due to unavailability. This is explicitly the REVERSE of the
 haiku-to-sonnet-to-opus escalation-on-failure ladder described next — that one promotes on
@@ -223,7 +231,7 @@ Glob patterns like `/core:*` do not expand in Agent prompts. List skill names ex
 - **TDD**: Code without tests is not complete
 - **Merge gates (three)**: Gate 1 — local `mise run ci` green before every commit; Gate 2 — local + remote `gh pr checks` green; Gate 3 — adversarial review of the PR by a separate agent on the strongest available model, findings addressed or answered. All three before any squash merge (see `/core:git` Three-Gate Merge Policy). Gate 3 is distinct from this skill's pipeline reviewers, including Forge's Final Reviewer — it is identified by its defeat-the-change brief, not by when it runs.
 - **Branches**: One feature branch per epic (`feature/<epic-slug>`)
-- **Merge**: Squash merge only, user approves
+- **Merge**: Squash merge only, per the deployment's merge policy — see `/core:git` "Merge authorization". The default authorizes no agent merge.
 - **Agent naming**: Spawn names are `<issue>-<role>-<model>-<n>` (e.g. `318-test-author-sonnet-1`) — see `/claude-code:claude-agents` "Agent Spawning Naming Convention" for the segment definitions and the counter rule
 
 ## Agent Worker Execution Order
@@ -240,7 +248,7 @@ Every agent worker (Tier 3) follows these steps:
 8. **Gate 2** — Watch remote CI (`gh pr checks --watch`) — fix and push until local + remote are green
 9. Close bees issue, notify leader of PR status and URL by calling `SendMessage`. A named agent's plain final text is never delivered to the leader — ending the turn without calling `SendMessage` reports nothing. The PR is NOT merge-ready yet: **Gate 3** — adversarial review by a separate agent — is the leader's to arrange, and merge waits on it
 
-Agents never merge — they report the PR URL to the team leader via `SendMessage`.
+A tier-3 worker never merges, and that follows from the gates rather than from an axiom. Gate 3 does not exist when the worker reports (step 9 above), so the Gate 3 record precondition is unsatisfiable by construction. One feature branch per epic means a worker merge lands sibling workers' partial slices on main. A worker's PR is frequently stacked on the epic branch, which fires no CI and fails the at-least-one-SUCCESS rule. Merge authority sits with the tier that dispatches Gate 3 and holds its record: Team Leader, Sub-team Leader, and a bees-worker or beads-worker acting as one. The worker reports the PR URL to the team leader via `SendMessage`.
 
 ## Agent Prompt Template
 
@@ -363,7 +371,7 @@ Epics WITHOUT a `spec:` field behave exactly as today — all spec-driven steps 
 
 Claude Code dynamic workflows are an optional runtime for the five-tier pipeline. When available and opted-in, the Sub-team Leader encodes one issue's pipeline as a workflow script instead of dispatching five Task spawns — the adversarial separation and stage gates (`test files unmodified before P5`, `mise run ci` green before review) become deterministic script assertions, model escalation becomes a retry ladder, and the validator↔fix iteration becomes a bounded loop. `isolation: 'worktree'` gives each parallel implementer its own tree, replacing the shallow-clone workaround for working-tree contention.
 
-The boundary: decomposition, any Phase 1.5a escalation (the rare fork-or-blocker AskUserQuestion), and merge approval stay in the interactive loop — a workflow has no mid-run user input. The workflow executes already-decomposed issues (gate States A/C/D); it never decomposes them.
+The boundary: decomposition, any Phase 1.5a escalation (the rare fork-or-blocker AskUserQuestion), and the merge decision stay in the interactive loop — a workflow has no mid-run user input. Who may take that decision is set by the deployment's merge policy (`/core:git` "Merge authorization"); the default leaves it with the operator. The workflow executes already-decomposed issues (gate States A/C/D); it never decomposes them.
 
 The Forge shape encodes the same way at larger fan-out: `templates/forge-issue.workflow.js` is the runnable `/forge-issue` workflow — a startup-index hands pass per principal, planner slicing, dep-wave `parallel()` implementor + test-runner fan-out, and the remediation pair.
 
