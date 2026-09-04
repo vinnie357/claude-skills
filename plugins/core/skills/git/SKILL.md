@@ -175,7 +175,7 @@ Under `operator` no agent merges, so no agent evaluates the precondition. Step 8
 
 #### The precondition
 
-The precondition binds a merging agent. It does not bind a human. Read the forge once, immediately before the merge. The transcript is not an input. An earlier tool result is not an input.
+The precondition binds a merging agent. It does not bind a human. Read the forge immediately before the merge, on every call the procedure makes. The transcript is not an input. An earlier tool result is not an input.
 
 ```bash
 gh pr view <n> --json headRefOid,baseRefName,isCrossRepository,mergeStateStatus,mergeable,statusCheckRollup,reviews,comments,autoMergeRequest
@@ -188,6 +188,7 @@ gh pr view <n> --json headRefOid,baseRefName,isCrossRepository,mergeStateStatus,
 5. **Reviews.** Compute each author's latest review from `reviews[]` by `submittedAt`, restricted to entries whose state is APPROVED or CHANGES_REQUESTED. This restriction drops DISMISSED and COMMENTED entries from consideration (a COMMENTED review never clears a CHANGES_REQUESTED block — GitHub keeps the block until dismissal or a new approving review from the same author). Any author whose latest qualifying review is CHANGES_REQUESTED blocks, whatever commit it targets. Read `reviews[]`, never `latestReviews[]`.
 6. **Under `approval` only.** A `reviews[]` entry has `state == APPROVED` and `commit.oid == headRefOid`, from a login other than the PR author and other than the identity performing the merge, which the merging agent learns via `gh api user -q .login`.
 7. **Under `approval` only.** `isCrossRepository == false`.
+8. **Dismissals — allowlist, not denylist.** Read `gh api repos/<owner>/<repo>/issues/<n>/timeline --paginate`. Every `review_dismissed` event's `dismissed_review.state` must be in {`approved`, `commented`}; BLOCK on any other value, including one this list does not name. Rule 5 cannot see a dismissal: a dismissed review reads `state == DISMISSED` in `reviews[]` and the {APPROVED, CHANGES_REQUESTED} restriction drops it, so dismissing a CHANGES_REQUESTED silently restores that author's earlier approval as their latest qualifying review. The two allowed values clear nothing rule 5 was honouring: rule 5 blocks only on CHANGES_REQUESTED, so dismissing an APPROVED or a COMMENTED review removes no block. Blocking on them instead would wait forever on a dismissed stale approval. `gh pr view --json` carries no timeline field (verified against gh 2.93.0's field list), which is why this rule takes a second read.
 
 Then merge pinned to the sha that was read:
 
@@ -196,7 +197,7 @@ gh pr merge <n> --squash --match-head-commit <headRefOid>
 glab mr merge <n> --squash --yes --auto-merge=false --sha <headRefOid>
 ```
 
-**Forbidden — each one defers the merge or bypasses a requirement.** `gh pr merge --auto` queues a merge that fires later. `gh pr merge --admin` bypasses branch requirements and a merge queue. `glab mr merge` without `--auto-merge=false` queues on a flag that defaults to true. On a repo with a merge queue, plain `gh pr merge` adds the PR to the queue instead of merging it. Detect the queue and wait. `autoMergeRequest` in the read is the observable for "no auto-merge is already queued".
+**Forbidden — each one defers the merge, bypasses a requirement, or edits the evidence.** `gh pr merge --auto` queues a merge that fires later. `gh pr merge --admin` bypasses branch requirements and a merge queue. `glab mr merge` without `--auto-merge=false` queues on a flag that defaults to true. On a repo with a merge queue, plain `gh pr merge` adds the PR to the queue instead of merging it. Detect the queue and wait. `autoMergeRequest` in the read is the observable for "no auto-merge is already queued". A merging agent also never dismisses a review and never deletes a Gate 3 record — both are writes it can perform on the evidence the precondition reads. `gh` has no dismissal verb (`gh pr review` offers only `--approve`, `--comment` and `--request-changes`, verified against gh 2.93.0), so a dismissal takes an explicit `gh api --method PUT .../pulls/<n>/reviews/<id>/dismissals -f message=...`, with the message required, and is never accidental.
 
 **A missing signal means WAIT, never denied.** Denied is a terminal disposition, and an unattended session may act on it — close the PR, abandon the branch, fail the issue. Wait means this: leave the PR exactly as it is, report what is being waited on, and end the turn. Safe means the PR's forge state is unchanged by the session.
 
@@ -219,6 +220,7 @@ An APPROVED review pinned to head by a login other than the PR author, with `aut
 9. Records are editable. Rule 2 handles it through `includesCreatedEdit`; an implementer who reads records as immutable reintroduces it.
 10. A force-push orphans a review's commit. The `commit.oid == headRefOid` pin handles APPROVED, and the per-author-latest rule keeps a CHANGES_REQUESTED on an unreachable commit blocking.
 11. A repo-local `mise.toml` `[env]` block can set `AGENT_LOOP_MERGE_POLICY`, so on a deployment that trusts repo config the policy is settable by a PR branch. Set the variable in the launcher environment and do not let repo config override it.
+12. Rule 8 waits permanently once a disallowed dismissal lands, including an operator's legitimate one, because the timeline event never clears; the remedy is an operator merge, not a re-review. It reads a second endpoint, so risk 2's single-snapshot treatment does not cover it. A deleted Gate 3 record is out of its reach: deletion fails rule 2 closed, and GitHub documents no REST event type for it.
 
 ### Gate 3 is not the pipeline's review tier
 
