@@ -154,7 +154,8 @@ Gate 3 requirements:
 - **Findings are addressed or answered, not waved through.** Applying a fix, disputing it with evidence, and filing it as a tracked follow-up all count. Silence does not.
 - **Verify the reviewer's claims independently** before acting on them. A review is evidence, not a verdict.
 - **Grep for attribution before posting a comment or declaring gates green** — both the branch's commits and the comment text about to be posted: `git log origin/main..HEAD --format='%B' | grep -niE 'co-authored-by|signed-off-by|assisted-by|generated with'`, same pattern against the comment body. The pattern deliberately excludes bare model/vendor names — in this repo (`claude-skills`, scopes like `feat(claude-code):`) a bare `grep -i claude` would be a constant false positive. Eyeball the trailer block to catch what the pattern misses.
-- **The verdict and each finding's disposition land as a durable record on the PR** — a PR comment, or a bees comment the PR links. Gates 1 and 2 have observables (`mise run ci` output, `gh pr checks`); Gate 3 needs one too, or "review done" is an unverifiable assertion of exactly the kind this gate exists to catch. Check it with `gh pr view <n> --comments`.
+- **The verdict and each finding's disposition land as a durable record on the PR.** Under `approval`, the record is the PR comment carrying the marker line of "Merge authorization" rule 2. Post it with `gh pr comment`, never inside a review body, which the `comments` field excludes. Under `operator`, a bees comment the PR links also counts, and it travels in the tracked `issues.jsonl` export.
+- **Confirm the record before declaring Gate 3 green.** Confirm a PR comment with `gh pr view <n> --comments`. Confirm a bees comment with `bees comment list <task-id>` and the link to it in the PR body or comments.
 
 No `gh pr merge --squash` while any gate is red. Who may take the merge is set by the deployment's merge policy — see "Merge authorization" below.
 
@@ -175,19 +176,20 @@ Under `operator` no agent merges, so no agent evaluates the precondition. Step 8
 
 #### The precondition
 
-The precondition binds a merging agent. It does not bind a human. Read the forge once, immediately before the merge. The transcript is not an input. An earlier tool result is not an input.
+The precondition binds a merging agent. It does not bind a human. Read the forge immediately before the merge, except where a rule sets its own read timing. The transcript is not an input. An earlier tool result is not an input.
 
 ```bash
 gh pr view <n> --json headRefOid,baseRefName,isCrossRepository,mergeStateStatus,mergeable,statusCheckRollup,reviews,comments,autoMergeRequest
 ```
 
 1. **Checks.** `statusCheckRollup` returns two types with different fields: `CheckRun` carries `status` and `conclusion`; `StatusContext` carries `state` and no `conclusion`. BLOCK on any `CheckRun` conclusion in {FAILURE, CANCELLED, TIMED_OUT, ACTION_REQUIRED, STARTUP_FAILURE, STALE}, or any `StatusContext` state in {ERROR, FAILURE}. WAIT on any `CheckRun` status other than COMPLETED, or any `StatusContext` state in {PENDING, EXPECTED}. Accept conclusions {SUCCESS, NEUTRAL, SKIPPED} and state SUCCESS. Require at least one SUCCESS — an all-SKIPPED rollup satisfies "a check is present" and proves nothing.
-2. **Gate 3 record.** A PR comment carries, on its own line, `Gate 3: APPROVE <40-hex-oid>` matching `headRefOid` exactly. A free-text sha mention does not satisfy this. Treat a comment whose `includesCreatedEdit` is true as absent. The comment's author must not be the identity performing the merge.
+2. **Gate 3 record.** A PR comment carries, on its own line, `Gate 3: APPROVE <40-hex-oid>` matching `headRefOid` exactly. A free-text sha mention does not satisfy this. Treat an APPROVE comment whose `includesCreatedEdit` is true as absent. The comment's author must not be the identity performing the merge. A `Gate 3: REJECT <40-hex-oid>` comment matching `headRefOid` BLOCKS regardless of any APPROVE marker at the same head, and blocks whether or not it was edited. Do not extend the `includesCreatedEdit` rule to a REJECT: discarding an edited APPROVE fails closed, and discarding an edited REJECT fails open, because anyone with write access can edit another user's comment. Any block signal wins.
 3. **Base.** `baseRefName` equals the repository default branch. Read the default branch once per session with `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`; `gh pr view --json` carries no such field (verified against gh 2.93.0's field list).
 4. **Mergeability.** `mergeStateStatus` is in {CLEAN, HAS_HOOKS}, or UNSTABLE when rule 1 is independently satisfied. BLOCK on DIRTY, BLOCKED, and BEHIND. On UNKNOWN, re-read a bounded number of times — watching `mergeable` alongside it — then WAIT. Never merge on UNKNOWN.
 5. **Reviews.** Compute each author's latest review from `reviews[]` by `submittedAt`, restricted to entries whose state is APPROVED or CHANGES_REQUESTED. This restriction drops DISMISSED and COMMENTED entries from consideration (a COMMENTED review never clears a CHANGES_REQUESTED block — GitHub keeps the block until dismissal or a new approving review from the same author). Any author whose latest qualifying review is CHANGES_REQUESTED blocks, whatever commit it targets. Read `reviews[]`, never `latestReviews[]`.
 6. **Under `approval` only.** A `reviews[]` entry has `state == APPROVED` and `commit.oid == headRefOid`, from a login other than the PR author and other than the identity performing the merge, which the merging agent learns via `gh api user -q .login`.
 7. **Under `approval` only.** `isCrossRepository == false`.
+8. **Dismissals — allowlist, not denylist.** Evaluate this rule only when rule 5's `reviews[]` read contains a DISMISSED entry; the common path with no dismissal skips this read entirely. When triggered, run `gh api repos/<owner>/<repo>/issues/<n>/timeline --paginate` after the `gh pr view` read. WAIT on a non-zero exit, or when the output is not a JSON array of events. BLOCK unless every `review_dismissed` event's `dismissed_review.state` is in {`approved`, `commented`}. Rule 5 cannot see a dismissal: a dismissed entry reads `state == DISMISSED`, which its {APPROVED, CHANGES_REQUESTED} restriction drops, so a dismissed CHANGES_REQUESTED silently restores an earlier approval as that author's latest qualifying review.
 
 Then merge pinned to the sha that was read:
 
@@ -196,7 +198,7 @@ gh pr merge <n> --squash --match-head-commit <headRefOid>
 glab mr merge <n> --squash --yes --auto-merge=false --sha <headRefOid>
 ```
 
-**Forbidden — each one defers the merge or bypasses a requirement.** `gh pr merge --auto` queues a merge that fires later. `gh pr merge --admin` bypasses branch requirements and a merge queue. `glab mr merge` without `--auto-merge=false` queues on a flag that defaults to true. On a repo with a merge queue, plain `gh pr merge` adds the PR to the queue instead of merging it. Detect the queue and wait. `autoMergeRequest` in the read is the observable for "no auto-merge is already queued".
+**Forbidden — each one defers the merge, bypasses a requirement, or edits the evidence.** `gh pr merge --auto` queues a merge that fires later. `gh pr merge --admin` bypasses branch requirements and a merge queue. `glab mr merge` without `--auto-merge=false` queues on a flag that defaults to true. On a repo with a merge queue, plain `gh pr merge` adds the PR to the queue instead of merging it. Detect the queue and wait. `autoMergeRequest` in the read is the observable for "no auto-merge is already queued". A merging agent never dismisses a review or deletes a Gate 3 comment — both are writes on the evidence this precondition reads. `gh` has no dismissal verb; dismissal requires `gh api --method PUT .../pulls/<n>/reviews/<id>/dismissals -f message=...`.
 
 **A missing signal means WAIT, never denied.** Denied is a terminal disposition, and an unattended session may act on it — close the PR, abandon the branch, fail the issue. Wait means this: leave the PR exactly as it is, report what is being waited on, and end the turn. Safe means the PR's forge state is unchanged by the session.
 
@@ -216,9 +218,10 @@ An APPROVED review pinned to head by a login other than the PR author, with `aut
 6. A merge queue inverts the meaning of plain `gh pr merge` — it queues rather than merges. The forbidden-command list and the `autoMergeRequest` observable handle it; it is restated because it changes a command this skill otherwise uses.
 7. A repo with no CI, or with fully path-filtered CI, never satisfies the at-least-one-SUCCESS rule and waits permanently under `approval`. That is correct behavior, not a defect.
 8. `mergedBy` records the agent's forge identity, so the audit trail cannot distinguish an agent merge from a human one. Removing the standing axiom grows this risk.
-9. Records are editable. Rule 2 handles it through `includesCreatedEdit`; an implementer who reads records as immutable reintroduces it.
+9. Records are editable and deletable, and rule 2 treats the two markers asymmetrically on purpose. Deleting an APPROVE fails closed, while deleting a REJECT is undetectable — GitHub documents no REST event type for comment deletion. A REJECT at a stale sha does not block, which follows from re-attestation but is asymmetric with rule 5. An implementer who reads records as immutable, or who applies one marker's treatment to the other, reintroduces all of this.
 10. A force-push orphans a review's commit. The `commit.oid == headRefOid` pin handles APPROVED, and the per-author-latest rule keeps a CHANGES_REQUESTED on an unreachable commit blocking.
 11. A repo-local `mise.toml` `[env]` block can set `AGENT_LOOP_MERGE_POLICY`, so on a deployment that trusts repo config the policy is settable by a PR branch. Set the variable in the launcher environment and do not let repo config override it.
+12. Rule 8 blocks permanently once a disallowed dismissal lands, including an operator's legitimate one, because the timeline event never clears; the remedy is an operator merge, not a re-review. Risk 2's single-snapshot treatment does not cover rule 8's timeline read. An agent that dismisses a review after completing every read can still merge, because no rule pins review state at merge time. Rule 8 detects a dismissal; it does not prevent one. The forge-side control that constrains one is branch protection's restriction on who may dismiss reviews, the counterpart to the allowed-approver knob above; it binds a merging identity only when that identity is neither a repository administrator nor on the allowed-dismisser list. Whether GraphQL `deletePullRequestReview` can remove a submitted review requires verification; a removed review would silence rule 8's trigger. A sample of 8 public repositories, over each repository's last 100 PRs, found 21 review dismissals with prior state `approved` and 8 with `changes_requested`, and none at all in 3 of them — evidence that a bot self-dismissing its own CHANGES_REQUESTED occurs, not a measured rate for `approval` deployments generally.
 
 ### Gate 3 is not the pipeline's review tier
 
@@ -230,6 +233,8 @@ Gate 3 runs **on the PR** and judges whether the change is defensible against so
 
 Gates 1 and 2 prove the suite passes, not that the change is correct. A green build is evidence the tests ran, not evidence the work is right — and the defects worth catching here are the ones a passing suite cannot see: documentation that describes behaviour the code does not have, a check that reports success without checking, a claim in a PR body that nobody verified.
 
+Each gate therefore owes an observable. Gate 1 has `mise run ci` output and Gate 2 has `gh pr checks`; Gate 3 has the durable record, without which "review done" is an assertion nobody can check.
+
 ## Merge Strategy
 
 Squash merge only, and only after all three gates are green:
@@ -239,7 +244,7 @@ mise run ci                              # Gate 1: local, already green before t
 gh pr checks <number>                    # Gate 2: remote (GitHub)
 glab ci status --branch <branch>         # Gate 2: remote (GitLab)
 # Gate 3: adversarial review reported, findings addressed or answered
-# Merge authorization: one forge read immediately before the merge
+# Merge authorization: see "Merge authorization" above for the full read set
 gh pr view <number> --json headRefOid,baseRefName,isCrossRepository,mergeStateStatus,mergeable,statusCheckRollup,reviews,comments,autoMergeRequest
 gh pr merge <number> --squash --match-head-commit <headRefOid>               # GitHub
 glab mr merge <number> --squash --yes --auto-merge=false --sha <headRefOid>  # GitLab
