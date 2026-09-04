@@ -426,7 +426,7 @@ if (!final) return escalate('Final Reviewer failed across escalation chain')
 
 log(`forge-issue: ${args.issueId} → ${final.approved ? 'done' : 'rework'}`)
 
-// Merge approval stays operator-owned — the workflow stops at the green PR.
+// Merge follows AGENT_LOOP_MERGE_POLICY (operator by default; see /core:git "Merge authorization") — the workflow stops at the green PR.
 return {
   status: final.approved ? 'done' : 'rework',
   issueId: args.issueId,
