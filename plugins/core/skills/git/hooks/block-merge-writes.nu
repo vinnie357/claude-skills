@@ -99,6 +99,12 @@ def decide-segment [tokens: list<string>]: nothing -> bool {
             $idx = $idx + 2
         } else if ($t | str starts-with "--repo=") or ($t | str starts-with "--hostname=") {
             $idx = $idx + 1
+        } else if ($t | str starts-with "-R") and ($t | str length) > 2 {
+            # Joined short-flag form (`-Ro/r`, no space and no `=`) — gh
+            # accepts this ordinary spelling, so it must reach the
+            # subcommand the same as `-R o/r` does. Consumes only itself:
+            # the value is part of this one token, not a separate word.
+            $idx = $idx + 1
         } else {
             break
         }
@@ -179,9 +185,16 @@ def main [] {
 
     let parsed = (try {
         let payload = ($raw | from json)
+        # tool_input.command is expected to be a string, but a malformed
+        # payload can carry any JSON type there (e.g. a bare number). Guard
+        # the type before use — `default ""` only fires on null, not on a
+        # wrong-typed non-null value, so an unguarded read of a JSON number
+        # here raises `nu::shell::cant_convert` on the first string op.
+        let raw_command = ($payload | get -o tool_input | get -o command)
+        let command = if ($raw_command | describe) == "string" { $raw_command } else { "" }
         {
             tool_name: ($payload | get -o tool_name | default ""),
-            command: ($payload | get -o tool_input | get -o command | default "")
+            command: $command
         }
     } catch {
         {tool_name: "", command: ""}

@@ -10,16 +10,139 @@
 # return shape — both existed in an earlier, superseded revision of
 # claude-skills-340 to defeat evasion and are deliberately absent here.
 #
-# Performance shape: a command containing no quote character and no
-# backslash anywhere skips the regex-based classifier entirely and uses
-# native `split row` (segments on the six separators, tokens on
-# whitespace) — the fast path. A command carrying a quote or backslash
-# falls back to the slower quote-aware classifier below, which is only
-# ever asked to walk the small number of pieces a quoted/escaped
-# argument actually produces. Measured (mise run test:git-hook, this
-# machine): a 64KB single quoted token ~4.5ms; a ~21,000-token unquoted
-# command ~18ms. Both are min-of-three, hook-as-subprocess measurements
-# well inside the 200ms budget.
+# Performance shape: THREE paths, not two.
+#   1. No quote or backslash anywhere: native `split row` on separators
+#      then whitespace (`tokenize-fast`) — no regex classifier at all.
+#   2. A quote/backslash is present but every quote closes: `tokenize-fast`
+#      still does the splitting, but first every well-formed special span
+#      (a line continuation, a closed single- or double-quoted span, a
+#      standalone backslash-escape) is resolved to its literal content in
+#      ONE native `str replace --all --regex` pass over the whole command
+#      (`resolve-wellformed`), with any character that content contains
+#      that would otherwise be re-interpreted by the native split — space,
+#      tab, newline, `;`, `&`, `|` — swapped for a NUL-prefixed placeholder
+#      a real command line cannot itself contain (`protect-specials`).
+#      `tokenize-fast` then runs on the resolved string, and the resulting
+#      tokens are restored to their real characters in a SINGLE vectorised
+#      `str replace --all` pass over the whole flat token list
+#      (`unprotect-list` — `str replace` accepts `list<string>` directly,
+#      so this is one native call, not one nu-level closure per token).
+#      Cost here is proportional to the number of SPECIAL SPANS (quotes,
+#      escapes), not to the number of tokens: a command with 21,000 plain
+#      tokens and ONE quoted token pays for one quote, not 21,000 pieces.
+#   3. A quote never closes: routes to `tokenize-slow`, the original
+#      piece-by-piece `parse --regex` walk, which is the only path that
+#      needs to reconstruct "everything completed before the failure".
+#      This shape is rare (malformed input) and paying its per-piece cost
+#      there is acceptable — it is no longer paid on every quoted command.
+#
+# An earlier revision of this file routed EVERY command containing any
+# quote or backslash through `tokenize-slow`, and claimed that path was
+# "only ever asked to walk the small number of pieces a quoted/escaped
+# argument actually produces". That claim was FALSE: `tokenize-slow` walks
+# a piece for every whitespace run and every plain word in the ENTIRE
+# command, quoted or not, so one quote anywhere sent a 21,000-token command
+# through ~42,000 nu-level closure invocations. Measured (mise run
+# test:git-hook, this machine, min-of-three, hook as subprocess): a
+# ~21,000-token command with no quotes took 95ms; the identical command
+# with a single `'x'` token added took 1030ms on the old single-path
+# implementation — a 10.8x blowup from one quote. Path 2 above exists
+# specifically to remove that blowup: the same fixture now measures ~48ms
+# for the tokenizer itself. All budget rows are measured under the 500ms
+# per-run ceiling, taking the MINIMUM of three runs — a single wall-clock
+# sample on a shared runner measures scheduling delay, not the hook, and
+# the ~21,000-token row is ~3.3x slower on the GitHub 2-vCPU runner than on
+# this machine, so 500ms (not 200ms) is the figure that survives there.
+
+# Regex matching ONLY complete, well-formed specials: a backslash-newline
+# line continuation, a fully-closed single-quoted span, a fully-closed
+# double-quoted span (itself honoring a backslash-newline continuation and
+# any other backslash-escape inside it), or a standalone backslash-escape
+# outside quotes. Deliberately excludes the unterminated-quote case — a
+# stray `'` or `"` left over after every well-formed span is stripped is
+# exactly what `has-unterminated-quote` below tests for, and routes that
+# rare shape to `tokenize-slow` instead.
+const WELLFORMED_SPECIALS = r#'(?<cont>\\\n)|(?<sq>'[^']*')|(?<dq>"(?:\\\n|\\.|[^"\\])*")|(?<esc>\\.)'#
+
+# True when the command contains a quote character that never closes.
+# Stripping every well-formed special span in one native regex pass and
+# checking for a leftover bare quote character is a single call, versus
+# walking the command piece by piece just to answer this yes/no question.
+def has-unterminated-quote [command: string]: nothing -> bool {
+    let stripped = ($command | str replace --all --regex $WELLFORMED_SPECIALS "")
+    ($stripped | str contains "'") or ($stripped | str contains '"')
+}
+
+# Unescapes the inner content of a double-quoted span. Per POSIX, inside
+# double quotes a backslash is special only before `$`, a backtick, `"`,
+# `\`, or a newline: a backslash-newline is a LINE CONTINUATION and both
+# characters are removed (not kept as a literal newline); any other
+# backslash-escape keeps its escaped character; everything else is
+# literal. Shared by `classify-pieces` (the slow path) and
+# `resolve-wellformed` (the fast path) so this rule is defined once.
+def unescape-dq-inner [inner: string]: nothing -> string {
+    $inner
+    | parse --regex '(?<cont>\\\n)|(?<esc>\\.)|(?<plain>[^\\]+)'
+    | each {|q|
+        if $q.cont != null {
+            ""
+        } else if $q.esc != null {
+            $q.esc | str substring 1..
+        } else {
+            $q.plain
+        }
+    }
+    | str join ""
+}
+
+# Swaps the six characters that the later native split treats as special
+# (whitespace and the segment separators) for a NUL-prefixed 2-hex-digit
+# placeholder. A real command line cannot itself carry a NUL byte, so this
+# is a safe, reversible way to carry a resolved special's literal content
+# through `tokenize-fast` without it being re-split on a space that came
+# from INSIDE a quote.
+def protect-specials [s: string]: nothing -> string {
+    $s
+    | str replace --all "\t" "\u{0}09"
+    | str replace --all "\n" "\u{0}0A"
+    | str replace --all ";" "\u{0}3B"
+    | str replace --all "&" "\u{0}26"
+    | str replace --all "|" "\u{0}7C"
+    | str replace --all " " "\u{0}20"
+}
+
+# Reverses protect-specials across a WHOLE flat token list in one native
+# call (`str replace` accepts `list<string>` input directly) rather than
+# one nu-level closure per token — this is what keeps path 2 linear in the
+# number of special spans instead of the number of tokens.
+def unprotect-list [tokens: list<string>]: nothing -> list<string> {
+    $tokens
+    | str replace --all "\u{0}09" "\t"
+    | str replace --all "\u{0}0A" "\n"
+    | str replace --all "\u{0}3B" ";"
+    | str replace --all "\u{0}26" "&"
+    | str replace --all "\u{0}7C" "|"
+    | str replace --all "\u{0}20" " "
+}
+
+# Resolves every well-formed special span in ONE native regex pass over the
+# whole command. Only called after `has-unterminated-quote` has confirmed
+# every quote closes, so no "bad" handling is needed here.
+def resolve-wellformed [command: string]: nothing -> string {
+    $command | str replace --all --regex $WELLFORMED_SPECIALS {|cont?, sq?, dq?, esc?|
+        if $cont != null {
+            ""
+        } else if $sq != null {
+            protect-specials ($sq | str substring 1..<-1)
+        } else if $dq != null {
+            protect-specials (unescape-dq-inner ($dq | str substring 1..<-1))
+        } else if $esc != null {
+            protect-specials ($esc | str substring 1..)
+        } else {
+            ""
+        }
+    }
+}
 
 # Classifies one command string into an ordered list of pieces, each a
 # {kind, value} record. kind is one of: "bad" (a quote character that
@@ -28,9 +151,9 @@
 # "ws" (an unquoted whitespace run — contributes nothing), or "word" (a
 # dequoted content-bearing piece: a plain run, an escaped character, or
 # the stripped/unescaped content of a quoted span). Used only by the slow
-# path; the fast path never calls this.
+# path (a genuinely unterminated quote); the fast paths never call this.
 def classify-pieces [command: string] {
-    let pattern = r#'(?<cont>\\\n)|(?<sq>'[^']*')|(?<dq>"(?:\\.|[^"\\])*")|(?<esc>\\.)|(?<bad>['"])|(?<sep2>&&|\|\|)|(?<sep1>[;|&\n])|(?<ws>[ \t]+)|(?<plain>[^ \t\n;&|\\'"]+)'#
+    let pattern = r#'(?<cont>\\\n)|(?<sq>'[^']*')|(?<dq>"(?:\\\n|\\.|[^"\\])*")|(?<esc>\\.)|(?<bad>['"])|(?<sep2>&&|\|\|)|(?<sep1>[;|&\n])|(?<ws>[ \t]+)|(?<plain>[^ \t\n;&|\\'"]+)'#
 
     ($command | parse --regex $pattern) | each {|p|
         if $p.bad != null {
@@ -43,15 +166,9 @@ def classify-pieces [command: string] {
             {kind: "word", value: ($p.sq | str substring 1..<-1)}
         } else if $p.dq != null {
             # Double quotes suppress the special meaning of a single quote
-            # but a backslash still escapes the next character within them.
-            let inner = ($p.dq | str substring 1..<-1)
-            let unescaped = (
-                $inner
-                | parse --regex '(?<esc>\\.)|(?<plain>[^\\]+)'
-                | each {|q| if $q.esc != null { $q.esc | str substring 1.. } else { $q.plain } }
-                | str join ""
-            )
-            {kind: "word", value: $unescaped}
+            # but a backslash still escapes the next character within them
+            # (see unescape-dq-inner for the line-continuation rule).
+            {kind: "word", value: (unescape-dq-inner ($p.dq | str substring 1..<-1))}
         } else if $p.esc != null {
             # A backslash outside single quotes escapes the next character;
             # the escaped character loses any special meaning, including as
@@ -69,8 +186,8 @@ def classify-pieces [command: string] {
     }
 }
 
-# Slow, quote-aware path: used only when the command contains a `'`, `"`,
-# or `\` somewhere. Handles adjacent-quote concatenation (two word pieces
+# Slow, quote-aware path: used only when the command carries a quote that
+# never closes. Handles adjacent-quote concatenation (two word pieces
 # in a row simply concatenate, since nothing separates them), line
 # continuation, and unterminated-quote recovery.
 def tokenize-slow [command: string]: nothing -> list<list<string>> {
@@ -120,6 +237,26 @@ def tokenize-fast [command: string]: nothing -> list<list<string>> {
     }
 }
 
+# Fast path for a command carrying only well-formed quotes/escapes:
+# resolves every special span once (`resolve-wellformed`), runs the same
+# native split as the no-quote fast path, then restores the protected
+# characters across the whole flat token list in one vectorised call. The
+# per-segment token counts are computed from `tokenize-fast`'s own output
+# so the split itself only runs once.
+def tokenize-resolved [command: string]: nothing -> list<list<string>> {
+    let segments = (tokenize-fast $command)
+    let seg_lens = ($segments | each {|s| $s | length })
+    let flat = ($segments | flatten)
+    let unprotected = (unprotect-list $flat)
+    mut out = []
+    mut offset = 0
+    for n in $seg_lens {
+        $out = ($out | append [($unprotected | skip $offset | first $n)])
+        $offset = $offset + $n
+    }
+    $out
+}
+
 # Splits `command` into SEGMENTS on an unquoted `;`, `&&`, `||`, `|`, `&`,
 # or newline. Each segment is a list of dequoted token strings, in order.
 # Never throws — an unterminated quote returns whatever completed before
@@ -135,9 +272,13 @@ export def tokenize-command [command: string]: nothing -> list<list<string>> {
         or ($command | str contains "\\")
     )
 
-    if $has_quote_or_backslash {
-        tokenize-slow $command
-    } else {
-        tokenize-fast $command
+    if not $has_quote_or_backslash {
+        return (tokenize-fast $command)
     }
+
+    if (has-unterminated-quote $command) {
+        return (tokenize-slow $command)
+    }
+
+    tokenize-resolved (resolve-wellformed $command)
 }
