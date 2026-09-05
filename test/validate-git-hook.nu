@@ -201,6 +201,26 @@ def fixture-many-tokens []: nothing -> string {
     $"($words) gh pr merge --help"
 }
 
+# Gate 3 regression fixture: the same ~21,000 unquoted tokens as
+# fixture-many-tokens, PLUS one quoted token, ending in a command that
+# should PASS — as DATA, never a literal. Gate 3 measured directly on this
+# machine, min-of-three, hook as subprocess: fixture-many-tokens (no
+# quotes at all) took 95ms; the identical command with a single 'x' token
+# added took 1030ms — a 10.8x blowup from ONE quote. The shipped scanner
+# has a fast path and a slow path, and any quote anywhere in the command
+# routes the WHOLE command through the slow one. Neither existing latency
+# row can see this: PASSING #14 is a single 64KB quoted token with no bulk
+# of surrounding tokens to blow up, and PASSING #15 has 21,000 tokens but
+# no quote to trigger the slow path at all. This row exists specifically
+# to catch a LONG command that merely CONTAINS a quoted argument — an
+# entirely ordinary shape (`gh pr merge 286 --squash --body "..."`, any
+# command with a quoted path).
+def fixture-many-tokens-with-quote []: nothing -> string {
+    let word_count = 21000
+    let words = (1..$word_count | each { "ab" } | str join " ")
+    $"($words) 'x' gh pr merge --help"
+}
+
 # Runs the hook 3 times against the same payload, returns the MINIMUM
 # elapsed milliseconds (per claude-skills-340: "taking the MINIMUM of three
 # runs" — a single wall-clock sample on a shared runner measures scheduling
@@ -325,6 +345,19 @@ def main [] {
         }
     }
 
+    # --- Gate 3 regression (F4): an under-block on a natural spelling. The
+    # joined `-R` shorthand (`-Ro/r`, no space and no `=`) is a real gh
+    # invocation an agent can type without trying to evade anything — the
+    # AC's global-flag skip only names `-R`/`--repo`/`--hostname` as
+    # separate tokens or `flag=value`, not this joined short-flag form, so
+    # today's hook walks past "gh" straight into "-Ro/r" as if it were the
+    # subcommand and never finds "pr merge" at all. Careless, not evasive:
+    # in scope by the AC's own distinction. EXPECTED TO FAIL until fixed.
+    let f4_result = (run-hook $hook "gh -Ro/r pr merge 286 --admin")
+    if not (check-hook "Gate 3 regression (F4): joined `-Ro/r` global flag still reaches `pr merge --admin`, must block" $f4_result 2) {
+        $failed = true
+    }
+
     print "--- hook: PASSING rows (expect exit 0) ---"
 
     let passing_cases = [
@@ -350,12 +383,29 @@ def main [] {
         }
     }
 
+    # --- Gate 3 regression (F1): a false positive on an everyday command.
+    # A real backslash-newline continuation INSIDE a double-quoted --body
+    # argument (an ordinary multi-line PR body). Built as an actual
+    # embedded backslash + newline, not the escaped literal `\n` text.
+    # Today's hook treats the backslash-newline inside double quotes as an
+    # unterminated quote, so every token after it — including
+    # --match-head-commit — is dropped, which is what makes it block. Per
+    # the AC's own framing this is the worst defect class: a correctly
+    # pinned merge with a multi-line body is ordinary work, and a gate
+    # that blocks ordinary work gets switched off. EXPECTED TO FAIL until
+    # fixed.
+    let f1_cmd = "gh pr merge 286 --squash --body \"line one \\\nline two\" --match-head-commit abc123"
+    let f1_result = (run-hook $hook $f1_cmd)
+    if not (check-hook "Gate 3 regression (F1): backslash-newline inside a double-quoted --body must not drop --match-head-commit" $f1_result 0) {
+        $failed = true
+    }
+
     # --- Two latency rows (also PASSING rows #14/#15 of the matrix) ---
     # Both built as DATA via fixture-* helpers above, never as literals in
-    # this file. Both asserted under 200ms taking the MINIMUM of three runs,
+    # this file. Both asserted under 500ms taking the MINIMUM of three runs,
     # measured with the hook as a real subprocess (nu startup included, the
     # same cost the harness pays on every Bash call).
-    print "--- hook: latency rows (PASSING #14/#15, min-of-3 < 200ms) ---"
+    print "--- hook: latency rows (PASSING #14/#15, min-of-3 < 500ms) ---"
 
     let large_token_cmd = (fixture-large-quoted-token)
     let large_token_payload = ({tool_name: "Bash", tool_input: {command: $large_token_cmd}} | to json -r)
@@ -374,6 +424,22 @@ def main [] {
         $failed = true
     }
     if not (check $"PASSING #15 latency: min-of-3 ($many_tokens_timing.min_ms)ms < 500ms" ($many_tokens_timing.min_ms < 500.0)) {
+        $failed = true
+    }
+
+    # --- Gate 3 regression row: a long, mostly-unquoted command that
+    # CONTAINS a single quoted token (see fixture-many-tokens-with-quote
+    # above for the measured 10.8x blowup this catches). Combines the
+    # exit-code and timing checks into ONE assertion — a slow-but-correct
+    # implementation and a fast-but-wrong one are both real defects here,
+    # and either should fail this single row. EXPECTED TO FAIL until the
+    # implementer removes the slow path: this is a red test against the
+    # shipped implementation, not a bug in this suite.
+    print "--- hook: Gate 3 regression row (long command with an embedded quote, min-of-3 < 500ms) ---"
+    let quoted_bulk_cmd = (fixture-many-tokens-with-quote)
+    let quoted_bulk_payload = ({tool_name: "Bash", tool_input: {command: $quoted_bulk_cmd}} | to json -r)
+    let quoted_bulk_timing = (min-of-three-ms $hook $quoted_bulk_payload)
+    if not (check $"Gate 3 regression: ~21,000 tokens + one quoted arg, exit ($quoted_bulk_timing.exit_code) \(want 0\), min-of-3 ($quoted_bulk_timing.min_ms)ms < 500ms" ($quoted_bulk_timing.exit_code == 0 and $quoted_bulk_timing.min_ms < 500.0)) {
         $failed = true
     }
 
@@ -410,6 +476,21 @@ def main [] {
         $failed = true
     }
 
+    # --- Gate 3 regression (F2): a traceback where the AC requires a
+    # clean exit. tool_input.command is a JSON NUMBER, not a string — a
+    # malformed payload shape the AC's Robustness section covers ("exits 0
+    # without a stack trace"), distinct from the unparseable-JSON and
+    # empty-stdin cases above (this payload parses as valid JSON; the
+    # defect is in what the hook does with a well-formed-but-wrong-typed
+    # field). Asserts BOTH exit 0 AND that stderr carries no "Error:" line
+    # — an implementation could exit 0 while still leaking a caught
+    # traceback to stderr, which this pins as equally wrong. EXPECTED TO
+    # FAIL until fixed.
+    let f2_result = (run-hook-raw $hook '{"tool_name":"Bash","tool_input":{"command":42}}')
+    if not (check $"Gate 3 regression \(F2\): non-string tool_input.command exits 0 with no traceback \(exit=($f2_result.exit_code)\)" ($f2_result.exit_code == 0 and not ($f2_result.stderr | str contains "Error:"))) {
+        $failed = true
+    }
+
     # ==========================================================================
     # Summary / self-check: confirm the case counts actually match
     # claude-skills-340's stated matrix (15 BLOCKING, 15 PASSING) rather than
@@ -428,6 +509,7 @@ def main [] {
         print $"(ansi red_bold)❌ PASSING row count drifted from the issue's matrix(ansi reset)"
         $failed = true
     }
+    print "Gate 3 regression rows (beyond the AC's 15/15 matrix): 4 — quoted-bulk budget row, F1 (backslash-newline in --body), F2 (non-string command), F4 (joined -Ro/r)"
 
     if $failed {
         exit 1
