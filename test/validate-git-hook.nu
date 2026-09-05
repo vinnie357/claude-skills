@@ -80,19 +80,29 @@ def check-scanner [label: string, cmd: string, predicate: closure] {
         print $"   stderr: ($r.stderr | str trim)"
         false
     } else {
-        let decode = (do { $r.stdout | from json } | complete)
-        if $decode.exit_code != 0 {
+        # `complete` only accepts external-command input on nushell 0.113.1
+        # ("Complete only works with external commands") — `from json` is a
+        # builtin, so piping its result through `| complete` aborts the
+        # WHOLE test script the moment posix-scan.nu exists and returns
+        # parseable JSON, taking every remaining case (scanner AND hook
+        # matrix) down with it. `try`/`catch` is the correct guard here.
+        let decoded = (try { $r.stdout | from json } catch { null })
+        if $decoded == null {
             print $"(ansi red_bold)❌ ($label): scanner output was not valid JSON(ansi reset)"
             print $"   stdout: ($r.stdout | str trim)"
             false
         } else {
-            let data = $decode.stdout
-            if (do $predicate $data) {
+            # A predicate indexing a short/malformed list (`get 1`, `get 2`,
+            # `where ... | get 0`) raises rather than returning false under
+            # a wrong implementation — wrapped so the run reports every
+            # failing case instead of dying at the first structural
+            # mismatch.
+            if (try { do $predicate $decoded } catch { false }) {
                 print $"(ansi green_bold)✅ ($label)(ansi reset)"
                 true
             } else {
                 print $"(ansi red_bold)❌ ($label): predicate failed against decoded scanner output(ansi reset)"
-                print $"   data: ($data | to json)"
+                print $"   data: ($decoded | to json)"
                 false
             }
         }
@@ -255,7 +265,8 @@ gh pr merge 286 --admin'#) {|d|
 
     # --- Comments: `#` starts a comment only at the start of a word ---
     if not (check-scanner "Scan 24: unquoted `#` at the start of a word begins a comment and ends the segment" "gh pr merge --admin 286 #comment" {|d|
-        ($d.segments | length) == 1 and ($d.segments | get 0 | length) == 4
+        # Five tokens precede the comment: gh, pr, merge, --admin, 286.
+        ($d.segments | length) == 1 and ($d.segments | get 0 | length) == 5
     }) { $failed = true }
 
     if not (check-scanner "Scan 25: `#` mid-word is literal (keeps its suffix)" "gh api repos/o/r/pulls/1#frag" {|d|
@@ -341,6 +352,52 @@ gh pr merge 286 --admin'#) {|d|
         {label: "Pass 10: `echo \"unterminated` (unterminated quote on a non-gh/glab command; fail-open-on-unreadable-line)" cmd: (r#'echo "unterminated'#)}
         {label: "Pass 11: empty string" cmd: ""}
     ]
+
+    # ======================================================================
+    # ADDITIONS BEYOND THE AC's MATRIX. The claude-skills-340 acceptance
+    # criteria's "Required test matrix" is frozen and transcribed verbatim
+    # above with no changes. These four rows are NOT from that matrix —
+    # they close discriminator gaps in the matrix itself, authored by the
+    # test author per Gate 3 review:
+    #   - Every existing --auto/--admin BLOCKING row (Block 1, 2) also
+    #     lacks --match-head-commit, so an implementation with NO
+    #     --auto/--admin check at all still blocks on that ground alone and
+    #     passes the whole suite. Rows 1-2 below hold --match-head-commit
+    #     present and correct, isolating --auto and --admin individually.
+    #   - "Skip leading NAME=value words" (decision-rule step 1) has no
+    #     row anywhere in the matrix — an implementation that reads raw
+    #     position 0 (landing on "GH_TOKEN=x" instead of "gh") would fail
+    #     to recognize the command at all and pass every case that doesn't
+    #     use a prefix. Row 3 below is the only test in this suite that
+    #     would catch that.
+    #   - Method case-insensitivity ("whose value is not `get` compared
+    #     case-insensitively") has no row — every existing GET case in the
+    #     matrix uses no -X/--method flag at all. Row 4 below pins that an
+    #     explicit lowercase `get` is still recognized as GET, not treated
+    #     as an unrecognized/non-GET method.
+    # ======================================================================
+
+    let extra_blocking_cases = [
+        {label: "Extra 1 (gap-fill, not AC matrix): `gh pr merge 286 --squash --auto --match-head-commit <sha>` isolates --auto with a correct --match-head-commit present" cmd: (r#'gh pr merge 286 --squash --auto --match-head-commit 8b60eabcf59edad3a49784e1c1684c3d996d0d60'#)}
+        {label: "Extra 2 (gap-fill, not AC matrix): `gh pr merge 286 --squash --admin --match-head-commit <sha>` isolates --admin with a correct --match-head-commit present" cmd: (r#'gh pr merge 286 --squash --admin --match-head-commit 8b60eabcf59edad3a49784e1c1684c3d996d0d60'#)}
+        {label: "Extra 3 (gap-fill, not AC matrix): `GH_TOKEN=x gh pr merge 286 --admin` -- leading NAME=value word must be skipped before reading position 0" cmd: (r#'GH_TOKEN=x gh pr merge 286 --admin'#)}
+    ]
+
+    for c in $extra_blocking_cases {
+        if not (check $c.label (run-hook $hook $c.cmd) 2) {
+            $failed = true
+        }
+    }
+
+    let extra_passing_cases = [
+        {label: "Extra 4 (gap-fill, not AC matrix): `gh api -X get repos/o/r/pulls/1` -- lowercase method value is still recognized as GET (case-insensitive compare)" cmd: (r#'gh api -X get repos/o/r/pulls/1'#)}
+    ]
+
+    for c in $extra_passing_cases {
+        if not (check $c.label (run-hook $hook $c.cmd) 0) {
+            $failed = true
+        }
+    }
 
     for c in $passing_cases {
         if not (check $c.label (run-hook $hook $c.cmd) 0) {
