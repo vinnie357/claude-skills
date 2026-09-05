@@ -232,12 +232,45 @@ def fixture-many-tokens-with-quote []: nothing -> string {
 # 1337ms at 4,000, 4654ms at 8,000 — clearly quadratic, and an everyday
 # 5,000-line heredoc-shaped command with one quoted argument regressed
 # from 1.6s on the old (per-token-quadratic) path to 6.05s on this one.
-# Roughly 8,000 `;`-separated single-token segments plus one quoted
-# argument, ending in a command that should PASS.
+# Roughly 4,000 `;`-separated single-token segments plus one quoted
+# argument, ending in a command that should PASS. Halved from an earlier
+# 8,000 (claude-skills-340 recalibration): a segment-count quadratic still
+# measures ~3.1s on the runner at 4,000 — nearly 4x over budget — while a
+# correct linear implementation lands near 415ms there, so 4,000 catches
+# the same defect at a smaller, cheaper fixture size.
 def fixture-many-segments-with-quote []: nothing -> string {
-    let segment_count = 8000
+    let segment_count = 4000
     let filler = (1..$segment_count | each { "a" } | str join ";")
     $"($filler);'x';gh pr merge --help"
+}
+
+# Gate 3 regression fixture, FOURTH dimension: DOUBLE-QUOTED SPAN COUNT —
+# as DATA, never a literal. Neither of the three existing budget rows
+# scales the number of double-quoted spans (`"a"`-shaped), and Gate 3
+# found the cost there concentrated in the resolve step running one
+# closure — `parse --regex` + `each` + `str join` — per span. Measured by
+# the reviewer, min-of-three, on a quiet machine, a command built from
+# repeated `"a"` spans: 16KB (~4,000 spans) 515ms, 32KB 970ms, 64KB 2.31s
+# — linear-ish (1.9-2.4x per doubling) but past the 800ms budget by
+# roughly 32KB, and about 6s on the runner at 64KB. Built from DOUBLE
+# quotes specifically: Gate 3 also measured the single-quote series and
+# found it non-monotonic (701ms at 64KB, 371ms at 96KB, reproduced twice,
+# not understood) — double-quoted spans give the clean, monotonic scaling
+# this row needs.
+#
+# On THIS machine, ~4,000 spans (16KB) measured 604.738ms — under this
+# file's 800ms budget, unlike the reviewer's quieter environment where the
+# same size was closer to the edge. Bumped to 6,000 spans (~24KB, measured
+# 878.259ms here) so this row is a confirmed, genuine local RED rather
+# than one that only fails on a different machine or the runner — the
+# same environment-variance lesson the segment-count row's 500ms/8,000
+# history already taught this suite. Still the same dimension (span
+# COUNT) the AC's fourth row asks for, just carried one step further to
+# survive local measurement.
+def fixture-many-dq-spans []: nothing -> string {
+    let span_count = 6000
+    let spans = (1..$span_count | each { "\"a\"" } | str join " ")
+    $"($spans) gh pr merge --help"
 }
 
 # Runs the hook 3 times against the same payload, returns the MINIMUM
@@ -421,10 +454,17 @@ def main [] {
 
     # --- Two latency rows (also PASSING rows #14/#15 of the matrix) ---
     # Both built as DATA via fixture-* helpers above, never as literals in
-    # this file. Both asserted under 500ms taking the MINIMUM of three runs,
+    # this file. Both asserted under 800ms taking the MINIMUM of three runs,
     # measured with the hook as a real subprocess (nu startup included, the
-    # same cost the harness pays on every Bash call).
-    print "--- hook: latency rows (PASSING #14/#15, min-of-3 < 500ms) ---"
+    # same cost the harness pays on every Bash call). 800ms per
+    # claude-skills-340's second recalibration: 500ms (itself a bump from
+    # an earlier 200ms) also failed remote CI — the segment-count row
+    # measured 630ms on the runner against a 500ms budget while measuring
+    # 237-268ms locally, a ~2.4x runner factor that is NOT the same factor
+    # every row pays (payload-size ~2.4x, token-count ~3.5x, segment-count
+    # ~2.4x). 800ms sits under the one-second PreToolUse figure
+    # `/claude-code:claude-hooks` documents at its Best Practices section.
+    print "--- hook: latency rows (PASSING #14/#15, min-of-3 < 800ms) ---"
 
     let large_token_cmd = (fixture-large-quoted-token)
     let large_token_payload = ({tool_name: "Bash", tool_input: {command: $large_token_cmd}} | to json -r)
@@ -432,7 +472,7 @@ def main [] {
     if not (check-hook "PASSING #14: 64KB single quoted token (defeats gh-substring early-out) exits 0" {exit_code: $large_token_timing.exit_code stdout: "" stderr: $large_token_timing.stderr} 0) {
         $failed = true
     }
-    if not (check $"PASSING #14 latency: min-of-3 ($large_token_timing.min_ms)ms < 500ms" ($large_token_timing.min_ms < 500.0)) {
+    if not (check $"PASSING #14 latency: min-of-3 ($large_token_timing.min_ms)ms < 800ms" ($large_token_timing.min_ms < 800.0)) {
         $failed = true
     }
 
@@ -442,7 +482,7 @@ def main [] {
     if not (check-hook "PASSING #15: ~21,000-token command ending in `gh pr merge --help` exits 0" {exit_code: $many_tokens_timing.exit_code stdout: "" stderr: $many_tokens_timing.stderr} 0) {
         $failed = true
     }
-    if not (check $"PASSING #15 latency: min-of-3 ($many_tokens_timing.min_ms)ms < 500ms" ($many_tokens_timing.min_ms < 500.0)) {
+    if not (check $"PASSING #15 latency: min-of-3 ($many_tokens_timing.min_ms)ms < 800ms" ($many_tokens_timing.min_ms < 800.0)) {
         $failed = true
     }
 
@@ -451,14 +491,15 @@ def main [] {
     # above for the measured 10.8x blowup this catches). Combines the
     # exit-code and timing checks into ONE assertion — a slow-but-correct
     # implementation and a fast-but-wrong one are both real defects here,
-    # and either should fail this single row. EXPECTED TO FAIL until the
-    # implementer removes the slow path: this is a red test against the
-    # shipped implementation, not a bug in this suite.
-    print "--- hook: Gate 3 regression row (long command with an embedded quote, min-of-3 < 500ms) ---"
+    # and either should fail this single row. The implementation at
+    # 77d8e07 has already removed the slow path this row was written
+    # against, so this row now guards against a REGRESSION of that fix
+    # rather than pinning a known-still-broken defect.
+    print "--- hook: Gate 3 regression row (long command with an embedded quote, min-of-3 < 800ms) ---"
     let quoted_bulk_cmd = (fixture-many-tokens-with-quote)
     let quoted_bulk_payload = ({tool_name: "Bash", tool_input: {command: $quoted_bulk_cmd}} | to json -r)
     let quoted_bulk_timing = (min-of-three-ms $hook $quoted_bulk_payload)
-    if not (check $"Gate 3 regression: ~21,000 tokens + one quoted arg, exit ($quoted_bulk_timing.exit_code) \(want 0\), min-of-3 ($quoted_bulk_timing.min_ms)ms < 500ms" ($quoted_bulk_timing.exit_code == 0 and $quoted_bulk_timing.min_ms < 500.0)) {
+    if not (check $"Gate 3 regression: ~21,000 tokens + one quoted arg, exit ($quoted_bulk_timing.exit_code) \(want 0\), min-of-3 ($quoted_bulk_timing.min_ms)ms < 800ms" ($quoted_bulk_timing.exit_code == 0 and $quoted_bulk_timing.min_ms < 800.0)) {
         $failed = true
     }
 
@@ -470,15 +511,34 @@ def main [] {
     # a quadratic keyed to segment count is invisible to all three of
     # them — this row exists specifically to make that dimension visible.
     # Combines exit-code and timing into ONE assertion, same rationale as
-    # the token-count budget row above. EXPECTED TO FAIL until the
-    # implementer removes the per-segment `append`-in-a-loop: this is a
-    # red test against the shipped implementation, not a bug in this
-    # suite.
-    print "--- hook: Gate 3 regression row (long command with ~8,000 segments, min-of-3 < 500ms) ---"
+    # the token-count budget row above. The implementation at 77d8e07 has
+    # already removed the per-segment `append`-in-a-loop this row was
+    # written against, so this row now guards against a REGRESSION of
+    # that fix rather than pinning a known-still-broken defect.
+    print "--- hook: Gate 3 regression row (long command with ~4,000 segments, min-of-3 < 800ms) ---"
     let many_segments_cmd = (fixture-many-segments-with-quote)
     let many_segments_payload = ({tool_name: "Bash", tool_input: {command: $many_segments_cmd}} | to json -r)
     let many_segments_timing = (min-of-three-ms $hook $many_segments_payload)
-    if not (check $"Gate 3 regression: ~8,000 `;`-separated segments + one quoted arg, exit ($many_segments_timing.exit_code) \(want 0\), min-of-3 ($many_segments_timing.min_ms)ms < 500ms" ($many_segments_timing.exit_code == 0 and $many_segments_timing.min_ms < 500.0)) {
+    if not (check $"Gate 3 regression: ~4,000 `;`-separated segments + one quoted arg, exit ($many_segments_timing.exit_code) \(want 0\), min-of-3 ($many_segments_timing.min_ms)ms < 800ms" ($many_segments_timing.exit_code == 0 and $many_segments_timing.min_ms < 800.0)) {
+        $failed = true
+    }
+
+    # --- Gate 3 regression row, FOURTH dimension: DOUBLE-QUOTED SPAN
+    # count (see fixture-many-dq-spans above for the measured linear-ish
+    # 515ms/970ms/2.31s at 16KB/32KB/64KB and why 6,000 spans, not the
+    # AC's ~4,000, is what this file actually asserts). None of the other
+    # three rows scales the number of double-quoted spans, which is
+    # exactly how this cost stayed invisible to payload-size, token-count,
+    # and segment-count. Combines exit-code and timing into ONE assertion,
+    # same rationale as the other budget rows. EXPECTED TO FAIL: unlike
+    # the token-count and segment-count slow paths, this one has not been
+    # fixed as of this commit — this is a red test against the shipped
+    # implementation, not a bug in this suite.
+    print "--- hook: Gate 3 regression row (long command with ~6,000 double-quoted spans, min-of-3 < 800ms) ---"
+    let many_dq_spans_cmd = (fixture-many-dq-spans)
+    let many_dq_spans_payload = ({tool_name: "Bash", tool_input: {command: $many_dq_spans_cmd}} | to json -r)
+    let many_dq_spans_timing = (min-of-three-ms $hook $many_dq_spans_payload)
+    if not (check $"Gate 3 regression: ~6,000 double-quoted spans, exit ($many_dq_spans_timing.exit_code) \(want 0\), min-of-3 ($many_dq_spans_timing.min_ms)ms < 800ms" ($many_dq_spans_timing.exit_code == 0 and $many_dq_spans_timing.min_ms < 800.0)) {
         $failed = true
     }
 
@@ -548,7 +608,7 @@ def main [] {
         print $"(ansi red_bold)❌ PASSING row count drifted from the issue's matrix(ansi reset)"
         $failed = true
     }
-    print "Gate 3 regression rows (beyond the AC's 15/15 matrix): 5 — quoted-bulk (token-count) budget row, segment-count budget row, F1 (backslash-newline in --body), F2 (non-string command), F4 (joined -Ro/r)"
+    print "Gate 3 regression rows (beyond the AC's 15/15 matrix): 6 — quoted-bulk (token-count) budget row, segment-count budget row, dq-span-count budget row, F1 (backslash-newline in --body), F2 (non-string command), F4 (joined -Ro/r)"
 
     if $failed {
         exit 1
