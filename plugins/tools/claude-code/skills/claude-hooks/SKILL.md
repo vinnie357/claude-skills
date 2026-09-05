@@ -133,7 +133,6 @@ Stdout from `SessionStart` and `UserPromptSubmit` hooks is injected into the mod
 ## Best Practices
 
 - **Keep hooks fast.** Hooks block the harness. Aim for under 1 second for `PreToolUse`/`PostToolUse`. Set explicit `timeout` values.
-- **Test the budget, not just the logic.** Every `PreToolUse` hook test carries a size-scaling row — run the hook against a small input and a large one — checked against the one-second budget above, not only against correctness.
 - **Use `CLAUDE_PLUGIN_ROOT`** (as a brace expansion in real hook commands — see `references/hook-examples.md`). Never hardcode plugin paths.
 - **Validate stdin.** Hook input is JSON; use `jq` and exit cleanly on parse failure.
 - **Scope matchers narrowly.** Match `Write|Edit` over matching all tools.

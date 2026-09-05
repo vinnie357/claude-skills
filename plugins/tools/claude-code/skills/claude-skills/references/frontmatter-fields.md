@@ -41,7 +41,7 @@ Only `description` is recommended (so Claude knows when to invoke the skill).
 | `effort` | Override effort level: `low`, `medium`, `high`, `xhigh`, `max`. Available levels depend on model. Default: inherit. |
 | `context` | `fork` runs the skill in a forked subagent context. Skill body becomes the subagent prompt. |
 | `agent` | Subagent type when `context: fork`. Built-in: `Explore`, `Plan`, `general-purpose`. Or any custom subagent in `.claude/agents/`. |
-| `hooks` | Hooks scoped to this skill's lifecycle. See `claude-hooks` skill. |
+| `hooks` | Registered when the skill is invoked; keep running for the rest of the session, on turns after the skill's own turn as well — not scoped to just that turn. See `claude-hooks` skill. |
 | `paths` | Glob patterns that limit auto-activation. Comma-separated string or YAML list. Skill loads only when working with matching files. |
 | `shell` | `bash` (default) or `powershell` — selects the interpreter for bang-backtick inline command substitution. PowerShell requires `CLAUDE_CODE_USE_POWERSHELL_TOOL=1`. |
 

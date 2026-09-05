@@ -43,7 +43,7 @@ fallback already shipped on `core:comment-reviewer` (`plugins/core/agents/commen
 
 The **Plan Reviewer** has a specific charter — the one genuinely new gate this update adds, since
 the Plan pair was previously the only pair without a reviewer. Using hands to surface only the
-Test Planner's slice list and the issue's acceptance criteria, it checks four things: does the plan
+Test Planner's slice list and the issue's acceptance criteria, it checks five things: does the plan
 name the smallest change that satisfies the acceptance criteria, and does every decision the issue
 marks `settled` cite the measurement it rests on — an uncited settled decision is reopened here,
 never obeyed; does every acceptance criterion map to at least one slice, is any slice unsatisfiable

@@ -156,7 +156,6 @@ Gate 3 requirements:
 - **Grep for attribution before posting a comment or declaring gates green** — both the branch's commits and the comment text about to be posted: `git log origin/main..HEAD --format='%B' | grep -niE 'co-authored-by|signed-off-by|assisted-by|generated with'`, same pattern against the comment body. The pattern deliberately excludes bare model/vendor names — in this repo (`claude-skills`, scopes like `feat(claude-code):`) a bare `grep -i claude` would be a constant false positive. Eyeball the trailer block to catch what the pattern misses.
 - **The verdict and each finding's disposition land as a durable record on the PR.** Under `approval`, the record is the PR comment carrying the marker line of "Merge authorization" rule 2. Post it with `gh pr comment`, never inside a review body, which the `comments` field excludes. Under `operator`, a bees comment the PR links also counts, and it travels in the tracked `issues.jsonl` export.
 - **Confirm the record before declaring Gate 3 green.** Confirm a PR comment with `gh pr view <n> --comments`. Confirm a bees comment with `bees comment list <task-id>` and the link to it in the PR body or comments. Confirm it opens with the fit-and-size answer; a record that begins with findings has skipped focus area 1.
-- **Brief the reviewer with `plugins/core/skills/agent-loop/templates/gate3-brief.md`.**
 
 No `gh pr merge --squash` while any gate is red. Who may take the merge is set by the deployment's merge policy — see "Merge authorization" below.
 
@@ -228,7 +227,7 @@ An APPROVED review pinned to head by a login other than the PR author, with `aut
 
 `/core:agent-loop`'s five-tier pipeline has its own reviewers — P5 verifies tests exercise the acceptance criteria, the test-review stage checks for redundancy. Those judge whether the implementation meets **the issue's spec**.
 
-Gate 3 runs **on the PR** and judges whether the change is defensible against someone trying to break it. Identify it by its brief, not its timing: no pipeline reviewer counts, even one that read the full PR diff — Forge's Final Reviewer does exactly that and is still not Gate 3. Gate 3 is the review carrying the defeat-the-change brief and the three standing focus areas, dispatched after the pipeline reports done.
+Gate 3 runs **on the PR** and judges whether the change is defensible against someone trying to break it. Identify it by its brief, not its timing: no pipeline reviewer counts, even one that read the full PR diff — Forge's Final Reviewer does exactly that and is still not Gate 3. Gate 3 is the review carrying the two-question brief described under "Gate 3 — Adversarial review" above and the three standing focus areas, dispatched after the pipeline reports done.
 
 ### Why three gates and not two
 
