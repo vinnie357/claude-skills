@@ -226,35 +226,62 @@ def tokenize-slow [command: string]: nothing -> list<list<string>> {
 }
 
 # Fast path: no quote or backslash anywhere in the command, so segment and
-# token boundaries are exactly the unquoted-separator and whitespace runs
-# — a plain native `split row` handles both without any per-piece nu-level
-# branching. This is what keeps the ~21,000-token latency fixture inside
-# budget (no regex classifier, no closures over individual tokens).
+# token boundaries are exactly the unquoted-separator and whitespace runs.
+#
+# Splits in ONE flat pass rather than "split into segments, then `each`
+# over segments to split each one on whitespace": the segment-separator
+# pattern is first replaced, in a single native regex substitution, with a
+# whitespace-surrounded sentinel token that cannot occur in real input (a
+# NUL-prefixed marker — see `protect-specials` below for why NUL is safe);
+# the WHOLE command is then split on whitespace ONCE; and the sentinel
+# tokens mark segment boundaries in the resulting flat list, recovered with
+# `split list`. Each of those three steps is a single native call over the
+# whole command, not a closure invoked once per segment — this is what
+# keeps a command with many SEGMENTS as fast as one with many TOKENS.
+# `split list` always leaves a trailing empty group after the final
+# sentinel; `drop 1` removes it unconditionally, which is safe because a
+# sentinel always separates the marked string into (segment count + 1)
+# pieces regardless of how many real segments the command has.
+#
+# An earlier revision of this function DID nest an `each` over segments
+# purely to run a second, per-segment `split row` — no `append`, so not
+# the accumulator-copy defect below, but a real per-segment closure cost
+# all the same: measured ~350ms at 8,000 `;`-separated segments, versus
+# ~26ms for the single-pass version here at the same segment count.
 def tokenize-fast [command: string]: nothing -> list<list<string>> {
-    let raw_segments = ($command | split row -r '(?:&&|\|\||;|\||&|\n)')
-    $raw_segments | each {|seg|
-        $seg | split row -r '[ \t]+' | where ($it | is-not-empty)
-    }
+    let sentinel = "\u{0}SEG"
+    let sep_pattern = '(?:&&|\|\||;|\||&|\n)'
+    let marked = ($command | str replace --all --regex $sep_pattern $" ($sentinel) ")
+    let flat = ($marked | split row -r '[ \t]+' | where ($it | is-not-empty))
+    $flat | split list {|x| $x == $sentinel }
 }
 
 # Fast path for a command carrying only well-formed quotes/escapes:
 # resolves every special span once (`resolve-wellformed`), runs the same
-# native split as the no-quote fast path, then restores the protected
-# characters across the whole flat token list in one vectorised call. The
-# per-segment token counts are computed from `tokenize-fast`'s own output
-# so the split itself only runs once.
+# split as the no-quote fast path, then restores the protected characters
+# per segment via `each` — which builds the whole result list once, not by
+# growing an accumulator.
+#
+# Two earlier revisions were both quadratic, in two different dimensions,
+# from the same underlying mechanism — growing a list inside a loop:
+#   - Rev 1 reshaped a flattened, already-unprotected token list back into
+#     segments with `$out = ($out | append [...])` inside a `for` loop over
+#     segment lengths. `append` copies the accumulator on every call, so
+#     that reshape was quadratic in SEGMENT COUNT — Gate 3 measured 465ms /
+#     1337ms / 4654ms at 2,000 / 4,000 / 8,000 `;`-separated segments (a
+#     single quoted argument elsewhere in the command), and an everyday
+#     5,000-line command with one quoted argument regressed from 1.6s to
+#     6.05s.
+#   - Rev 2 removed the accumulator (`each {|seg| unprotect-list $seg }` —
+#     linear, not quadratic) but still measured too close to the 500ms
+#     budget once `tokenize-fast`'s OWN per-segment nested `each` (see
+#     above, ~350ms at 8,000 segments) was added on top. That cost was in
+#     `tokenize-fast`, not here — fixing `tokenize-fast`'s own per-segment
+#     loop (above) is what actually restored the margin; this function's
+#     per-segment `each` over `unprotect-list` was linear all along and
+#     needed no further change.
 def tokenize-resolved [command: string]: nothing -> list<list<string>> {
-    let segments = (tokenize-fast $command)
-    let seg_lens = ($segments | each {|s| $s | length })
-    let flat = ($segments | flatten)
-    let unprotected = (unprotect-list $flat)
-    mut out = []
-    mut offset = 0
-    for n in $seg_lens {
-        $out = ($out | append [($unprotected | skip $offset | first $n)])
-        $offset = $offset + $n
-    }
-    $out
+    tokenize-fast $command | each {|seg| unprotect-list $seg }
 }
 
 # Splits `command` into SEGMENTS on an unquoted `;`, `&&`, `||`, `|`, `&`,
