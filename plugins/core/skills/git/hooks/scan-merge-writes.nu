@@ -21,7 +21,14 @@
 #      (`resolve-wellformed`), with any character that content contains
 #      that would otherwise be re-interpreted by the native split — space,
 #      tab, newline, `;`, `&`, `|` — swapped for a NUL-prefixed placeholder
-#      a real command line cannot itself contain (`protect-specials`).
+#      (`protect-specials`). A NUL byte cannot appear on a real bash
+#      command line (argv is NUL-terminated), but the JSON payload this
+#      hook actually reads is not bash argv — a JSON string can carry a
+#      literal NUL via the six-character escape `\u0000`. If a payload
+#      token happens to equal one of these placeholders, the placeholder
+#      is treated as a real boundary and the command is split there —
+#      failing closed (a stricter, more conservative tokenization) rather
+#      than unsafe.
 #      `tokenize-fast` then runs on the resolved string, and the resulting
 #      tokens are restored to their real characters in a SINGLE vectorised
 #      `str replace --all` pass over the whole flat token list
@@ -80,27 +87,48 @@ def has-unterminated-quote [command: string]: nothing -> bool {
 # backslash-escape keeps its escaped character; everything else is
 # literal. Shared by `classify-pieces` (the slow path) and
 # `resolve-wellformed` (the fast path) so this rule is defined once.
+#
+# Two-part fast path, added for claude-skills-340's fourth (double-quoted
+# span COUNT) budget row: the previous body ran `parse --regex` (builds a
+# row per piece) then `each` (one nu-level closure per row) then `str join`
+# — three separate nu-level stages PER SPAN, paid even for a span with no
+# backslash at all (the common case: `"a"`, `"foo"`). Measured at ~6,000
+# such spans: 883ms, over the 800ms budget.
+#   1. A span with no backslash needs no unescaping at all — `str contains`
+#      is one native call versus the whole parse/each/join pipeline, so
+#      check it first and return the content unchanged.
+#   2. A span that DOES carry a backslash still resolves in one native
+#      `str replace --all --regex` call with a per-match closure (same
+#      alternation, same cont-before-esc priority, so the same leftmost,
+#      non-overlapping, sequential-consumption semantics as the original
+#      parse — this is NOT two independent global passes: a separate
+#      standalone `\\\n`-then-`\\.` pass would let the first pass match a
+#      `\n` that a preceding escaped backslash (`\\\\` then a real
+#      newline) already consumed, silently dropping the newline. One
+#      combined pattern with one left-to-right scan avoids that.
 def unescape-dq-inner [inner: string]: nothing -> string {
-    $inner
-    | parse --regex '(?<cont>\\\n)|(?<esc>\\.)|(?<plain>[^\\]+)'
-    | each {|q|
-        if $q.cont != null {
+    if not ($inner | str contains "\\") {
+        return $inner
+    }
+    $inner | str replace --all --regex '(?<cont>\\\n)|(?<esc>\\.)' {|cont?, esc?|
+        if $cont != null {
             ""
-        } else if $q.esc != null {
-            $q.esc | str substring 1..
         } else {
-            $q.plain
+            $esc | str substring 1..
         }
     }
-    | str join ""
 }
 
 # Swaps the six characters that the later native split treats as special
 # (whitespace and the segment separators) for a NUL-prefixed 2-hex-digit
-# placeholder. A real command line cannot itself carry a NUL byte, so this
-# is a safe, reversible way to carry a resolved special's literal content
-# through `tokenize-fast` without it being re-split on a space that came
-# from INSIDE a quote.
+# placeholder. A NUL byte cannot appear on a real bash command line (argv
+# is NUL-terminated), but this hook reads a JSON payload, not bash argv,
+# and a JSON string can carry a literal NUL via the six-character escape
+# `\u0000`. That is not unsafe: if a payload token happens to collide with
+# one of these placeholders, `unprotect-list` still restores every OTHER
+# occurrence correctly, and the colliding token is simply read back as
+# whatever real character that placeholder stands for — a deterministic,
+# fail-closed outcome, not a crash or a silent bypass.
 def protect-specials [s: string]: nothing -> string {
     $s
     | str replace --all "\t" "\u{0}09"
@@ -225,23 +253,30 @@ def tokenize-slow [command: string]: nothing -> list<list<string>> {
     }
 }
 
+# Splits `command` into a flat, sentinel-delimited token list: the
+# segment-separator pattern is first replaced, in a single native regex
+# substitution, with a whitespace-surrounded sentinel token that cannot
+# occur in real input (a NUL-prefixed marker — see `protect-specials`
+# below for why NUL is a safe choice of prefix); the WHOLE command is then
+# split on whitespace ONCE. Each of those two steps is a single native
+# call over the whole command, not a closure invoked once per segment —
+# this is what keeps a command with many SEGMENTS as fast as one with many
+# TOKENS. Shared by `tokenize-fast` (splits the flat list into segments
+# immediately) and `tokenize-resolved` (which must unprotect the flat list
+# before splitting it into segments — see there for why the order
+# matters), so this pass is paid once, not once per caller.
+def flat-tokens-with-sentinel [command: string]: nothing -> record<flat: list<string>, sentinel: string> {
+    let sentinel = "\u{0}SEG"
+    let sep_pattern = '(?:&&|\|\||;|\||&|\n)'
+    let marked = ($command | str replace --all --regex $sep_pattern $" ($sentinel) ")
+    let flat = ($marked | split row -r '[ \t]+' | where ($it | is-not-empty))
+    {flat: $flat, sentinel: $sentinel}
+}
+
 # Fast path: no quote or backslash anywhere in the command, so segment and
 # token boundaries are exactly the unquoted-separator and whitespace runs.
-#
-# Splits in ONE flat pass rather than "split into segments, then `each`
-# over segments to split each one on whitespace": the segment-separator
-# pattern is first replaced, in a single native regex substitution, with a
-# whitespace-surrounded sentinel token that cannot occur in real input (a
-# NUL-prefixed marker — see `protect-specials` below for why NUL is safe);
-# the WHOLE command is then split on whitespace ONCE; and the sentinel
-# tokens mark segment boundaries in the resulting flat list, recovered with
-# `split list`. Each of those three steps is a single native call over the
-# whole command, not a closure invoked once per segment — this is what
-# keeps a command with many SEGMENTS as fast as one with many TOKENS.
-# `split list` always leaves a trailing empty group after the final
-# sentinel; `drop 1` removes it unconditionally, which is safe because a
-# sentinel always separates the marked string into (segment count + 1)
-# pieces regardless of how many real segments the command has.
+# `split list` recovers segment boundaries from the sentinel-marked flat
+# list built by `flat-tokens-with-sentinel`.
 #
 # An earlier revision of this function DID nest an `each` over segments
 # purely to run a second, per-segment `split row` — no `append`, so not
@@ -249,18 +284,22 @@ def tokenize-slow [command: string]: nothing -> list<list<string>> {
 # all the same: measured ~350ms at 8,000 `;`-separated segments, versus
 # ~26ms for the single-pass version here at the same segment count.
 def tokenize-fast [command: string]: nothing -> list<list<string>> {
-    let sentinel = "\u{0}SEG"
-    let sep_pattern = '(?:&&|\|\||;|\||&|\n)'
-    let marked = ($command | str replace --all --regex $sep_pattern $" ($sentinel) ")
-    let flat = ($marked | split row -r '[ \t]+' | where ($it | is-not-empty))
-    $flat | split list {|x| $x == $sentinel }
+    let r = (flat-tokens-with-sentinel $command)
+    $r.flat | split list {|x| $x == $r.sentinel }
 }
 
 # Fast path for a command carrying only well-formed quotes/escapes:
-# resolves every special span once (`resolve-wellformed`), runs the same
-# split as the no-quote fast path, then restores the protected characters
-# per segment via `each` — which builds the whole result list once, not by
-# growing an accumulator.
+# resolves every special span once (`resolve-wellformed`), then unprotects
+# the WHOLE flat token list in ONE native call before splitting it into
+# segments — not `each {|seg| unprotect-list $seg }` over already-split
+# segments, which pays one `unprotect-list` invocation per segment instead
+# of one for the whole command. Re-measured at claude-skills-340's
+# recalibrated ~4,000-segment fixture (halved from an earlier 8,000, this
+# machine, min-of-three, hook as subprocess): the per-segment form (Rev 2)
+# measured ~145ms (144-148ms across repeated runs); unprotecting once and
+# splitting after (this revision) measured ~102.5ms (102.4-102.8ms across
+# repeated runs) — still faster at this smaller fixture, so the
+# single-call form is kept.
 #
 # Two earlier revisions were both quadratic, in two different dimensions,
 # from the same underlying mechanism — growing a list inside a loop:
@@ -277,11 +316,12 @@ def tokenize-fast [command: string]: nothing -> list<list<string>> {
 #     budget once `tokenize-fast`'s OWN per-segment nested `each` (see
 #     above, ~350ms at 8,000 segments) was added on top. That cost was in
 #     `tokenize-fast`, not here — fixing `tokenize-fast`'s own per-segment
-#     loop (above) is what actually restored the margin; this function's
-#     per-segment `each` over `unprotect-list` was linear all along and
-#     needed no further change.
+#     loop (above) is what actually restored the margin.
+#   - This revision (Rev 3) replaces Rev 2's per-segment `unprotect-list`
+#     with the single-call form above, per the re-measurement noted there.
 def tokenize-resolved [command: string]: nothing -> list<list<string>> {
-    tokenize-fast $command | each {|seg| unprotect-list $seg }
+    let r = (flat-tokens-with-sentinel $command)
+    (unprotect-list $r.flat) | split list {|x| $x == $r.sentinel }
 }
 
 # Splits `command` into SEGMENTS on an unquoted `;`, `&&`, `||`, `|`, `&`,
