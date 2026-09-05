@@ -55,11 +55,13 @@
 # with a single `'x'` token added took 1030ms on the old single-path
 # implementation — a 10.8x blowup from one quote. Path 2 above exists
 # specifically to remove that blowup: the same fixture now measures ~48ms
-# for the tokenizer itself. All budget rows are measured under the 500ms
+# for the tokenizer itself. All budget rows are measured under the 800ms
 # per-run ceiling, taking the MINIMUM of three runs — a single wall-clock
 # sample on a shared runner measures scheduling delay, not the hook, and
 # the ~21,000-token row is ~3.3x slower on the GitHub 2-vCPU runner than on
-# this machine, so 500ms (not 200ms) is the figure that survives there.
+# this machine, so the 800ms budget is calibrated from runner measurements,
+# not laptop ones — 200ms and then 500ms were both set locally and both
+# failed there.
 #
 # Three known limits, recorded here so a future reader finds them already
 # answered instead of rediscovering them:
