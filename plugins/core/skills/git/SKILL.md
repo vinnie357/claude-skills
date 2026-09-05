@@ -1,6 +1,13 @@
 ---
 name: git
 description: Guide for Git operations including commits, branches, rebasing, and conflict resolution. Use when working with version control, creating commits, managing branches, or resolving merge conflicts.
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "${CLAUDE_PLUGIN_ROOT}/skills/git/hooks/block-forbidden-merge-writes.nu"
+          timeout: 120
 ---
 
 # Git Operations
@@ -110,7 +117,7 @@ Note `glab`'s flag is `--description`, not `--body` — the flag name differs fr
 
 1. **Gate 1 — Local CI**: `mise run ci` — fix until 0 failures
 2. **Commit**: Conventional commit, no attribution
-3. **Gitleaks**: Scan committed changes for secrets — `$(mise which gitleaks) git . --staged`, never a bare `gitleaks` (`/core:security`). The `check-secrets-before-commit.sh` PreToolUse hook backstops this on `git commit`, but only while `/core:security` is loaded (hooks are scoped to their own skill's lifecycle) and it fails open — allows the commit — when no scanner is available. Run the scan yourself; don't treat the hook as a substitute for it.
+3. **Gitleaks**: Scan committed changes for secrets — `$(mise which gitleaks) git . --staged`, never a bare `gitleaks` (`/core:security`). The `check-secrets-before-commit.sh` PreToolUse hook backstops this on `git commit`. It stays armed once `/core:security` has been invoked anywhere in the session — Claude Code's hooks documentation states a skill hook keeps running "for the rest of the session, on turns after the skill's own turn as well" — and it is absent only in a session that never invokes `/core:security` at all. It also fails open — allows the commit — when no scanner is available. Run the scan yourself; don't treat the hook as a substitute for it.
 4. **Push**: `git push -u origin <branch>`
 5. **Create PR**: `gh pr create` (GitHub) or `glab mr create` (GitLab) with minimal format (title + bullets)
 6. **Gate 2 — Watch remote CI**: `gh pr checks --watch` (GitHub) or `glab ci status --live` (GitLab) (wait for CI to complete)
@@ -128,7 +135,7 @@ Note `glab`'s flag is `--description`, not `--body` — the flag name differs fr
 
 Three gates protect main. None is optional, and none substitutes for another.
 
-**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push — resolved binary path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged`. The PreToolUse hook backstops this on `git commit`, but only while `/core:security` is loaded, and fails open when no scanner is available — it is not a substitute for the scan (`/core:security`).
+**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push — resolved binary path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged`. The PreToolUse hook backstops this on `git commit` for the rest of the session once `/core:security` has been invoked (see "Merge-write hook" below for the same registration behavior), and fails open when no scanner is available — it is not a substitute for the scan (`/core:security`).
 
 **Gate 2 — Remote (before every squash merge).** Squash-merge a PR only when **both** conditions hold:
 
@@ -222,6 +229,22 @@ An APPROVED review pinned to head by a login other than the PR author, with `aut
 10. A force-push orphans a review's commit. The `commit.oid == headRefOid` pin handles APPROVED, and the per-author-latest rule keeps a CHANGES_REQUESTED on an unreachable commit blocking.
 11. A repo-local `mise.toml` `[env]` block can set `AGENT_LOOP_MERGE_POLICY`, so on a deployment that trusts repo config the policy is settable by a PR branch. Set the variable in the launcher environment and do not let repo config override it.
 12. Rule 8 blocks permanently once a disallowed dismissal lands, including an operator's legitimate one, because the timeline event never clears; the remedy is an operator merge, not a re-review. Risk 2's single-snapshot treatment does not cover rule 8's timeline read. An agent that dismisses a review after completing every read can still merge, because no rule pins review state at merge time. Rule 8 detects a dismissal; it does not prevent one. The forge-side control that constrains one is branch protection's restriction on who may dismiss reviews, the counterpart to the allowed-approver knob above; it binds a merging identity only when that identity is neither a repository administrator nor on the allowed-dismisser list. Whether GraphQL `deletePullRequestReview` can remove a submitted review requires verification; a removed review would silence rule 8's trigger. A sample of 8 public repositories, over each repository's last 100 PRs, found 21 review dismissals with prior state `approved` and 8 with `changes_requested`, and none at all in 3 of them — evidence that a bot self-dismissing its own CHANGES_REQUESTED occurs, not a measured rate for `approval` deployments generally.
+
+### Merge-write hook (backstop, not a substitute)
+
+`plugins/core/skills/git/hooks/block-forbidden-merge-writes.nu`, wired as a `PreToolUse` hook in this skill's frontmatter, catches a slice of the forbidden merge-path writes above (`gh pr merge --auto`/`--admin`, `glab mr merge` without `--auto-merge=false`, review-dismissal and Gate-3-comment-deletion via `gh api`) at the Bash-tool boundary and exits 2 to block. Like `check-secrets-before-commit.sh` (`/core:security`), **it is a backstop, not a substitute for the rule** — the precondition above is still the authority; the hook only narrows the window where a mistake reaches the forge unblocked.
+
+The hook tokenizes the raw command with a hand-written POSIX-ish scanner (`posix-scan.nu`) and matches on position-0 `gh`/`glab`, never on a forbidden-command denylist — three earlier enumeration attempts each shipped a bypass. It fails open on a line it cannot fully parse (runs its rules on the tokens completed before the failure) and fails closed only on two named unreadable-payload shapes: a non-GET `gh api` call whose path is shell-expansion-bearing, and a `graphql` call whose payload is expansion-bearing or supplied indirectly (`--input`, `-F key=@file`).
+
+**Named approximations** — each stands in for something the hook cannot decide statically: a `gh pr merge` lacking `--match-head-commit` approximates the undecidable merge-queue case; `gh api --method DELETE` against `/issues/comments/` approximates Gate 3 record deletion, which names a comment id rather than its content.
+
+**Named over-blocks:** every `gh api graphql` call is treated as a write (gh sends it as POST unconditionally), so a read-only query loaded from a file or variable blocks; any shell-expansion-bearing token in a merge command blocks, so `--match-head-commit $(git rev-parse HEAD)` blocks — type the oid the `gh pr view` read returned instead; `$'...'`, `$"..."`, and a trailing bare `$` all count as expansion-bearing; a GraphQL field literally named `mutationCount` matches the substring rule; rule 3 blocks every non-GET against `/pulls/`, including ordinary review-comment replies; `merge` anywhere after position 1 blocks `gh pr list --search merge` and `gh pr comment 286 --body merge`.
+
+**Named under-blocks:** brace expansion (`gh pr merge 286 --{admin,squash}`) carries no `$` and is not detected; a wrapper at position 0 (`sudo gh`, `command gh`, an absolute path, `$(mise which gh) pr merge`, `bash -c '...'`, `xargs gh`) is not detected — enumerating wrappers would reopen the denylist problem the hook deliberately avoids; flags supplied entirely through a variable on a `gh api` segment with no literal method or field token classify as GET and pass; `glab api` writes carry no rule at all, only `glab mr merge` does.
+
+**Lifetime.** Like the gitleaks hook above, this hook is armed for the rest of the session once `/core:git` has been invoked once — not only during the turn that invoked it — and is absent only in a session that never invokes `/core:git` at all.
+
+Coordination: `claude-skills-331` (blocked by `claude-skills-281`) adopts this same shape — nushell scanner, skill-frontmatter wiring, exit-2-to-block, fail-open-on-unreadable-line — once it unblocks; see the hook script's header comment.
 
 ### Gate 3 is not the pipeline's review tier
 
