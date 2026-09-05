@@ -43,7 +43,7 @@ YAML between `---` markers at the top of the file. All fields are optional; `des
 | `context` | `fork` | inline | Runs the command in a forked subagent; the body becomes the subagent's prompt |
 | `agent` | agent type | `general-purpose` | Which subagent type executes when `context: fork` is set |
 | `background` | boolean | `true` | With `context: fork`, `false` waits for the result in the invoking turn |
-| `hooks` | hook config | — | Hooks scoped to the command's lifecycle |
+| `hooks` | hook config | — | Registered on invocation; keeps running for the rest of the session, not scoped to just that turn |
 | `paths` | glob patterns (string or list) | — | Auto-load only when working with matching files |
 | `shell` | `bash` \| `powershell` | `bash` | Shell used for dynamic context injection in this file |
 
