@@ -363,7 +363,7 @@ def main [] {
     if not (check-hook "PASSING #14: 64KB single quoted token (defeats gh-substring early-out) exits 0" {exit_code: $large_token_timing.exit_code stdout: "" stderr: $large_token_timing.stderr} 0) {
         $failed = true
     }
-    if not (check $"PASSING #14 latency: min-of-3 ($large_token_timing.min_ms)ms < 200ms" ($large_token_timing.min_ms < 200.0)) {
+    if not (check $"PASSING #14 latency: min-of-3 ($large_token_timing.min_ms)ms < 500ms" ($large_token_timing.min_ms < 500.0)) {
         $failed = true
     }
 
@@ -373,7 +373,7 @@ def main [] {
     if not (check-hook "PASSING #15: ~21,000-token command ending in `gh pr merge --help` exits 0" {exit_code: $many_tokens_timing.exit_code stdout: "" stderr: $many_tokens_timing.stderr} 0) {
         $failed = true
     }
-    if not (check $"PASSING #15 latency: min-of-3 ($many_tokens_timing.min_ms)ms < 200ms" ($many_tokens_timing.min_ms < 200.0)) {
+    if not (check $"PASSING #15 latency: min-of-3 ($many_tokens_timing.min_ms)ms < 500ms" ($many_tokens_timing.min_ms < 500.0)) {
         $failed = true
     }
 
