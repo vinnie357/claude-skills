@@ -60,6 +60,27 @@
 # sample on a shared runner measures scheduling delay, not the hook, and
 # the ~21,000-token row is ~3.3x slower on the GitHub 2-vCPU runner than on
 # this machine, so 500ms (not 200ms) is the figure that survives there.
+#
+# Three known limits, recorded here so a future reader finds them already
+# answered instead of rediscovering them:
+#   - Large-input substrate quirk: on this file's closure-based `str
+#     replace --all --regex` over inputs with thousands of matches, span
+#     timings jump at the 32KB->48KB step (single-quoted 157->535ms,
+#     double-quoted 180->729ms), and the single-quoted series later dips
+#     to 374ms at 96KB before 1,340ms at 128KB. Reproduced, not
+#     understood, and absent from unquoted shapes at the same byte sizes
+#     — a nushell substrate characteristic, not a defect in this scanner.
+#   - `tokenize-slow` (path 3 above) is the slowest path by design —
+#     215/391/715ms across the sizes Gate 3 probed — because it is the
+#     only piece-by-piece walk left. That is fine: it is linear, reached
+#     only on a genuinely malformed command, and fails open, so it is not
+#     a path worth optimising.
+#   - Two POSIX deviations are known and deliberate, and neither can
+#     change a block/pass decision — both alter token CONTENT, never a
+#     boundary or a flag: an empty quoted word (`''`) is dropped rather
+#     than yielding an empty token, and `"a\qb"` dequotes to `aqb` where
+#     POSIX keeps the backslash before an ordinary character inside
+#     double quotes.
 
 # Regex matching ONLY complete, well-formed specials: a backslash-newline
 # line continuation, a fully-closed single-quoted span, a fully-closed
