@@ -95,11 +95,11 @@ The header in the heredoc lands as turn-1 context. Keep it tight — every sessi
 Exit code from a `PreToolUse` command hook controls whether the tool runs:
 
 - Exit 0: continue
-- Exit non-zero: block the tool, show stderr to the user
+- Exit 2: block the tool, show stderr to the user. Exit 1, a missing script, a non-executable script, and a timeout are all non-blocking — exit 2 is the only code that blocks.
 
 Example — block force-push to main: see `references/hook-examples.md` ("PreToolUse — block force-push to main").
 
-`guard-push.sh` reads the tool input from stdin (JSON), parses with `jq`, and exits non-zero on a forbidden pattern.
+`guard-push.sh` reads the tool input from stdin (JSON), parses with `jq`, and exits 2 on a forbidden pattern.
 
 ## PostToolUse — Auto-Format, Lint, Sync
 
