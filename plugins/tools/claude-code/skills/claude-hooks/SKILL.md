@@ -15,9 +15,11 @@ Hooks are shell commands or prompts that Claude Code executes in response to eve
 | User | `~/.claude/settings.json` under `hooks` | Personal automation across all projects |
 | Project | `<project>/.claude/settings.json` under `hooks` | Repo-shared automation |
 | Plugin | `<plugin-root>/hooks/hooks.json` | Distribute hooks via plugin install |
-| Skill/Subagent | Skill or subagent frontmatter `hooks:` field | Lifecycle-scoped hooks |
+| Skill/Subagent | Skill or subagent frontmatter `hooks:` field | Hooks registered by a skill or subagent invocation |
 
 Plugin hooks at `<plugin-root>/hooks/hooks.json` are auto-discovered. No registration in `plugin.json` required.
+
+Skill hooks: Claude Code registers them when you or Claude invoke the skill and keeps running them for the rest of the session, on turns after the skill's own turn as well. The practical consequence: the coverage gap is a session that never invokes the skill, not a session where the skill merely "isn't loaded" at the moment a tool runs.
 
 ## Plugin Hook File Structure
 
@@ -131,6 +133,7 @@ Stdout from `SessionStart` and `UserPromptSubmit` hooks is injected into the mod
 ## Best Practices
 
 - **Keep hooks fast.** Hooks block the harness. Aim for under 1 second for `PreToolUse`/`PostToolUse`. Set explicit `timeout` values.
+- **Test the budget, not just the logic.** Every `PreToolUse` hook test carries a size-scaling row — run the hook against a small input and a large one — checked against the one-second budget above, not only against correctness.
 - **Use `CLAUDE_PLUGIN_ROOT`** (as a brace expansion in real hook commands — see `references/hook-examples.md`). Never hardcode plugin paths.
 - **Validate stdin.** Hook input is JSON; use `jq` and exit cleanly on parse failure.
 - **Scope matchers narrowly.** Match `Write|Edit` over matching all tools.

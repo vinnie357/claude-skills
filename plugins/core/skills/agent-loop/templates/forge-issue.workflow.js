@@ -266,6 +266,7 @@ function reviewPrompt(a, index, role) {
     `You are the ${role} for issue ${a.issueId} in repo ${a.repo}.`,
     skillBlock(a.skills),
     startingIndex(index),
+    'First state the smallest change that would satisfy these criteria; report anything in the diff beyond it as a finding before hunting bugs.',
     'Verify each acceptance criterion is exercised by a test and satisfied by the implementation:',
     ...a.acceptanceCriteria.map(c => `- ${c}`),
     'Check for overfit-to-tests and missed edge cases. Use the starting index; spawn focused',

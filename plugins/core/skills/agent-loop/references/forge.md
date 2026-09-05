@@ -43,10 +43,12 @@ fallback already shipped on `core:comment-reviewer` (`plugins/core/agents/commen
 
 The **Plan Reviewer** has a specific charter — the one genuinely new gate this update adds, since
 the Plan pair was previously the only pair without a reviewer. Using hands to surface only the
-Test Planner's slice list and the issue's acceptance criteria, it checks three things: does every
-acceptance criterion map to at least one slice, is any slice unsatisfiable as written, and do the
-dependency edges among slices admit a valid wave order. It approves the plan or returns it to the
-Test Planner for revision — it never edits the plan itself. Implementation note:
+Test Planner's slice list and the issue's acceptance criteria, it checks four things: does the plan
+name the smallest change that satisfies the acceptance criteria, and does every decision the issue
+marks `settled` cite the measurement it rests on — an uncited settled decision is reopened here,
+never obeyed; does every acceptance criterion map to at least one slice, is any slice unsatisfiable
+as written, and do the dependency edges among slices admit a valid wave order. It approves the plan
+or returns it to the Test Planner for revision — it never edits the plan itself. Implementation note:
 `templates/forge-issue.workflow.js` does not yet encode a `planRev` stage for this gate — tracked
 in a follow-up bees issue, "Add planRev stage to forge-issue.workflow.js for the Plan Reviewer
 gate (claude-skills-294 follow-up)".

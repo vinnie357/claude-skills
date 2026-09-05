@@ -110,7 +110,7 @@ Note `glab`'s flag is `--description`, not `--body` — the flag name differs fr
 
 1. **Gate 1 — Local CI**: `mise run ci` — fix until 0 failures
 2. **Commit**: Conventional commit, no attribution
-3. **Gitleaks**: Scan committed changes for secrets — `$(mise which gitleaks) git . --staged`, never a bare `gitleaks` (`/core:security`). The `check-secrets-before-commit.sh` PreToolUse hook backstops this on `git commit`, but only while `/core:security` is loaded (hooks are scoped to their own skill's lifecycle) and it fails open — allows the commit — when no scanner is available. Run the scan yourself; don't treat the hook as a substitute for it.
+3. **Gitleaks**: Scan committed changes for secrets — `$(mise which gitleaks) git . --staged`, never a bare `gitleaks` (`/core:security`). The `check-secrets-before-commit.sh` PreToolUse hook backstops this on `git commit`, once `/core:security` has been invoked once this session — it then keeps running on every later turn, not only while that skill's own turn is active (`/claude-code:claude-hooks`) — and it fails open — allows the commit — when no scanner is available. The gap is a session that never invokes the skill, not one where it is merely "not loaded." Run the scan yourself; don't treat the hook as a substitute for it.
 4. **Push**: `git push -u origin <branch>`
 5. **Create PR**: `gh pr create` (GitHub) or `glab mr create` (GitLab) with minimal format (title + bullets)
 6. **Gate 2 — Watch remote CI**: `gh pr checks --watch` (GitHub) or `glab ci status --live` (GitLab) (wait for CI to complete)
@@ -128,7 +128,7 @@ Note `glab`'s flag is `--description`, not `--body` — the flag name differs fr
 
 Three gates protect main. None is optional, and none substitutes for another.
 
-**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push — resolved binary path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged`. The PreToolUse hook backstops this on `git commit`, but only while `/core:security` is loaded, and fails open when no scanner is available — it is not a substitute for the scan (`/core:security`).
+**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push — resolved binary path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged`. The PreToolUse hook backstops this on `git commit`, once `/core:security` has been invoked once this session — it then keeps running for the rest of the session, not only while that skill is loaded (`/claude-code:claude-hooks`) — and fails open when no scanner is available — it is not a substitute for the scan (`/core:security`).
 
 **Gate 2 — Remote (before every squash merge).** Squash-merge a PR only when **both** conditions hold:
 
@@ -137,7 +137,7 @@ Three gates protect main. None is optional, and none substitutes for another.
 
 **Gate 3 — Adversarial review (before every squash merge).** Every PR gets a review from a separate agent on the strongest thinking model the harness offers — the same tier as `/core:agent-loop`'s reviewer default, and overridable by its model-overrides convention. Name a capability, never a model literal. No exemption: not for one-line fixes, not for documentation, not for version bumps.
 
-The reviewer is briefed to **defeat the change, not approve it**. Give it the specific failure the change is meant to prevent and ask it to construct a case that still gets through. A reviewer told to "check this over" returns nothing useful; a reviewer told "assume a defect exists and find it" returns the defect.
+The reviewer answers two questions in order, and the record carries each under its own heading. **First, fit and size:** what problem does this change solve, who is on the other side of it, and what is the smallest change that satisfies the acceptance criteria — name it, even when it is what shipped. Anything in the diff beyond that answer is a finding before any bug is. **Second, defeat the change:** given the specific failure it is meant to prevent, construct a case that still gets through. Size the hunt to the other side: a first-party agent that forgets is beaten by one obvious check, and a bypass that needs evasion is a disclosure, not a defect; only an untrusted principal justifies chasing evasions (`/core:restraint`, "Never lazy about"). A reviewer told to "check this over" returns nothing useful; a reviewer told "assume a defect exists and find it" returns the defect.
 
 **Three focus areas are standing — every review carries them, whatever else the brief adds:**
 
@@ -155,7 +155,8 @@ Gate 3 requirements:
 - **Verify the reviewer's claims independently** before acting on them. A review is evidence, not a verdict.
 - **Grep for attribution before posting a comment or declaring gates green** — both the branch's commits and the comment text about to be posted: `git log origin/main..HEAD --format='%B' | grep -niE 'co-authored-by|signed-off-by|assisted-by|generated with'`, same pattern against the comment body. The pattern deliberately excludes bare model/vendor names — in this repo (`claude-skills`, scopes like `feat(claude-code):`) a bare `grep -i claude` would be a constant false positive. Eyeball the trailer block to catch what the pattern misses.
 - **The verdict and each finding's disposition land as a durable record on the PR.** Under `approval`, the record is the PR comment carrying the marker line of "Merge authorization" rule 2. Post it with `gh pr comment`, never inside a review body, which the `comments` field excludes. Under `operator`, a bees comment the PR links also counts, and it travels in the tracked `issues.jsonl` export.
-- **Confirm the record before declaring Gate 3 green.** Confirm a PR comment with `gh pr view <n> --comments`. Confirm a bees comment with `bees comment list <task-id>` and the link to it in the PR body or comments.
+- **Confirm the record before declaring Gate 3 green.** Confirm a PR comment with `gh pr view <n> --comments`. Confirm a bees comment with `bees comment list <task-id>` and the link to it in the PR body or comments. Confirm it opens with the fit-and-size answer; a record that begins with findings has skipped focus area 1.
+- **Brief the reviewer with `plugins/core/skills/agent-loop/templates/gate3-brief.md`.**
 
 No `gh pr merge --squash` while any gate is red. Who may take the merge is set by the deployment's merge policy — see "Merge authorization" below.
 
