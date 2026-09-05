@@ -221,6 +221,25 @@ def fixture-many-tokens-with-quote []: nothing -> string {
     $"($words) 'x' gh pr merge --help"
 }
 
+# Gate 3 regression fixture, THIRD dimension: SEGMENT count — as DATA,
+# never a literal. Row #14 varies payload size and row #15 and the
+# quoted-bulk row above vary TOKEN count; none of the three varies the
+# number of SEGMENTS, which is exactly how a per-segment quadratic shipped
+# undetected (the fix for the per-token quadratic grew a list with
+# `append` inside a `for` loop over segments instead). Gate 3 measured
+# directly on this machine, min-of-three, hook as subprocess, using `a;`
+# repeated N times plus one quoted argument: 465ms at 2,000 segments,
+# 1337ms at 4,000, 4654ms at 8,000 — clearly quadratic, and an everyday
+# 5,000-line heredoc-shaped command with one quoted argument regressed
+# from 1.6s on the old (per-token-quadratic) path to 6.05s on this one.
+# Roughly 8,000 `;`-separated single-token segments plus one quoted
+# argument, ending in a command that should PASS.
+def fixture-many-segments-with-quote []: nothing -> string {
+    let segment_count = 8000
+    let filler = (1..$segment_count | each { "a" } | str join ";")
+    $"($filler);'x';gh pr merge --help"
+}
+
 # Runs the hook 3 times against the same payload, returns the MINIMUM
 # elapsed milliseconds (per claude-skills-340: "taking the MINIMUM of three
 # runs" — a single wall-clock sample on a shared runner measures scheduling
@@ -443,6 +462,26 @@ def main [] {
         $failed = true
     }
 
+    # --- Gate 3 regression row, THIRD dimension: SEGMENT count (see
+    # fixture-many-segments-with-quote above for the measured quadratic —
+    # 465ms/1337ms/4654ms at 2,000/4,000/8,000 segments). Neither this
+    # file's payload-size row (#14) nor its token-count rows (#15, the
+    # quoted-bulk row above) vary the number of `;`-separated segments, so
+    # a quadratic keyed to segment count is invisible to all three of
+    # them — this row exists specifically to make that dimension visible.
+    # Combines exit-code and timing into ONE assertion, same rationale as
+    # the token-count budget row above. EXPECTED TO FAIL until the
+    # implementer removes the per-segment `append`-in-a-loop: this is a
+    # red test against the shipped implementation, not a bug in this
+    # suite.
+    print "--- hook: Gate 3 regression row (long command with ~8,000 segments, min-of-3 < 500ms) ---"
+    let many_segments_cmd = (fixture-many-segments-with-quote)
+    let many_segments_payload = ({tool_name: "Bash", tool_input: {command: $many_segments_cmd}} | to json -r)
+    let many_segments_timing = (min-of-three-ms $hook $many_segments_payload)
+    if not (check $"Gate 3 regression: ~8,000 `;`-separated segments + one quoted arg, exit ($many_segments_timing.exit_code) \(want 0\), min-of-3 ($many_segments_timing.min_ms)ms < 500ms" ($many_segments_timing.exit_code == 0 and $many_segments_timing.min_ms < 500.0)) {
+        $failed = true
+    }
+
     # ==========================================================================
     # Robustness: malformed stdin, absent/empty stdin, non-Bash tool_name —
     # all exit 0 without a stack trace (claude-skills-340 "Robustness").
@@ -509,7 +548,7 @@ def main [] {
         print $"(ansi red_bold)❌ PASSING row count drifted from the issue's matrix(ansi reset)"
         $failed = true
     }
-    print "Gate 3 regression rows (beyond the AC's 15/15 matrix): 4 — quoted-bulk budget row, F1 (backslash-newline in --body), F2 (non-string command), F4 (joined -Ro/r)"
+    print "Gate 3 regression rows (beyond the AC's 15/15 matrix): 5 — quoted-bulk (token-count) budget row, segment-count budget row, F1 (backslash-newline in --body), F2 (non-string command), F4 (joined -Ro/r)"
 
     if $failed {
         exit 1
