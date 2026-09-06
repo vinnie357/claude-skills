@@ -14,10 +14,13 @@ All three must hold before merging a PR:
 ## Merge
 
 ```bash
-gh pr merge <n> --squash
+gh pr merge <n> --squash --match-head-commit <headRefOid>
 ```
 
-Squash merge only. No attribution and no `Co-Authored-By` in the squash commit message.
+Pin `<headRefOid>` to the sha the reviewer actually reviewed — a bare `gh pr merge --squash`
+with no `--match-head-commit` is blocked by the claude-skills-340 merge-write gate and can
+silently merge a commit that landed after review. Squash merge only. No attribution and no
+`Co-Authored-By` in the squash commit message.
 
 ## Confirm closure
 

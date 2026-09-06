@@ -13,10 +13,14 @@ All three conditions must be true before executing the merge:
 ## Squash merge
 
 ```bash
-gh pr merge <consolidated-pr-number> --squash
+gh pr merge <consolidated-pr-number> --squash --match-head-commit <headRefOid>
 ```
 
-The squash commit message is auto-generated from the PR title. Do not add attribution (no `Co-Authored-By`).
+Fetch `<headRefOid>` with `gh pr view <consolidated-pr-number> --json headRefOid -q .headRefOid`
+immediately before merging — a bare `gh pr merge --squash` with no `--match-head-commit` is
+blocked by the claude-skills-340 merge-write gate and can silently merge a commit that landed
+after review. The squash commit message is auto-generated from the PR title. Do not add
+attribution (no `Co-Authored-By`).
 
 ## Comment each superseded Dependabot PR
 

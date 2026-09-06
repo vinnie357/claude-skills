@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "0.2.82",
+  "version": "0.2.83",
   "description": "Essential development skills: Git, TDD, code review, gitleaks secret scanning, documentation, technical English, restraint, anti-fabrication, twelve-factor apps, the agent loop, bees issue tracking, mise, nushell, and Apple Container",
   "author": {
     "name": "vinnie357"

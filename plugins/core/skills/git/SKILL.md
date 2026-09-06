@@ -1,6 +1,13 @@
 ---
 name: git
 description: Guide for Git operations including commits, branches, rebasing, and conflict resolution. Use when working with version control, creating commits, managing branches, or resolving merge conflicts.
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "${CLAUDE_PLUGIN_ROOT}/skills/git/hooks/block-merge-writes.nu"
+          timeout: 10
 ---
 
 # Git Operations
@@ -199,6 +206,40 @@ glab mr merge <n> --squash --yes --auto-merge=false --sha <headRefOid>
 ```
 
 **Forbidden — each one defers the merge, bypasses a requirement, or edits the evidence.** `gh pr merge --auto` queues a merge that fires later. `gh pr merge --admin` bypasses branch requirements and a merge queue. `glab mr merge` without `--auto-merge=false` queues on a flag that defaults to true. On a repo with a merge queue, plain `gh pr merge` adds the PR to the queue instead of merging it. Detect the queue and wait. `autoMergeRequest` in the read is the observable for "no auto-merge is already queued". A merging agent never dismisses a review or deletes a Gate 3 comment — both are writes on the evidence this precondition reads. `gh` has no dismissal verb; dismissal requires `gh api --method PUT .../pulls/<n>/reviews/<id>/dismissals -f message=...`.
+
+#### Enforcement hook (claude-skills-340)
+
+`plugins/core/skills/git/hooks/block-merge-writes.nu`, wired in this file's `hooks:`
+frontmatter, backstops the Forbidden list above at the Bash tool boundary. It does not
+replace the rule — the same posture as the gitleaks `PreToolUse` hook in `/core:security`.
+It is a cheap deterministic gate, not a security boundary.
+
+Two named approximations stand in for cases the hook cannot decide from a command
+string alone. A `gh pr merge` lacking `--match-head-commit` blocks, standing in for the
+undecidable merge-queue case — whether plain `gh pr merge` queues or merges depends on
+repo state, not the command. A non-GET `gh api` call touching `/pulls/` or
+`/issues/comments/` blocks, standing in for review-dismissal and Gate-3-comment-deletion
+writes — deletion of a comment names a comment id, not its content, so the hook blocks
+the broader shape instead.
+
+Known over-blocks, none of them fixed — a gate that blocks ordinary work gets switched
+off, not tightened further: a heredoc line beginning `gh pr merge --admin` becomes its
+own segment after the hook's newline split and blocks (rare, since file writes go
+through `Write`/`Edit` and never reach this hook); every `gh api graphql` call carrying
+the substring `mutation` anywhere, including a field literally named `mutationCount`;
+and every non-GET `gh api` call touching `/pulls/`, whether or not the call is actually
+a merge-path write.
+
+Evasion is out of scope by design, not a gap to close: a command reaching `gh` through
+`$( )`, a shell alias, `bash -c`, a variable-held command name, a subshell or brace
+group, `!`/`time`/`then`/`do` prefixes, or an emptied `--match-head-commit=` value all
+defeat the hook. None of those are defects in it — the hook exists to catch the everyday
+mistake, the same reason a linter exists, not to stop an agent actively trying to get
+around it.
+
+Lifetime limitation: the hook fires only in a session that has loaded this skill (or a
+plugin whose frontmatter wires the same hook command). It is absent in a session that
+never invokes this skill — the rule in "Forbidden" above still binds there, unenforced.
 
 **A missing signal means WAIT, never denied.** Denied is a terminal disposition, and an unattended session may act on it — close the PR, abandon the branch, fail the issue. Wait means this: leave the PR exactly as it is, report what is being waited on, and end the turn. Safe means the PR's forge state is unchanged by the session.
 

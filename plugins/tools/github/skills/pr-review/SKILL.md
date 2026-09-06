@@ -98,10 +98,10 @@ Gate before merging:
 After operator approval:
 
 ```bash
-gh pr merge <n> --squash
+gh pr merge <n> --squash --match-head-commit <headRefOid>
 ```
 
-No attribution in the squash commit message. Confirm closure:
+Pin to the `headRefOid` collected above — a merge without `--match-head-commit` is blocked by the claude-skills-340 merge-write gate and is unsafe in any case, since it can silently merge a commit that arrived after review. No attribution in the squash commit message. Confirm closure:
 
 ```bash
 gh pr view <n> --json state
