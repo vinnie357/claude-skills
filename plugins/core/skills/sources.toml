@@ -215,8 +215,8 @@ notes = "current_version taken directly from the skill body's own 'bees 0.4.0 ha
 # ----------------------------------------------------------------------------
 # Apple Container — macOS-native Linux-container runtime.
 # current_version is the version the skill content was verified against
-# (1.0.0, per sources.md's dated release-by-release history), not today's
-# live value (see notes).
+# (1.4.1, checked against a live 1.4.1 binary on 2026-09-09 — see notes),
+# which on this pass is also the live latest.
 # ----------------------------------------------------------------------------
 [[sources]]
 skills = ["container"]
@@ -225,12 +225,12 @@ url = "https://github.com/apple/container"
 releases_url = "https://github.com/apple/container/releases"
 check_method = "github-releases"
 github_repo = "apple/container"
-current_version = "1.0.0"
+current_version = "1.4.1"
 version_constraint = "semver"
-last_checked = "2026-07-30"
+last_checked = "2026-09-09"
 update_priority = "high"
 breaking_changes_likely = true
-notes = "sources.md documents a dated release history from 0.10.0 through 1.0.0 (last dated entry 2026-06-10), including two BREAKING releases (0.12.0: reduced default capability set; 1.0.0: TOML config replaces system properties, structured-output shape changes, v0 XPC API removal). Also cites the command-reference, container-machine, and system-config-tutorial docs pages as the same upstream project's documentation, not tracked separately. github_repo confirmed via GitHub API 2026-07-30; live latest release is 1.2.0 — skill content not yet re-verified against it."
+notes = "sources.md documents a dated release history from 0.10.0 through 1.4.1. Four BREAKING releases are recorded: 0.12.0 (reduced default Linux capability set), 1.0.0 (TOML config replaces system properties, structured-output shape changes, v0 XPC API removal), 1.3.0 (--scheme auto removed for image operations, default now https), and 1.4.1 (container system status output reports host, client, paths and resources — carries upstream's own API-breaking marker). Also cites the command-reference, container-machine, and system-config-tutorial docs pages as the same upstream project's documentation, not tracked separately. Re-verified 2026-09-09 (claude-skills-333) against a live 1.4.1 binary installed via mise (container CLI version 1.4.1, build release, commit 9a8917c) on macOS 26.6.2: --help captured for run, create, build, export, image pull, image push, machine create, machine, k8s, clean, prune, system status and system property. Confirmed the --scheme value set is (http, https) default https at three sites (run, image pull, machine create) — the previously documented 'oci' value was never valid; confirmed --virtualization carries different semantics on run versus machine create; confirmed container clean acts on RUNNING containers and takes explicit IDs, so it does not address the stopped-container accumulation the skill documents; confirmed container k8s is marked EXPERIMENTAL with six subcommands; confirmed container export still has only -o/--output and no -t, and container system property still exposes only list/ls. Nothing about 1.1.0 through 1.3.1 was verifiable on this host — those attributions come from release notes alone. No 1.4.0 release exists: the tag was discarded upstream and 1.4.1 carries every change since 1.3.1."
 
 # ----------------------------------------------------------------------------
 # ponytail — source for the restraint skill's least-power ladder and

@@ -15,7 +15,7 @@ Apple Container is a macOS-native tool for running Linux containers as lightweig
 - **Swift-based**: Built on Apple's Virtualization.framework
 - **OCI-compatible**: Produces and runs standard OCI container images
 - **Apple silicon only**: Requires Apple silicon Mac (M1 or later)
-- **Stable 1.0**: Currently at version 1.0.0 (released 2026-06-09); 0.x minor releases carried frequent breaking changes — see Version Differences below when upgrading
+- **Stable 1.0**: Currently at version 1.4.1 (released 2026-09-09); 0.x minor releases carried frequent breaking changes — see Version Differences below when upgrading
 - **Lightweight VMs**: Each container runs as a lightweight Linux VM
 
 ## Prerequisites
@@ -32,17 +32,21 @@ Manage the container system service (start, stop, status, version, logs, disk us
 
 ## Container Lifecycle
 
-Run, manage, and export containers (`run`, `list`/`ls`, `start`, `stop`, `kill`, `delete`/`rm`, `exec`, `logs`, `inspect`, `cp`, `stats`, `prune`, `export`, `create`). Full flag tables and worked examples: [references/command-reference.md](references/command-reference.md).
+Run, manage, and export containers (`run`, `list`/`ls`, `start`, `stop`, `kill`, `delete`/`rm`, `exec`, `logs`, `inspect`, `cp`, `stats`, `prune`, `clean`, `export`, `create`). Full flag tables and worked examples: [references/command-reference.md](references/command-reference.md).
 
-Two corrections worth keeping in view: a custom MAC address is set via `--network <name>,mac=XX:XX:XX:XX:XX:XX` on `container run` — there is no separate `--mac-address` flag. `container export` produces a filesystem tar only (`-o/--output`); it does not create or tag an image, and there is no `-t/--tag` flag.
+Two corrections worth keeping in view: a custom MAC address is set via `--network <name>,mac=XX:XX:XX:XX:XX:XX` on `container run` — there is no separate `--mac-address` flag. `container export` produces a filesystem tar only (`-o/--output`); it does not create or tag an image, and there is no `-t/--tag` flag. It supported only stopped containers from 0.11.0; 1.2.1 added support for exporting live (running) containers.
 
-> **⚠ Observed — `--rm` does not reliably remove the container on 1.0.0.** `container run --rm ...` left a stopped container behind on one host running Apple Container 1.0.0, despite `--rm` being set. This is stated as a direct operator observation at 1.0.0, not independently reproduced or verified against the binary here — do not treat it as confirmed on every 1.0.0 install. It is the likely accumulation mechanism behind roughly 300 stopped containers found on a dev host, a large share of them anonymous short-lived scan containers (e.g. from a gitleaks pre-commit hook that also relied on `--rm`). If a workflow depends on containers being reaped automatically, do not trust `--rm` alone on 1.0.0 — give the container an explicit unique `--name` and follow up with a defensive `container rm -f <that-exact-name>` scoped to only the container you just created. See Troubleshooting below for why an unscoped cleanup is worse than no cleanup at all.
+`container clean` (1.4.1+) cleans one or more RUNNING containers identified by explicit container ID, and is unrelated to the stopped-container accumulation problem described in Troubleshooting below — `container prune` remains the command for that. `USAGE` shows `<container-ids>` as optional, so a zero-argument invocation parses; what it then acts on is not established here (requires verification: run `container clean` with no arguments on a disposable host). Pass explicit IDs.
+
+> **⚠ Observed — `--rm` does not reliably remove the container on 1.0.0.** `container run --rm ...` left a stopped container behind on one host running Apple Container 1.0.0, despite `--rm` being set. This is stated as a direct operator observation at 1.0.0, not independently reproduced or verified against the binary here — do not treat it as confirmed on every 1.0.0 install. It is the likely accumulation mechanism behind roughly 300 stopped containers found on a dev host, a large share of them anonymous short-lived scan containers (e.g. from a gitleaks pre-commit hook that also relied on `--rm`). If a workflow depends on containers being reaped automatically, do not trust `--rm` alone on 1.0.0 — give the container an explicit unique `--name` and follow up with a defensive `container rm -f <that-exact-name>` scoped to only the container you just created. See Troubleshooting below for why an unscoped cleanup is worse than no cleanup at all. No release from 1.1.0 to 1.4.1 is documented as fixing this behavior. requires verification: re-run the `--rm` scenario on a 1.4.1 host and observe whether the container is reaped.
 
 ## Container Machines (1.0.0+)
 
 Machines are long-lived Linux environments with tight host integration — a full Linux system with init support, not an ephemeral application container. Use machines for "edit on the Mac, build inside Linux" workflows, running system services under systemd, and testing across multiple distributions. The subcommand alias is `m` (`container m ls` = `container machine ls`).
 
-> **Isolation caveat:** A machine auto-mounts the host home directory at `/Users/<username>` inside the VM. That tight host integration makes machines a development convenience, NOT an isolation boundary for untrusted workloads — run untrusted agents in regular containers or a dedicated sandboxing substrate instead.
+`container machine create` accepts `--virtualization` (enable nested virtualization; requires Apple Silicon M3+, macOS 15+, and a kernel with `CONFIG_KVM=y`), `--home-mount <ro|rw|none>` (host home directory mount mode inside the VM; default `rw`), `--no-boot` (create the machine without booting it), and `--platform <platform>` (target platform for a multi-platform image, taking precedence over `--os`/`--arch`). Full flag table: [references/command-reference.md](references/command-reference.md).
+
+> **Isolation caveat:** A machine auto-mounts the host home directory at `/Users/<username>` inside the VM, unless created with `--home-mount none`. That tight host integration makes machines a development convenience, NOT an isolation boundary for untrusted workloads — run untrusted agents in regular containers or a dedicated sandboxing substrate instead. Pass `--home-mount none` on `container machine create` to suppress the auto-mount.
 
 ```bash
 # Create a machine from an image
@@ -126,7 +130,22 @@ container registry list
 
 **Note**: In 0.5.0, the keychain ID changed from `com.apple.container` to `com.apple.container.registry`. Re-login is required after upgrading from 0.4.x.
 
-## Version Differences (0.5.0 to 1.0.0)
+## Kubernetes (k8s) Plugin (1.2.1+, EXPERIMENTAL)
+
+`container k8s` manages local Kubernetes development clusters. Upstream marks the whole command **EXPERIMENTAL** and lists it under `container --help`'s `PLUGINS:` heading, separate from the core subcommands.
+
+```bash
+container k8s create        # create a local cluster
+container k8s delete        # alias: rm
+container k8s list          # alias: ls
+container k8s load-image    # load a local image into the cluster
+container k8s start
+container k8s write-config
+```
+
+Six subcommands: `create`, `delete`/`rm`, `list`/`ls`, `load-image`, `start`, `write-config`. Full reference: [references/command-reference.md](references/command-reference.md).
+
+## Version Differences (0.5.0 to 1.4.1)
 
 ### Breaking Changes
 
@@ -144,6 +163,8 @@ container registry list
 | **1.0.0** | **TOML config file replaces UserDefaults-backed system properties** | **Move `property set` values into `~/.config/container/config.toml`; `property get/set/clear` are removed** |
 | 1.0.0 | Structured (JSON/YAML/TOML) output shape changed for `container`/`image`/`network`/`volume` `ls` and `inspect` | Update scripts that parse structured output |
 | 1.0.0 | Application major version 0 XPC API compatibility removed | Update XPC API consumers |
+| **1.3.0** | **`--scheme auto` removed for image operations; default now `https`** | **Drop `--scheme auto`; rely on the `https` default or pass `--scheme http` explicitly for a plaintext registry** |
+| **1.4.1** | **`container system status` output shape now reports host, client, paths, and resources** | **Update anything parsing that output** |
 
 > **⚠ BREAKING — 0.12.0 capability change:** The default Linux capability set was **reduced**. Users MUST delete and recreate existing containers to apply the new defaults. Use `--cap-add` to restore capabilities; use `--cap-drop` to further restrict them. See [0.12.0 template](templates/0.12.0/commands.md) for details.
 
@@ -153,10 +174,12 @@ container registry list
 2. **0.12.0**: Update builder clients (gRPC protocol changed, incompatible with older clients)
 3. **1.0.0**: Move `container system property set` values into `~/.config/container/config.toml`, then restart the service
 4. **1.0.0**: Update automation that parses `ls`/`inspect` structured output (shape changed)
+5. **1.3.0**: Drop `--scheme auto` from image operations; rely on the `https` default or pass `--scheme http` explicitly for a plaintext registry
+6. **1.4.1**: Update automation parsing `container system status` output (host/client/paths/resources shape)
 
 The full per-release feature history, the complete 0.5.x-to-1.0.0 migration checklist, and the dependency matrix live in [references/version-history.md](references/version-history.md). The exhaustive per-command flag reference lives in [references/command-reference.md](references/command-reference.md).
 
-See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0, 0.10.0, 0.11.0, 0.12.0, 0.12.3, 1.0.0).
+See `templates/<version>/commands.md` for version-specific details (0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0, 0.10.0, 0.11.0, 0.12.0, 0.12.3, 1.0.0, 1.2.1, 1.3.1, 1.4.1).
 
 ## Scripts
 
@@ -391,7 +414,7 @@ container builder start
 
 ## Key Principles
 
-- **Stable 1.0**: The CLI surface stabilized at 1.0.0; the 0.x-to-1.0.0 migration is breaking (TOML config, structured-output shape)
+- **Post-1.0 stability, not immutability**: 1.0.0 stabilized the CLI surface for the 0.x-to-1.0.0 migration (TOML config, structured-output shape); 1.3.0 then removed `--scheme auto` and 1.4.1 changed `container system status`'s output shape — check Version Differences before assuming an old integration still matches current flags or output
 - **Apple silicon only**: No Intel Mac support
 - **macOS 26+ required**: Not available on earlier macOS versions
 - **OCI-compatible**: Standard container images work as expected

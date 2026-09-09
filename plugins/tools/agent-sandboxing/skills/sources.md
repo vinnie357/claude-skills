@@ -55,7 +55,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 ## kina
 
 - **URL**: https://github.com/vinnie357/kina (local: `~/github/kina`)
-- **Status**: in active development; tracks Apple Container 0.5.0+ (latest container is 1.0.0 — major release with breaking CLI changes; version-drift caveat documented in `kina-microvm` skill)
+- **Status**: in active development; tracks Apple Container 0.5.0+ (latest container is 1.4.1 — the 1.x line carries breaking CLI changes in 1.0.0, 1.3.0 and 1.4.1; version-drift caveat documented in `kina-microvm` skill)
 - **Used in**: `kina-microvm`
 - **Extracted**: Rust CLI commands (`kina create|delete|list|status`), cluster-as-microVM model (no per-pod `runtimeClassName`), mise tasks shape, dependency on Apple Container runtime.
 - **Date accessed**: 2026-06-10

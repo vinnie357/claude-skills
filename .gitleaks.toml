@@ -3,4 +3,14 @@ useDefault = true
 
 [allowlist]
 paths = ['''^\.gitleaks-baseline\.json$''']
-regexes = ['''^sk_live_123456789$''']
+# GHSA identifiers are public GitHub Security Advisory IDs, never secrets. They recur in
+# security-release documentation (e.g. the container skill's version history) and the
+# generic-api-key rule flags them on entropy.
+# The pattern is anchored with ^...$ because gitleaks matches allowlist regexes against the
+# captured secret as a SUBSTRING: unanchored, `GHSA-2345-cfgh-jmpq<real-credential>` would be
+# allowed. Anchored, only a string that is exactly a GHSA ID matches. The alphabet is GHSA's
+# own fixed base32 subset (23456789cfghjmpqrvwx), per GitHub's advisory-ID documentation.
+regexes = [
+  '''^sk_live_123456789$''',
+  '''^GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}$''',
+]

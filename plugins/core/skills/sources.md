@@ -157,8 +157,8 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 ### Apple Container Releases
 - **URL**: https://github.com/apple/container/releases
 - **Purpose**: Version tracking, breaking changes between releases, installation packages
-- **Date Accessed**: 2026-06-10
-- **Key Topics**: Version migration (0.4.1 through 1.0.0), breaking changes, new features, CVE fixes
+- **Date Accessed**: 2026-09-09
+- **Key Topics**: Version migration (0.4.1 through 1.4.1), breaking changes, new features, CVE fixes
 
 ### Apple Container Release 0.6.0
 - **URL**: https://github.com/apple/container/releases/tag/0.6.0
@@ -216,6 +216,48 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Date Accessed**: 2026-06-10
 - **Key Topics**: Version 1.0.0, container machine command, container cp, --stop-signal, --shm-size, image variant support, system df accounting fixes, XPC-connection-as-lease IP-leak fix
 
+### Apple Container Release 1.1.0
+- **URL**: https://github.com/apple/container/releases/tag/1.1.0
+- **Purpose**: Version 1.1.0 release notes (non-breaking)
+- **Date Accessed**: 2026-09-09
+- **Key Topics**: Unix domain socket mounts in non-root containers, container cp with relative source paths, machine nested virtualization, image save reference list routed to stderr in stdout mode
+
+### Apple Container Release 1.2.0
+- **URL**: https://github.com/apple/container/releases/tag/1.2.0
+- **Purpose**: Version 1.2.0 release notes (non-breaking; five security advisories)
+- **Date Accessed**: 2026-09-09
+- **Key Topics**: CVE-2026-64786 (bare-name image Config.Env inherited launching process environment), CVE-2026-64773 (TCP port forwarder buffered unbounded pre-connect data), CVE-2026-64777 (build filesystem sync disclosed host files via symlinks), GHSA-g57j-434g-5xj2, GHSA-5h49-6pr7-9mv4, --kernel-arg, OCI maskedPaths/readonlyPaths in the Container API
+
+### Apple Container Release 1.2.1
+- **URL**: https://github.com/apple/container/releases/tag/1.2.1
+- **Purpose**: Version 1.2.1 release notes (non-breaking; new command surface)
+- **Date Accessed**: 2026-09-09
+- **Key Topics**: k8s plugin for local Kubernetes clusters, container export for live containers, --ssh for container build, --read-only-path and --masked-path for run and create, guest VM overcommit and max_map_count default adjustments
+
+### Apple Container Release 1.2.2
+- **URL**: https://github.com/apple/container/releases/tag/1.2.2
+- **Purpose**: Version 1.2.2 release notes (packaging fix only, no CLI surface change)
+- **Date Accessed**: 2026-09-09
+- **Key Topics**: Fix for container k8s when installed from the release package
+
+### Apple Container Release 1.3.0
+- **URL**: https://github.com/apple/container/releases/tag/1.3.0
+- **Purpose**: Version 1.3.0 release notes (BREAKING: --scheme auto removed for image operations)
+- **Date Accessed**: 2026-09-09
+- **Key Topics**: BREAKING removal of --scheme auto with https becoming the default, default Kata kernel 3.32.0-debug, relaxed maskedPaths/readonlyPaths for container machines, tmpfs path processing fix, volume name validation in volume disk usage
+
+### Apple Container Release 1.3.1
+- **URL**: https://github.com/apple/container/releases/tag/1.3.1
+- **Purpose**: Version 1.3.1 release notes (non-breaking; six containerization advisories)
+- **Date Accessed**: 2026-09-09
+- **Key Topics**: CVE-2026-65388 (RegistryClient followed the WWW-Authenticate realm without validating host or scheme), path traversal in the local content store, OCI image layout symlink read, two image-layer unpacking crashes, containerization 0.42.0, empty tmpfs mount source field fix
+
+### Apple Container Release 1.4.1
+- **URL**: https://github.com/apple/container/releases/tag/1.4.1
+- **Purpose**: Version 1.4.1 release notes (API-BREAKING: container system status output shape). No 1.4.0 release exists — upstream discarded that tag, so 1.4.1 carries every change since 1.3.1
+- **Date Accessed**: 2026-09-09
+- **Key Topics**: API-breaking container system status output reporting host/client/paths/resources, new container clean command for running containers, JSON output no longer escaping forward slashes, GHSA-4587-w9mm-xxvh (OCI image load symlink escape), GHSA-rgqp-277h-gcwj (UnixType.init(path:) buffer length mismatch), containerization 0.45.0
+
 ### Apple Container Machine Documentation
 - **URL**: https://github.com/apple/container/blob/main/docs/container-machine.md
 - **Purpose**: Official guide for the container machine feature (1.0.0+)
@@ -232,6 +274,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 - 2026-05-31: updated container skill from 0.10.0 to Apple Container 0.12.3 (added 0.11.0/0.12.0/0.12.3 templates, capability-model breaking change, security fixes)
 - 2026-06-10: updated container skill from 0.12.3 to Apple Container 1.0.0 (container machine section, TOML config replaces system properties, container cp, structured-output breaking change; added 1.0.0 template and version-history reference; de-orphaned command-reference.md)
+- 2026-09-09: updated container skill from 1.0.0 to Apple Container 1.4.1 across seven releases (1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1, 1.4.1; no 1.4.0 was released). Added 1.2.1/1.3.1/1.4.1 templates. Two breaking changes recorded: 1.3.0 removed --scheme auto with https becoming the default, and 1.4.1 changed the container system status output shape. Corrected the --scheme value set at three sites (the documented 'oci' value was never valid), split --virtualization into its two distinct per-command meanings, and added container k8s (EXPERIMENTAL) and container clean. Verified against a live 1.4.1 binary; 1.1.0-1.3.1 attributions are from release notes only
 
 ## Restraint Skill
 
