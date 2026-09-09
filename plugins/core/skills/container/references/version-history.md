@@ -1,6 +1,6 @@
 # Apple Container CLI - Version History
 
-Per-release feature history, the full migration checklist, and the dependency matrix for Apple Container 0.5.0 through 1.0.0. Breaking changes are summarized in SKILL.md; version-specific command snapshots live in `templates/<version>/commands.md`.
+Per-release feature history, the full migration checklist, and the dependency matrix for Apple Container 0.5.0 through 1.4.1. Breaking changes are summarized in SKILL.md; version-specific command snapshots live in `templates/<version>/commands.md`.
 
 ## New Features by Release
 
@@ -28,7 +28,25 @@ Per-release feature history, the full migration checklist, and the dependency ma
 
 **1.0.0**: `container machine` (alias `m`) for long-lived Linux environments with tight host integration, `container cp` for host-container file copy, `-s`/`--signal` on `container stop`, `--shm-size` on `container run`, image `variant` support, `container help <subcommand>` fixed, `system df` accounting fixes, XPC-connection-as-lease fixes IP address leaks
 
-## Migration Checklist (0.5.x to 1.0.0)
+**1.1.0** (2026-07-06, fixes only, no CLI surface change): Unix domain socket mounts fixed for non-root containers (#1750), `container cp` relative source paths fixed (#1738), `container image save` reference list routed to stderr in stdout mode (#1804), duplicate "(default: 3)" removed from `--max-concurrent-downloads` help text (#1725), machine nested virtualization (#1742). None of this version's surface was checked against a live binary — release-notes only; see `templates/1.2.1/commands.md`.
+
+**1.2.0** (2026-07-29, security release, no breaking changes): five security advisories (CVE-2026-64786/GHSA-xwgf-4rc5-p4m4, CVE-2026-64773/GHSA-wg28-286f-56v6, CVE-2026-64777/GHSA-2v2q-4q35-h585, GHSA-g57j-434g-5xj2, GHSA-5h49-6pr7-9mv4 — full descriptions in `templates/1.2.1/commands.md`), `--kernel-arg` (#1744, commit-log level only — not in the curated release-notes Highlights), OCI `maskedPaths`/`readonlyPaths` support added to the Container API (#1996). Release-notes only; not checked against a live binary.
+
+**1.2.1** (2026-08-07, no breaking changes): `container k8s` plugin for a turnkey local Kubernetes cluster (#2043/#2044; the EXPERIMENTAL mark is observed on the 1.4.1 binary, not stated in the 1.2.1 notes), `container export` for LIVE containers (#1400/#1630 — previously stopped-only since 0.11.0), `--ssh` for `container build` (#1472/#1508 — takes a value; distinct from `run`/`create`'s bare `--ssh`, which dates from 0.4.1), `--read-only-path` and `--masked-path` for `container run` AND `container create` (#2041/#2069), overcommit/`max_map_count` VM defaults adjusted (#2055, specific values not stated upstream), `container-builder-shim` 0.13.1 (#2056). Release-notes only; the `k8s` subcommand list and the `--ssh`/`--masked-path`/`--read-only-path` flag text were later cross-checked against the live 1.4.1 binary — see `templates/1.2.1/commands.md`.
+
+**1.2.2** (2026-08-08, packaging fix only, no CLI surface change): verbatim from the release notes, "This release fixes a glitch that prevented `container k8s` working when installed from the release package." (#2097)
+
+> **⚠ BREAKING — 1.3.0 image-scheme default change:** Upstream marks this with its own CLI-breaking marker: "Removed `--scheme auto` for image operations, default is now `https`." (#2099/#2100) See `templates/1.3.1/commands.md` for the migration table.
+
+**1.3.0** (2026-08-24, breaking — see above): `--scheme auto` removed for image operations, default now `https` (#2099/#2100); default Kata kernel now 3.32.0-debug (#2143); maskedPaths/readonlyPaths defaults relaxed for container **machines** specifically, reversing 1.2.0's #1996 default for machines (#2137); upstream docs reorganised (#2032); fixes to `tmpfsMounts()` path processing (#2103) and volume name validation in the volume disk-usage call (#2107).
+
+**1.3.1** (2026-08-29, security patch release, no breaking changes): six security advisories via the containerization 0.42.0 bump (#2207 — GHSA-x7pf-2jmj-pgcq, GHSA-f689-h8m7-3jp2, GHSA-r3h2-rgqf-9hv9, CVE-2026-65388/GHSA-mx96-5vvg-x2mg, GHSA-697p-8837-37h3, GHSA-g3rx-2m58-rr63 — full descriptions in `templates/1.3.1/commands.md`), fix for `--mount type=tmpfs` leaving the tmpfs mount `source` field empty (#2138).
+
+> **⚠ BREAKING — 1.4.1 `system status` output-shape change:** Upstream's own API-breaking marker: "`container system status` now reports host, client, paths, and resources" (#1769) — an output-schema change, not observable via `--help`. See `templates/1.4.1/commands.md` for the migration table.
+
+**1.4.1** (2026-09-09): there was no 1.4.0 release — upstream states verbatim, "There was no 1.4.0 release, we had to discard that tag so this release contains every change since 1.3.1." (a `1.4.0` git tag exists, dated 2026-09-08, but carries no GitHub Release). New command `container clean` (#1949) — operates on RUNNING containers with explicit IDs, not a fix for accumulated stopped containers; JSON output no longer escapes forward slashes (#2205); security fixes GHSA-4587-w9mm-xxvh and GHSA-rgqp-277h-gcwj; containerization updated to 0.45.0 (#2250). Verified against a live 1.4.1 binary on 2026-09-09 (client-side `--help` only) — see `templates/1.4.1/commands.md` for full verification detail and what stayed unchanged (`container export`, `container system property`, no `--mac-address`).
+
+## Migration Checklist (0.5.x to 1.4.1)
 
 1. Replace `--disable-progress-updates` with `--progress none` in scripts
 2. Update any paths referencing `.build` directory to `builder`
@@ -44,6 +62,8 @@ Per-release feature history, the full migration checklist, and the dependency ma
 12. **1.0.0 REQUIRED**: Move `container system property set` values into `~/.config/container/config.toml`, then `container system stop && container system start`
 13. **1.0.0 REQUIRED**: Update automation that parses `ls`/`inspect` structured output (JSON/YAML/TOML shape changed for container, image, network, and volume commands)
 14. Update XPC API consumers — application major version 0 XPC API compatibility removed in 1.0.0
+15. **1.3.0 REQUIRED**: Replace any `--scheme auto` usage on image operations — that value was removed; the default is now `https`, and explicit `--scheme http`/`--scheme https` still work
+16. **1.4.1 REQUIRED**: Update any script or tool that parses `container system status` structured output (`--format json/yaml/toml`) for the new host/client/paths/resources field set
 
 ## Dependencies
 
@@ -55,5 +75,12 @@ Per-release feature history, the full migration checklist, and the dependency ma
 | 0.8.0 | 0.21.1 | |
 | 0.9.0 | 0.24.0 | Kata 3.26.0 |
 | 0.10.0 | 0.26.2 | |
+| 1.1.0 | 0.35.0 | |
+| 1.2.0 | 0.40.1 | Builder shim 0.13.0 |
+| 1.2.1 | | Builder shim 0.13.1 |
+| 1.2.2 | | |
+| 1.3.0 | | Kata 3.32.0-debug |
+| 1.3.1 | 0.42.0 | |
+| 1.4.1 | 0.45.0 | |
 
-Dependency versions for releases after 0.10.0 require verification against the upstream release notes before being added here.
+Dependency versions for releases between 0.10.0 and 1.1.0, and any cell left blank above (1.2.1, 1.2.2, and 1.3.0 do not state a containerization version in their release notes), require verification against the upstream release notes before being added here. Blank cells are a deliberate absence of a stated value, not an oversight.

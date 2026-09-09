@@ -31,7 +31,7 @@ See `references/cluster-is-vm.md` for the implications when authoring SandboxTem
 ## Prerequisites
 
 - macOS 26+ (Apple Silicon or Intel). kina's README documents limitations on macOS 15.6 — verify by running `kina` against the older version before depending on it.
-- Apple Container 0.5.0+. **Currently kina is pinned at 0.5.0+ while Apple Container is at 1.0.0** — verify compatibility before depending on it (see "Version drift" below).
+- Apple Container 0.5.0+. **Currently kina is pinned at 0.5.0+ while Apple Container is at 1.4.1** — verify compatibility before depending on it (see "Version drift" below).
 - `kubectl` on the host.
 - `mise` if you want kina's task automation.
 
@@ -46,7 +46,7 @@ container --version
 
 ## Version drift (kina ↔ apple-container)
 
-kina's README says it requires "Apple Container 0.5.0+" and "automatically detects and validates" the installed version. Apple Container has moved to 1.0.0 — a major release with breaking CLI changes (`container system property get/set/clear` removed in favor of a TOML config file; structured `ls`/`inspect` output shape changed), which raises the drift risk for kina's 0.5.0+ pin. **Before depending on kina in any plugin workflow, verify it actually runs against the installed `container` version.**
+kina's README says it requires "Apple Container 0.5.0+" and "automatically detects and validates" the installed version. Apple Container has moved to 1.4.1, and three releases in that line carry breaking changes: 1.0.0 removed `container system property get/set/clear` in favor of a TOML config file and changed the structured `ls`/`inspect` output shape; 1.3.0 removed `--scheme auto` for image operations and made `https` the default; 1.4.1 changed the `container system status` output shape. Each widens the drift risk against kina's 0.5.0+ pin. **Before depending on kina in any plugin workflow, verify it actually runs against the installed `container` version.**
 
 ```bash
 container --version

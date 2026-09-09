@@ -45,15 +45,19 @@ container run [FLAGS] IMAGE [COMMAND] [ARGS...]
 | `--init` | | Run an init process in the container (0.11.0+) |
 | `--init-image` | | Init image for VM (0.10.0+ selection support) |
 | `--kernel` | | Custom kernel for VM |
-| `--virtualization` | | Virtualization backend |
+| `--virtualization` | | Expose virtualization capabilities to the container (requires host and guest support) |
 | `--runtime` | | Container runtime (0.10.0+) |
 | `--cap-add` | | Add a Linux capability (0.12.0+) |
 | `--cap-drop` | | Drop a Linux capability (0.12.0+) |
 | `--shm-size` | | Shared-memory size, e.g., `1g` (1.0.0+) |
-| `--scheme` | | Image scheme |
+| `--scheme` | | Scheme used when connecting to the container registry: `http` or `https` (default: `https`) |
 | `--progress` | | Progress output (`none`, `ansi`) (0.7.0+) |
 | `--gid` | | Group ID |
 | `--uid` | | User ID |
+| `--kernel-arg` | | Append a raw boot argument to the kernel command line (repeatable) (1.2.0+) |
+| `--masked-path` | | [EXPERIMENTAL] Hide a path inside the container, in addition to the runtime defaults (or `NONE` to clear prior values and the defaults) (1.2.1+) |
+| `--read-only-path` | | [EXPERIMENTAL] Mark a path inside the container read-only, in addition to the runtime defaults (or `NONE` to clear prior values and the defaults) (1.2.1+) |
+| `--ssh` | | Forward SSH agent socket to container (0.4.1+) |
 
 Common combinations:
 - `-it` - Interactive terminal session
@@ -68,7 +72,7 @@ Create a container without starting it.
 container create [FLAGS] IMAGE [COMMAND] [ARGS...]
 ```
 
-Accepts all the same flags as `container run` except `--detach`. Includes `--read-only` (0.8.0+), `--cpus`/`--memory` (0.9.0+), `--init`/`--init-image`/`--runtime` (0.10.0+), `--cap-add`/`--cap-drop` (0.12.0+), and all DNS flags.
+Accepts all the same flags as `container run` except `--detach`. Includes `--read-only` (0.8.0+), `--cpus`/`--memory` (0.9.0+), `--init`/`--init-image`/`--runtime` (0.10.0+), `--cap-add`/`--cap-drop` (0.12.0+), `--kernel-arg` (1.2.0+), `--read-only-path`/`--masked-path` (both [EXPERIMENTAL], 1.2.1+), `--ssh` (0.4.1+), and all DNS flags.
 
 ### `container start`
 
@@ -179,13 +183,21 @@ Remove all stopped containers.
 container prune
 ```
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--force` | `-f` | Skip confirmation |
+Takes no arguments and no filter — it removes every stopped container. Verified on 1.4.1: `USAGE: container prune [--debug]`; the only options are `--debug`, `--version` and `-h/--help`. There is no `--force`/`-f`. `--help` cannot show whether a prompt exists; upstream `Sources/ContainerCommands/Container/ContainerPrune.swift` at tag 1.4.1 (68 lines) declares no prune-specific flag or argument — only an `@OptionGroup` carrying the global `--debug` flag — and calls no read-from-stdin path, so there is no confirmation to skip. It also filters to stopped containers and skips container machines. See SKILL.md's Troubleshooting section before running it on a host with containers you did not create.
+
+### `container clean`
+
+Clean one or more RUNNING containers. (1.4.1+)
+
+```
+container clean [--debug] [CONTAINER-ID...]
+```
+
+`CONTAINER-ID` is optional-variadic in the usage line — behavior with zero arguments is `requires verification: run 'container clean' with no arguments on a disposable host`. Options are `--debug`, `--version`, `-h/--help`; there is no filter or bulk-select flag. `container clean` operates on running containers identified by explicit ID; it does not address the stopped-container accumulation problem below — `container prune` is the command for that.
 
 ### `container export`
 
-Export a container's filesystem as a tar archive. (0.10.0+; 0.11.0+ supports stopped containers) This is a filesystem tar only — it does not create or tag an image; there is no `-t/--tag` flag.
+Export a container's filesystem as a tar archive. (0.10.0+; 0.11.0+ supports stopped containers; 1.2.1+ adds support for live/running containers) This is a filesystem tar only — it does not create or tag an image; there is no `-t/--tag` flag.
 
 ```
 container export [FLAGS] CONTAINER
@@ -225,7 +237,7 @@ container image pull [FLAGS] IMAGE
 | `--platform` | Target platform (e.g., `linux/arm64`) |
 | `--arch` | Target architecture |
 | `--os` | Target OS |
-| `--scheme` | Image scheme (e.g., `oci`) |
+| `--scheme` | Scheme used when connecting to the container registry: `http` or `https` (default: `https`) |
 
 Architecture aliases (0.8.0+): `amd64`=`x86_64`, `arm64`=`aarch64`. Set `CONTAINER_DEFAULT_PLATFORM` (0.11.0+) to avoid specifying `--platform` on every pull/build.
 
@@ -345,8 +357,9 @@ container build [FLAGS] PATH
 | `--memory` | | Memory limit for build |
 | `--vsock-port` | | Vsock port for builder |
 | `--dns` | | DNS server for build (0.9.0+) |
+| `--ssh` | | Forward SSH agent authentication to the build (format: `default`) (1.2.1+) |
 
-**Note**: When no `Dockerfile` is found, the builder falls back to `Containerfile` (0.6.0+). Multiple `-t` tags supported (0.6.0+); build from stdin with `-f -` (0.7.0+).
+**Note**: When no `Dockerfile` is found, the builder falls back to `Containerfile` (0.6.0+). Multiple `-t` tags supported (0.6.0+); build from stdin with `-f -` (0.7.0+). `build --ssh` takes a value (format: `default`); `run`/`create --ssh` is a bare flag with no value — different shapes, do not conflate them.
 
 ### `container builder start`
 
@@ -552,17 +565,18 @@ container system stop
 
 ### `container system status`
 
-Check if the system service is running.
+Show the status of `container` services and system-wide information.
 
 ```
-container system status [FLAGS]
+container system status [--prefix <prefix>] [--format <format>] [--debug]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--format` | Output format (e.g., `json`) (0.10.0+) |
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--prefix` | `-p` | Launchd prefix for services (default: `com.apple.container.`) |
+| `--format` | | Format of the output: `json`, `table`, `yaml`, `toml` (default: `table`) (0.10.0+) |
 
-Exit code 0 if running, non-zero if not.
+Exit code 0 if running, non-zero if not. **1.4.1+**: the output shape changed to report host, client, paths, and resources — per the release note, not observable from `--help`; it requires the running service to see.
 
 ### `container system version`
 
@@ -670,6 +684,21 @@ Create a machine from an image. The image requires `/sbin/init`; an optional fir
 container machine create IMAGE --name NAME
 ```
 
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--name` | `-n` | Name for the container machine |
+| `--set-default` | | Set this container machine as the default |
+| `--no-boot` | | Create the container machine without booting it |
+| `--cpus` | | Number of virtual CPUs |
+| `--memory` | | Memory allocation, e.g., `2G`, `8G` (default: half of system memory) |
+| `--home-mount` | | User's home directory mount option: `ro`, `rw`, `none` (default: `rw`) |
+| `--virtualization` | | Enable nested virtualization (requires Apple Silicon M3+ and macOS 15+ and kernel with CONFIG_KVM=y) |
+| `--kernel` | | Path to a custom kernel binary (e.g. `vmlinux`) |
+| `--arch` | `-a` | Set arch if image can target multiple architectures (default: `arm64`) |
+| `--os` | | Set OS if image can target multiple operating systems (default: `linux`) |
+| `--platform` | | Platform for the image if it's multi-platform; takes precedence over `--os` and `--arch` |
+| `--scheme` | | Scheme used when connecting to the container registry: `http` or `https` (default: `https`) |
+
 ### `container machine run`
 
 Open an interactive shell, or run a single command. Host home directory is mounted at `/Users/<username>` inside the machine.
@@ -703,6 +732,23 @@ Update machine resources. Stop and run the machine to apply.
 container machine set -n NAME cpus=N memory=SIZE
 ```
 
+## Kubernetes (k8s) Plugin (1.2.1+, EXPERIMENTAL)
+
+Manage local Kubernetes development clusters. Upstream marks the whole command **EXPERIMENTAL** and lists it under `container --help`'s `PLUGINS:` heading, separate from the core subcommands. The EXPERIMENTAL mark is observed on the 1.4.1 binary; the 1.2.1 release notes that introduced the plugin do not use the word.
+
+Usage lines below are verbatim from `container k8s <subcommand> --help` on 1.4.1. Note `load-image` takes a required `<image>` positional; the others are flag-only.
+
+| Subcommand | Usage | Description |
+|------------|-------|-------------|
+| `create` | `k8s create [--name <name>] [--rm] [--cpus <cpus>] [--memory <memory>] [--scheme <scheme>] [--max-concurrent-downloads <max-concurrent-downloads>] [--node-image <node-image>]` | Create **and start** a local Kubernetes cluster |
+| `delete`, `rm` | `k8s delete [--name <name>]` | Delete a Kubernetes cluster |
+| `list`, `ls` | `k8s list` | List clusters and their nodes |
+| `load-image` | `k8s load-image [--name <name>] <image> [--platform <platform>]` | Load a container image into a cluster's containerd |
+| `start` | `k8s start [--name <name>]` | Start a stopped Kubernetes cluster |
+| `write-config` | `k8s write-config [--name <name>] [--kubeconfig <kubeconfig>]` | Write the cluster context to a Kubernetes configuration file |
+
+`--name` selects the cluster and defaults to `k8s-dev`. Every subcommand except `list` accepts it — `k8s list --help` shows only `--version` and `-h/--help`. `k8s create --scheme` carries the same registry-scheme semantics as `container run --scheme`.
+
 ## Environment Variables (0.11.0+)
 
 | Variable | Description |
@@ -727,6 +773,8 @@ Progress output modes (0.12.0+):
 | (auto) | Automatically falls back to `plain` when stderr is not a TTY |
 
 **Note (1.0.0)**: The structured (JSON, YAML, TOML) output shape was cleaned up for `container`, `image`, `network`, and `volume` `ls` and `inspect`. Scripts parsing pre-1.0.0 shapes require updates.
+
+**Note (1.4.1)**: JSON output no longer escapes forward slashes, per the release note — not observable from `--help`. Scripts that expect escaped `/` in parsed JSON output require review.
 
 ## Build Secrets (0.11.0+)
 
