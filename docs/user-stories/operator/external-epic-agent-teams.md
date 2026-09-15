@@ -23,8 +23,8 @@ Feature: External epic drives agent teams
 
   Scenario: Reviewer gathers evidence through hands, not direct execution
     Given a reviewer needs to confirm a test result
-    When the reviewer spawns a hand on the smallest fast tier to run the test
-    Then the reviewer posts findings as path:line lines and runs no suite, build, or app itself
+    When the reviewer requests hands to run the test on the smallest fast tier
+    Then the reviewer posts findings with a basis and runs no suite, build, or app itself
 
   Scenario: Any harness runs the same loop
     Given claude, codex, or agy launches the loop

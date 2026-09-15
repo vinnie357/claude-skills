@@ -8,9 +8,9 @@ Per claude-skills ADR 0001 (`docs/adr/0001-agent-loop-process.md`), status Propo
 
 3. Bees issues are a team's or lead's scratch tracker, shared with that team's agents. `issues.jsonl` can preseed a new agent's clone through `bees import`; the handoff step is not built. Bees issues are not a system of record.
 
-4. Reviewers judge; hands execute. Every reviewer evaluates the artifact against ADRs, user stories, acceptance criteria, and the relevant skills. A reviewer never runs a suite, a build, or the app — it spawns hands on the smallest fast tier to run a named command and judges the verbatim output. Findings: `[severity] path:line — defect. Fix: one sentence.`
+4. Reviewers judge; hands execute. Every reviewer evaluates the artifact against ADRs, user stories, acceptance criteria, and the relevant skills. A reviewer never runs a suite, a build, or the app — it obtains execution through hands on the smallest fast tier, requested through its lead when the reviewer cannot spawn agents. Hands report the command, revision, exit status, and a relevant excerpt, not whole logs; missing required evidence blocks approval and never authorizes the reviewer to execute. Findings: `[severity] path:line — defect and impact; basis. Fix: one sentence.` The basis names the ADR or skill when one applies; a plan without stable lines uses a section reference.
 
-5. Models are chosen by capability tier: strongest reasoning, deep reasoning, general, smallest fast, or multimodal. Each harness maps a tier to its own model; process text never names one directly. Effort defaults to medium and passes explicitly on every run; high effort is a per-run exception.
+5. Models are chosen by capability tier: strongest reasoning, deep reasoning, general, smallest fast, or multimodal. Each harness maps a tier to its own model; process text never names one directly. Effort defaults to medium; the launcher passes it wherever the harness accepts it. High effort is a per-run exception.
 
 6. Every loop agent emits the minimum words, tokens, code, and comments that meet its goal, per `/core:restraint` and `/core:technical-english`.
 

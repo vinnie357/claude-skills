@@ -22,9 +22,9 @@ Agents inherit whatever the repo holds. A stale tracker row, a finished spec, or
 
 3. Bees issues are a team's or a lead's scratch tracker, shared with that team's agents. `issues.jsonl` can preseed a new agent's clone through `bees import`; the handoff step is not built. Bees issues are not a system of record.
 
-4. Reviewers judge; hands execute. Every reviewer — plan, test, pipeline, or PR gate — evaluates the artifact against ADRs and user stories. It also checks acceptance criteria and the relevant skills. A reviewer never runs a suite, a build, or the app. Instead, a reviewer spawns hands on the smallest fast tier to run a named command. The reviewer then judges the verbatim output. Findings stay terse: `[severity] path:line — defect. Fix: one sentence.`
+4. Reviewers judge; hands execute. Every reviewer — plan, test, pipeline, or PR gate — evaluates the artifact against ADRs and user stories. It also checks acceptance criteria and the relevant skills. A reviewer never runs a suite, a build, or the app. It obtains execution through hands on the smallest fast tier. A reviewer that cannot spawn agents requests hands through its lead. Hands report the command, revision, exit status, and a relevant excerpt, not whole logs. Missing required evidence blocks approval and never authorizes the reviewer to execute. Findings stay terse: `[severity] path:line — defect and impact; basis. Fix: one sentence.` The basis names the ADR or skill when one applies. A plan without stable lines uses a section reference.
 
-5. A team selects a model by capability tier: strongest reasoning, deep reasoning, general, smallest fast, or multimodal. Each harness maps a tier to its own model, for example claude, codex, or agy. Process text never names a literal model. Effort defaults to medium for every tier and passes explicitly on every run. High effort is a per-run exception.
+5. A team selects a model by capability tier: strongest reasoning, deep reasoning, general, smallest fast, or multimodal. Each harness maps a tier to its own model, for example claude, codex, or agy. Process text never names a literal model. Effort defaults to medium for every tier. The launcher passes it wherever the harness accepts an effort setting. High effort is a per-run exception.
 
 6. Every loop agent emits the minimum words, tokens, code, and comments that meet its goal, per `/core:restraint` and `/core:technical-english`.
 
@@ -35,8 +35,8 @@ Agents inherit whatever the repo holds. A stale tracker row, a finished spec, or
 - This repo still tracks `.bees/issues.jsonl` and still instructs `chore(bees)` commits until pruning lands — decision 1 states the target shape, not the current state.
 - Existing tracker ids in code and docs need a burn-down; this ADR does not schedule it.
 - `/core:agent-loop` ships this outline as `references/process.md`.
-- Decision 4: `/core:code-review`'s "Build and test locally" and `/core:git` Gate 3's "scratchpad clone for destructive tests" still tell reviewers to run things.
-- Decision 5: `/core:agent-loop` model tables, reviewer defaults, and `AGENT_LOOP_ESCALATION_CHAIN` still name models literally.
+- Decision 4: these sites still tell reviewers to run things: `/core:code-review` "Build and test locally", `/core:git` Gate 3's scratchpad clone for destructive tests, the `/github:pr-review` worker's gate runs, the `/core:agent-loop` workflow templates' reviewer clone clause, and `/core:anti-fabrication`'s "Execute tests using Bash tool".
+- Decision 5: `/core:agent-loop` model tables, `references/dispatch-discipline.md` model rule, reviewer defaults, and `AGENT_LOOP_ESCALATION_CHAIN` still name models literally.
 - Decision 7: `/core:git` still suggests `Closes #123` commit footers.
 
 ## Open questions
