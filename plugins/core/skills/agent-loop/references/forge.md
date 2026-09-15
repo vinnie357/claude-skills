@@ -19,27 +19,29 @@ are the current defaults, not fixed values.
 
 | Pair | Principal | Hands / partner | Fan-out |
 |------|-----------|-----------------|---------|
-| Plan | Test Planner (opus) | Plan Reviewer (fable) + research hands (smallest) | 1 |
-| Author tests | Test Author (sonnet) | Test Reviewer (fable) + its own hands (smallest) | 1 |
-| Implement | Implementor (sonnet) | Test Runner (haiku) | × N slices, parallel by dep wave |
-| Review | Reviewer (fable) | Research hands (smallest) + Comment Reviewer (fable) | 1 |
-| Final review | Final Reviewer (fable) | Research hands (smallest) | 1 |
-| Remediate | Implementor (sonnet) | Test Runner (haiku) | per review-finding batch |
+| Plan | Test Planner (deep reasoning) | Plan Reviewer (strongest reasoning) + research hands (smallest fast) | 1 |
+| Author tests | Test Author (general) | Test Reviewer (strongest reasoning) + its own hands (smallest fast) | 1 |
+| Implement | Implementor (general) | Test Runner (smallest fast) | × N slices, parallel by dep wave |
+| Review | Reviewer (strongest reasoning) | Research hands (smallest fast) + Comment Reviewer (strongest reasoning) | 1 |
+| Final review | Final Reviewer (strongest reasoning) | Research hands (smallest fast) | 1 |
+| Remediate | Implementor (general) | Test Runner (smallest fast) | per review-finding batch |
 
 ## Reviewers are the best-thinker tier
 
 Every reviewing role — the Plan Reviewer in the plan pair, the Test Reviewer in the author pair,
-the Reviewer, and the Final Reviewer — defaults to `fable`, each paired with haiku hands.
-Thinking is expensive and stays on the strong model; fetching is cheap and stays on the small
-model. The reviewer never searches; its hands surface the exact artifact to judge.
+the Reviewer, and the Final Reviewer — defaults to the strongest-reasoning tier, each paired with
+smallest-fast-tier hands. Thinking is expensive and stays on the strong model; fetching is cheap
+and stays on the small model. The reviewer never searches or runs; its hands surface the artifact
+and the evidence (`references/reviewer.md`).
 
 Each of the four honors its own env-var override — the Plan Reviewer reads
 `AGENT_LOOP_PLAN_REVIEWER_MODEL`, the Test Reviewer reads `AGENT_LOOP_TEST_REVIEWER_MODEL`, the
 Reviewer reads `AGENT_LOOP_REVIEWER_MODEL`, and the Final Reviewer reads
-`AGENT_LOOP_FINAL_REVIEWER_MODEL` — and all four share the exact fable-to-opus capability
-fallback already shipped on `core:comment-reviewer` (`plugins/core/agents/comment-reviewer.md`,
-"Model fallback" section) rather than defining a second mechanism. All four also load
-`/core:restraint`, mirroring `core:comment-reviewer`'s own `skills:` frontmatter.
+`AGENT_LOOP_FINAL_REVIEWER_MODEL` — and all four share the exact capability fallback from the
+strongest-reasoning tier to the strongest-fallback tier, already shipped on `core:comment-reviewer`
+(`plugins/core/agents/comment-reviewer.md`, "Model fallback" section) rather than defining a
+second mechanism. All four also load `/core:restraint`, mirroring `core:comment-reviewer`'s own
+`skills:` frontmatter.
 
 The **Plan Reviewer** has a specific charter — the one genuinely new gate this update adds, since
 the Plan pair was previously the only pair without a reviewer. Using hands to surface only the
@@ -53,7 +55,7 @@ or returns it to the Test Planner for revision — it never edits the plan itsel
 in a follow-up bees issue, "Add planRev stage to forge-issue.workflow.js for the Plan Reviewer
 gate (claude-skills-294 follow-up)".
 
-The **Test Reviewer** has a specific charter: using haiku hands to surface *only* the Test Author's
+The **Test Reviewer** has a specific charter: using smallest-fast-tier hands to surface *only* the Test Author's
 new tests, verify the tests follow the Test Planner's plan and carry no redundancy. Catching
 plan-drift and duplicate tests *before* the implementor starts raises the implementor's chance of
 first-pass success — a cheap gate that prevents an expensive failed implementation loop.
@@ -62,16 +64,17 @@ The **Comment Reviewer** (`core:comment-reviewer`) has an equally narrow charter
 *quality* only, never comment *presence* — a well-named uncommented function is not a finding.
 It runs as an optional dimension of the Review pair, checking new and touched comments in the
 diff for restated, over-explained, missing-purpose, missing-inputs, or contradicting content,
-and reports through the `## VERDICTS` contract. It defaults to `model: fable`, falling back to
-`opus` when fable is unavailable — a capability substitution, not the escalation-on-failure
-ladder.
+and reports through the `## VERDICTS` contract. It defaults to the strongest-reasoning tier,
+falling back to the strongest-fallback tier when unavailable — a capability substitution, not
+the escalation-on-failure ladder.
 
 The **Prose Reviewer** (`core:prose-reviewer`) has the same narrow shape, aimed at authored
 prose instead of comments: hedged directives, split terms, hidden-agent passives, overlong
 sentences, and clutter, reported through its own `## VERDICTS` contract. The Review pair spawns
 it only when the diff touches authored-prose paths — skills, agents, commands, references,
-READMEs, ADRs — and skips it on a code-only diff. It defaults to `model: fable`, falling back
-to `opus` when fable is unavailable, the same capability substitution as its sibling.
+READMEs, ADRs — and skips it on a code-only diff. It defaults to the strongest-reasoning tier,
+falling back to the strongest-fallback tier when unavailable, the same capability substitution
+as its sibling.
 
 ## Startup index per principal
 

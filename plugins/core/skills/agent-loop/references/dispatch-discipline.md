@@ -4,7 +4,7 @@ These rules apply to any leader (Tier 1 or Tier 2) authoring an Agent or Task sp
 
 ## Model selection is explicit, never inherited
 
-Every spawn prompt sets `model:` (or the equivalent `subagent_type` argument) explicitly to `haiku`, `sonnet`, or `opus`. Inheriting model from the parent's session wastes tokens — leads run on opus by default and inherit their model to haiku-class tasks if unconstrained.
+Every spawn prompt sets `model:` (or the equivalent `subagent_type` argument) explicitly to the harness-resolved model for the role's tier, per `SKILL.md` "Model overrides" and `references/model-tiers.md`. Inheriting model from the parent's session wastes tokens — leads run on the deep-reasoning tier by default and inherit their model to smallest-fast-tier tasks if unconstrained.
 
 ## Use specialized subagent types
 
@@ -12,7 +12,7 @@ When the project ships specialized subagent types (`Explore`, `Plan`, `bees-mana
 
 ## Delegate search before you search
 
-Leaders and the costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) do not run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only hands (smallest fast model, the `Explore` type) with a specific objective, consume the returned `file:line` index, and `Read` only the lines that index names. A fresh principal receives its index as a `## Starting index` block in its spawn prompt — it opens oriented, never blind. See `researcher.md` for the hands contract and `forge.md` for how hands pair with each role. Searching is a small-model job; an expensive model spending its context on `Grep` is the waste this rule removes.
+Leaders and the costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) do not run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only hands (smallest fast model, the `Explore` type) with a specific objective, consume the returned `file:line` index, and `Read` only the lines that index names. A fresh principal receives its index as a `## Starting index` block in its spawn prompt — it opens oriented, never blind. See `researcher.md` for the hands contract and `forge.md` for how hands pair with each role. Searching is a small-model job; an expensive model spending its context on `Grep` is the waste this rule removes. Principals do not search or run; reviewers obtain execution per `references/reviewer.md`.
 
 ## Select model by capability, not by name
 
@@ -20,7 +20,7 @@ Match the model to the task's capability requirement, carried in config — neve
 
 ## Tier 1 leads delegate ALL execution
 
-A Tier 1 lead runs zero direct work: no `Bash`, no `Edit`, no `Write`, no `Read` of source files. CI runs through a haiku validator. Fixes run through a sonnet or opus fix-agent. The lead's tool surface is `Read` (the lead's own loaded skills and the spec it is composing), bees state queries, the `Task`/`Agent` spawn tool, and the user-facing message channel.
+A Tier 1 lead runs zero direct work: no `Bash`, no `Edit`, no `Write`, no `Read` of source files. CI runs through a smallest-fast-tier validator. Fixes run through a general-tier or deep-reasoning-tier fix-agent. The lead's tool surface is `Read` (the lead's own loaded skills and the spec it is composing), bees state queries, the `Task`/`Agent` spawn tool, and the user-facing message channel.
 
 ## Tier 1 leads framing
 
@@ -47,25 +47,18 @@ Never run git checkout, switch, restore, stash, reset, clean, rebase, merge,
 pull, cherry-pick, apply, am, or branch -f/-D against the shared working tree,
 or any other command that changes HEAD, the index, or tracked or untracked
 files. To inspect another ref: git show <ref>:<path>, git diff a...b,
-git ls-tree. To test anything that requires mutation:
-
-    git clone <repo> "$SCRATCHPAD/repo"
-    git -C "$SCRATCHPAD/repo" remote remove origin
-
-Work there and state the scratchpad path in your report. Do not write under
-.git/ directly (config, hooks, refs); git fetch is the only sanctioned .git
-write.
+git ls-tree. To obtain execution, request execution hands (references/reviewer.md).
+Do not write under .git/ directly (config, hooks, refs); git fetch is the only
+sanctioned .git write.
 ```
 
 The catch-all clause matters as much as the names. A closed list recreates the failure it fixes one step over — an agent that reads literally enough to treat checkout-then-restore as net-zero will also read "rebase isn't on the list". `git clean -fd` is the worst omission a list can have: it destroys teammates' uncommitted work with no recovery, unlike the incident below, which was survivable.
-
-Removing `origin` in the clone is not optional. `git clone` from a local path sets origin to the shared repo, so a push from the scratchpad writes refs back into it; a `cp -R` that carries `.git` keeps the GitHub remote and pushes to the real one.
 
 `.git/` internals are not covered by "HEAD, the index, or tracked files" — `git status` never lists them — so the block adds: do not write under `.git/` directly (config, hooks, refs); `git fetch` is the only sanctioned `.git` write. The vector that earns the clause is `.git/hooks/*`: a hook written there executes on a teammate's next commit, which is mutation by proxy. The carve-out matters as much as the ban, since a flat "never write under `.git/`" would forbid `git fetch`, which reviewers legitimately need.
 
 Name the commands. "No git state changes" is not enough — an agent given that wording checked out a PR branch, restored main afterward, and read the round trip as net-zero. Three other agents were writing to that tree at the time; all three had their work silently moved onto the wrong branch. It was recoverable only because the branch happened to sit at the same commit and the reviewer disclosed the checkout in its report.
 
-The scratchpad copy is the half that makes the prohibition workable. A read-only reviewer that cannot mutate anything also cannot verify a destructive scenario, so it either skips the check or does it live and hopes. Working in a clone removes the tradeoff: full freedom to break things, zero risk to in-flight work. Reviewers using this pattern have demonstrated exploits — deleting a file's operative content, injecting malformed fences, adding synthetic skills — that a read-only pass would have missed entirely.
+A destructive scenario runs through execution hands in their own scratchpad clone, never through the reviewer directly: the reviewer requests the check, the hands execute it and report the record, and the reviewer judges the record. The clone gives the hands full freedom to break things with zero risk to in-flight work, and the reviewer stays read-only throughout. Execution hands using this pattern have demonstrated exploits — deleting a file's operative content, injecting malformed fences, adding synthetic skills — that a read-only pass would have missed entirely.
 
 ## No timed polling loops in workers
 
