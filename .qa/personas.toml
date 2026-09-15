@@ -1,0 +1,2 @@
+[personas.operator]
+description = "Runs the agent loop: authors external epics, user stories, and ADRs, and dispatches agent teams."
