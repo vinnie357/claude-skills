@@ -5,7 +5,7 @@
 # against the reviewer-evidence contract (adversarial TDD test author; this
 # script is frozen once committed).
 #
-# Eight named assertions per template, run via test/workflow-templates/harness.mjs:
+# Nine named assertions per template, run via test/workflow-templates/harness.mjs:
 #   syntax                    — node --check passes on the wrapped template
 #   no-reviewer-clone         — no reviewer prompt contains "git clone"
 #                                (ciPrompt is exempt — that agent executes)
@@ -33,8 +33,14 @@
 #                                cwd is an empty string
 #   absent-stage-model-no-substitution — a stage model absent from
 #                                escalationChain is never substituted by a
-#                                chain model: the ladder for that stage stays
-#                                [stageModel], tried exactly twice
+#                                chain model, in ANY phase: the ladder for
+#                                that stage stays [stageModel], tried exactly
+#                                twice
+#   present-stage-model-promotes — a stage model present in escalationChain
+#                                (at index 0) drives a ladder of the chain
+#                                suffix from that model onward: two attempts
+#                                on the stage model, then two on the next
+#                                chain model, before the workflow escalates
 #
 # harness.mjs drives each template with stub agent/parallel/phase/log/
 # workflow/budget functions — no real agent is ever spawned, no network

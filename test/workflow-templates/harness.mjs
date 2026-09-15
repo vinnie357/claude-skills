@@ -173,15 +173,22 @@ function isPrincipalReviewCall(callLike, args) {
 // scenario 'absent-stage-model' swaps escalationChain for two chain models
 // that never equal any stageModels value ('STAGEMODEL') — the stage model is
 // then absent from the chain, the exact precondition the ladder bug fires
-// under. Every other scenario keeps escalationChain === ['STAGEMODEL'] (the
-// stage model present in the chain), unaffected by the bug either way.
+// under. scenario 'present-stage-model' keeps the stage model IN the chain,
+// at index 0, followed by a second chain model — the ladder for that stage
+// must be the chain suffix from the stage model onward (['STAGEMODEL',
+// 'CHAINMODEL_B']), pinning existing present-chain promotion behaviour.
+// Every other scenario keeps escalationChain === ['STAGEMODEL'] (the stage
+// model present, alone), unaffected by the bug either way.
 function buildArgsForge(scenario) {
   return {
     issueId: 'test-issue',
     repo: '/tmp/fake-repo',
     acceptanceCriteria: ['AC1 holds', 'AC2 holds'],
     skills: ['/core:tdd'],
-    escalationChain: scenario === 'absent-stage-model' ? ['CHAINMODEL_A', 'CHAINMODEL_B'] : ['STAGEMODEL'],
+    escalationChain:
+      scenario === 'absent-stage-model' ? ['CHAINMODEL_A', 'CHAINMODEL_B']
+      : scenario === 'present-stage-model' ? ['STAGEMODEL', 'CHAINMODEL_B']
+      : ['STAGEMODEL'],
     handsModel: 'HANDSMODEL',
     handsVisionModel: 'HANDSVISIONMODEL',
     stageModels: {
@@ -198,7 +205,10 @@ function buildArgsFiveTier(scenario) {
     acceptanceCriteria: ['AC1 holds', 'AC2 holds'],
     testFiles: ['test/x_test.exs'],
     skills: ['/core:tdd'],
-    escalationChain: scenario === 'absent-stage-model' ? ['CHAINMODEL_A', 'CHAINMODEL_B'] : ['STAGEMODEL'],
+    escalationChain:
+      scenario === 'absent-stage-model' ? ['CHAINMODEL_A', 'CHAINMODEL_B']
+      : scenario === 'present-stage-model' ? ['STAGEMODEL', 'CHAINMODEL_B']
+      : ['STAGEMODEL'],
     // Not consumed by the template as shipped today — provided so five-tier's
     // P5 stage can wire to the same evidence mechanism forge uses, per the
     // AGENT_LOOP_HANDS_MODEL contract.
@@ -229,6 +239,11 @@ function reviewerVerdict(ctx) {
   // exhausts the ladder ladderFor() actually returned — the only way to
   // observe which models it tried.
   if (ctx.scenario === 'absent-stage-model') throw new Error('reviewer call fails to exhaust the escalation ladder')
+  // Same forcing function as 'absent-stage-model', for the present-chain
+  // case: every principal reviewer call (any model) always throws, so the
+  // full ladder [STAGEMODEL, STAGEMODEL, CHAINMODEL_B, CHAINMODEL_B] is
+  // observable in ctx.calls before the workflow escalates.
+  if (ctx.scenario === 'present-stage-model') throw new Error('reviewer call fails to exhaust the escalation ladder')
   if (ctx.scenario === 'happy') return verdictApprove()
   if (n === 1) return verdictEvidence()
   if (ctx.scenario === 'evidence-escalate') return verdictEvidence()
@@ -326,6 +341,12 @@ function runSelfCheck() {
 //                       every principal call at the target review phase
 //                       fails, exhausting whatever ladder ladderFor()
 //                       returned
+//   present-stage-model — escalationChain is ['STAGEMODEL', 'CHAINMODEL_B'],
+//                       with the stage model present at index 0; every
+//                       principal call at the target review phase fails
+//                       (same forcing function as absent-stage-model),
+//                       exhausting the chain suffix from the stage model
+//                       onward — pins existing present-chain promotion
 async function runScenario(mod, scenario) {
   const ctx = {
     kind: KIND,
@@ -419,6 +440,7 @@ const evCommandMismatch = await runScenario(mod, 'evidence-command-mismatch')
 const evExitNonint = await runScenario(mod, 'evidence-exit-nonint')
 const evCwdEmpty = await runScenario(mod, 'evidence-cwd-empty')
 const absentStageModel = await runScenario(mod, 'absent-stage-model')
+const presentStageModel = await runScenario(mod, 'present-stage-model')
 
 // --- assertion: no-reviewer-clone ---------------------------------------
 {
@@ -602,20 +624,29 @@ const absentStageModel = await runScenario(mod, 'absent-stage-model')
 // then the workflow escalates. Regression for the defect where ladderFor()
 // fell back to the FULL chain (args.escalationChain.slice()) instead of
 // [stageModel] when args.escalationChain.indexOf(stageModel) === -1.
+//
+// The leak check below covers EVERY stage in ctx.calls, not just the target
+// review phase: ladderFor() is shared by every withEscalation() call site
+// (Plan, Author, Impl, CI, Review, Final, Remediate, ...), so a fix scoped
+// only to the review call site (e.g. inlining a corrected ladder inside
+// reviewWithEvidence) leaves every other stage still substituting the chain
+// — a defect the review-phase-only check below cannot see.
 {
   if (absentStageModel.threw) {
     report('absent-stage-model-no-substitution', false,
       `absent-stage-model run threw: ${absentStageModel.threw.stack || absentStageModel.threw.message}`)
   } else {
     const { ctx, result } = absentStageModel
+    const anyLeaked = ctx.calls.filter(c => c.model === 'CHAINMODEL_A' || c.model === 'CHAINMODEL_B')
     const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
-    const leaked = reviewerCalls.filter(c => c.model === 'CHAINMODEL_A' || c.model === 'CHAINMODEL_B')
     const offModel = reviewerCalls.filter(c => c.model !== 'STAGEMODEL')
-    if (reviewerCalls.length === 0) {
-      report('absent-stage-model-no-substitution', false, 'no reviewer call captured at the target review phase')
-    } else if (leaked.length > 0) {
+    if (anyLeaked.length > 0) {
+      const phases = [...new Set(anyLeaked.map(c => c.phase))].join(', ')
+      const models = [...new Set(anyLeaked.map(c => c.model))].join(', ')
       report('absent-stage-model-no-substitution', false,
-        `reviewer phase used ${[...new Set(leaked.map(c => c.model))].join(', ')} — stage model substituted by the chain`)
+        `chain model(s) [${models}] leaked into phase(s) [${phases}] — an absent stage model must never be substituted by the escalation chain, in any phase`)
+    } else if (reviewerCalls.length === 0) {
+      report('absent-stage-model-no-substitution', false, 'no reviewer call captured at the target review phase')
     } else if (offModel.length > 0) {
       report('absent-stage-model-no-substitution', false,
         `reviewer phase used non-stage model(s) ${[...new Set(offModel.map(c => c.model))].join(', ')} instead of STAGEMODEL`)
@@ -627,6 +658,37 @@ const absentStageModel = await runScenario(mod, 'absent-stage-model')
         `expected the workflow to return status: 'escalate' after the ladder exhausts; got status=${result && result.status}`)
     } else {
       report('absent-stage-model-no-substitution', true)
+    }
+  }
+}
+
+// --- assertion: present-stage-model-promotes --------------------------------
+// When the stage model IS present in escalationChain (the common case), the
+// ladder is the chain suffix from that model onward: STAGEMODEL is tried
+// twice, then promotion to CHAINMODEL_B, tried twice. This pins existing
+// present-chain behaviour so a fix for the absent case cannot regress it
+// (e.g. an over-fix that hardcodes ladderFor() to always return [stageModel]
+// would defeat promotion entirely).
+{
+  if (presentStageModel.threw) {
+    report('present-stage-model-promotes', false,
+      `present-stage-model run threw: ${presentStageModel.threw.stack || presentStageModel.threw.message}`)
+  } else {
+    const { ctx, result } = presentStageModel
+    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
+    const observed = reviewerCalls.map(c => c.model)
+    const expected = ['STAGEMODEL', 'STAGEMODEL', 'CHAINMODEL_B', 'CHAINMODEL_B']
+    const sequenceMatches = observed.length === expected.length && observed.every((m, i) => m === expected[i])
+    if (reviewerCalls.length === 0) {
+      report('present-stage-model-promotes', false, 'no reviewer call captured at the target review phase')
+    } else if (!sequenceMatches) {
+      report('present-stage-model-promotes', false,
+        `expected model sequence [${expected.join(', ')}]; observed [${observed.join(', ')}]`)
+    } else if (!result || result.status !== 'escalate') {
+      report('present-stage-model-promotes', false,
+        `expected the workflow to return status: 'escalate' after the ladder exhausts; got status=${result && result.status}`)
+    } else {
+      report('present-stage-model-promotes', true)
     }
   }
 }
