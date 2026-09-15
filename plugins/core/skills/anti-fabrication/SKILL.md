@@ -144,10 +144,10 @@ Before claiming framework presence or version:
 ### Test Results
 Only report test outcomes after actual execution:
 ```
-1. Execute tests using Bash tool
-2. Capture and read actual output
+1. Execute tests, or cite an attributable execution-hands record (command, revision, exit code)
+2. Capture and read actual output, or reference the documented execution record
 3. Report specific pass/fail counts and error messages
-4. Never claim "tests pass" or "all tests successful" without execution
+4. Never claim "tests pass" or "all tests successful" without execution verification
 ```
 
 ### Performance Claims
@@ -167,6 +167,7 @@ Only make performance statements based on measurement:
 ❌ "Test coverage is good"
 
 ✅ "Executed test suite: 45 passing, 2 failing"
+✅ "Tests pass per execution-hands record: mise run ci @ <40-hex oid>, exit 0"
 ✅ "Coverage report shows 78% line coverage"
 ✅ "Tested with inputs [X, Y, Z], observed [specific results]"
 
