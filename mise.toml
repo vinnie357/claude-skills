@@ -361,7 +361,7 @@ nu ($repo_root | path join "test" "validate-gitleaks-invocation.nu")
 """
 
 [tasks."test:workflow-templates"]
-description = "Reviewer-evidence contract for the agent-loop workflow templates: syntax, no-reviewer-clone, finding-line, evidence-round, second-request-escalates, stale-record-dropped (PR2 slice S9T)"
+description = "Reviewer-evidence contract for the agent-loop workflow templates: syntax, no-reviewer-clone, finding-line, evidence-round, second-request-escalates, stale-record-dropped"
 run = """
 #!/usr/bin/env nu
 

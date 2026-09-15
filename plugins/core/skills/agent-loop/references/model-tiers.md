@@ -16,7 +16,7 @@ column.
 | multimodal | unverified | unverified | unverified |
 | effort setting | `--effort <level>`; agent `effort:` frontmatter | `-c model_reasoning_effort=<level>` | `--effort <level>` on models that accept it; Gemini ids carry effort as a `-low`/`-medium`/`-high` suffix |
 | effort values | `low medium high xhigh max` | `gpt-6-astra`: `low medium high xhigh max` (rejects `none`, `minimal`) | `low medium high` |
-| harness default effort | `high` | unverified | `medium` |
+| harness default effort | `high` (Claude Code model picker; not listed by `--help`) | unverified | `medium` |
 
 - claude and codex rows follow each harness's model-picker descriptions ("most capable" → strongest … "fast"/"fastest" → smallest fast).
 - agy's picker shows no descriptions; its row follows the same capability ordering and needs operator validation.
@@ -31,7 +31,7 @@ column.
 # claude
 AGENT_LOOP_REVIEWER_MODEL=fable
 AGENT_LOOP_HANDS_MODEL=haiku
-AGENT_LOOP_REVIEWER_EFFORT=high
+AGENT_LOOP_REVIEWER_EFFORT=medium
 AGENT_LOOP_HANDS_EFFORT=low
 ```
 
@@ -39,7 +39,7 @@ AGENT_LOOP_HANDS_EFFORT=low
 # codex
 AGENT_LOOP_REVIEWER_MODEL=gpt-6-astra
 AGENT_LOOP_HANDS_MODEL=gpt-5.6-luna
-AGENT_LOOP_REVIEWER_EFFORT=high
+AGENT_LOOP_REVIEWER_EFFORT=medium
 AGENT_LOOP_HANDS_EFFORT=low
 ```
 
@@ -48,6 +48,8 @@ AGENT_LOOP_HANDS_EFFORT=low
 AGENT_LOOP_REVIEWER_MODEL=claude-opus-4-6-thinking
 AGENT_LOOP_HANDS_MODEL=gemini-3.8-flash-medium
 ```
+
+`high` is a per-run override (ADR 0001 decision 5).
 
 ## Adding a harness
 

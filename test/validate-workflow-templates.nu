@@ -2,9 +2,8 @@
 
 # Validates the agent-loop workflow templates
 # (plugins/core/skills/agent-loop/templates/{forge-issue,five-tier-issue}.workflow.js)
-# against the reviewer-evidence contract from claude-skills PR2 slice S9
-# (adversarial TDD test author, S9T — implementation lands in a separate
-# slice, S9, as a follow-up commit; this script is frozen once committed).
+# against the reviewer-evidence contract (adversarial TDD test author; this
+# script is frozen once committed).
 #
 # Seven named assertions per template, run via test/workflow-templates/harness.mjs:
 #   syntax                    — node --check passes on the wrapped template

@@ -8,7 +8,9 @@ Read-only inspection counts as judging, not execution: `Read`, `git show <oid>:<
 `git diff a...b`, `gh pr view` / `gh pr diff` pinned to `headRefOid`. A reviewer does as
 much of this directly as the task needs before reaching for execution hands. A reviewer
 without shell tools judges artifacts its lead provides — a pinned diff and source snapshots,
-each named with its path and oid — and confirms each oid before reading.
+each named with its path and oid. It confirms each snapshot's oid by reading
+`<snapshot>/.git/HEAD` and comparing it with the stated oid; for the diff it relies on the
+runner's `DIFF` line oids.
 
 ## With spawning
 

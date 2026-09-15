@@ -43,6 +43,8 @@ match to the PR's stated intent. Never read the shared working tree for the PR's
 only the artifact paths the gate-runner reported. Before judging, confirm each artifact's
 stated oid: the `SOURCE branch` path and the `DIFF` range's right side must equal
 `headRefOid`; the `SOURCE main` path and the `DIFF` range's left side must equal the main oid.
+Confirm each source snapshot by reading its `.git/HEAD` file and comparing it with the stated
+oid; for the diff, rely on the gate-runner's `DIFF` line oids.
 A missing or mismatched artifact means return verdict `wait` naming the artifact, per
 `/core:agent-loop` `references/reviewer.md` — never proceed on an unverified artifact. Verify
 claims against the real source with Read/Grep — do not assume. For Actions/digest PRs,

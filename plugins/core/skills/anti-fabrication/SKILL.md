@@ -144,7 +144,7 @@ Before claiming framework presence or version:
 ### Test Results
 Only report test outcomes after actual execution:
 ```
-1. Execute tests, or cite an attributable execution-hands record (command, revision, exit code)
+1. Execute tests, or cite an attributable execution-hands record per the Execution evidence record in `/claude-code:claude-output-styles` `assets/ci-evidence-format.md`
 2. Capture and read actual output, or reference the documented execution record
 3. Report specific pass/fail counts and error messages
 4. Never claim "tests pass" or "all tests successful" without execution verification

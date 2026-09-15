@@ -43,9 +43,11 @@ Dispatch one `pr-gate-runner` then one `pr-review-worker` per PR, sequentially. 
 equals the open-PR count, the Forge slice model. Run each PR's pair **sequentially** when the
 gates need exclusive hardware (integration tests, container or cluster spawns). The
 gate-runner clones the repo into its own scratchpad — no working-tree check is needed before
-dispatch, and no worker touches the shared working tree (see `agents/pr-gate-runner.md`). Pass
-the gate-runner's Artifacts block (diff path plus both source snapshot paths) to the
-`pr-review-worker` — its only route to the diff and source, since it carries no `Bash` tool.
+dispatch, and no worker touches the shared working tree (see `agents/pr-gate-runner.md`). The
+collector's `headRefOid` and main oid go to `pr-gate-runner`, whose Artifacts block goes to
+`pr-review-worker`. Pass the gate-runner's Artifacts block (diff path plus both source snapshot
+paths) to the `pr-review-worker` — its only route to the diff and source, since it carries no
+`Bash` tool.
 
 Every gate-runner loads, at minimum:
 

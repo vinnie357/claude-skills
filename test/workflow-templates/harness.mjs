@@ -2,15 +2,15 @@
 // harness.mjs — syntax-checks and executes an agent-loop workflow template
 // (forge-issue.workflow.js / five-tier-issue.workflow.js) against stub
 // agent/parallel/phase/log/workflow/budget functions, verifying the
-// reviewer-evidence contract from claude-skills PR2 slice S9 (execution
-// hands answering a reviewer's evidenceRequests) without spawning any real
-// agent or touching the network.
+// reviewer-evidence contract (execution hands answering a reviewer's
+// evidenceRequests) without spawning any real agent or touching the
+// network.
 //
 // Usage:
 //   node harness.mjs <templatePath> syntax   # node --check on the wrapped file
 //   node harness.mjs <templatePath> run      # execute stub scenarios, assert the contract
 //
-// Wrapping recipe (shared by both modes, per the S9T mission brief): strip
+// Wrapping recipe (shared by both modes): strip
 // the leading "export " from every top-level `export const|function ...`
 // declaration (today there is exactly one: `export const meta`), then wrap
 // the whole body in
@@ -193,9 +193,9 @@ function buildArgsFiveTier() {
     testFiles: ['test/x_test.exs'],
     skills: ['/core:tdd'],
     escalationChain: ['STAGEMODEL'],
-    // Not consumed by the template as shipped today — provided so the S9
-    // implementer can wire five-tier's P5 stage to the same evidence
-    // mechanism forge uses, per the AGENT_LOOP_HANDS_MODEL contract.
+    // Not consumed by the template as shipped today — provided so five-tier's
+    // P5 stage can wire to the same evidence mechanism forge uses, per the
+    // AGENT_LOOP_HANDS_MODEL contract.
     handsModel: 'HANDSMODEL',
     handsVisionModel: 'HANDSVISIONMODEL',
     stageModels: { plan: 'STAGEMODEL', test: 'STAGEMODEL', impl: 'STAGEMODEL', ci: 'STAGEMODEL', review: 'STAGEMODEL' },
@@ -343,8 +343,7 @@ async function runScenario(mod, scenario) {
     // Execution hands: the hands model, WITHOUT the research-hands
     // agentType:'Explore' tag. Existing handsPass() calls in both
     // templates always set agentType:'Explore' for non-vision research, so
-    // this branch is unreachable against the unmodified templates — it
-    // only fires once S9 adds a hands call that actually runs a command.
+    // this branch fires only when a hands call actually runs a command.
     //
     // Contract item 7 (evidence-metadata-validated): a hands record is kept
     // for the re-invoked reviewer only if revision, command, exit (integer),

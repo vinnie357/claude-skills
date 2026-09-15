@@ -1,6 +1,8 @@
 # Agent loop process
 
-Per claude-skills ADR 0001 (`docs/adr/0001-agent-loop-process.md`). Each line states the rule; the ADR decision carries its conditions and dates.
+Per claude-skills ADR 0001 (`docs/adr/0001-agent-loop-process.md`,
+https://github.com/vinnie357/claude-skills/blob/main/docs/adr/0001-agent-loop-process.md).
+Each line states the rule; the ADR decision carries its conditions and dates.
 
 1. Code, comments, ADRs, and user stories are the system of record on `main`; bees issues, specs, and plans stay on the branch. — decision 1
 2. An external epic tracks stories, repos, and ADRs; the team chooses the implementation and records decisions in ADRs. — decision 2

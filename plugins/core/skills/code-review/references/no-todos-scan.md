@@ -12,7 +12,8 @@ TODO-style markers are issue tracking pretending to be code:
 
 ## The scan
 
-In any code review of a PR diff, execution hands run the grep and the reviewer judges the matches:
+In any code review of a PR diff, the reviewer greps the pinned diff itself — a read-only
+judging input — and reports each match as a finding:
 
 ```bash
 git diff <base>...HEAD | grep -nE '\b(TODO|FIXME|XXX|HACK|KLUDGE|DEFERRED)\b'
