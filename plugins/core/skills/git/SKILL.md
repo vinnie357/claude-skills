@@ -157,7 +157,7 @@ The reviewer answers two questions in order, and the record carries each under i
 Gate 3 requirements:
 
 - **A separate agent.** The author cannot review its own work — the point is a reader without the author's assumptions.
-- **Read-only, with a scratchpad clone for destructive tests.** See `/core:agent-loop`'s `references/dispatch-discipline.md`, "Read-only agents never touch the shared working tree".
+- **Read-only; execution through execution hands.** See ADR 0001 decision 4 and `/core:agent-loop`'s `references/reviewer.md`.
 - **Findings are addressed or answered, not waved through.** Applying a fix, disputing it with evidence, and filing it as a tracked follow-up all count. Silence does not.
 - **Verify the reviewer's claims independently** before acting on them. A review is evidence, not a verdict.
 - **Grep for attribution before posting a comment or declaring gates green** — both the branch's commits and the comment text about to be posted: `git log origin/main..HEAD --format='%B' | grep -niE 'co-authored-by|signed-off-by|assisted-by|generated with'`, same pattern against the comment body. The pattern deliberately excludes bare model/vendor names — in this repo (`claude-skills`, scopes like `feat(claude-code):`) a bare `grep -i claude` would be a constant false positive. Eyeball the trailer block to catch what the pattern misses.
