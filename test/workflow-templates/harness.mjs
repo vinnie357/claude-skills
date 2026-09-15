@@ -45,9 +45,21 @@ import { join, basename } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { randomUUID } from 'node:crypto'
 
-const [, , templatePath, mode] = process.argv
+const [, , arg2, arg3] = process.argv
+
+// --self-check runs the dispatch-key regression fixtures once, independent
+// of any template — isPrincipalReviewCall's selection rule (by opts.model,
+// never by label presence/absence) is the same function for every template
+// and every scenario, so asserting it per-template duplicated an identical
+// check with no template-specific content. See runSelfCheck() below.
+if (arg2 === '--self-check') {
+  process.exit(runSelfCheck() ? 0 : 1)
+}
+
+const templatePath = arg2
+const mode = arg3
 if (!templatePath || !mode) {
-  console.error('usage: node harness.mjs <templatePath> <syntax|run>')
+  console.error('usage: node harness.mjs <templatePath> <syntax|run>\n       node harness.mjs --self-check')
   process.exit(2)
 }
 
@@ -221,19 +233,23 @@ function forgeDispatch(prompt, opts, ctx) {
   }
   if (phase === 'Author' && !label) return { sha: 'TESTSHA1', summary: 'add tests', skillProof: SP }
   if (phase === 'Review-tests' && label === 'test-reviewer hands') return { pointers: [] }
-  if (phase === 'Review-tests' && !label) return verdictApprove()
+  if (phase === 'Review-tests' && isPrincipalReviewCall({ model: opts.model }, ctx.args)) return verdictApprove()
   if (phase === 'Impl' && label === 'impl:s1') {
+    ctx.commitSeqs.push(ctx.calls.length - 1)
     return { sha: 'IMPLSHA1', summary: 'impl', skillProof: SP }
   }
   if (phase === 'Impl' && label === 'diff-boundary gate') return { nonEmpty: false, diff: '' }
   if (phase === 'Impl' && label === 'ci:s1') return { green: true, output: 'ok', skillProof: SP }
   if (phase === 'Review' && label === 'reviewer hands') return { pointers: [] }
   if (phase === 'Review' && isPrincipalReviewCall({ model: opts.model }, ctx.args)) return reviewerVerdict(ctx)
-  if (phase === 'Remediate' && !label) return { sha: 'FIXSHA1', summary: 'fix', skillProof: SP }
+  if (phase === 'Remediate' && !label) {
+    ctx.commitSeqs.push(ctx.calls.length - 1)
+    return { sha: 'FIXSHA1', summary: 'fix', skillProof: SP }
+  }
   if (phase === 'Remediate' && label === 'diff-boundary gate') return { nonEmpty: false, diff: '' }
   if (phase === 'Remediate' && label === 'ci:remediation') return { green: true, output: 'ok', skillProof: SP }
   if (phase === 'Final' && label === 'final-reviewer hands') return { pointers: [] }
-  if (phase === 'Final' && !label) return verdictApprove()
+  if (phase === 'Final' && isPrincipalReviewCall({ model: opts.model }, ctx.args)) return verdictApprove()
   return fallback(ctx, opts)
 }
 
@@ -242,6 +258,7 @@ function fiveTierDispatch(prompt, opts, ctx) {
   if (phase === 'Plan') return { tests: [{ name: 't1', criterion: 'c1' }], skillProof: SP }
   if (phase === 'Test' && !label) return { sha: 'TESTSHA1', summary: 'tests', skillProof: SP }
   if (phase === 'Impl' && label && label.startsWith('P3-')) {
+    ctx.commitSeqs.push(ctx.calls.length - 1)
     return { sha: 'IMPLSHA1', summary: 'impl', skillProof: SP }
   }
   if (phase === 'Impl' && label === 'diff-boundary gate') return { nonEmpty: false, diff: '' }
@@ -260,8 +277,8 @@ const KIND = {
 // A labeled re-invoke of the principal reviewer (e.g. a fixed template names
 // its evidence-round re-invoke for /workflows progress display) must still
 // be counted as the reviewer, and a labeled-but-hands call must still be
-// excluded. Independent of any template scenario run below.
-{
+// excluded. Template-independent — see the --self-check invocation above.
+function runSelfCheck() {
   const fakeArgs = { handsModel: 'HANDSMODEL' }
   const labeledPrincipal = { model: 'STAGEMODEL', label: 'reviewer re-invoke' }
   const labeledHands = { model: 'HANDSMODEL', label: 'reviewer hands' }
@@ -270,8 +287,12 @@ const KIND = {
     isPrincipalReviewCall(labeledPrincipal, fakeArgs) === true &&
     isPrincipalReviewCall(labeledHands, fakeArgs) === false &&
     isPrincipalReviewCall(modelLessProbe, fakeArgs) === false
-  report('dispatch-key-regression', ok,
-    ok ? undefined : 'isPrincipalReviewCall must select by opts.model !== args.handsModel (with a model defined), never by label presence/absence')
+  if (ok) {
+    console.log('PASS harness self-check')
+  } else {
+    console.log('FAIL harness self-check: isPrincipalReviewCall must select by opts.model !== args.handsModel (with a model defined), never by label presence/absence')
+  }
+  return ok
 }
 
 // scenario:
@@ -291,6 +312,7 @@ async function runScenario(mod, scenario) {
     calls: [],
     handsExecCalls: [],
     headProbes: [],
+    commitSeqs: [],
     revisionUnderReview: null,
     handsResultMarker: `HANDS_RESULT_MARKER_${randomUUID()}`,
   }
@@ -385,7 +407,7 @@ const evStale = await runScenario(mod, 'evidence-stale')
 
 // --- assertion: finding-line ---------------------------------------------
 {
-  const m = rawSource.match(/^const FINDING_LINE = (['"`])([\s\S]*?)\1/m)
+  const m = rawSource.match(/^(?:export )?const FINDING_LINE = (['"`])((?:\\.|(?!\1)[\s\S])*)\1/m)
   if (!m) {
     report('finding-line', false, 'no top-level `const FINDING_LINE = ...` found in source')
   } else {
@@ -478,23 +500,33 @@ const evStale = await runScenario(mod, 'evidence-stale')
     } else if (ctx.headProbes.length === 0) {
       report('stale-record-dropped', false,
         'no head probe observed — expected an agent() call with no opts.model whose prompt contains "git rev-parse HEAD" to define the revision under review')
-    } else if (!ctx.headProbes.some(p => p.seq < reviewerCalls[0].seq)) {
-      report('stale-record-dropped', false,
-        `no head probe occurred before the first reviewer call (seq ${reviewerCalls[0].seq})`)
-    } else if (ctx.handsExecCalls.length !== 1) {
-      report('stale-record-dropped', false,
-        `expected exactly 1 execution-hands call to test staleness against; found ${ctx.handsExecCalls.length} — evidence-gathering is not implemented`)
-    } else if (ctx.handsExecCalls[0].record.revision === ctx.revisionUnderReview) {
-      report('stale-record-dropped', false,
-        'test setup error: the evidence-stale record.revision unexpectedly matches revisionUnderReview')
-    } else if (reviewerCalls.length < 2) {
-      report('stale-record-dropped', false,
-        `expected a re-invoked reviewer call after the stale record; found ${reviewerCalls.length} reviewer call(s) total`)
-    } else if (reviewerCalls[1].prompt.includes(ctx.handsResultMarker)) {
-      report('stale-record-dropped', false,
-        "the re-invoked reviewer prompt includes the stale record's RESULT text — a mismatched revision must be dropped, not trusted")
     } else {
-      report('stale-record-dropped', true)
+      // Contract: the revision under review comes from a head probe made
+      // AFTER the last implement/fix commit call and BEFORE the first
+      // principal reviewer call of the target review stage.
+      const firstReview = reviewerCalls[0].seq
+      const priorCommits = ctx.commitSeqs.filter(s => s < firstReview)
+      const lastCommit = priorCommits.length > 0 ? Math.max(...priorCommits) : null
+      if (lastCommit === null) {
+        report('stale-record-dropped', false, 'no implement/fix commit call observed before the first reviewer call')
+      } else if (!ctx.headProbes.some(p => p.seq > lastCommit && p.seq < firstReview)) {
+        report('stale-record-dropped', false,
+          `no head probe between the last implement/fix commit (seq ${lastCommit}) and the first reviewer call (seq ${firstReview})`)
+      } else if (ctx.handsExecCalls.length !== 1) {
+        report('stale-record-dropped', false,
+          `expected exactly 1 execution-hands call to test staleness against; found ${ctx.handsExecCalls.length} — evidence-gathering is not implemented`)
+      } else if (ctx.handsExecCalls[0].record.revision === ctx.revisionUnderReview) {
+        report('stale-record-dropped', false,
+          'test setup error: the evidence-stale record.revision unexpectedly matches revisionUnderReview')
+      } else if (reviewerCalls.length < 2) {
+        report('stale-record-dropped', false,
+          `expected a re-invoked reviewer call after the stale record; found ${reviewerCalls.length} reviewer call(s) total`)
+      } else if (reviewerCalls[1].prompt.includes(ctx.handsResultMarker)) {
+        report('stale-record-dropped', false,
+          "the re-invoked reviewer prompt includes the stale record's RESULT text — a mismatched revision must be dropped, not trusted")
+      } else {
+        report('stale-record-dropped', true)
+      }
     }
   }
 }

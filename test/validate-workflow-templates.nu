@@ -45,6 +45,17 @@ def main [] {
 
     mut any_failed = false
 
+    # Template-independent dispatch-key regression (isPrincipalReviewCall's
+    # selection rule) — run once, not once per template.
+    let self_check = (^node $harness "--self-check" | complete)
+    print ($self_check.stdout | str trim)
+    if ($self_check.stderr | str trim | str length) > 0 {
+        print $"(ansi yellow)[stderr harness self-check](ansi reset)\n($self_check.stderr | str trim)"
+    }
+    if $self_check.exit_code != 0 {
+        $any_failed = true
+    }
+
     for tmpl in $TEMPLATES {
         let tmpl_path = ($repo_root | path join $tmpl)
         if not ($tmpl_path | path exists) {
