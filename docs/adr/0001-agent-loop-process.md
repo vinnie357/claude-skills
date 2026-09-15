@@ -14,7 +14,7 @@ Agents inherit whatever the repo holds. A stale tracker row, a finished spec, or
 
 3. Bees issues are a team's or a lead's scratch tracker, shared with that team's agents. `issues.jsonl` can preseed a new agent's clone through `bees import`; the handoff step is not built. Bees issues are not a system of record. (2026-09-15)
 
-4. Reviewers judge; execution hands execute. Every reviewer — plan, test, pipeline, or PR gate — evaluates the artifact against ADRs and user stories. It also checks acceptance criteria and the relevant skills. A reviewer never runs a suite, a build, or the app. It obtains execution through execution hands on the smallest fast tier. A reviewer that cannot spawn agents requests execution hands through its lead. Execution hands report the command, revision, exit status, and a relevant excerpt, not whole logs. Missing required evidence blocks approval and never authorizes the reviewer to execute. The reviewer names the missing evidence. Findings stay terse: `[severity] path:line — defect and impact; basis. Fix: one sentence.` The basis names the ADR or skill when one applies. A plan without stable lines uses a section reference. Specialist reviewers keep their own verdict rows unchanged; the finding line applies outside them. (2026-09-15)
+4. Reviewers judge; execution hands execute. Every reviewer — plan, test, pipeline, or PR gate — evaluates the artifact against ADRs and user stories. It also checks acceptance criteria and the relevant skills. A reviewer never runs a suite, a build, or the app. It obtains execution through execution hands on the smallest fast tier. A reviewer that cannot spawn agents requests bounded execution through its lead. Execution hands report per the Execution evidence section of `/claude-code:claude-output-styles` `assets/ci-evidence-format.md`, not whole logs. Missing required evidence blocks approval and never authorizes the reviewer to execute. The reviewer names the missing evidence. A reviewer rejects evidence from a revision other than the one under review. Findings stay terse: `[severity] path:line — defect and impact; basis. Fix: one sentence.` The basis names the ADR or skill when one applies. A plan without stable lines uses a section reference. Specialist reviewers keep their `## VERDICTS` lines unchanged; the finding line applies outside that block. (2026-09-15; amended 2026-09-15)
 
 5. A team selects a model by capability tier: strongest reasoning, deep reasoning, general, smallest fast, or multimodal. Each harness maps a tier to its own model, for example claude, codex, or agy. Process text never names a literal model. Effort defaults to medium for every tier. The launcher passes it wherever the harness accepts an effort setting. High effort is a per-run exception. (2026-09-15)
 
@@ -22,7 +22,7 @@ Agents inherit whatever the repo holds. A stale tracker row, a finished spec, or
 
 7. Code, comments, tests, fixtures, commit messages, and shipped docs carry no tracker ids. A PR body may link its own tracker item. An ADR citation stays allowed. (2026-09-15)
 
-8. A committed ADR is decided. Every decision stays mutable as user stories change. Each decision records its adoption date and each amendment's date. Decision numbers are never reused. (2026-09-15)
+8. A committed ADR is decided. Every decision stays mutable as user stories change. Each decision records its adoption date and each amendment's date. A team never reuses a decision number. (2026-09-15; amended 2026-09-15)
 
 ## Consequences
 
