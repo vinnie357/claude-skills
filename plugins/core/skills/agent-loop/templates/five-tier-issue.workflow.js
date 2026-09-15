@@ -26,9 +26,9 @@
 //     "repo": "/absolute/path/to/repo"
 //   }
 //
-// Doctrine defaults above are from the Five-Tier Decomposition Pipeline table in
-// plugins/core/skills/agent-loop/SKILL.md. The caller supplies them — no model
-// name is hardcoded in this script (12-factor rule: config comes from args).
+// Doctrine defaults above are the example model ids from the claude column of
+// /core:agent-loop references/model-tiers.md. The caller supplies them — no
+// model name is hardcoded in this script (12-factor rule: config comes from args).
 //
 // Agent labeling: pass a label option to agent() calls to override the display
 // label shown in the /workflows progress output. This makes it easier to track
@@ -247,7 +247,7 @@ function fixPrompt(a, output) {
   ].join('\n')
 }
 
-function reviewPrompt(a, ciOutput) {
+function reviewPrompt(a) {
   return [
     `You are P5 — reviewer for issue ${a.issueId} in repo ${a.repo}.`,
     skillBlock(a.skills),
@@ -255,7 +255,6 @@ function reviewPrompt(a, ciOutput) {
     'the implementation:',
     ...a.acceptanceCriteria.map(c => `- ${c}`),
     'Check for overfit-to-tests and missed edge cases.',
-    ...(ciOutput ? ['## CI output (from the test runner)', ciOutput] : []),
     'STAY IN STAGE: read and judge only. Do NOT edit files, run fixes,',
     'or commit anything. Never run git checkout, switch, restore, stash,',
     'reset, clean, rebase, merge, pull, cherry-pick, apply, am, or',
@@ -272,8 +271,8 @@ function reviewPrompt(a, ciOutput) {
 
 function execHandsPrompt(req, sha) {
   return [
-    'You are execution hands. Run exactly ONE command and report evidence —',
-    'never research, judge, fix, commit, or post.',
+    `In repo ${args.repo}, you are execution hands. Run exactly ONE command and report`,
+    'evidence — never research, judge, fix, commit, or post.',
     `Command: ${req.command}`,
     `Question it answers: ${req.question}`,
     `Check out revision ${sha} in a scratchpad clone per /core:agent-loop`,
@@ -293,7 +292,7 @@ function execHandsPrompt(req, sha) {
 // its RESULT text never reaches the reviewer.
 async function reviewWithEvidence(promptText, opts, stageModel) {
   const head = await agent(
-    'Run exactly: git rev-parse HEAD. Report the full 40-hex sha in sha. Run and report only.',
+    `In repo ${args.repo}, run exactly: git rev-parse HEAD. Report the full 40-hex sha in sha. Run and report only.`,
     { phase: opts.phase, label: 'head probe', schema: HEAD })
   if (!head) return null
   const verdict = await withEscalation(promptText, opts, stageModel)
@@ -420,7 +419,7 @@ if (!(await frozenIntact(args.testFiles, testSha.sha, 'CI'))) {
 }
 
 // P5 — reviewer
-const review = await reviewWithEvidence(reviewPrompt(args, ci.output), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
+const review = await reviewWithEvidence(reviewPrompt(args), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
 if (!review) return escalate('P5 reviewer failed across escalation chain', { testSha, impl, ci })
 if (review.evidenceRequests && review.evidenceRequests.length > 0)
   return escalate('review evidence did not converge', { testSha, impl, ci, review })

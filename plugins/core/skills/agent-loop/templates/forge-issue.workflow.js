@@ -26,6 +26,10 @@
 //     }
 //   }
 //
+// Example model ids above are the claude column of /core:agent-loop
+// references/model-tiers.md. The caller supplies them — no model name is
+// hardcoded in this script.
+//
 // Implementation note: the Plan Reviewer gate described in references/forge.md is not yet
 // encoded here as a "planRev" stage — tracked in a follow-up bees issue, "Add planRev stage
 // to forge-issue.workflow.js for the Plan Reviewer gate (claude-skills-294 follow-up)".
@@ -289,7 +293,7 @@ function fixPrompt(a, findings, frozen) {
   ].join('\n')
 }
 
-function reviewPrompt(a, index, role, ciOutput) {
+function reviewPrompt(a, index, role) {
   return [
     `You are the ${role} for issue ${a.issueId} in repo ${a.repo}.`,
     skillBlock(a.skills),
@@ -299,7 +303,6 @@ function reviewPrompt(a, index, role, ciOutput) {
     ...a.acceptanceCriteria.map(c => `- ${c}`),
     'Check for overfit-to-tests and missed edge cases. Use the starting index; spawn focused',
     'hands for anything more — do NOT sweep the tree yourself.',
-    ...(ciOutput ? ['## CI output (from the test runner)', ciOutput] : []),
     'STAY IN STAGE: read and judge only. Do NOT edit, fix, or commit.',
     'Never run git checkout, switch, restore, stash, reset, clean, rebase,',
     'merge, pull, cherry-pick, apply, am, or branch -f/-D against the shared',
@@ -315,8 +318,8 @@ function reviewPrompt(a, index, role, ciOutput) {
 
 function execHandsPrompt(req, sha) {
   return [
-    'You are execution hands. Run exactly ONE command and report evidence —',
-    'never research, judge, fix, commit, or post.',
+    `In repo ${args.repo}, you are execution hands. Run exactly ONE command and report`,
+    'evidence — never research, judge, fix, commit, or post.',
     `Command: ${req.command}`,
     `Question it answers: ${req.question}`,
     `Check out revision ${sha} in a scratchpad clone per /core:agent-loop`,
@@ -336,7 +339,7 @@ function execHandsPrompt(req, sha) {
 // its RESULT text never reaches the reviewer.
 async function reviewWithEvidence(promptText, opts, stageModel) {
   const head = await agent(
-    'Run exactly: git rev-parse HEAD. Report the full 40-hex sha in sha. Run and report only.',
+    `In repo ${args.repo}, run exactly: git rev-parse HEAD. Report the full 40-hex sha in sha. Run and report only.`,
     { phase: opts.phase, label: 'head probe', schema: HEAD })
   if (!head) return null
   const verdict = await withEscalation(promptText, opts, stageModel)
@@ -447,7 +450,6 @@ if (!testReview.approved) return escalate('tests rejected — re-author needed',
 phase('Impl')
 const done = new Set()
 let remaining = plan.slices.slice()
-let lastCiOutput = null
 while (remaining.length > 0) {
   const ready = remaining.filter(s => (s.deps || []).every(d => done.has(d)))
   if (ready.length === 0) return escalate('slice dependency cycle or unsatisfiable deps', { stranded: remaining.map(s => s.id) })
@@ -459,7 +461,6 @@ while (remaining.length > 0) {
       return { id: slice.id, ok: false, reason: 'frozen test files modified' }
     const ci = await agent(ciPrompt(args, `slice ${slice.id}`),
       { phase: 'Impl', label: `ci:${slice.id}`, schema: CI_RESULT, model: args.stageModels.ci })
-    if (ci && ci.output) lastCiOutput = ci.output
     return { id: slice.id, ok: !!(ci && ci.green), reason: ci && ci.green ? 'green' : 'ci red', impl }
   }))
   const passed = results.filter(r => r && r.ok)
@@ -475,7 +476,7 @@ const reviewIndex = await handsPass(
   `Index git diff main...HEAD for issue ${args.issueId} plus any decision records (ADRs) it touches.`,
   { phase: 'Review', label: 'reviewer hands' })
 let review = await reviewWithEvidence(
-  reviewPrompt(args, reviewIndex, 'Reviewer', lastCiOutput), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
+  reviewPrompt(args, reviewIndex, 'Reviewer'), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
 if (!review) return escalate('Reviewer failed across escalation chain')
 if (review.evidenceRequests && review.evidenceRequests.length > 0)
   return escalate('review evidence did not converge', { review })
@@ -493,13 +494,12 @@ while (review && !review.approved && cycles < 3) {
   const ci = await agent(ciPrompt(args, 'post-remediation'),
     { phase: 'Remediate', label: 'ci:remediation', schema: CI_RESULT, model: args.stageModels.ci })
   if (!ci || !ci.green) return escalate('CI red after remediation', { ci })
-  if (ci.output) lastCiOutput = ci.output
   phase('Review')
   const reIndex = await handsPass(
     `Index the remediation diff and the prior review findings for issue ${args.issueId}.`,
     { phase: 'Review', label: 'reviewer hands' })
   review = await reviewWithEvidence(
-    reviewPrompt(args, reIndex, 'Reviewer', lastCiOutput), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
+    reviewPrompt(args, reIndex, 'Reviewer'), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
   if (review && review.evidenceRequests && review.evidenceRequests.length > 0)
     return escalate('review evidence did not converge', { review, cycles })
   cycles++
@@ -512,7 +512,7 @@ const finalIndex = await handsPass(
   `Index the prior review notes and the full git diff main...HEAD for issue ${args.issueId}.`,
   { phase: 'Final', label: 'final-reviewer hands' })
 const final = await reviewWithEvidence(
-  reviewPrompt(args, finalIndex, 'Final Reviewer', lastCiOutput), { phase: 'Final', schema: VERDICT }, args.stageModels.final)
+  reviewPrompt(args, finalIndex, 'Final Reviewer'), { phase: 'Final', schema: VERDICT }, args.stageModels.final)
 if (!final) return escalate('Final Reviewer failed across escalation chain')
 if (final.evidenceRequests && final.evidenceRequests.length > 0)
   return escalate('review evidence did not converge', { final })
