@@ -55,3 +55,19 @@ exit: 0
 - "All tests passed" without OUTPUT section — reject and re-run the agent
 - OUTPUT section containing agent commentary instead of raw tool output
 - Missing EXIT line — without it, "output looks fine" is unverifiable
+
+## Execution evidence
+
+A sibling contract for execution-hands agents. One record per command run:
+
+```
+COMMAND: <exact command>
+REVISION: <40-hex commit oid the command ran against>
+CWD: <absolute working directory>
+EXIT: <the command's own exit code — never a pipeline's; use set -o pipefail or capture before piping>
+RESULT: <one line>
+EXCERPT: <relevant verbatim lines, at most 30, each with its log line number>
+LOG: <absolute path of the full log>
+```
+
+- A record missing REVISION or LOG, or an EXIT taken from `| tail`/`| grep` — reject.
