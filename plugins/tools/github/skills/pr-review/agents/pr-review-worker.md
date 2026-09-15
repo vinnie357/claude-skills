@@ -29,25 +29,31 @@ Plus the stack-specific skills named in your dispatch (for example `/rust:rust`,
 - PR number, `headRefName`, `headRefOid`
 - Stack and the reviewer skill list
 - The pr-gate-runner report (baseline-diff table + execution evidence records) for
-  `headRefOid`
+  `headRefOid`, including its **Artifacts** block (`DIFF`, `SOURCE main`, `SOURCE branch`)
 - Main branch name (default: `main`)
 
 ## Execution order
 
 ### Review the diff
 
-Read `git diff <main-oid>...<headRefOid>` and `git show <oid>:<path>` against
+You have no `Bash` tool and never run `git` yourself. Read the gate-runner's `DIFF` artifact
+and the `SOURCE main` / `SOURCE branch` snapshot paths with `Read`/`Grep` against
 `../references/review-rubric.md`: correctness, security, test coverage, no leaked secrets,
-match to the PR's stated intent. Verify claims against the real source with Read/Grep — do
-not assume. For Actions/digest PRs, confirm pins are full commit SHAs and digests are
-correct. Judge the pr-gate-runner's evidence per `/core:agent-loop` `references/reviewer.md`
-— read only `RESULT` and `EXCERPT` from each record, opening `LOG` only when a finding needs
-more than `EXCERPT` carries. Apply the rubric's optional comment-quality dimension inline
-yourself (you have no Task tool, so you never spawn a dedicated reviewer for it) —
-dispatching a separate `comment-reviewer` agent, if the orchestrator chooses to, is the
-orchestrator's job. When evidence you need is missing from the gate-runner report, return
-verdict `wait` with an `evidenceRequests` list per `/core:agent-loop` `references/reviewer.md`
-— never guess or re-run gates yourself.
+match to the PR's stated intent. Never read the shared working tree for the PR's content —
+only the artifact paths the gate-runner reported. Before judging, confirm each artifact's
+stated oid: the `SOURCE branch` path and the `DIFF` range's right side must equal
+`headRefOid`; the `SOURCE main` path and the `DIFF` range's left side must equal the main oid.
+A missing or mismatched artifact means return verdict `wait` naming the artifact, per
+`/core:agent-loop` `references/reviewer.md` — never proceed on an unverified artifact. Verify
+claims against the real source with Read/Grep — do not assume. For Actions/digest PRs,
+confirm pins are full commit SHAs and digests are correct. Judge the pr-gate-runner's evidence
+per `/core:agent-loop` `references/reviewer.md` — read only `RESULT` and `EXCERPT` from each
+record, opening `LOG` only when a finding needs more than `EXCERPT` carries. Apply the
+rubric's optional comment-quality dimension inline yourself (you have no Task tool, so you
+never spawn a dedicated reviewer for it) — dispatching a separate `comment-reviewer` agent, if
+the orchestrator chooses to, is the orchestrator's job. When evidence you need is missing from
+the gate-runner report, return verdict `wait` with an `evidenceRequests` list per
+`/core:agent-loop` `references/reviewer.md` — never guess or re-run gates yourself.
 
 ## Hard constraints
 

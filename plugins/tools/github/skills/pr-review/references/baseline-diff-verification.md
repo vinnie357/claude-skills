@@ -27,7 +27,7 @@ Gates run in a gate-runner's own scratchpad clones, never in the shared working 
 3. **Clone the PR head and run on it**, same gates:
    ```bash
    git clone <repo-url> "$SCRATCHPAD/repo-pr"
-   git -C "$SCRATCHPAD/repo-pr" fetch origin "pull/<pr-number>/head"
+   git -C "$SCRATCHPAD/repo-pr" fetch origin "pull/<pr-number>/head" <main-oid>
    git -C "$SCRATCHPAD/repo-pr" checkout <headRefOid>
    git -C "$SCRATCHPAD/repo-pr" remote remove origin
    (cd "$SCRATCHPAD/repo-pr" && mise run ci > "$SCRATCHPAD/gate-branch-ci.log" 2>&1); echo "EXIT=$?"
@@ -45,8 +45,15 @@ Gates run in a gate-runner's own scratchpad clones, never in the shared working 
 | PASS | PASS | clean |
 | FAIL | PASS | the PR fixed a pre-existing failure — note it |
 
-5. **Discard both clones** (or leave them for the next step's re-read) before the next PR — no
-   state to return, since the shared working tree was never touched.
+5. **Produce review artifacts.** The `pr-review-worker` has no `Bash` tool, so it reads a diff
+   file and the two clones instead of running `git`. Step 3 fetched both commits into the PR clone:
+   ```bash
+   git -C "$SCRATCHPAD/repo-pr" diff <main-oid>...<headRefOid> > "$SCRATCHPAD/pr.diff"
+   ```
+   The two clones themselves are the source snapshots the reviewer reads with `Read`/`Grep`:
+   `$SCRATCHPAD/repo-main` at `<main-oid>`, `$SCRATCHPAD/repo-pr` at `<headRefOid>`.
+6. **Keep both clones and `pr.diff`** until the reviewer's verdict lands. The orchestrator
+   discards them afterward — no state to return, since the shared working tree was never touched.
 
 ## Local-only integration gates
 

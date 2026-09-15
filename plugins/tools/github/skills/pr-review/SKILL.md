@@ -43,7 +43,9 @@ Dispatch one `pr-gate-runner` then one `pr-review-worker` per PR, sequentially. 
 equals the open-PR count, the Forge slice model. Run each PR's pair **sequentially** when the
 gates need exclusive hardware (integration tests, container or cluster spawns). The
 gate-runner clones the repo into its own scratchpad — no working-tree check is needed before
-dispatch, and no worker touches the shared working tree (see `agents/pr-gate-runner.md`).
+dispatch, and no worker touches the shared working tree (see `agents/pr-gate-runner.md`). Pass
+the gate-runner's Artifacts block (diff path plus both source snapshot paths) to the
+`pr-review-worker` — its only route to the diff and source, since it carries no `Bash` tool.
 
 Every gate-runner loads, at minimum:
 
@@ -80,15 +82,16 @@ locally when useful.
 
 ## Review the diff
 
-The `pr-review-worker` reads `git diff main...<headRefName>` against
-`references/review-rubric.md` — correctness, security, test coverage, no leaked secrets, and
-match to the PR's stated intent — and judges the gate-runner's evidence per
-`/core:agent-loop` `references/reviewer.md`. It emits a structured verdict: `approve`,
-`request-changes` with `file:line` findings and cited gate evidence, or `wait` with an
-`evidenceRequests` list when needed evidence is missing. On `wait`, the orchestrator
-dispatches the `pr-gate-runner` (or targeted execution hands) for the named requests and
-re-invokes the reviewer once with the results. The reviewer never runs gates, never edits
-code, and never merges.
+The `pr-review-worker` reads the gate-runner's diff and source-snapshot artifacts (never
+`git` itself — it carries no `Bash` tool) against `references/review-rubric.md` —
+correctness, security, test coverage, no leaked secrets, and match to the PR's stated intent
+— and judges the gate-runner's evidence per `/core:agent-loop` `references/reviewer.md`. It
+emits a structured verdict: `approve`, `request-changes` with `file:line` findings and cited
+gate evidence, or `wait` with an `evidenceRequests` list when needed evidence is missing. On
+`wait`, the orchestrator dispatches the `pr-gate-runner` (or targeted execution hands) for the
+named requests and re-invokes the reviewer once with the results. The orchestrator keeps both
+scratchpad clones and the diff file until the verdict lands, then discards them. The reviewer
+never runs gates, never edits code, and never merges.
 
 ## Merge and close out
 
