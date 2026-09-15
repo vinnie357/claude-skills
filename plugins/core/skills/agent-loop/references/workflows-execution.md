@@ -61,7 +61,7 @@ const review = await agent(reviewPrompt(args), { phase: 'Review', schema: VERDIC
 return { status: review.approved ? 'done' : 'rework', review }
 ```
 
-Each stage prompt still names its tier (`You are P2 — test author for issue <id>`) and forbids out-of-stage activity, per the pipeline-collapse rule. The complete runnable version of this abbreviated example — full stage prompts, per-stage `skillProof` schemas, the diff-boundary gate, the escalation ladder, and the bounded fix loop — is `templates/five-tier-issue.workflow.js` in this skill. The Review stage's evidence round follows `references/reviewer.md`.
+Each stage prompt still names its tier (`You are P2 — test author for issue <id>`) and forbids out-of-stage activity, per the pipeline-collapse rule. The complete runnable version of this abbreviated example — full stage prompts, per-stage `skillProof` schemas, the diff-boundary gate, the escalation ladder, and the bounded fix loop — is `templates/five-tier-issue.workflow.js` in this skill. The Review stage's evidence round follows the reviewer reference.
 
 ## Gate doctrine: deliberate red, no shims, cache poisoning
 

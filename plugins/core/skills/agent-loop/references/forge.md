@@ -32,7 +32,7 @@ Every reviewing role — the Plan Reviewer in the plan pair, the Test Reviewer i
 the Reviewer, and the Final Reviewer — defaults to the strongest-reasoning tier, each paired with
 smallest-fast-tier hands. Thinking is expensive and stays on the strong model; fetching is cheap
 and stays on the small model. The reviewer never searches or runs; its hands surface the artifact
-and the evidence (`references/reviewer.md`).
+and the evidence (see the reviewer reference).
 
 Each of the four honors its own env-var override — the Plan Reviewer reads
 `AGENT_LOOP_PLAN_REVIEWER_MODEL`, the Test Reviewer reads `AGENT_LOOP_TEST_REVIEWER_MODEL`, the

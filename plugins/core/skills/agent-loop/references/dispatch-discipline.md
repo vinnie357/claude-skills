@@ -4,7 +4,7 @@ These rules apply to any leader (Tier 1 or Tier 2) authoring an Agent or Task sp
 
 ## Model selection is explicit, never inherited
 
-Every spawn prompt sets `model:` (or the equivalent `subagent_type` argument) explicitly to the harness-resolved model for the role's tier, per `SKILL.md` "Model overrides" and `references/model-tiers.md`. Inheriting model from the parent's session wastes tokens — leads run on the deep-reasoning tier by default and inherit their model to smallest-fast-tier tasks if unconstrained.
+Every spawn prompt sets `model:` (or the equivalent `subagent_type` argument) explicitly to the harness-resolved model for the role's tier, per `SKILL.md` "Model overrides" and the model-tiers reference. Inheriting model from the parent's session wastes tokens — leads run on the deep-reasoning tier by default and inherit their model to smallest-fast-tier tasks if unconstrained.
 
 ## Use specialized subagent types
 
@@ -12,7 +12,7 @@ When the project ships specialized subagent types (`Explore`, `Plan`, `bees-mana
 
 ## Delegate search before you search
 
-Leaders and the costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) do not run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only hands (smallest fast model, the `Explore` type) with a specific objective, consume the returned `file:line` index, and `Read` only the lines that index names. A fresh principal receives its index as a `## Starting index` block in its spawn prompt — it opens oriented, never blind. See `researcher.md` for the hands contract and `forge.md` for how hands pair with each role. Searching is a small-model job; an expensive model spending its context on `Grep` is the waste this rule removes. Principals do not search or run; reviewers obtain execution per `references/reviewer.md`.
+Leaders and the costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) do not run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only hands (smallest fast model, the `Explore` type) with a specific objective, consume the returned `file:line` index, and `Read` only the lines that index names. A fresh principal receives its index as a `## Starting index` block in its spawn prompt — it opens oriented, never blind. See `researcher.md` for the hands contract and `forge.md` for how hands pair with each role. Searching is a small-model job; an expensive model spending its context on `Grep` is the waste this rule removes. Principals do not search or run; reviewers obtain execution per the reviewer reference.
 
 ## Select model by capability, not by name
 
@@ -47,7 +47,7 @@ Never run git checkout, switch, restore, stash, reset, clean, rebase, merge,
 pull, cherry-pick, apply, am, or branch -f/-D against the shared working tree,
 or any other command that changes HEAD, the index, or tracked or untracked
 files. To inspect another ref: git show <ref>:<path>, git diff a...b,
-git ls-tree. To obtain execution, request execution hands (references/reviewer.md).
+git ls-tree. To obtain execution, request execution hands (see the reviewer reference).
 Do not write under .git/ directly (config, hooks, refs); git fetch is the only
 sanctioned .git write.
 ```

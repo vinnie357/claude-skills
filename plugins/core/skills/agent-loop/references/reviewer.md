@@ -10,8 +10,8 @@ much of this directly as the task needs before reaching for execution hands.
 
 ## With spawning
 
-A reviewer that can spawn agents dispatches execution hands (see `references/researcher.md`
-"Execution hands") with one bounded command per hand and the question that command answers.
+A reviewer that can spawn agents dispatches execution hands (see the researcher reference,
+"Execution hands" section) with one bounded command per hand and the question that command answers.
 
 ## Without spawning
 
