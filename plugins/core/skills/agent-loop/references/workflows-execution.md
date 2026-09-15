@@ -97,9 +97,10 @@ The smallest-fast → general → deep-reasoning, max-two-promotions rule and th
 
 ```javascript
 async function withEscalation(prompt, opts, stageModel) {
-  // Start at stageModel's position in the chain; fall back to full chain if not found.
+  // Start at stageModel's position in the chain. A stage model absent from the chain runs alone,
+  // then escalates upstream; chain models never replace it.
   const idx = args.escalationChain.indexOf(stageModel)
-  const ladder = idx === -1 ? args.escalationChain.slice() : args.escalationChain.slice(idx)
+  const ladder = idx === -1 ? [stageModel] : args.escalationChain.slice(idx)
   for (let i = 0; i < ladder.length; i++) {
     const model = ladder[i]
     const isLast = i === ladder.length - 1

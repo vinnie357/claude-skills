@@ -321,17 +321,15 @@ async function reviewWithEvidence(promptText, opts, stageModel) {
 }
 
 // ---------------------------------------------------------------------------
-// Escalation ladder — starts at the stage's designated model and escalates
-// through the suffix of args.escalationChain from that model onward.
-// Falls back to the full chain when the stage model is not found in the chain
-// (e.g. a deep-reasoning-tier start yields ['deep reasoning'] — no promotion, escalate upstream on
-// failure, matching doctrine). Each model is attempted twice before promoting.
+// Escalation ladder — starts at the stage model and escalates through the chain
+// suffix from it. A stage model absent from the chain runs alone (two attempts)
+// then escalates upstream; it is never replaced by chain models.
 // Returns null when the whole ladder fails.
 // ---------------------------------------------------------------------------
 
 function ladderFor(stageModel) {
   const idx = args.escalationChain.indexOf(stageModel)
-  return idx === -1 ? args.escalationChain.slice() : args.escalationChain.slice(idx)
+  return idx === -1 ? [stageModel] : args.escalationChain.slice(idx)
 }
 
 async function withEscalation(prompt, opts, stageModel) {
