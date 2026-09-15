@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the core plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits`, `github-rest-troubleshooting`, `github-oauth-scopes`, `gitlab-cli-docs` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model` (Agent Loop Skill); `asd-ste100`, `zinsser-on-writing-well`, `openste-wordset` (Technical English Skill).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `git-scm-docs`, `conventional-commits`, `github-rest-troubleshooting`, `github-oauth-scopes`, `gitlab-cli-docs` (Git Skill); `mise` (Mise Skill); `nushell` (Nushell Skill); `google-tech-writing` (Documentation Skill); `google-eng-practices-review` (Code Review Skill); `anti-fabrication-internal` (Anti-Fabrication Skill); `twelve-factor-net` (Twelve-Factor App Skill); `gitleaks` (Security Skill); `bees` (Bees Skill); `apple-container` (Container Skill); `ponytail` (Restraint Skill); `tdd-by-example`, `growing-object-oriented-software`, `three-laws-of-tdd`, `software-craftsmanship-manifesto`, `canon-tdd`, `tdd-fowler-bliki` (TDD Skill); `allium`, `workflow-execution-substrate`, `forge-operating-model`, `process-adr-0001` (Agent Loop Skill); `asd-ste100`, `zinsser-on-writing-well`, `openste-wordset` (Technical English Skill).
 
 ## Git Skill
 
@@ -348,6 +348,17 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - Universal paired shape: fan-out width N = planner slice count, N=1 for small issues (no trivial-vs-complex threshold)
   - Capability-based multimodal selection (vision research uses a harness multimodal model), not hardcoded names
   - Builds on the workflow substrate above (forge-issue.workflow.js generalizes five-tier-issue.workflow.js)
+
+## Agent Loop — Process ADR
+
+- **URL**: internal doctrine (no external source) — claude-skills ADR 0001, 2026-09-15
+- **Purpose**: Source for references/process.md and the SKILL.md Layered Model addition — the durable/ephemeral artifact split, the external-epic-to-team relationship, reviewer evidence discipline, capability-tier model selection, and the tracker-id ban
+- **Date Accessed**: 2026-09-15
+- **Key Topics**:
+  - Durable artifacts (code, ADRs, user stories) vs ephemeral artifacts (bees issues/epics, specs, plans) — ephemeral artifacts never reach main
+  - Extends vantage_ex ADR-120's per-repo-bees working-set framing to every loop artifact
+  - Reviewers spawn hands to gather evidence; reviewers never run a suite, build, or app directly
+  - Model selection by capability tier mapped per harness, never a literal model name
 
 ### mise Sandboxing
 - https://mise.jdx.dev/sandboxing.html — mise sandboxing (experimental). Extracted: allow/deny flags, task-level config, Landlock/Seatbelt platform support, limitations. Accessed 2026-05-22.

@@ -352,6 +352,13 @@ check_method = "none"
 last_checked = "2026-06-14"
 notes = "sources.md states this explicitly: 'internal doctrine (no external source) — operator-confirmed production learnings, 2026-06-14'. Source for the Forge operating model added to /core:agent-loop — the hands pattern, paired teams + implementor fan-out, the AGENT_LOOP_HANDS_MODEL / AGENT_LOOP_HANDS_VISION_MODEL capability-based selection, the /work command, and the forge-issue.workflow.js template. agent-loop's coverage does not depend on this entry (allium and workflow-execution-substrate above already cover the skill); it exists to record 'no upstream' as a stated claim for this specific provenance thread rather than a silent gap."
 
+[[sources]]
+skills = ["agent-loop"]
+name = "process-adr-0001"
+check_method = "none"
+last_checked = "2026-09-15"
+notes = "internal doctrine (no external source) — claude-skills ADR 0001, 2026-09-15. Source for references/process.md and the durable/ephemeral artifact split, epic-to-team relationship, reviewer evidence rules, capability-tier model selection, and tracker-id ban. Extends vantage_ex ADR-120's per-repo-bees working-set framing to every loop artifact."
+
 # ----------------------------------------------------------------------------
 # Technical English Skill sources — three works. ASD-STE100 is copyrighted with
 # no published reproduction license, so it is used as SHAPE only: rule

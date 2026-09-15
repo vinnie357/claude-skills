@@ -202,7 +202,7 @@ Use it only for agents that mutate files in parallel; it is expensive and pointl
 ## Budget-scaled thoroughness and resume
 
 - `budget` scales fan-out to the operator's token directive. Guard on `budget.total` (null when no target is set, which makes `remaining()` Infinity).
-- Long epic runs are resumable in-session via `{ scriptPath, resumeFromRunId }`: completed stages replay from cache, the rest run live. This complements bees — bees is the durable cross-session tracker; resume is the in-session fast-replay.
+- Long epic runs are resumable in-session via `{ scriptPath, resumeFromRunId }`: completed stages replay from cache, the rest run live. This complements bees — bees is the team working-set tracker; resume is the in-session fast-replay.
 
 ## Budget-gated P5 review panel
 
