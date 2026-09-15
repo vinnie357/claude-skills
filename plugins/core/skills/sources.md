@@ -344,7 +344,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Date Accessed**: 2026-06-14
 - **Key Topics**:
   - Delegated research: costly principals (planner, reviewers) never run their own Grep/Glob/Read sweeps; cheap read-only hands return a file:line index; principals open with a hands-built startup index
-  - Reviewers are the best-thinker tier (opus) paired with the cheapest hands (haiku); Test Reviewer charter (plan-conformance + non-redundancy before impl)
+  - Reviewers are the best-thinker tier (strongest reasoning) paired with the cheapest hands (smallest fast); Test Reviewer charter (plan-conformance + non-redundancy before impl)
   - Universal paired shape: fan-out width N = planner slice count, N=1 for small issues (no trivial-vs-complex threshold)
   - Capability-based multimodal selection (vision research uses a harness multimodal model), not hardcoded names
   - Builds on the workflow substrate above (forge-issue.workflow.js generalizes five-tier-issue.workflow.js)

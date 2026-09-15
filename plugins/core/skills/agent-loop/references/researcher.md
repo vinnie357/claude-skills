@@ -1,9 +1,13 @@
 # Research hands (the hands pattern)
 
-Hands are read-only research agents that any principal spawns to do its searching, indexing, and
-knowledge-gathering. Hands run on the smallest fast model; the principal stays on the expensive
-model and spends its context on judgment, not on `Grep`/`Glob`/large `Read` sweeps. Hands gather;
-the principal decides.
+There are two kinds of hands. **Research hands** are read-only agents any principal spawns to do
+its searching, indexing, and knowledge-gathering — the main contract of this file. **Execution
+hands** run one bounded command in a scratchpad clone and report evidence; see "Execution hands"
+below.
+
+Research hands run on the smallest fast model; the principal stays on the expensive model and
+spends its context on judgment, not on `Grep`/`Glob`/large `Read` sweeps. Hands gather; the
+principal decides.
 
 This is the Forge mechanism for "planners and reviewers do not search." A principal is *handed* the
 relevant `file:line` pointers instead of discovering them. See `forge.md` for how hands pair with
@@ -59,17 +63,46 @@ Select by capability, never by a hardcoded name. The available multimodal model 
 harness and the model family; the env var carries it (12-factor config), the same way the
 `AGENT_LOOP_*_MODEL` tier vars do. An empty-string value falls through to the default.
 
-## Tool surface
+## Tool surface (research hands)
 
 Read-only. Text hands: `Read`, `Grep`, `Glob` (and `Bash` for `which` / `ls` host inspection).
 Vision hands add the harness's visual tools — `WebFetch`, the Playwright MCP, or an image-capable
-reader. Hands never `Edit`, `Write`, or commit.
+reader. Research hands never `Edit`, `Write`, or commit.
 
-## Forbidden
+## Forbidden (research hands)
 
 - No design decisions, architecture recommendations, or test/implementation choices.
 - No code, no edits, no commits.
 - No whole-file dumps and no provenance-free summaries — the index is the deliverable.
+
+## Execution hands
+
+Execution hands run exactly one bounded command per record and report evidence — they never
+research, judge, or fix.
+
+**Tool surface**: research hands' surface plus `Bash`, for the one command being run.
+
+**Skills first**: an execution hand loads the task's skills before running its command, same as
+any other spawned agent.
+
+**Scratchpad clone only** — never the shared working tree:
+
+```
+git clone <repo> "$SCRATCHPAD/repo"
+git -C "$SCRATCHPAD/repo" remote remove origin
+```
+
+Removing `origin` is not optional. `git clone` from a local path sets origin to the shared repo,
+so a push from the scratchpad writes refs back into it; a `cp -R` that carries `.git` keeps the
+GitHub remote and pushes to the real one.
+
+**Report**: one record per command, per `/claude-code:claude-output-styles`
+`assets/ci-evidence-format.md` "Execution evidence".
+
+**Forbidden**: never fixes, never judges, never posts to GitHub, never writes files other than its
+own logs.
+
+**Model selection**: per `SKILL.md` "Model overrides" (hands row).
 
 ## Worked examples
 

@@ -10,6 +10,7 @@ act = "latest"  # Local GitHub Actions testing
 claude = "latest"  # Self-contained Bun binary; bypasses npm/node toolchain breakage
 gitleaks = "latest"  # Native binary preferred by scripts/gitleaks.nu over container runtimes (claude-skills-209)
 vale = "3.18.0"  # Prose linter, pinned — rule semantics shift between minors and CI would absorb it silently (claude-skills-306)
+node = "24.19.0"  # runs test/workflow-templates/harness.mjs; pinned so CI installs it via mise
 
 # Note: Lima and Colima are macOS-only tools for local act testing
 # Install manually on Mac: mise install lima colima
@@ -34,7 +35,7 @@ depends = ["test"]
 # "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
 # Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:git-hook", "test:gitleaks-invocation", "test:no-symlinks", "test:comment-fixtures", "test:prose-fixtures", "test:prose"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:git-hook", "test:gitleaks-invocation", "test:no-symlinks", "test:comment-fixtures", "test:prose-fixtures", "test:prose", "test:workflow-templates"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -357,6 +358,15 @@ run = """
 
 let repo_root = (git rev-parse --show-toplevel | str trim)
 nu ($repo_root | path join "test" "validate-gitleaks-invocation.nu")
+"""
+
+[tasks."test:workflow-templates"]
+description = "Reviewer-evidence contract for the agent-loop workflow templates: syntax, no-reviewer-clone, finding-line, evidence-round, second-request-escalates, stale-record-dropped"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "validate-workflow-templates.nu")
 """
 
 [tasks."test:fenced-literals"]

@@ -22,7 +22,7 @@ A workflow has no mid-run user input; only an agent's own permission prompt paus
 
 - **Decomposition and Phase 1.5a clarifying questions** (`AskUserQuestion`). The Team Leader decomposes and clarifies in the main loop, then hands the issue list to the workflow. This matches the existing rule: fan-out happens at the Sub-team Leader, not the epic decomposer.
 - **The merge decision** (Phase 4). A workflow drives commit, push, and PR creation up to the squash-merge gate. The deployment's merge policy sets who may take that gate — see `/core:git` "Merge authorization"; the default leaves it operator-owned.
-- **Escalation to the user** on opus-failure, dependency conflict, or ambiguity. The script surfaces the condition in its return value; the lead escalates.
+- **Escalation to the user** on deep-reasoning-tier failure, dependency conflict, or ambiguity. The script surfaces the condition in its return value; the lead escalates.
 
 ## Five-tier pipeline as a script
 
@@ -61,7 +61,7 @@ const review = await agent(reviewPrompt(args), { phase: 'Review', schema: VERDIC
 return { status: review.approved ? 'done' : 'rework', review }
 ```
 
-Each stage prompt still names its tier (`You are P2 — test author for issue <id>`) and forbids out-of-stage activity, per the pipeline-collapse rule. The complete runnable version of this abbreviated example — full stage prompts, per-stage `skillProof` schemas, the diff-boundary gate, the escalation ladder, and the bounded fix loop — is `templates/five-tier-issue.workflow.js` in this skill.
+Each stage prompt still names its tier (`You are P2 — test author for issue <id>`) and forbids out-of-stage activity, per the pipeline-collapse rule. The complete runnable version of this abbreviated example — full stage prompts, per-stage `skillProof` schemas, the diff-boundary gate, the escalation ladder, and the bounded fix loop — is `templates/five-tier-issue.workflow.js` in this skill. The Review stage's evidence round follows the reviewer reference.
 
 ## Gate doctrine: deliberate red, no shims, cache poisoning
 
@@ -93,7 +93,7 @@ The schema enforces structure, not truth — an agent can still fabricate a quot
 
 ## Model escalation as a retry ladder
 
-The `haiku → sonnet → opus`, max-two-promotions rule and the overridable `AGENT_LOOP_ESCALATION_CHAIN` map to a loop. The chain is read by the process that launches the workflow and passed in via `args` — the model name never appears as a literal in the prompt body.
+The smallest-fast → general → deep-reasoning, max-two-promotions rule and the overridable `AGENT_LOOP_ESCALATION_CHAIN` map to a loop. The chain is read by the process that launches the workflow and passed in via `args` — the model name never appears as a literal in the prompt body.
 
 ```javascript
 async function withEscalation(prompt, opts, stageModel) {
@@ -114,6 +114,8 @@ async function withEscalation(prompt, opts, stageModel) {
   return null // hand back to the lead; caller checks for null and surfaces an escalate result
 }
 ```
+
+The workflow `agent()` call exposes no effort option (see the `/claude-code:claude-workflows` script API), so every stage inherits the launching session's effort.
 
 ## Routing Explore and Plan stages via agentType
 
@@ -206,7 +208,7 @@ Use it only for agents that mutate files in parallel; it is expensive and pointl
 
 ## Budget-gated P5 review panel
 
-The single P5 reviewer, on the reviewer default (`fable`), is the default shape. When `budget.total` is set and `budget.remaining()` leaves headroom, run P5 as a panel of distinct lenses — acceptance-criteria coverage, overfit-to-tests, missed edge cases — one `agent()` per lens via `parallel()`. Take the majority verdict; forward the rejecting lenses' findings to the rework dispatch. Guard on `budget.total`, not `remaining()`: `budget.total` is `null` when no target is set, which makes `remaining()` `Infinity` and the guard always true.
+The single P5 reviewer, on the reviewer default (strongest-reasoning tier), is the default shape. When `budget.total` is set and `budget.remaining()` leaves headroom, run P5 as a panel of distinct lenses — acceptance-criteria coverage, overfit-to-tests, missed edge cases — one `agent()` per lens via `parallel()`. Take the majority verdict; forward the rejecting lenses' findings to the rework dispatch. Guard on `budget.total`, not `remaining()`: `budget.total` is `null` when no target is set, which makes `remaining()` `Infinity` and the guard always true.
 
 ```javascript
 let review
@@ -261,8 +263,9 @@ const results = await parallel(ready.map(slice => async () => {
 }))
 ```
 
-Reviewers run on the best-thinker model (`stageModels.review` / `.final`, `fable` by default) with
-haiku hands; the Reviewer's findings drive a Remediation pair (implementor + test-runner) bounded at
+Reviewers run on the best-thinker tier (`stageModels.review` / `.final`, strongest-reasoning by
+default) with smallest-fast-tier hands; the Reviewer's findings drive a Remediation pair
+(implementor + test-runner) bounded at
 three cycles, then a fresh-context Final Reviewer with its own hands index.
 
 ### Invoke as `/forge-issue`

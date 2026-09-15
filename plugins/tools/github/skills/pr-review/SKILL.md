@@ -39,20 +39,34 @@ Hand this read-only classification to the `pr-collector` agent.
 
 ## Per-PR review: one agent per PR
 
-Dispatch one `pr-review-worker` per PR. Fan-out width equals the open-PR count, the Forge
-slice model. Run the reviewers **sequentially** when the gates need exclusive hardware
-(integration tests, container or cluster spawns) — parallel branch checkouts in one working
-tree pollute each other. Before any checkout, confirm the working tree carries no other
-worker's branch changes and no uncommitted *source* changes — operator-owned tracker files or
-untracked local dirs are fine to leave in place (see `agents/pr-review-worker.md`).
+Dispatch one `pr-gate-runner` then one `pr-review-worker` per PR, sequentially. Fan-out width
+equals the open-PR count, the Forge slice model. Run each PR's pair **sequentially** when the
+gates need exclusive hardware (integration tests, container or cluster spawns). The
+gate-runner clones the repo into its own scratchpad — no working-tree check is needed before
+dispatch, and no worker touches the shared working tree (see `agents/pr-gate-runner.md`). The
+collector's `headRefOid` and main oid go to `pr-gate-runner`, whose Artifacts block goes to
+`pr-review-worker`. Pass the gate-runner's Artifacts block (diff path plus both source snapshot
+paths) to the `pr-review-worker` — its only route to the diff and source, since it carries no
+`Bash` tool.
 
-Every reviewer loads, at minimum:
+Every gate-runner loads, at minimum:
 
 ```
 /core:git
 /core:mise
 /core:security
 /core:anti-fabrication
+/core:agent-loop
+```
+
+Every reviewer loads, at minimum:
+
+```
+/core:git
+/core:security
+/core:anti-fabrication
+/core:restraint
+/core:agent-loop
 ```
 
 plus the stack-specific skills from the classification (for example `/rust:rust`,
@@ -62,30 +76,24 @@ plus the stack-specific skills from the classification (for example `/rust:rust`
 ## Verify with baseline-diff gates
 
 **THE key insight**: run each gate on `main` FIRST, then on the PR branch. Only a gate that
-was PASSING on `main` and is now FAILING on the branch is a regression worth blocking on.
-
-Gate discipline:
-
-1. Discover the gate tasks (`mise tasks`).
-2. Run each gate on `main`. Capture verbatim output. Record pass/fail.
-3. Check out the PR branch (`git checkout <headRefName>`). Run the same gates. Capture output.
-4. Classify: only gates PASSING on main and FAILING on branch block.
-5. Gates that fail identically on both sides are pre-existing — not regressions. A gate
-   failing on main and passing on the branch means the PR fixed it — note that.
-6. Check out `main` again before the next PR.
-
-Some gates run only on the operator machine (Apple Container clusters, hardware-dependent
-tests) and are skipped by hosted CI. Run those locally under the same baseline-diff
-discipline. See `references/baseline-diff-verification.md` and `/core:container`.
-
-Use `/github:act` to replay hosted CI gates locally when useful.
+was PASSING on `main` and is now FAILING on the branch is a regression worth blocking on. The
+`pr-gate-runner` runs this discipline in its own scratchpad clones — see
+`references/baseline-diff-verification.md` for the full procedure, including local-only
+integration gates and the worked kina example. Use `/github:act` to replay hosted CI gates
+locally when useful.
 
 ## Review the diff
 
-Read `git diff main...<headRefName>` against `references/review-rubric.md`: correctness,
-security, test coverage, no leaked secrets, and match to the PR's stated intent. The reviewer
-emits a structured verdict — `approve` or `request-changes` with `file:line` findings and
-verbatim gate evidence. The reviewer never edits code and never merges.
+The `pr-review-worker` reads the gate-runner's diff and source-snapshot artifacts (never
+`git` itself — it carries no `Bash` tool) against `references/review-rubric.md` —
+correctness, security, test coverage, no leaked secrets, and match to the PR's stated intent
+— and judges the gate-runner's evidence per `/core:agent-loop` `references/reviewer.md`. It
+emits a structured verdict: `approve`, `request-changes` with `file:line` findings and cited
+gate evidence, or `wait` with an `evidenceRequests` list when needed evidence is missing. On
+`wait`, the orchestrator dispatches the `pr-gate-runner` (or targeted execution hands) for the
+named requests and re-invokes the reviewer once with the results. The orchestrator keeps both
+scratchpad clones and the diff file until the verdict lands, then discards them. The reviewer
+never runs gates, never edits code, and never merges.
 
 ## Merge and close out
 
@@ -113,13 +121,15 @@ open. See `references/merge-and-closeout.md`.
 ## Delegation
 
 - Read-only PR collection and classification → `agents/pr-collector.md`.
-- Per-PR baseline-diff gates and diff review → `agents/pr-review-worker.md`.
+- Per-PR baseline-diff gate execution → `agents/pr-gate-runner.md`.
+- Per-PR diff review and verdict → `agents/pr-review-worker.md`.
 
-**Stop-and-report gates** (worker halts, does not thrash):
+**Stop-and-report gates** (workers halt, do not thrash):
 
-- A gate green on `main` but failing on the branch → STOP, report the gate name and output diff
-- A diff that needs code changes to pass → STOP, report `request-changes` with the failure
-- An ambiguous or contradictory PR intent → STOP, report what is unclear
+- A gate green on `main` but failing on the branch, or an ambiguous gate result → the
+  gate-runner STOPS and reports the gate name and output diff.
+- A diff that needs code changes to pass, or an ambiguous or contradictory PR intent → the
+  reviewer STOPS and reports `request-changes` or what is unclear.
 
 **Hard constraint**: agents never merge unilaterally. Merge is operator-approved and executed
 by this skill's close-out step.

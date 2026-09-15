@@ -14,8 +14,10 @@ review lens (e.g., "security", "correctness", "style").
 ## FINDINGS
 A numbered list. Each finding uses this exact shape:
 
-N. [SEVERITY] file:line — one-sentence description.
+N. [SEVERITY] path:line — defect and impact; basis.
    Fix: one sentence, 20 words maximum, describing the change.
+
+A plan without stable lines uses a section reference. Name a basis (ADR decision or skill) only when one applies — ADR 0001 decision 4.
 
 SEVERITY is one of: `blocker` | `major` | `minor` | `nit`.
 - `blocker`: must be fixed before merge (correctness, security)
@@ -32,6 +34,7 @@ Do not include prose commentary between or after findings.
 - Code review agents whose output feeds a team lead or reviewer dashboard
 - Reviews where the user wants an actionable list, not a narrative
 - Situations where severity-based filtering is needed (e.g., "show blockers only")
+- Every reviewer in the `/core:agent-loop` process (plan, test, pipeline, PR gate)
 
 ## Example Output
 
@@ -41,7 +44,7 @@ Security review of lib/auth/session.ex in PR #203.
 
 ## FINDINGS
 1. [blocker] lib/auth/session.ex:42 — session token stored without
-   HMAC, allowing tampering.
+   HMAC, allowing tampering; basis: /core:security.
    Fix: sign the token with `Phoenix.Token.sign/3` before storage.
 2. [major] lib/auth/session.ex:67 — session lookup is not constant-time,
    enabling user enumeration via timing.

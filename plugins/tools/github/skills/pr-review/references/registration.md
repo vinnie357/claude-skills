@@ -38,7 +38,7 @@ Same two validators as any plugin skill — see `/github:dependabot-consolidator
 - [ ] Every path written in prose (e.g., `agents/pr-collector.md`) exists on disk
 - [ ] No cross-skill invocation (`/plugin:skill`) that does not resolve to a real local skill
 - [ ] Agent files use `tools:` as a comma-separated string, not a YAML list
-- [ ] `model:` in each agent is one of `haiku`, `sonnet`, `opus`
+- [ ] `model:` in each agent is a value the `bad_model` check in `test/validate-skills-quality.nu` accepts
 - [ ] `sources.toml` covers `pr-review` in some entry's `skills` array
 - [ ] every `sources.toml` entry `name` appears in `sources.md` prose (not only inside a URL)
 - [ ] `nu test/validate-plugin.nu github` passes

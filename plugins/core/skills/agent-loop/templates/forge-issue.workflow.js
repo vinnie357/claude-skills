@@ -26,6 +26,10 @@
 //     }
 //   }
 //
+// Example model ids above are the claude column of /core:agent-loop
+// references/model-tiers.md. The caller supplies them — no model name is
+// hardcoded in this script.
+//
 // Implementation note: the Plan Reviewer gate described in references/forge.md is not yet
 // encoded here as a "planRev" stage — tracked in a follow-up bees issue, "Add planRev stage
 // to forge-issue.workflow.js for the Plan Reviewer gate (claude-skills-294 follow-up)".
@@ -39,14 +43,14 @@
 
 export const meta = {
   name: 'forge-issue',
-  description: 'Run one issue through Forge: hands-indexed plan, fanned-out impl pairs, fable reviews',
+  description: 'Run one issue through Forge: hands-indexed plan, fanned-out impl pairs, strongest-reasoning reviews',
   phases: [
     { title: 'Plan', detail: 'Hands index → Test Planner slices the issue' },
     { title: 'Author', detail: 'Test Author writes failing tests' },
-    { title: 'Review-tests', detail: 'Test Reviewer (fable + hands) checks plan-conformance + non-redundancy' },
+    { title: 'Review-tests', detail: 'Test Reviewer (strongest reasoning + hands) checks plan-conformance + non-redundancy' },
     { title: 'Impl', detail: 'One Implementor + Test Runner pair per slice, by dep wave' },
-    { title: 'Review', detail: 'Reviewer (fable + hands) verifies acceptance criteria' },
-    { title: 'Final', detail: 'Final Reviewer (fable + hands) checks the remediation diff' },
+    { title: 'Review', detail: 'Reviewer (strongest reasoning + hands) verifies acceptance criteria' },
+    { title: 'Final', detail: 'Final Reviewer (strongest reasoning + hands) checks the remediation diff' },
     { title: 'Remediate', detail: 'Implementor + Test Runner pair addresses review findings' },
   ],
 }
@@ -114,8 +118,35 @@ const CI_RESULT = {
 const VERDICT = {
   type: 'object', required: ['approved', 'findings', 'skillProof'],
   properties: { approved: { type: 'boolean' },
-    findings: { type: 'array', items: { type: 'string' } }, skillProof: SKILL_PROOF },
+    findings: { type: 'array', items: { type: 'string' } },
+    evidenceRequests: {
+      type: 'array',
+      items: { type: 'object', required: ['command', 'question'],
+        properties: { command: { type: 'string' }, question: { type: 'string' } } },
+    },
+    skillProof: SKILL_PROOF },
 }
+
+// Head probe: the revision under review, read immediately before the first
+// reviewer call of a stage (i.e. after that stage's latest implement/fix
+// commit). No model — this is a mechanical probe, not a principal call.
+const HEAD = {
+  type: 'object', required: ['sha'],
+  properties: { sha: { type: 'string' } },
+}
+
+// One execution-evidence record per /claude-code:claude-output-styles
+// assets/ci-evidence-format.md "Execution evidence".
+const EVIDENCE = {
+  type: 'object', required: ['command', 'revision', 'cwd', 'exit', 'result', 'excerpt', 'log'],
+  properties: {
+    command: { type: 'string' }, revision: { type: 'string' }, cwd: { type: 'string' },
+    exit: { type: 'integer' }, result: { type: 'string' }, excerpt: { type: 'string' }, log: { type: 'string' },
+  },
+}
+
+// Every reviewer prompt names this exact finding shape.
+const FINDING_LINE = '[severity] path:line — defect and impact; basis. Fix: one sentence.'
 
 // ---------------------------------------------------------------------------
 // Prompt builders. Each principal names its role, loads skills, stays in stage,
@@ -210,8 +241,9 @@ function testReviewPrompt(a, plan, index) {
     'working tree, or any other command that changes HEAD, the index, or',
     'tracked or untracked files — other agents may be writing to it. Inspect',
     'other refs with git show <ref>:<path> / git diff a...b / git ls-tree.',
-    'To test anything requiring mutation, git clone the repo into your',
-    'scratchpad, git remote remove origin there, and work in the copy.',
+    'Do NOT run tests, CI, builds, or the app. If a finding needs execution',
+    'proof, list it in evidenceRequests as {command, question}.',
+    `Report each finding as: ${FINDING_LINE}`,
     'Return approved true/false plus findings (empty when approved).',
   ].join('\n')
 }
@@ -277,10 +309,62 @@ function reviewPrompt(a, index, role) {
     'working tree, or any other command that changes HEAD, the index, or',
     'tracked or untracked files — other agents may be writing to it. Inspect',
     'other refs with git show <ref>:<path> / git diff a...b / git ls-tree.',
-    'To test anything requiring mutation, git clone the repo into your',
-    'scratchpad, git remote remove origin there, and work in the copy.',
+    'Do NOT run tests, CI, builds, or the app. If a finding needs execution',
+    'proof, list it in evidenceRequests as {command, question}.',
+    `Report each finding as: ${FINDING_LINE}`,
     'Return approved true/false plus findings (empty when approved).',
   ].join('\n')
+}
+
+function execHandsPrompt(req, sha) {
+  return [
+    `In repo ${args.repo}, you are execution hands. Run exactly ONE command and report`,
+    'evidence — never research, judge, fix, commit, or post.',
+    `Command: ${req.command}`,
+    `Question it answers: ${req.question}`,
+    `Check out revision ${sha} in a scratchpad clone per /core:agent-loop`,
+    'references/researcher.md "Execution hands": git clone the repo into your',
+    'scratchpad, git remote remove origin there, git checkout the revision,',
+    'and run the command there — never in the shared working tree.',
+    'Report one Execution evidence record per /claude-code:claude-output-styles',
+    'assets/ci-evidence-format.md: command, revision (the 40-hex sha you ran',
+    'against), cwd, exit (the command\'s own exit code — never through a pipe;',
+    'use set -o pipefail or capture the code before piping), result, excerpt, log.',
+  ].join('\n')
+}
+
+// Every reviewer stage routes through this: head probe → reviewer call →
+// (if evidenceRequests) one execution-hands round → exactly one re-invoke.
+// A stale record (revision != head sha) is dropped before the re-invoke so
+// its RESULT text never reaches the reviewer.
+async function reviewWithEvidence(promptText, opts, stageModel) {
+  const head = await agent(
+    `In repo ${args.repo}, run exactly: git rev-parse HEAD. Report the full 40-hex sha in sha. Run and report only.`,
+    { phase: opts.phase, label: 'head probe', schema: HEAD })
+  if (!head) return null
+  const verdict = await withEscalation(promptText, opts, stageModel)
+  if (!verdict) return null
+  if (!verdict.evidenceRequests || verdict.evidenceRequests.length === 0) return verdict
+
+  const recordsWithReqs = []
+  for (const req of verdict.evidenceRequests) {
+    const rec = await agent(execHandsPrompt(req, head.sha),
+      { phase: opts.phase, label: 'execution hands', schema: EVIDENCE, model: args.handsModel })
+    if (rec) recordsWithReqs.push({ req, rec })
+  }
+  const kept = recordsWithReqs.filter(({ req, rec }) =>
+    rec.revision === head.sha &&
+    rec.command === req.command &&
+    Number.isInteger(rec.exit) &&
+    typeof rec.cwd === 'string' && rec.cwd.length > 0)
+  const dropped = recordsWithReqs.length - kept.length
+  const evidenceSection = [
+    '## Evidence records',
+    ...kept.map(({ rec }) => `- ${rec.command} (exit ${rec.exit}): ${rec.result} — ${rec.excerpt} (log: ${rec.log})`),
+    `${dropped} record(s) dropped for failing validation (revision, command, exit, or cwd).`,
+  ].join('\n')
+
+  return agent(`${promptText}\n\n${evidenceSection}`, { ...opts, label: 're-review', model: stageModel })
 }
 
 // ---------------------------------------------------------------------------
@@ -347,14 +431,16 @@ phase('Author')
 const testSha = await withEscalation(authorPrompt(args, plan), { phase: 'Author', schema: COMMIT }, args.stageModels.author)
 if (!testSha) return escalate('Test Author failed across escalation chain', { plan })
 
-// Review tests — fable reviewer, haiku hands showing ONLY the new tests.
+// Review tests — strongest-reasoning reviewer, smallest-fast hands showing ONLY the new tests.
 phase('Review-tests')
 const testReviewIndex = await handsPass(
   `Index only the test changes in ${testSha.sha} across ${allTestFiles.join(', ')} — one pointer per new test.`,
   { phase: 'Review-tests', label: 'test-reviewer hands' })
-const testReview = await withEscalation(
+const testReview = await reviewWithEvidence(
   testReviewPrompt(args, plan, testReviewIndex), { phase: 'Review-tests', schema: VERDICT }, args.stageModels.testRev)
 if (!testReview) return escalate('Test Reviewer failed across escalation chain', { plan, testSha })
+if (testReview.evidenceRequests && testReview.evidenceRequests.length > 0)
+  return escalate('review evidence did not converge', { plan, testSha, findings: testReview.findings })
 if (!testReview.approved) return escalate('tests rejected — re-author needed', { plan, testSha, findings: testReview.findings })
 
 // Implement — one Implementor + Test Runner pair per slice, dispatched by dep wave.
@@ -384,14 +470,16 @@ while (remaining.length > 0) {
   log(`forge-issue: ${done.size}/${plan.slices.length} slices green`)
 }
 
-// Review — fable reviewer with a hands-built startup index (diff + ADRs).
+// Review — strongest-reasoning reviewer with a hands-built startup index (diff + ADRs).
 phase('Review')
 const reviewIndex = await handsPass(
   `Index git diff main...HEAD for issue ${args.issueId} plus any decision records (ADRs) it touches.`,
   { phase: 'Review', label: 'reviewer hands' })
-let review = await withEscalation(
+let review = await reviewWithEvidence(
   reviewPrompt(args, reviewIndex, 'Reviewer'), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
 if (!review) return escalate('Reviewer failed across escalation chain')
+if (review.evidenceRequests && review.evidenceRequests.length > 0)
+  return escalate('review evidence did not converge', { review })
 
 // Remediate — Implementor + Test Runner pair on findings, bounded at 3 cycles.
 let cycles = 0
@@ -410,20 +498,24 @@ while (review && !review.approved && cycles < 3) {
   const reIndex = await handsPass(
     `Index the remediation diff and the prior review findings for issue ${args.issueId}.`,
     { phase: 'Review', label: 'reviewer hands' })
-  review = await withEscalation(
+  review = await reviewWithEvidence(
     reviewPrompt(args, reIndex, 'Reviewer'), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
+  if (review && review.evidenceRequests && review.evidenceRequests.length > 0)
+    return escalate('review evidence did not converge', { review, cycles })
   cycles++
 }
 if (!review || !review.approved) return escalate('review unresolved after remediation', { review, cycles })
 
-// Final review — fable, fresh context, hands index of prior notes + remediation diff.
+// Final review — strongest reasoning, fresh context, hands index of prior notes + remediation diff.
 phase('Final')
 const finalIndex = await handsPass(
   `Index the prior review notes and the full git diff main...HEAD for issue ${args.issueId}.`,
   { phase: 'Final', label: 'final-reviewer hands' })
-const final = await withEscalation(
+const final = await reviewWithEvidence(
   reviewPrompt(args, finalIndex, 'Final Reviewer'), { phase: 'Final', schema: VERDICT }, args.stageModels.final)
 if (!final) return escalate('Final Reviewer failed across escalation chain')
+if (final.evidenceRequests && final.evidenceRequests.length > 0)
+  return escalate('review evidence did not converge', { final })
 
 log(`forge-issue: ${args.issueId} → ${final.approved ? 'done' : 'rework'}`)
 

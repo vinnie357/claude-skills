@@ -153,10 +153,8 @@ Flag speculative abstractions (interfaces with one implementation, config for va
    - Understand the problem being solved
    - Check related issues
 
-2. **Build and test locally**
-   - Pull the branch
-   - Run tests
-   - Test the functionality manually
+2. **Get execution evidence**
+   - An agent reviewer requests execution hands per `/core:agent-loop` `references/reviewer.md` and judges the records; a human reviewer runs checks directly.
 
 ### During Review
 
@@ -180,6 +178,8 @@ Flag speculative abstractions (interfaces with one implementation, config for va
    - Is it well-tested?
 
 ### Providing Feedback
+
+Agent reviewers report findings per `/claude-code:claude-output-styles` `assets/review-findings-format.md`.
 
 **Be constructive and specific:**
 

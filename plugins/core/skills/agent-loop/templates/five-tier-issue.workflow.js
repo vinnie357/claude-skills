@@ -26,9 +26,9 @@
 //     "repo": "/absolute/path/to/repo"
 //   }
 //
-// Doctrine defaults above are from the Five-Tier Decomposition Pipeline table in
-// plugins/core/skills/agent-loop/SKILL.md. The caller supplies them — no model
-// name is hardcoded in this script (12-factor rule: config comes from args).
+// Doctrine defaults above are the example model ids from the claude column of
+// /core:agent-loop references/model-tiers.md. The caller supplies them — no
+// model name is hardcoded in this script (12-factor rule: config comes from args).
 //
 // Agent labeling: pass a label option to agent() calls to override the display
 // label shown in the /workflows progress output. This makes it easier to track
@@ -118,9 +118,35 @@ const VERDICT = {
   properties: {
     approved: { type: 'boolean' },
     findings: { type: 'array', items: { type: 'string' } },
+    evidenceRequests: {
+      type: 'array',
+      items: { type: 'object', required: ['command', 'question'],
+        properties: { command: { type: 'string' }, question: { type: 'string' } } },
+    },
     skillProof: SKILL_PROOF,
   },
 }
+
+// Head probe: the revision under review, read immediately before the first
+// reviewer call of a stage (i.e. after that stage's latest implement/fix
+// commit). No model — this is a mechanical probe, not a principal call.
+const HEAD = {
+  type: 'object', required: ['sha'],
+  properties: { sha: { type: 'string' } },
+}
+
+// One execution-evidence record per /claude-code:claude-output-styles
+// assets/ci-evidence-format.md "Execution evidence".
+const EVIDENCE = {
+  type: 'object', required: ['command', 'revision', 'cwd', 'exit', 'result', 'excerpt', 'log'],
+  properties: {
+    command: { type: 'string' }, revision: { type: 'string' }, cwd: { type: 'string' },
+    exit: { type: 'integer' }, result: { type: 'string' }, excerpt: { type: 'string' }, log: { type: 'string' },
+  },
+}
+
+// Every reviewer prompt names this exact finding shape.
+const FINDING_LINE = '[severity] path:line — defect and impact; basis. Fix: one sentence.'
 
 // ---------------------------------------------------------------------------
 // Prompt builders — each names its tier, lists the skills to load, forbids
@@ -235,18 +261,70 @@ function reviewPrompt(a) {
     'branch -f/-D against the shared working tree, or any other command',
     'that changes HEAD, the index, or tracked or untracked files —',
     'other agents may be writing to it. Inspect other refs with',
-    'git show <ref>:<path> / git diff a...b / git ls-tree. To test',
-    'anything requiring mutation, git clone the repo into your scratchpad,',
-    'git remote remove origin there, and work in the copy.',
+    'git show <ref>:<path> / git diff a...b / git ls-tree.',
+    'Do NOT run tests, CI, builds, or the app. If a finding needs execution',
+    'proof, list it in evidenceRequests as {command, question}.',
+    `Report each finding as: ${FINDING_LINE}`,
     'Return approved true/false plus a findings list (empty when approved).',
   ].join('\n')
+}
+
+function execHandsPrompt(req, sha) {
+  return [
+    `In repo ${args.repo}, you are execution hands. Run exactly ONE command and report`,
+    'evidence — never research, judge, fix, commit, or post.',
+    `Command: ${req.command}`,
+    `Question it answers: ${req.question}`,
+    `Check out revision ${sha} in a scratchpad clone per /core:agent-loop`,
+    'references/researcher.md "Execution hands": git clone the repo into your',
+    'scratchpad, git remote remove origin there, git checkout the revision,',
+    'and run the command there — never in the shared working tree.',
+    'Report one Execution evidence record per /claude-code:claude-output-styles',
+    'assets/ci-evidence-format.md: command, revision (the 40-hex sha you ran',
+    'against), cwd, exit (the command\'s own exit code — never through a pipe;',
+    'use set -o pipefail or capture the code before piping), result, excerpt, log.',
+  ].join('\n')
+}
+
+// The reviewer stage routes through this: head probe → reviewer call →
+// (if evidenceRequests) one execution-hands round → exactly one re-invoke.
+// A stale record (revision != head sha) is dropped before the re-invoke so
+// its RESULT text never reaches the reviewer.
+async function reviewWithEvidence(promptText, opts, stageModel) {
+  const head = await agent(
+    `In repo ${args.repo}, run exactly: git rev-parse HEAD. Report the full 40-hex sha in sha. Run and report only.`,
+    { phase: opts.phase, label: 'head probe', schema: HEAD })
+  if (!head) return null
+  const verdict = await withEscalation(promptText, opts, stageModel)
+  if (!verdict) return null
+  if (!verdict.evidenceRequests || verdict.evidenceRequests.length === 0) return verdict
+
+  const recordsWithReqs = []
+  for (const req of verdict.evidenceRequests) {
+    const rec = await agent(execHandsPrompt(req, head.sha),
+      { phase: opts.phase, label: 'execution hands', schema: EVIDENCE, model: args.handsModel })
+    if (rec) recordsWithReqs.push({ req, rec })
+  }
+  const kept = recordsWithReqs.filter(({ req, rec }) =>
+    rec.revision === head.sha &&
+    rec.command === req.command &&
+    Number.isInteger(rec.exit) &&
+    typeof rec.cwd === 'string' && rec.cwd.length > 0)
+  const dropped = recordsWithReqs.length - kept.length
+  const evidenceSection = [
+    '## Evidence records',
+    ...kept.map(({ rec }) => `- ${rec.command} (exit ${rec.exit}): ${rec.result} — ${rec.excerpt} (log: ${rec.log})`),
+    `${dropped} record(s) dropped for failing validation (revision, command, exit, or cwd).`,
+  ].join('\n')
+
+  return agent(`${promptText}\n\n${evidenceSection}`, { ...opts, label: 're-review', model: stageModel })
 }
 
 // ---------------------------------------------------------------------------
 // Escalation ladder — starts at the stage's designated model and escalates
 // through the suffix of args.escalationChain from that model onward.
 // Falls back to the full chain when the stage model is not found in the chain
-// (e.g. an opus start yields ['opus'] — no promotion, escalate upstream on
+// (e.g. a deep-reasoning-tier start yields ['deep reasoning'] — no promotion, escalate upstream on
 // failure, matching doctrine). Each model is attempted twice before promoting.
 // Returns null when the whole ladder fails.
 // ---------------------------------------------------------------------------
@@ -341,8 +419,10 @@ if (!(await frozenIntact(args.testFiles, testSha.sha, 'CI'))) {
 }
 
 // P5 — reviewer
-const review = await withEscalation(reviewPrompt(args), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
+const review = await reviewWithEvidence(reviewPrompt(args), { phase: 'Review', schema: VERDICT }, args.stageModels.review)
 if (!review) return escalate('P5 reviewer failed across escalation chain', { testSha, impl, ci })
+if (review.evidenceRequests && review.evidenceRequests.length > 0)
+  return escalate('review evidence did not converge', { testSha, impl, ci, review })
 
 log(`five-tier-issue: ${args.issueId} → ${review.approved ? 'done' : 'rework'}`)
 

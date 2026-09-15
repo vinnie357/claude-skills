@@ -12,22 +12,30 @@ on `main` first gives you the baseline to diff against.
 
 ## Procedure
 
+Gates run in a gate-runner's own scratchpad clones, never in the shared working tree — clone handling per `/core:agent-loop` `references/researcher.md` "Execution hands". One clone at main's oid supplies the baseline; one clone at the PR's `headRefOid` supplies the branch.
+
 1. **Enumerate gates** with `mise tasks`.
-2. **Run on main**, capturing verbatim output:
+2. **Clone the baseline and run on it**, capturing verbatim output:
    ```bash
-   git checkout main && git pull origin main
-   mise run ci 2>&1 | tee /tmp/gate-main-ci.txt
+   git clone <repo-url> "$SCRATCHPAD/repo-main"
+   git -C "$SCRATCHPAD/repo-main" checkout <main-oid>
+   git -C "$SCRATCHPAD/repo-main" remote remove origin
+   (cd "$SCRATCHPAD/repo-main" && mise run ci > "$SCRATCHPAD/gate-main-ci.log" 2>&1); echo "EXIT=$?"
    ```
    Repeat for each gate the PR needs (`pre-commit`, `test`, integration tasks). Record
-   PASS/FAIL per gate.
-3. **Run on the branch**, same gates:
+   PASS/FAIL per gate. EXIT comes from the command itself, never through a pipe.
+3. **Clone the PR head and run on it**, same gates:
    ```bash
-   git fetch origin && git checkout <headRefName>
-   mise run ci 2>&1 | tee /tmp/gate-branch-ci.txt
+   git clone <repo-url> "$SCRATCHPAD/repo-pr"
+   git -C "$SCRATCHPAD/repo-pr" fetch origin "pull/<pr-number>/head" <main-oid>
+   git -C "$SCRATCHPAD/repo-pr" checkout <headRefOid>
+   git -C "$SCRATCHPAD/repo-pr" remote remove origin
+   (cd "$SCRATCHPAD/repo-pr" && mise run ci > "$SCRATCHPAD/gate-branch-ci.log" 2>&1); echo "EXIT=$?"
    ```
+   The fetch makes a fork PR's head reachable; a PR from the same repo needs it too when the branch was deleted.
 4. **Diff and classify**:
    ```bash
-   diff /tmp/gate-main-ci.txt /tmp/gate-branch-ci.txt
+   diff "$SCRATCHPAD/gate-main-ci.log" "$SCRATCHPAD/gate-branch-ci.log"
    ```
 
 | main | branch | verdict |
@@ -37,7 +45,15 @@ on `main` first gives you the baseline to diff against.
 | PASS | PASS | clean |
 | FAIL | PASS | the PR fixed a pre-existing failure — note it |
 
-5. **Return to main** (`git checkout main`) before the next PR.
+5. **Produce review artifacts.** The `pr-review-worker` has no `Bash` tool, so it reads a diff
+   file and the two clones instead of running `git`. Step 3 fetched both commits into the PR clone:
+   ```bash
+   git -C "$SCRATCHPAD/repo-pr" diff <main-oid>...<headRefOid> > "$SCRATCHPAD/pr.diff"
+   ```
+   The two clones themselves are the source snapshots the reviewer reads with `Read`/`Grep`:
+   `$SCRATCHPAD/repo-main` at `<main-oid>`, `$SCRATCHPAD/repo-pr` at `<headRefOid>`.
+6. **Keep both clones and `pr.diff`** until the reviewer's verdict lands. The orchestrator
+   discards them afterward — no state to return, since the shared working tree was never touched.
 
 ## Local-only integration gates
 
@@ -63,3 +79,5 @@ exactly the call made on kina PR #36.
 
 Never report a gate result without the verbatim command output. When a failure is
 pre-existing, show it failing on BOTH `main` and the branch — a paraphrase is not evidence.
+Record each gate run as an Execution evidence record per `/claude-code:claude-output-styles`
+`assets/ci-evidence-format.md` "Execution evidence".

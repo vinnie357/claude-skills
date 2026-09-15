@@ -12,13 +12,14 @@ TODO-style markers are issue tracking pretending to be code:
 
 ## The scan
 
-In any code review of a PR diff:
+In any code review of a PR diff, the reviewer greps the pinned diff itself — a read-only
+judging input — and reports each match as a finding:
 
 ```bash
 git diff <base>...HEAD | grep -nE '\b(TODO|FIXME|XXX|HACK|KLUDGE|DEFERRED)\b'
 ```
 
-If the scan returns non-empty lines added by THIS diff (`+` lines, not `-` lines), reject the PR with a structured finding citing each match's file:line and the marker word.
+If the scan returns non-empty lines added by THIS diff (`+` lines, not `-` lines), the reviewer reports each match as a finding citing its file:line and the marker word, and rejects the PR.
 
 ## What to do instead
 

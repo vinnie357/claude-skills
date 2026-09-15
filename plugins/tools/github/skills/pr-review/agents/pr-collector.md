@@ -40,16 +40,23 @@ Invoke each with the Skill tool and quote one sentence from each as proof:
    - `.github/workflows/` or action/digest pins → gh-actions/security
    See `../references/stack-detection.md` for the full skill-set mapping.
 
-4. **Discover gate tasks** with `/core:mise`: run `mise tasks` and report the PR-gating tasks
+4. **Get the main branch oid** (once per repo, not per PR) — the gate-runner needs it as the
+   baseline commit:
+   ```bash
+   gh api repos/<owner>/<repo>/branches/<main> --jq .commit.sha
+   ```
+
+5. **Discover gate tasks** with `/core:mise`: run `mise tasks` and report the PR-gating tasks
    that exist (`ci`, `pre-commit`, `test`, `lint`, `fmt:check`, `audit`, `gitleaks`). Paste
    the verbatim relevant lines.
 
-5. **Emit structured report**, one block per PR:
+6. **Emit structured report**, one block per PR:
    ```
    PR #<n>: <title>
      author: <login>
      headRefName: <branch>
-     headRefOid: <short-sha>
+     headRefOid: <40-hex-sha>
+     mainOid: <40-hex-sha>
      stack: rust | elixir | zig | js | documentation | gh-actions/security
      reviewer skills: /core:git, /core:mise, /core:security, /core:anti-fabrication, <stack skills>
      size: +<additions>/-<deletions>, <changedFiles> files

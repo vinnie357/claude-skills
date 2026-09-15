@@ -54,7 +54,7 @@ Phase 4: Submit loop
 - we never commit or pr with attribution
 - we give summary prs without a changes section as git has the diff
 - agents merge only under a merge policy that authorizes it; the documented default is `operator`, under which they report the PR URL and wait
-- three-gate step order (see /core:git Three-Gate Merge Policy): Gate 1 local CI → commit → gitleaks → push → PR → Gate 2 watch remote CI → Gate 3 adversarial review by a separate agent on the strongest available model → notify
+- three-gate step order (see /core:git Three-Gate Merge Policy): Gate 1 local CI → commit → gitleaks → push → PR → Gate 2 watch remote CI → Gate 3 adversarial review by a separate strongest-reasoning-tier agent (ADR 0001 decisions 4 and 5) → notify
 - once all three gates are green we ask the user to squash merge and delete the merged branch — that is the `operator` default; another policy value follows /core:git "Merge authorization"
 - once merged, close the tracker issue (bees or beads), commit the tracker state, and push
 - we checkout main, pull and delete our merged feature branch
