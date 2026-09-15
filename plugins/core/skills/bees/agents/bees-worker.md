@@ -87,11 +87,11 @@ Spawn five sequential `Task` invocations from the bees-worker process. Each is a
 
 | Stage | Model | Spawn prompt opens with |
 |-------|-------|-------------------------|
-| P1 planner   | opus   | `You are team:opus-planner for bees issue <id>. Stage P1 — write test list + spec.` |
-| P2 test author | sonnet | `You are team:sonnet-test for bees issue <id>. Stage P2 — write failing tests against P1's spec. Do NOT read implementation.` |
-| P3 implementer | sonnet | `You are team:sonnet-impl for bees issue <id>. Stage P3 — make tests pass. Do NOT modify test files.` |
-| P4 CI runner   | haiku  | `You are team:haiku-ci for bees issue <id>. Stage P4 — run mise run ci, paste verbatim output.` |
-| P5 reviewer    | opus   | `You are team:opus-review for bees issue <id>. Stage P5 — verify tests exercise AC, no overfit.` |
+| P1 planner   | deep reasoning   | `You are team:opus-planner for bees issue <id>. Stage P1 — write test list + spec.` |
+| P2 test author | general | `You are team:sonnet-test for bees issue <id>. Stage P2 — write failing tests against P1's spec. Do NOT read implementation.` |
+| P3 implementer | general | `You are team:sonnet-impl for bees issue <id>. Stage P3 — make tests pass. Do NOT modify test files.` |
+| P4 CI runner   | smallest fast  | `You are team:haiku-ci for bees issue <id>. Stage P4 — run mise run ci, paste verbatim output.` |
+| P5 reviewer    | strongest reasoning   | `You are team:opus-review for bees issue <id>. Stage P5 — verify tests exercise AC, no overfit.` |
 
 Intermediate artifacts go to bees comments on the SAME issue and git commits on the feature branch. Do NOT create new bees issues for stage progression.
 
@@ -103,7 +103,7 @@ Between dispatches the bees-worker verifies the previous stage's artifact before
 
 ### Solo mode (complexity:trivial)
 
-Dispatch one haiku Agent following the 9-step Agent Worker Execution Order in `/core:agent-loop`. Single Task invocation, no pipeline.
+Dispatch one smallest-fast-tier Agent following the 9-step Agent Worker Execution Order in `/core:agent-loop`. Single Task invocation, no pipeline.
 
 ### Complexity classification (unlabeled issues)
 

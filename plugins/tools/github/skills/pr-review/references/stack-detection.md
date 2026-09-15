@@ -38,8 +38,8 @@ the PR-gating tasks that exist:
 | `audit` | dependency vulnerability audit |
 | `gitleaks` | secret scanner |
 
-Run `mise run <task>` for the discovered tasks. A haiku agent handles this discovery — the
-task list is structured data from one command.
+Run `mise run <task>` for the discovered tasks. A smallest-fast-tier agent handles this
+discovery — the task list is structured data from one command.
 
 ### When the repo has no mise
 
