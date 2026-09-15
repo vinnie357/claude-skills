@@ -368,13 +368,15 @@ async function reviewWithEvidence(promptText, opts, stageModel) {
 }
 
 // ---------------------------------------------------------------------------
-// Escalation ladder — start at the stage model, escalate through the chain suffix,
-// two attempts per model. Returns null when the whole ladder fails.
+// Escalation ladder — starts at the stage model and escalates through the chain
+// suffix from it. A stage model absent from the chain runs alone (two attempts)
+// then escalates upstream; it is never replaced by chain models.
+// Returns null when the whole ladder fails.
 // ---------------------------------------------------------------------------
 
 function ladderFor(stageModel) {
   const idx = args.escalationChain.indexOf(stageModel)
-  return idx === -1 ? args.escalationChain.slice() : args.escalationChain.slice(idx)
+  return idx === -1 ? [stageModel] : args.escalationChain.slice(idx)
 }
 
 async function withEscalation(prompt, opts, stageModel) {
