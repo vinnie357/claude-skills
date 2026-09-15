@@ -6,7 +6,7 @@
 # (adversarial TDD test author, S9T — implementation lands in a separate
 # slice, S9, as a follow-up commit; this script is frozen once committed).
 #
-# Six named assertions per template, run via test/workflow-templates/harness.mjs:
+# Seven named assertions per template, run via test/workflow-templates/harness.mjs:
 #   syntax                    — node --check passes on the wrapped template
 #   no-reviewer-clone         — no reviewer prompt contains "git clone"
 #                                (ciPrompt is exempt — that agent executes)
@@ -26,6 +26,12 @@
 #   stale-record-dropped       — a hands record whose revision does not
 #                                match the revision under review never
 #                                appears in the re-invoked reviewer prompt
+#   evidence-metadata-validated — a hands record is dropped (never reaches
+#                                the re-invoked reviewer prompt) when exactly
+#                                one of three other fields is wrong: the
+#                                command differs from the requested command,
+#                                the exit is a non-integer number, or the
+#                                cwd is an empty string
 #
 # harness.mjs drives each template with stub agent/parallel/phase/log/
 # workflow/budget functions — no real agent is ever spawned, no network

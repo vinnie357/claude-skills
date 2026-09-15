@@ -307,8 +307,10 @@ function runSelfCheck() {
 //                       the first) returns evidenceRequests
 //   evidence-command-mismatch — like evidence-fresh, but the hands record's
 //                       command differs from the requested command
-//   evidence-exit-missing     — like evidence-fresh, but the hands record's
-//                       exit is null instead of an integer
+//   evidence-exit-nonint      — like evidence-fresh, but the hands record's
+//                       exit is 0.5 instead of an integer
+//   evidence-cwd-empty        — like evidence-fresh, but the hands record's
+//                       cwd is '' instead of a non-empty string
 async function runScenario(mod, scenario) {
   const ctx = {
     kind: KIND,
@@ -346,17 +348,18 @@ async function runScenario(mod, scenario) {
     //
     // Contract item 7 (evidence-metadata-validated): a hands record is kept
     // for the re-invoked reviewer only if revision, command, exit (integer),
-    // and cwd (non-empty string) all validate. 'evidence-command-mismatch'
-    // and 'evidence-exit-missing' below deliberately violate exactly one of
-    // those fields each — command and exit respectively — while leaving
-    // revision and cwd valid, so a correct implementation must inspect all
-    // four fields, not just revision.
+    // and cwd (non-empty string) all validate. 'evidence-command-mismatch',
+    // 'evidence-exit-nonint', and 'evidence-cwd-empty' below deliberately
+    // violate exactly one of those fields each — command, exit, and cwd
+    // respectively — while leaving the other three fields valid, so a
+    // correct implementation must inspect all four fields, not just
+    // revision.
     if (opts.model === args.handsModel && !opts.agentType) {
       const record = {
         command: scenario === 'evidence-command-mismatch' ? 'mise run wrong-command' : 'mise run ci',
         revision: scenario === 'evidence-stale' ? 'OTHERSHA' : ctx.revisionUnderReview,
-        cwd: args.repo,
-        exit: scenario === 'evidence-exit-missing' ? null : 0,
+        cwd: scenario === 'evidence-cwd-empty' ? '' : args.repo,
+        exit: scenario === 'evidence-exit-nonint' ? 0.5 : 0,
         result: ctx.handsResultMarker,
         excerpt: 'mise run ci output excerpt',
         log: '/tmp/mise-ci.log',
@@ -399,7 +402,8 @@ const evFresh = await runScenario(mod, 'evidence-fresh')
 const evEscalate = await runScenario(mod, 'evidence-escalate')
 const evStale = await runScenario(mod, 'evidence-stale')
 const evCommandMismatch = await runScenario(mod, 'evidence-command-mismatch')
-const evExitMissing = await runScenario(mod, 'evidence-exit-missing')
+const evExitNonint = await runScenario(mod, 'evidence-exit-nonint')
+const evCwdEmpty = await runScenario(mod, 'evidence-cwd-empty')
 
 // --- assertion: no-reviewer-clone ---------------------------------------
 {
@@ -555,7 +559,8 @@ const evExitMissing = await runScenario(mod, 'evidence-exit-missing')
   let failReason = null
   const cases = [
     ['evidence-command-mismatch', evCommandMismatch, 'a command differing from the requested command'],
-    ['evidence-exit-missing', evExitMissing, 'a non-integer exit (null)'],
+    ['evidence-exit-nonint', evExitNonint, 'a non-integer exit (0.5)'],
+    ['evidence-cwd-empty', evCwdEmpty, 'an empty cwd'],
   ]
   for (const [name, run, label] of cases) {
     if (failReason) break
