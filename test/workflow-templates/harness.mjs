@@ -305,6 +305,10 @@ function runSelfCheck() {
 //   evidence-stale    — same, but the hands record's revision DIFFERS
 //   evidence-escalate — every call at the target review phase (not just
 //                       the first) returns evidenceRequests
+//   evidence-command-mismatch — like evidence-fresh, but the hands record's
+//                       command differs from the requested command
+//   evidence-exit-missing     — like evidence-fresh, but the hands record's
+//                       exit is null instead of an integer
 async function runScenario(mod, scenario) {
   const ctx = {
     kind: KIND,
@@ -339,12 +343,20 @@ async function runScenario(mod, scenario) {
     // templates always set agentType:'Explore' for non-vision research, so
     // this branch is unreachable against the unmodified templates — it
     // only fires once S9 adds a hands call that actually runs a command.
+    //
+    // Contract item 7 (evidence-metadata-validated): a hands record is kept
+    // for the re-invoked reviewer only if revision, command, exit (integer),
+    // and cwd (non-empty string) all validate. 'evidence-command-mismatch'
+    // and 'evidence-exit-missing' below deliberately violate exactly one of
+    // those fields each — command and exit respectively — while leaving
+    // revision and cwd valid, so a correct implementation must inspect all
+    // four fields, not just revision.
     if (opts.model === args.handsModel && !opts.agentType) {
       const record = {
-        command: 'mise run ci',
+        command: scenario === 'evidence-command-mismatch' ? 'mise run wrong-command' : 'mise run ci',
         revision: scenario === 'evidence-stale' ? 'OTHERSHA' : ctx.revisionUnderReview,
         cwd: args.repo,
-        exit: 0,
+        exit: scenario === 'evidence-exit-missing' ? null : 0,
         result: ctx.handsResultMarker,
         excerpt: 'mise run ci output excerpt',
         log: '/tmp/mise-ci.log',
@@ -386,6 +398,8 @@ const happy = await runScenario(mod, 'happy')
 const evFresh = await runScenario(mod, 'evidence-fresh')
 const evEscalate = await runScenario(mod, 'evidence-escalate')
 const evStale = await runScenario(mod, 'evidence-stale')
+const evCommandMismatch = await runScenario(mod, 'evidence-command-mismatch')
+const evExitMissing = await runScenario(mod, 'evidence-exit-missing')
 
 // --- assertion: no-reviewer-clone ---------------------------------------
 {
@@ -529,6 +543,37 @@ const evStale = await runScenario(mod, 'evidence-stale')
       }
     }
   }
+}
+
+// --- assertion: evidence-metadata-validated ---------------------------------
+// A hands record is kept for the re-invoked reviewer only if ALL of
+// revision, command, exit (integer), and cwd (non-empty string) validate —
+// not revision alone. Each case below violates exactly one other field
+// while revision matches, so stale-record-dropped's revision-only check
+// cannot accidentally cover this.
+{
+  let failReason = null
+  const cases = [
+    ['evidence-command-mismatch', evCommandMismatch, 'a command differing from the requested command'],
+    ['evidence-exit-missing', evExitMissing, 'a non-integer exit (null)'],
+  ]
+  for (const [name, run, label] of cases) {
+    if (failReason) break
+    if (run.threw) {
+      failReason = `${name} run threw: ${run.threw.stack || run.threw.message}`
+      break
+    }
+    const { ctx } = run
+    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
+    if (ctx.handsExecCalls.length !== 1) {
+      failReason = `${name}: expected exactly 1 execution-hands call; found ${ctx.handsExecCalls.length}`
+    } else if (reviewerCalls.length < 2) {
+      failReason = `${name}: expected a re-invoked reviewer call after the execution-hands record; found ${reviewerCalls.length}`
+    } else if (reviewerCalls[1].prompt.includes(ctx.handsResultMarker)) {
+      failReason = `${name}: the re-invoked reviewer prompt includes the RESULT text of a record with ${label} — a record failing metadata validation must be dropped, not trusted`
+    }
+  }
+  report('evidence-metadata-validated', failReason === null, failReason)
 }
 
 process.exit(failed ? 1 : 0)
