@@ -81,7 +81,7 @@ The value is a path string relative to the repo root. Convention: `docs/specs/<e
 
 When present, the team leader uses the spec as the authoritative acceptance criteria instead of prose. Workers run `/allium:propagate` to seed TDD skeletons; the validator runs `/allium:weed` after CI to catch spec/code divergence. Epics without `spec:` are unaffected. See `/allium:allium` for setup.
 
-A spec is ephemeral: an ADR drives it, a team's implementation changes it, and the team discards it once the epic lands. The ADR the spec anchors to is the durable artifact; the spec file itself never reaches `main`.
+A spec is ephemeral: an ADR drives it, implementation changes it, and the team discards it after the epic lands. Pruning specs from `main` is pending; until then the `docs/specs/` convention above stands.
 
 Example epic with spec attached:
 

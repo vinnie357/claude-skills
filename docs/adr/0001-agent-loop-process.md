@@ -16,15 +16,15 @@ Agents inherit whatever the repo holds. A stale tracker row, a finished spec, or
 
 ## Decision
 
-1. Durable artifacts are the system of record on `main`: code, comments, ADRs (`docs/adr/`), and user stories (`docs/user-stories/`). Ephemeral artifacts live only on a session or a branch: bees issues and epics, specs, plans, and review scratch. A team prunes ephemeral artifacts before they reach `main`. Links point one way: a durable artifact never cites an ephemeral one.
+1. Durable artifacts are the system of record on `main`: code, comments, ADRs (the repo's decision records), and user stories (`docs/user-stories/`). Ephemeral artifacts live only on a session or a branch: bees issues and epics, specs, and plans. A team prunes ephemeral artifacts before they reach `main`. Links point one way: a durable artifact never cites an ephemeral one.
 
 2. An external epic lives in one external system of record and tracks user stories, repos, and ADRs. An agent team chooses its own implementation; the team must satisfy the stories and record each decision in an ADR. ADRs drive specs; a spec changes as the team implements, then the team discards it.
 
-3. Bees issues are a team's or a lead's scratch tracker, shared with that team's agents. `issues.jsonl` preseeds issues into a new agent's worktree. Bees issues are not a system of record.
+3. Bees issues are a team's or a lead's scratch tracker, shared with that team's agents. `issues.jsonl` can preseed a new agent's clone through `bees import`; the handoff step is not built. Bees issues are not a system of record.
 
-4. Reviewers judge; hands execute. Every reviewer — plan, test, pipeline, or PR gate — evaluates the artifact against ADRs, user stories, acceptance criteria, and the relevant skills. A reviewer never runs a suite, a build, or the app; a reviewer spawns hands on the smallest fast tier to run a named command and judges the verbatim output. Findings stay terse: `[severity] path:line — defect. Fix: one sentence.`
+4. Reviewers judge; hands execute. Every reviewer — plan, test, pipeline, or PR gate — evaluates the artifact against ADRs and user stories. It also checks acceptance criteria and the relevant skills. A reviewer never runs a suite, a build, or the app. Instead, a reviewer spawns hands on the smallest fast tier to run a named command. The reviewer then judges the verbatim output. Findings stay terse: `[severity] path:line — defect. Fix: one sentence.`
 
-5. A team selects a model by capability tier — strongest reasoning, deep reasoning, general, smallest fast, or multimodal — mapped per harness (for example claude, codex, agy), never by a literal model name in process text. Effort defaults to medium for every tier and passes explicitly on every run; high effort is a per-run exception.
+5. A team selects a model by capability tier: strongest reasoning, deep reasoning, general, smallest fast, or multimodal. Each harness maps a tier to its own model, for example claude, codex, or agy. Process text never names a literal model. Effort defaults to medium for every tier and passes explicitly on every run. High effort is a per-run exception.
 
 6. Every loop agent emits the minimum words, tokens, code, and comments that meet its goal, per `/core:restraint` and `/core:technical-english`.
 
@@ -34,10 +34,13 @@ Agents inherit whatever the repo holds. A stale tracker row, a finished spec, or
 
 - This repo still tracks `.bees/issues.jsonl` and still instructs `chore(bees)` commits until pruning lands — decision 1 states the target shape, not the current state.
 - Existing tracker ids in code and docs need a burn-down; this ADR does not schedule it.
-- The reviewer, output, and model-tier rules land in `/core:agent-loop`'s `references/process.md`.
+- `/core:agent-loop` ships this outline as `references/process.md`.
+- Decision 4: `/core:code-review`'s "Build and test locally" and `/core:git` Gate 3's "scratchpad clone for destructive tests" still tell reviewers to run things.
+- Decision 5: `/core:agent-loop` model tables, reviewer defaults, and `AGENT_LOOP_ESCALATION_CHAIN` still name models literally.
+- Decision 7: `/core:git` still suggests `Closes #123` commit footers.
 
 ## Open questions
 
-- Which single external system of record — GitHub issues (public) or Linear (private) — never both.
+- Which single external system of record: GitHub issues (public) or Linear (private).
 - Prune and preseed mechanics: how ADR-120's seeding and rollup questions extend past per-repo bees to specs and plans.
 - The fate of the workspace-wide bees tier under decision 1's durable/ephemeral split.

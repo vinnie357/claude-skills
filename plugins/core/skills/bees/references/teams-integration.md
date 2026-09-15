@@ -102,7 +102,7 @@ TaskUpdate taskId="<claude-id>" addBlockedBy=["<blocker-claude-id>"]
 
 If the two systems get out of sync (e.g., a teammate closes a Claude task but not the bees issue):
 
-1. **Bees wins** -- it is the team's working-set tracker
+1. **Bees wins** -- it holds the closing action
 2. The team lead reconciles by checking `bees list --json` against `TaskList`
 3. Update Claude tasks to match bees state
 4. Update the bees issue description noting the reconciliation
