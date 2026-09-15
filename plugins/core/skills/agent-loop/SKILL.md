@@ -19,6 +19,8 @@ Two disciplines make Forge cheap and reliable:
 - **Hands do the searching.** Principals (planners, reviewers) never run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only hands on the smallest fast model, receive a `file:line` index, and `Read` only those lines. See `references/researcher.md`.
 - **Paired teams fan out.** Every issue runs the same paired structure; fan-out width `N` = the planner's slice count (`N=1` for a small issue, same path). See `references/forge.md`.
 
+The process these rules implement — durable vs ephemeral artifacts, reviewer and output rules — is in `references/process.md`.
+
 ## Required plugins
 
 Assumes both `core@vinnie357` (this plugin) and `claude-code@vinnie357` (agent/team file formats, referenced by name in spawning steps) are installed. Standalone `core` still describes the workflow, but cross-plugin skill names like `/claude-code:claude-agents` won't resolve until `claude-code@vinnie357` is installed too — treat those references as procedural-only until then.
@@ -343,6 +345,7 @@ test -n "$(op item get KEY --vault Vault --fields credential 2>/dev/null)" && ec
 - **Epic** -- what the user writes. Objective, skills, constraints. No implementation details.
 - **Issues** -- created by team leader. Independently deliverable slices with acceptance criteria.
 - **Tasks** -- created by agents. Granular implementation steps, invisible to the user.
+- Per `references/process.md`: Epic lives in the external system of record; Issues and Tasks are ephemeral bees, pruned from main; decisions land in ADRs; intent lives in user stories.
 
 ## Usage
 
@@ -379,6 +382,7 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 
 ## References
 
+- `references/process.md` -- Per claude-skills ADR 0001: durable vs ephemeral artifacts, epic-to-team relationship, reviewer evidence discipline, capability-tier model selection, tracker-id ban
 - `references/forge.md` -- The Forge operating model: paired teams (principal + cheap hands), implementation fan-out (N pairs by slice), reviewers as the best-thinker tier, startup-index handoff, gates between pairs
 - `references/researcher.md` -- The hands pattern: read-only focused research, startup vs on-demand modes, the `file:line` index output contract, capability-based `AGENT_LOOP_HANDS_MODEL` / `AGENT_LOOP_HANDS_VISION_MODEL` selection
 - `references/team-leader.md` -- Epic decomposition, team formation, orchestration

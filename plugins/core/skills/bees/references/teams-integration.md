@@ -4,7 +4,7 @@ Mirroring protocol for coordinating bees issues with Claude's built-in task list
 
 ## Overview
 
-- **Bees** = persistent source of truth (SQLite-backed, survives sessions)
+- **Bees** = the team's working-set tracker (SQLite-backed, outlives the harness task list, not a system of record)
 - **Claude Task List** = ephemeral coordination layer (session-scoped, visible to all teammates)
 
 Bees issues are mirrored into Claude's task list so teammates can discover, claim, and coordinate work without polling `bees ready` manually. The two systems stay in sync through conventions described below.
@@ -80,7 +80,7 @@ TaskUpdate taskId="<claude-id>" status="in_progress"
 
 ### Complete
 
-Always close bees first (persistent system), then Claude (ephemeral):
+Always close bees first (team working-set tracker), then Claude (ephemeral):
 
 ```bash
 bees close <id>
@@ -102,7 +102,7 @@ TaskUpdate taskId="<claude-id>" addBlockedBy=["<blocker-claude-id>"]
 
 If the two systems get out of sync (e.g., a teammate closes a Claude task but not the bees issue):
 
-1. **Bees wins** -- it is the persistent source of truth
+1. **Bees wins** -- it holds the closing action
 2. The team lead reconciles by checking `bees list --json` against `TaskList`
 3. Update Claude tasks to match bees state
 4. Update the bees issue description noting the reconciliation

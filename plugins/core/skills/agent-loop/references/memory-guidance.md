@@ -118,8 +118,8 @@ Memory is not a second issue tracker, and repo-scoped content is not automatical
 tracker-bound either. Two different questions get conflated here; keep them apart.
 
 **A work item never lives in memory.** Live work — something still to be done, something
-in progress, something waiting on a decision — belongs in the tracker: bees for local
-tracking, an epic for cross-session or cross-repo tracking. A memory file describing an
+in progress, something waiting on a decision — belongs in the tracker: bees for a team's
+working set, the external epic for cross-session or cross-repo tracking. A memory file describing an
 open task is not a durable fact; it is a tracker row that escaped its tracker. When work
 closes, its bees/epic row records that outcome — memory does not need a second copy, and a
 closed-but-still-asserted item ("RESOLVED 2026-07-28") is dead weight, not a fact.
