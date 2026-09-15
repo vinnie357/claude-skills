@@ -6,7 +6,9 @@ Policy: ADR 0001 decision 4. This file covers how a reviewer obtains evidence an
 
 Read-only inspection counts as judging, not execution: `Read`, `git show <oid>:<path>`,
 `git diff a...b`, `gh pr view` / `gh pr diff` pinned to `headRefOid`. A reviewer does as
-much of this directly as the task needs before reaching for execution hands.
+much of this directly as the task needs before reaching for execution hands. A reviewer
+without shell tools judges artifacts its lead provides — a pinned diff and source snapshots,
+each named with its path and oid — and confirms each oid before reading.
 
 ## With spawning
 
@@ -22,8 +24,11 @@ upstream rather than issuing a third round.
 
 ## Reading evidence
 
-Read only `RESULT` and `EXCERPT` from each execution-hands record. Open `LOG` by line range
-when a finding needs more than `EXCERPT` carries — never the whole file.
+Validate each execution-hands record before reading it: `COMMAND` matches the request,
+`REVISION` matches the target (the baseline oid for a baseline run), and `CWD` and an integer
+`EXIT` are present. Set aside a record that fails any check and name it as missing evidence.
+Then read `RESULT` and `EXCERPT`; open `LOG` by line range when a finding needs more than
+`EXCERPT` carries — never the whole file.
 
 ## Output
 
