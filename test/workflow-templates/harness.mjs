@@ -21,13 +21,24 @@
 // statement") — that is the exact defect `syntax` below is designed to
 // catch, and why `node --check` on the raw file is not a usable check.
 //
+// Scope note: the harness drives each template with N=1 slice/test-plan
+// entry only -- forge's plan stub returns a single slice ('s1'), five-tier's
+// plan stub returns a single test-plan entry. Multi-slice/multi-wave fan-out
+// is out of scope for this contract.
+//
+// FINDING_LINE contract: the template's top-level `const FINDING_LINE = ...`
+// must be a single string literal -- a quoted string or a template literal
+// with no `${}` interpolation -- so the harness can evaluate it via
+// Function('return ' + literal)() and compare the real string value, not
+// the raw source text between the quotes.
+//
 // Nushell (project default per CLAUDE.md) cannot dynamically import an ES
 // module and invoke it with live JS closures for agent/parallel/phase/log —
 // the "run" mode below requires the Node runtime and JS semantics. This
 // file is deliberately JS; the orchestrator that calls it
 // (test/validate-workflow-templates.nu) is nushell, per convention.
 
-import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, basename } from 'node:path'
@@ -58,12 +69,19 @@ function wrap(source) {
   )
 }
 
+const tempDirs = []
 function writeTempModule(content) {
   const dir = mkdtempSync(join(tmpdir(), 'workflow-template-harness-'))
+  tempDirs.push(dir)
   const file = join(dir, `wrapped-${randomUUID()}.mjs`)
   writeFileSync(file, content, 'utf8')
   return file
 }
+process.on('exit', () => {
+  for (const dir of tempDirs) {
+    try { rmSync(dir, { recursive: true, force: true }) } catch { /* best-effort cleanup */ }
+  }
+})
 
 let failed = false
 function report(assertion, ok, reason) {
@@ -123,6 +141,19 @@ function verdictEvidence() {
   }
 }
 
+// Selects a PRINCIPAL reviewer call (not a hands call) by model, never by
+// label absence. A correct fix can legitimately attach a label to a
+// re-invoked reviewer call (e.g. to distinguish it in /workflows progress
+// output), and "no label = reviewer" silently stops counting that call.
+// Hands calls (research AND execution) always run on args.handsModel per
+// the AGENT_LOOP_HANDS_MODEL contract, so excluding that one model — while
+// requiring some model be set at all, which rules out the model-less
+// diff-boundary and head-of-HEAD probes — is sufficient to isolate the
+// principal call, independent of whatever label it carries.
+function isPrincipalReviewCall(callLike, args) {
+  return typeof callLike.model !== 'undefined' && callLike.model !== args.handsModel
+}
+
 // Synthetic, mutually-distinct model literals — never the harness's real
 // stage models — so `opts.model === args.handsModel` can never collide
 // with a principal-stage call by accident.
@@ -174,7 +205,7 @@ function fallback(ctx, opts) {
 // reviewer (also phase 'Review'). n counts calls at this phase so far,
 // INCLUDING the current one (it is pushed to ctx.calls before dispatch runs).
 function reviewerVerdict(ctx) {
-  const matching = ctx.calls.filter(c => c.phase === ctx.kind.targetReviewPhase && !c.label)
+  const matching = ctx.calls.filter(c => c.phase === ctx.kind.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
   const n = matching.length
   if (ctx.scenario === 'happy') return verdictApprove()
   if (n === 1) return verdictEvidence()
@@ -192,13 +223,12 @@ function forgeDispatch(prompt, opts, ctx) {
   if (phase === 'Review-tests' && label === 'test-reviewer hands') return { pointers: [] }
   if (phase === 'Review-tests' && !label) return verdictApprove()
   if (phase === 'Impl' && label === 'impl:s1') {
-    ctx.revisionUnderReview = 'IMPLSHA1'
     return { sha: 'IMPLSHA1', summary: 'impl', skillProof: SP }
   }
   if (phase === 'Impl' && label === 'diff-boundary gate') return { nonEmpty: false, diff: '' }
   if (phase === 'Impl' && label === 'ci:s1') return { green: true, output: 'ok', skillProof: SP }
   if (phase === 'Review' && label === 'reviewer hands') return { pointers: [] }
-  if (phase === 'Review' && !label) return reviewerVerdict(ctx)
+  if (phase === 'Review' && isPrincipalReviewCall({ model: opts.model }, ctx.args)) return reviewerVerdict(ctx)
   if (phase === 'Remediate' && !label) return { sha: 'FIXSHA1', summary: 'fix', skillProof: SP }
   if (phase === 'Remediate' && label === 'diff-boundary gate') return { nonEmpty: false, diff: '' }
   if (phase === 'Remediate' && label === 'ci:remediation') return { green: true, output: 'ok', skillProof: SP }
@@ -212,13 +242,12 @@ function fiveTierDispatch(prompt, opts, ctx) {
   if (phase === 'Plan') return { tests: [{ name: 't1', criterion: 'c1' }], skillProof: SP }
   if (phase === 'Test' && !label) return { sha: 'TESTSHA1', summary: 'tests', skillProof: SP }
   if (phase === 'Impl' && label && label.startsWith('P3-')) {
-    ctx.revisionUnderReview = 'IMPLSHA1'
     return { sha: 'IMPLSHA1', summary: 'impl', skillProof: SP }
   }
   if (phase === 'Impl' && label === 'diff-boundary gate') return { nonEmpty: false, diff: '' }
   if (phase === 'CI' && label === 'diff-boundary gate') return { nonEmpty: false, diff: '' }
   if (phase === 'CI' && !label) return { green: true, output: 'ok', skillProof: SP }
-  if (phase === 'Review' && !label) return reviewerVerdict(ctx)
+  if (phase === 'Review' && isPrincipalReviewCall({ model: opts.model }, ctx.args)) return reviewerVerdict(ctx)
   return fallback(ctx, opts)
 }
 
@@ -226,6 +255,24 @@ const KIND = {
   forge: { reviewerPhases: ['Review-tests', 'Review', 'Final'], targetReviewPhase: 'Review', buildArgs: buildArgsForge, dispatch: forgeDispatch },
   'five-tier': { reviewerPhases: ['Review'], targetReviewPhase: 'Review', buildArgs: buildArgsFiveTier, dispatch: fiveTierDispatch },
 }[kind]
+
+// --- regression: isPrincipalReviewCall selects by model, not label absence ---
+// A labeled re-invoke of the principal reviewer (e.g. a fixed template names
+// its evidence-round re-invoke for /workflows progress display) must still
+// be counted as the reviewer, and a labeled-but-hands call must still be
+// excluded. Independent of any template scenario run below.
+{
+  const fakeArgs = { handsModel: 'HANDSMODEL' }
+  const labeledPrincipal = { model: 'STAGEMODEL', label: 'reviewer re-invoke' }
+  const labeledHands = { model: 'HANDSMODEL', label: 'reviewer hands' }
+  const modelLessProbe = { label: undefined }
+  const ok =
+    isPrincipalReviewCall(labeledPrincipal, fakeArgs) === true &&
+    isPrincipalReviewCall(labeledHands, fakeArgs) === false &&
+    isPrincipalReviewCall(modelLessProbe, fakeArgs) === false
+  report('dispatch-key-regression', ok,
+    ok ? undefined : 'isPrincipalReviewCall must select by opts.model !== args.handsModel (with a model defined), never by label presence/absence')
+}
 
 // scenario:
 //   happy            — every reviewer call approves immediately (used for
@@ -243,6 +290,7 @@ async function runScenario(mod, scenario) {
     scenario,
     calls: [],
     handsExecCalls: [],
+    headProbes: [],
     revisionUnderReview: null,
     handsResultMarker: `HANDS_RESULT_MARKER_${randomUUID()}`,
   }
@@ -251,6 +299,19 @@ async function runScenario(mod, scenario) {
 
   const agentStub = async (prompt, opts = {}) => {
     ctx.calls.push({ seq: ctx.calls.length, phase: opts.phase, label: opts.label, model: opts.model, agentType: opts.agentType, prompt })
+
+    // Head probe (contract 6, AMENDED): the revision under review is defined
+    // by an agent() call with no opts.model whose prompt contains
+    // "git rev-parse HEAD" — kept distinct from the existing diff-boundary
+    // probe below (also model-less, but its prompt contains "git diff", a
+    // string this literal never matches), so the two probes are handled
+    // separately and neither swallows the other.
+    if (!opts.model && prompt.includes('git rev-parse HEAD')) {
+      ctx.headProbes.push({ seq: ctx.calls.length - 1, phase: opts.phase, prompt })
+      ctx.revisionUnderReview = 'HEADSHA1'
+      return { sha: 'HEADSHA1' }
+    }
+
     // Execution hands: the hands model, WITHOUT the research-hands
     // agentType:'Explore' tag. Existing handsPass() calls in both
     // templates always set agentType:'Explore' for non-vision research, so
@@ -259,7 +320,7 @@ async function runScenario(mod, scenario) {
     if (opts.model === args.handsModel && !opts.agentType) {
       const record = {
         command: 'mise run ci',
-        revision: scenario === 'evidence-stale' ? 'STALESHA999' : ctx.revisionUnderReview,
+        revision: scenario === 'evidence-stale' ? 'OTHERSHA' : ctx.revisionUnderReview,
         cwd: args.repo,
         exit: 0,
         result: ctx.handsResultMarker,
@@ -272,7 +333,9 @@ async function runScenario(mod, scenario) {
     return KIND.dispatch(prompt, opts, ctx)
   }
 
-  const parallelStub = thunks => Promise.all(thunks.map(fn => fn()))
+  // Matches the real parallel(): a thunk that throws (sync or async) resolves
+  // to null instead of rejecting the whole batch.
+  const parallelStub = thunks => Promise.all(thunks.map(fn => Promise.resolve().then(fn).catch(() => null)))
   const pipelineStub = async (items, ...stages) => {
     let out = items
     for (const stage of stages) out = await Promise.all(out.map(stage))
@@ -307,7 +370,7 @@ const evStale = await runScenario(mod, 'evidence-stale')
   if (happy.threw) {
     report('no-reviewer-clone', false, `happy-path run threw: ${happy.threw.stack || happy.threw.message}`)
   } else {
-    const reviewerPrompts = happy.ctx.calls.filter(c => KIND.reviewerPhases.includes(c.phase) && !c.label)
+    const reviewerPrompts = happy.ctx.calls.filter(c => KIND.reviewerPhases.includes(c.phase) && isPrincipalReviewCall(c, happy.ctx.args))
     const offenders = reviewerPrompts.filter(c => c.prompt.includes('git clone'))
     if (reviewerPrompts.length === 0) {
       report('no-reviewer-clone', false, 'no reviewer prompts captured during the happy-path run')
@@ -326,13 +389,25 @@ const evStale = await runScenario(mod, 'evidence-stale')
   if (!m) {
     report('finding-line', false, 'no top-level `const FINDING_LINE = ...` found in source')
   } else {
-    const value = m[2]
-    if (!value.includes('defect and impact; basis')) {
+    // Evaluate the matched literal rather than comparing the raw source text
+    // between the quotes — escape sequences and template-literal contents
+    // otherwise differ from the real runtime string value.
+    let value, evalError
+    try {
+      value = Function('return ' + m[1] + m[2] + m[1])()
+    } catch (e) {
+      evalError = e
+    }
+    if (evalError) {
+      report('finding-line', false, `FINDING_LINE literal failed to evaluate: ${evalError.message}`)
+    } else if (typeof value !== 'string') {
+      report('finding-line', false, `FINDING_LINE must evaluate to a string, got ${typeof value}`)
+    } else if (!value.includes('defect and impact; basis')) {
       report('finding-line', false, `FINDING_LINE value does not contain "defect and impact; basis": ${JSON.stringify(value)}`)
     } else if (happy.threw) {
       report('finding-line', false, `happy-path run threw: ${happy.threw.stack || happy.threw.message}`)
     } else {
-      const reviewerPrompts = happy.ctx.calls.filter(c => KIND.reviewerPhases.includes(c.phase) && !c.label)
+      const reviewerPrompts = happy.ctx.calls.filter(c => KIND.reviewerPhases.includes(c.phase) && isPrincipalReviewCall(c, happy.ctx.args))
       const missing = reviewerPrompts.filter(c => !c.prompt.includes(value))
       if (reviewerPrompts.length === 0) {
         report('finding-line', false, 'no reviewer prompts captured during the happy-path run')
@@ -352,7 +427,7 @@ const evStale = await runScenario(mod, 'evidence-stale')
     report('evidence-round', false, `evidence-fresh run threw: ${evFresh.threw.stack || evFresh.threw.message}`)
   } else {
     const { ctx } = evFresh
-    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && !c.label)
+    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
     if (ctx.handsExecCalls.length !== 1) {
       report('evidence-round', false,
         `expected exactly 1 execution-hands call (opts.model === args.handsModel, no opts.agentType) after the first reviewer verdict; found ${ctx.handsExecCalls.length}`)
@@ -375,7 +450,7 @@ const evStale = await runScenario(mod, 'evidence-stale')
     report('second-request-escalates', false, `evidence-escalate run threw: ${evEscalate.threw.stack || evEscalate.threw.message}`)
   } else {
     const { ctx, result } = evEscalate
-    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && !c.label)
+    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
     if (ctx.handsExecCalls.length !== 1) {
       report('second-request-escalates', false,
         `expected exactly 1 execution-hands call before the reviewer is re-invoked; found ${ctx.handsExecCalls.length} — evidence-gathering is not implemented`)
@@ -397,8 +472,16 @@ const evStale = await runScenario(mod, 'evidence-stale')
     report('stale-record-dropped', false, `evidence-stale run threw: ${evStale.threw.stack || evStale.threw.message}`)
   } else {
     const { ctx } = evStale
-    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && !c.label)
-    if (ctx.handsExecCalls.length !== 1) {
+    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
+    if (reviewerCalls.length === 0) {
+      report('stale-record-dropped', false, 'no reviewer call captured at the target review phase')
+    } else if (ctx.headProbes.length === 0) {
+      report('stale-record-dropped', false,
+        'no head probe observed — expected an agent() call with no opts.model whose prompt contains "git rev-parse HEAD" to define the revision under review')
+    } else if (!ctx.headProbes.some(p => p.seq < reviewerCalls[0].seq)) {
+      report('stale-record-dropped', false,
+        `no head probe occurred before the first reviewer call (seq ${reviewerCalls[0].seq})`)
+    } else if (ctx.handsExecCalls.length !== 1) {
       report('stale-record-dropped', false,
         `expected exactly 1 execution-hands call to test staleness against; found ${ctx.handsExecCalls.length} — evidence-gathering is not implemented`)
     } else if (ctx.handsExecCalls[0].record.revision === ctx.revisionUnderReview) {
