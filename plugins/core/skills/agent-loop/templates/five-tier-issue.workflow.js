@@ -300,18 +300,22 @@ async function reviewWithEvidence(promptText, opts, stageModel) {
   if (!verdict) return null
   if (!verdict.evidenceRequests || verdict.evidenceRequests.length === 0) return verdict
 
-  const records = []
+  const recordsWithReqs = []
   for (const req of verdict.evidenceRequests) {
     const rec = await agent(execHandsPrompt(req, head.sha),
       { phase: opts.phase, label: 'execution hands', schema: EVIDENCE, model: args.handsModel })
-    if (rec) records.push(rec)
+    if (rec) recordsWithReqs.push({ req, rec })
   }
-  const kept = records.filter(r => r.revision === head.sha)
-  const dropped = records.length - kept.length
+  const kept = recordsWithReqs.filter(({ req, rec }) =>
+    rec.revision === head.sha &&
+    rec.command === req.command &&
+    Number.isInteger(rec.exit) &&
+    typeof rec.cwd === 'string' && rec.cwd.length > 0)
+  const dropped = recordsWithReqs.length - kept.length
   const evidenceSection = [
     '## Evidence records',
-    ...kept.map(r => `- ${r.command} (exit ${r.exit}): ${r.result} — ${r.excerpt} (log: ${r.log})`),
-    `${dropped} record(s) dropped for a revision mismatch.`,
+    ...kept.map(({ rec }) => `- ${rec.command} (exit ${rec.exit}): ${rec.result} — ${rec.excerpt} (log: ${rec.log})`),
+    `${dropped} record(s) dropped for failing validation (revision, command, exit, or cwd).`,
   ].join('\n')
 
   return agent(`${promptText}\n\n${evidenceSection}`, { ...opts, label: 're-review', model: stageModel })
