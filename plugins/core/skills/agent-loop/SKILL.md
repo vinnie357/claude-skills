@@ -382,7 +382,7 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 
 ## References
 
-- `references/process.md` -- Per claude-skills ADR 0001 (Proposed): durable vs ephemeral artifacts, epic-to-team relationship, reviewer evidence discipline, capability-tier model selection, tracker-id ban
+- `references/process.md` -- Per claude-skills ADR 0001: durable vs ephemeral artifacts, epic-to-team relationship, reviewer evidence discipline, capability-tier model selection, tracker-id ban
 - `references/forge.md` -- The Forge operating model: paired teams (principal + cheap hands), implementation fan-out (N pairs by slice), reviewers as the best-thinker tier, startup-index handoff, gates between pairs
 - `references/researcher.md` -- The hands pattern: read-only focused research, startup vs on-demand modes, the `file:line` index output contract, capability-based `AGENT_LOOP_HANDS_MODEL` / `AGENT_LOOP_HANDS_VISION_MODEL` selection
 - `references/team-leader.md` -- Epic decomposition, team formation, orchestration

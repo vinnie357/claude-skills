@@ -2,7 +2,7 @@
 
 **Persona**: `operator`
 
-The operator files work as an external epic and expects an agent team to plan, implement, and land it without leaving tracker debris or tracker ids on `main`. This story validates the process decided in ADR 0001 (`docs/adr/0001-agent-loop-process.md`): durable vs. ephemeral artifacts, the epic-to-team relationship, reviewer evidence discipline, harness-agnostic model selection, and the tracker-id lint.
+The operator files work as an external epic and expects an agent team to plan, implement, and land it without leaving tracker debris or tracker ids on `main`. This story validates ADR 0001 (`docs/adr/0001-agent-loop-process.md`) decisions 1 through 5.
 
 ```gherkin
 Feature: External epic drives agent teams
@@ -23,16 +23,11 @@ Feature: External epic drives agent teams
 
   Scenario: Reviewer gathers evidence through hands, not direct execution
     Given a reviewer needs to confirm a test result
-    When the reviewer requests hands to run the test on the smallest fast tier
-    Then the reviewer posts findings with a basis and runs no suite, build, or app itself
+    When the reviewer requests execution hands to run the test on the smallest fast tier
+    Then the reviewer posts located findings per ADR 0001 decision 4
 
   Scenario: Any harness runs the same loop
     Given claude, codex, or agy launches the loop
     When each role starts its tier
-    Then each role receives its tier's mapped model at medium effort
-
-  Scenario: A tracker id in a diff fails the repo lint
-    Given a PR adds a tracker id to a code file
-    When the repo lint runs on the diff
-    Then the lint fails
+    Then each role runs its tier's mapped model per ADR 0001 decision 5
 ```
