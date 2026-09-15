@@ -68,7 +68,7 @@ You are a code reviewer. Analyze code for quality, security, and best practices.
 
 ## Guidelines
 
-- **Specific**: Reference file:line locations
+- **Specific**: Reference file:line locations — per `assets/review-findings-format.md` in `/claude-code:claude-output-styles`
 - **Actionable**: Suggest concrete fixes
 - **Prioritized**: Critical issues first
 ```
@@ -167,7 +167,7 @@ Passing the Agent tool's `name` parameter (the convention above) converts the sp
 
 Four recurring shapes, each with a runnable template:
 
-- **Read-only analysis** (security scans, code reviews, audits): restrict `tools` to `Read, Grep, Glob`. Template: `templates/read-only-analyzer.md`
+- **Read-only analysis** (security scans, code reviews, audits): restrict `tools` to `Read, Grep, Glob`. Template: `templates/read-only-analyzer.md`. Reviewer agents: no `Bash`; a separate execution-hands agent runs commands (`/core:agent-loop` `references/reviewer.md`); findings per `/claude-code:claude-output-styles` `assets/review-findings-format.md`; model chosen by tier.
 - **Write-capable** (generating tests, docs, code): add `Write`. Template: `templates/write-capable-agent.md`
 - **Full-access** (refactoring, migrations, complex modifications): omit `tools` entirely for no restrictions. Template: `templates/full-access-agent.md`
 - **MCP-enabled** (browser automation, external APIs): mix core tools with MCP tool names. Template: `templates/mcp-agent.md`

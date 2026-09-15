@@ -152,6 +152,8 @@ Skill updates that only edit markdown skip P2 (test author) — content-grep tes
 
 The pipeline runs inside ONE bees issue per skill update slice. The Sub-team Leader (or bees-worker acting as one) spawns the five stages as separate Task invocations; intermediate artifacts go to bees comments on that issue and git commits on the feature branch. Skill updates do not produce five chained bees rows.
 
+The skill-PR reviewer never runs `mise test`. Execution hands run it, and the reviewer judges their record (ADR 0001 decision 4).
+
 ## Sizing a skill
 
 The context window is shared, and a skill's body loads in full on every activation — so justify each line's presence rather than each file's.
