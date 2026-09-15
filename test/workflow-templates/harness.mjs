@@ -169,13 +169,19 @@ function isPrincipalReviewCall(callLike, args) {
 // Synthetic, mutually-distinct model literals — never the harness's real
 // stage models — so `opts.model === args.handsModel` can never collide
 // with a principal-stage call by accident.
-function buildArgsForge() {
+//
+// scenario 'absent-stage-model' swaps escalationChain for two chain models
+// that never equal any stageModels value ('STAGEMODEL') — the stage model is
+// then absent from the chain, the exact precondition the ladder bug fires
+// under. Every other scenario keeps escalationChain === ['STAGEMODEL'] (the
+// stage model present in the chain), unaffected by the bug either way.
+function buildArgsForge(scenario) {
   return {
     issueId: 'test-issue',
     repo: '/tmp/fake-repo',
     acceptanceCriteria: ['AC1 holds', 'AC2 holds'],
     skills: ['/core:tdd'],
-    escalationChain: ['STAGEMODEL'],
+    escalationChain: scenario === 'absent-stage-model' ? ['CHAINMODEL_A', 'CHAINMODEL_B'] : ['STAGEMODEL'],
     handsModel: 'HANDSMODEL',
     handsVisionModel: 'HANDSVISIONMODEL',
     stageModels: {
@@ -185,14 +191,14 @@ function buildArgsForge() {
   }
 }
 
-function buildArgsFiveTier() {
+function buildArgsFiveTier(scenario) {
   return {
     issueId: 'test-issue',
     repo: '/tmp/fake-repo',
     acceptanceCriteria: ['AC1 holds', 'AC2 holds'],
     testFiles: ['test/x_test.exs'],
     skills: ['/core:tdd'],
-    escalationChain: ['STAGEMODEL'],
+    escalationChain: scenario === 'absent-stage-model' ? ['CHAINMODEL_A', 'CHAINMODEL_B'] : ['STAGEMODEL'],
     // Not consumed by the template as shipped today — provided so five-tier's
     // P5 stage can wire to the same evidence mechanism forge uses, per the
     // AGENT_LOOP_HANDS_MODEL contract.
@@ -219,6 +225,10 @@ function fallback(ctx, opts) {
 function reviewerVerdict(ctx) {
   const matching = ctx.calls.filter(c => c.phase === ctx.kind.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
   const n = matching.length
+  // Forces every attempt on every ladder rung to fail, so withEscalation
+  // exhausts the ladder ladderFor() actually returned — the only way to
+  // observe which models it tried.
+  if (ctx.scenario === 'absent-stage-model') throw new Error('reviewer call fails to exhaust the escalation ladder')
   if (ctx.scenario === 'happy') return verdictApprove()
   if (n === 1) return verdictEvidence()
   if (ctx.scenario === 'evidence-escalate') return verdictEvidence()
@@ -311,6 +321,11 @@ function runSelfCheck() {
 //                       exit is 0.5 instead of an integer
 //   evidence-cwd-empty        — like evidence-fresh, but the hands record's
 //                       cwd is '' instead of a non-empty string
+//   absent-stage-model — escalationChain is ['CHAINMODEL_A', 'CHAINMODEL_B'],
+//                       none of which equal the stage model ('STAGEMODEL');
+//                       every principal call at the target review phase
+//                       fails, exhausting whatever ladder ladderFor()
+//                       returned
 async function runScenario(mod, scenario) {
   const ctx = {
     kind: KIND,
@@ -322,7 +337,7 @@ async function runScenario(mod, scenario) {
     revisionUnderReview: null,
     handsResultMarker: `HANDS_RESULT_MARKER_${randomUUID()}`,
   }
-  const args = KIND.buildArgs()
+  const args = KIND.buildArgs(scenario)
   ctx.args = args
 
   const agentStub = async (prompt, opts = {}) => {
@@ -403,6 +418,7 @@ const evStale = await runScenario(mod, 'evidence-stale')
 const evCommandMismatch = await runScenario(mod, 'evidence-command-mismatch')
 const evExitNonint = await runScenario(mod, 'evidence-exit-nonint')
 const evCwdEmpty = await runScenario(mod, 'evidence-cwd-empty')
+const absentStageModel = await runScenario(mod, 'absent-stage-model')
 
 // --- assertion: no-reviewer-clone ---------------------------------------
 {
@@ -578,6 +594,41 @@ const evCwdEmpty = await runScenario(mod, 'evidence-cwd-empty')
     }
   }
   report('evidence-metadata-validated', failReason === null, failReason)
+}
+
+// --- assertion: absent-stage-model-no-substitution --------------------------
+// A stage model absent from escalationChain must never be substituted by a
+// chain model — the ladder for that stage is [stageModel] only, tried twice,
+// then the workflow escalates. Regression for the defect where ladderFor()
+// fell back to the FULL chain (args.escalationChain.slice()) instead of
+// [stageModel] when args.escalationChain.indexOf(stageModel) === -1.
+{
+  if (absentStageModel.threw) {
+    report('absent-stage-model-no-substitution', false,
+      `absent-stage-model run threw: ${absentStageModel.threw.stack || absentStageModel.threw.message}`)
+  } else {
+    const { ctx, result } = absentStageModel
+    const reviewerCalls = ctx.calls.filter(c => c.phase === KIND.targetReviewPhase && isPrincipalReviewCall(c, ctx.args))
+    const leaked = reviewerCalls.filter(c => c.model === 'CHAINMODEL_A' || c.model === 'CHAINMODEL_B')
+    const offModel = reviewerCalls.filter(c => c.model !== 'STAGEMODEL')
+    if (reviewerCalls.length === 0) {
+      report('absent-stage-model-no-substitution', false, 'no reviewer call captured at the target review phase')
+    } else if (leaked.length > 0) {
+      report('absent-stage-model-no-substitution', false,
+        `reviewer phase used ${[...new Set(leaked.map(c => c.model))].join(', ')} — stage model substituted by the chain`)
+    } else if (offModel.length > 0) {
+      report('absent-stage-model-no-substitution', false,
+        `reviewer phase used non-stage model(s) ${[...new Set(offModel.map(c => c.model))].join(', ')} instead of STAGEMODEL`)
+    } else if (reviewerCalls.length !== 2) {
+      report('absent-stage-model-no-substitution', false,
+        `expected exactly 2 attempts on STAGEMODEL (the withEscalation retry count); found ${reviewerCalls.length}`)
+    } else if (!result || result.status !== 'escalate') {
+      report('absent-stage-model-no-substitution', false,
+        `expected the workflow to return status: 'escalate' after the ladder exhausts; got status=${result && result.status}`)
+    } else {
+      report('absent-stage-model-no-substitution', true)
+    }
+  }
 }
 
 process.exit(failed ? 1 : 0)
