@@ -12,29 +12,30 @@ on `main` first gives you the baseline to diff against.
 
 ## Procedure
 
-Gates run in a gate-runner's own scratchpad clone, never in the shared working tree — see
-`/core:agent-loop` `references/dispatch-discipline.md` "Read-only agents never touch the shared
-working tree". Clone once per PR review, at the PR's `headRefOid`; a second clone at main's oid
-supplies the baseline. The shared working tree is never checked out for this procedure.
+Gates run in a gate-runner's own scratchpad clones, never in the shared working tree — clone handling per `/core:agent-loop` `references/researcher.md` "Execution hands". One clone at main's oid supplies the baseline; one clone at the PR's `headRefOid` supplies the branch.
 
 1. **Enumerate gates** with `mise tasks`.
 2. **Clone the baseline and run on it**, capturing verbatim output:
    ```bash
    git clone <repo-url> "$SCRATCHPAD/repo-main"
    git -C "$SCRATCHPAD/repo-main" checkout <main-oid>
-   mise run ci 2>&1 | tee /tmp/gate-main-ci.txt
+   git -C "$SCRATCHPAD/repo-main" remote remove origin
+   (cd "$SCRATCHPAD/repo-main" && mise run ci > "$SCRATCHPAD/gate-main-ci.log" 2>&1); echo "EXIT=$?"
    ```
    Repeat for each gate the PR needs (`pre-commit`, `test`, integration tasks). Record
-   PASS/FAIL per gate.
+   PASS/FAIL per gate. EXIT comes from the command itself, never through a pipe.
 3. **Clone the PR head and run on it**, same gates:
    ```bash
    git clone <repo-url> "$SCRATCHPAD/repo-pr"
+   git -C "$SCRATCHPAD/repo-pr" fetch origin "pull/<pr-number>/head"
    git -C "$SCRATCHPAD/repo-pr" checkout <headRefOid>
-   mise run ci 2>&1 | tee /tmp/gate-branch-ci.txt
+   git -C "$SCRATCHPAD/repo-pr" remote remove origin
+   (cd "$SCRATCHPAD/repo-pr" && mise run ci > "$SCRATCHPAD/gate-branch-ci.log" 2>&1); echo "EXIT=$?"
    ```
+   The fetch makes a fork PR's head reachable; a PR from the same repo needs it too when the branch was deleted.
 4. **Diff and classify**:
    ```bash
-   diff /tmp/gate-main-ci.txt /tmp/gate-branch-ci.txt
+   diff "$SCRATCHPAD/gate-main-ci.log" "$SCRATCHPAD/gate-branch-ci.log"
    ```
 
 | main | branch | verdict |

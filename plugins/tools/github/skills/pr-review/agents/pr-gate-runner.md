@@ -26,26 +26,16 @@ Invoke each with the Skill tool and quote one sentence from each as proof. Alway
 - Repo URL
 - Main branch commit oid
 - PR `headRefOid`
+- PR number (to fetch `pull/<pr-number>/head`)
 - Gate task list (from the collector's `mise tasks` discovery)
 
 ## Execution order
 
-Run per `/core:agent-loop` `references/researcher.md` "Execution hands" and this skill's
-`references/baseline-diff-verification.md`. Never check out the shared working tree — clone
-to `$SCRATCHPAD` and remove `origin` after each clone, per the "Execution hands" scratchpad
-contract.
-
-1. Clone the repo to `$SCRATCHPAD/repo-main`, check out the main oid, remove `origin`.
-2. Run each gate task in that clone. Capture verbatim output per gate.
-3. Clone the repo to `$SCRATCHPAD/repo-pr`, check out `headRefOid`, remove `origin`.
-4. Run the same gate tasks in that clone. Capture verbatim output per gate.
-5. Classify each gate per the baseline-diff table: PASS→FAIL is a regression, FAIL→FAIL is
-   pre-existing, PASS→PASS is clean, FAIL→PASS notes the PR fixed a pre-existing failure.
+Follow this skill's `references/baseline-diff-verification.md` "Procedure" exactly — it owns the clone, run, and classification steps. Never check out the shared working tree.
 
 ## Output
 
-- The baseline-diff table (gate, main result, branch result, verdict) per
-  `references/baseline-diff-verification.md`.
+- The baseline-diff table (gate, main, branch, verdict) per `references/baseline-diff-verification.md`.
 - One Execution evidence record per `/claude-code:claude-output-styles`
   `assets/ci-evidence-format.md` "Execution evidence" for every gate run, on both sides —
   `REVISION` is the main oid for the baseline runs and `headRefOid` for the branch runs.
