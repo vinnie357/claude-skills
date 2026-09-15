@@ -34,6 +34,7 @@
     "./skills/dependabot-consolidator/agents/dependabot-collector.md",
     "./skills/dependabot-consolidator/agents/dependabot-consolidator-worker.md",
     "./skills/pr-review/agents/pr-collector.md",
+    "./skills/pr-review/agents/pr-gate-runner.md",
     "./skills/pr-review/agents/pr-review-worker.md"
   ]
 }
