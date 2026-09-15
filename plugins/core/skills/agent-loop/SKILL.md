@@ -16,7 +16,7 @@ Activate Forge by work phrasing ("work epic/issue <id>", acting on `bees ready`)
 
 Two disciplines make Forge cheap and reliable:
 
-- **Hands do the searching.** Principals (planners, reviewers) never run their own `Grep`/`Glob`/large-`Read` sweeps. They spawn focused read-only hands on the smallest fast model, receive a `file:line` index, and `Read` only those lines. See `references/researcher.md`.
+- **Hands do the searching and the running.** Principals (planners, reviewers) never run their own `Grep`/`Glob`/large-`Read` sweeps, and never run their own commands. They spawn focused read-only hands for research and execution hands for bounded commands. See `references/reviewer.md` and `references/researcher.md`.
 - **Paired teams fan out.** Every issue runs the same paired structure; fan-out width `N` = the planner's slice count (`N=1` for a small issue, same path). See `references/forge.md`.
 
 The process these rules implement — durable vs ephemeral artifacts, reviewer and output rules — is in `references/process.md`.
@@ -73,14 +73,14 @@ Applies in every context: a host running without a human supplies the plan (Stat
 
 These six tiers describe authority — who reports to whom across an epic. For the orthogonal axis of how a single issue flows through staged agents, see "Five-Tier Decomposition Pipeline" below.
 
-| Tier | Role | Scope | Default Model | Reference |
-|------|------|-------|---------------|-----------|
+| Tier | Role | Scope | Default model tier | Reference |
+|------|------|-------|--------------------|-----------|
 | 0 | Epic Author | Write machine-executable epics | human | `references/epic-authoring.md` |
-| 1 | Team Leader | Four-state gate (spot-check / consume proposal / ask+decompose / resume gap); spawn agents | opus | `references/team-leader.md` |
-| 2 | Sub-team Leader | Decompose issue into tasks, manage workers | sonnet | `references/sub-team-leader.md` |
-| 3 | Agent Worker | Execute a single task with TDD | haiku | `references/agent-worker.md` |
-| 4 | Validator | Run CI, report all failures, never fix | haiku | `references/validator.md` |
-| 5 | Fix Agent | Receive failures, fix code, re-run tests | haiku | `references/fix-agent.md` |
+| 1 | Team Leader | Four-state gate (spot-check / consume proposal / ask+decompose / resume gap); spawn agents | deep reasoning | `references/team-leader.md` |
+| 2 | Sub-team Leader | Decompose issue into tasks, manage workers | general | `references/sub-team-leader.md` |
+| 3 | Agent Worker | Execute a single task with TDD | smallest fast | `references/agent-worker.md` |
+| 4 | Validator | Run CI, report all failures, never fix | smallest fast | `references/validator.md` |
+| 5 | Fix Agent | Receive failures, fix code, re-run tests | smallest fast | `references/fix-agent.md` |
 
 ## Model overrides (env-var convention)
 
@@ -88,21 +88,24 @@ Model defaults per tier are exactly that — defaults. Each tier honors an env v
 
 | Tier | Env var | Default |
 |------|---------|---------|
-| 1 Team Leader | `AGENT_LOOP_LEAD_MODEL` | `opus` |
-| 2 Sub-team Leader | `AGENT_LOOP_SUBLEAD_MODEL` | `sonnet` |
-| 3 Agent Worker | `AGENT_LOOP_WORKER_MODEL` | `haiku` |
-| 4 Validator | `AGENT_LOOP_VALIDATOR_MODEL` | `haiku` |
-| 5 Fix Agent | `AGENT_LOOP_FIX_MODEL` | `haiku` |
-| Plan Reviewer | `AGENT_LOOP_PLAN_REVIEWER_MODEL` | `fable, falling back to opus` |
-| Test Reviewer | `AGENT_LOOP_TEST_REVIEWER_MODEL` | `fable, falling back to opus` |
-| Reviewer | `AGENT_LOOP_REVIEWER_MODEL` | `fable, falling back to opus` |
-| Final Reviewer | `AGENT_LOOP_FINAL_REVIEWER_MODEL` | `fable, falling back to opus` |
-| Research hands (text) | `AGENT_LOOP_HANDS_MODEL` | smallest fast model (`Explore`) |
-| Research hands (vision) | `AGENT_LOOP_HANDS_VISION_MODEL` | a multimodal-capable model the harness offers |
+| 1 Team Leader | `AGENT_LOOP_LEAD_MODEL` | deep reasoning |
+| 2 Sub-team Leader | `AGENT_LOOP_SUBLEAD_MODEL` | general |
+| 3 Agent Worker | `AGENT_LOOP_WORKER_MODEL` | smallest fast |
+| 4 Validator | `AGENT_LOOP_VALIDATOR_MODEL` | smallest fast |
+| 5 Fix Agent | `AGENT_LOOP_FIX_MODEL` | smallest fast |
+| Plan Reviewer | `AGENT_LOOP_PLAN_REVIEWER_MODEL` | strongest reasoning, falling back to strongest fallback |
+| Test Reviewer | `AGENT_LOOP_TEST_REVIEWER_MODEL` | strongest reasoning, falling back to strongest fallback |
+| Reviewer | `AGENT_LOOP_REVIEWER_MODEL` | strongest reasoning, falling back to strongest fallback |
+| Final Reviewer | `AGENT_LOOP_FINAL_REVIEWER_MODEL` | strongest reasoning, falling back to strongest fallback |
+| Research hands (text) | `AGENT_LOOP_HANDS_MODEL` | smallest fast |
+| Research hands (vision) | `AGENT_LOOP_HANDS_VISION_MODEL` | multimodal |
+| Execution hands | `AGENT_LOOP_HANDS_MODEL` | smallest fast |
 
-The two hands vars follow the same contract as the tier vars: the launching process resolves them and passes the model to the spawn; no model name appears as a literal in the prompt body. The vision var is set by capability, not by a fixed name — the available multimodal model shifts with the harness and model family. See `references/researcher.md`.
+The hands vars follow the same contract as the tier vars: the launching process resolves them and passes the model to the spawn; no model name appears as a literal in the prompt body. The vision var is set by capability, not by a fixed name — the available multimodal model shifts with the harness and model family. See `references/researcher.md`. Per-harness model ids and effort settings: `references/model-tiers.md`.
 
 **Contract:** whoever launches the spawning process (shell command, CI job, parent Claude session, external orchestrator) sets these env vars; the spawn script reads `$AGENT_LOOP_*` and passes the resolved model to the Task tool invocation (`subagent_type`/`model` argument) — never as a literal in the prompt body. An empty string (`AGENT_LOOP_LEAD_MODEL=""`) is treated identically to unset, falling through to the default, so orchestrators can emit "" to mean "use default" without special-casing.
+
+Each `AGENT_LOOP_<ROLE>_MODEL` has an `AGENT_LOOP_<ROLE>_EFFORT`; empty resolves to the ADR 0001 decision 5 default. The launcher passes it wherever the harness accepts an effort setting (`references/model-tiers.md`).
 
 One `AGENT_LOOP_*` var selects something other than a model, and the Contract above does not apply to it — the launcher sets it, but no spawn resolves it to a model:
 
@@ -112,25 +115,26 @@ One `AGENT_LOOP_*` var selects something other than a model, and the Contract ab
 
 Its two values are `operator` and `approval`, defined in `/core:git` "Merge authorization"; the default authorizes no agent merge.
 
-The four Forge reviewer vars added above default to a capability fallback: attempt `fable`, and
-retry `opus` if the fable spawn fails due to unavailability. This is explicitly the REVERSE of the
-haiku-to-sonnet-to-opus escalation-on-failure ladder described next — that one promotes on
-repeated failure of the task itself; this one degrades on model unavailability and never fires
-because a review came back unfavorable. The mechanism is already shipped and documented on
-`core:comment-reviewer` (`plugins/core/agents/comment-reviewer.md`, "Model fallback" section);
-these four vars reuse that exact contract rather than defining a second one.
+The four Forge reviewer vars added above default to a capability fallback: attempt the strongest
+reasoning tier, and retry the strongest fallback tier if that spawn fails due to unavailability.
+This is explicitly the REVERSE of the smallest-fast-to-general-to-deep-reasoning escalation-on-failure
+ladder described next — that one promotes on repeated failure of the task itself; this one degrades
+on model unavailability and never fires because a review came back unfavorable. The mechanism is
+already shipped and documented on `core:comment-reviewer` (`plugins/core/agents/comment-reviewer.md`,
+"Model fallback" section); these four vars reuse that exact contract rather than defining a second
+one.
 
-The escalation chain is also overridable: `AGENT_LOOP_ESCALATION_CHAIN` (comma-separated names; default `haiku,sonnet,opus`).
+The escalation chain is also overridable: `AGENT_LOOP_ESCALATION_CHAIN` (comma-separated tier names; default smallest fast, general, deep reasoning).
 
 ## Model Escalation
 
-Default assignment starts at haiku. On repeated failure (2 attempts on same work item):
+Default assignment starts at the smallest fast tier. On repeated failure (2 attempts on same work item):
 
 ```
-haiku -> sonnet -> opus
+smallest fast -> general -> deep reasoning
 ```
 
-Maximum 2 promotions per agent. If opus fails, escalate to the upstream tier (sub-lead to lead, lead to user).
+Maximum 2 promotions per agent. If the deep reasoning tier fails, escalate to the upstream tier (sub-lead to lead, lead to user).
 
 This ladder is failure-driven and applies to task-executing tiers; it is not the reviewer
 capability fallback described under Model overrides above — that one degrades on unavailability
@@ -146,19 +150,20 @@ For each issue, the Sub-team Leader spawns distinct Agent invocations in order. 
 
 | Pipeline Stage | Model | Responsibility | Forbidden |
 |----------------|-------|----------------|-----------|
-| P1 Test Planner | opus | Translate acceptance criteria into ordered test list + edge cases | Writing code or tests |
-| P2 Test Author | sonnet | Write failing tests against P1's spec | Reading impl source; modifying after handoff |
-| P3 Implementer | sonnet | Make tests pass | Modifying test files; reading P2's chat context |
-| P4 CI Runner | haiku | Run CI, capture verbatim output, report green/red | Judging correctness; touching code |
-| P5 Reviewer | fable | Verify tests exercise AC, no overfit, no missed edges | Authoring fixes (sends back to P2 or P3 with findings) |
+| P1 Test Planner | deep reasoning | Translate acceptance criteria into ordered test list + edge cases | Writing code or tests |
+| P2 Test Author | general | Write failing tests against P1's spec | Reading impl source; modifying after handoff |
+| P3 Implementer | general | Make tests pass | Modifying test files; reading P2's chat context |
+| P4 CI Runner | smallest fast | Run CI, capture verbatim output, report green/red | Judging correctness; touching code |
+| P5 Reviewer | strongest reasoning | Verify tests exercise AC, no overfit, no missed edges | Authoring fixes (sends back to P2 or P3 with findings); running tests, CI, builds, or the app |
 
 Each stage owes the restraint ladder its phase duty — see `/core:restraint`'s agent-loop-phases reference for the row mapping (P1 → Test planning, P2 → Test authoring, P3 → Implementation, P5 → Review).
 
-P1 Test Planner and Forge's Plan-pair Test Planner both stay `opus` — decomposition errors
-compound downstream, so the planner stays on the deepest-reasoning model available. P2 Test
-Author and P3 Implementer stay `sonnet`, per the Model Selection table's sonnet row below. P4
-stays `haiku`. Only P5 moves from `opus` to `fable`, tracking Forge's Reviewer row in the pairs
-table — the same role in different fan-out shapes, not two roles.
+P1 Test Planner and Forge's Plan-pair Test Planner both stay on the deep reasoning tier —
+decomposition errors compound downstream, so the planner stays on the deepest-reasoning tier
+available. P2 Test Author and P3 Implementer stay on the general tier, per the Model Selection
+table's general row below. P4 stays on the smallest fast tier. Only P5 moves from deep reasoning
+to strongest reasoning, tracking Forge's Reviewer row in the pairs table — the same role in
+different fan-out shapes, not two roles.
 
 ### When to apply
 
@@ -171,7 +176,7 @@ Fan-out happens at the Sub-team Leader, not at the epic decomposer or the bees-w
 - Each stage is a separate Agent invocation (no SendMessage continuations between tiers). This bans a finished stage from performing the next stage's work inside its own context — it does not ban reporting up to the dispatching leader. A stage spawned with a `name` still calls `SendMessage` to deliver its report; that call is not a continuation.
 - The leader verifies stage transitions before dispatching the next: test commit present before P3, test files unmodified before P5.
 - P4 reports verbatim CI output; on red the leader dispatches a fresh P3 (no chat continuity).
-- P5 reads `git diff main...HEAD`, tests, and the acceptance criteria; approves with one line or rejects with a structured findings list. P5 reviews per `/core:code-review`, including its Restraint and Scope checklist item.
+- P5 reads `git diff main...HEAD`, tests, and the acceptance criteria; approves with one line or rejects with a structured findings list. P5 reviews per `/core:code-review`, including its Restraint and Scope checklist item. P5 obtains evidence and reports per `references/reviewer.md`.
 - bees issues carry a single `complexity:complex` or `complexity:trivial` label, not tier labels. The Sub-team Leader picks up the issue, reads complexity, and (for complex) dispatches the five stages internally — each Task spawn prompt names its tier (`team:opus-planner` ... `team:opus-review`) as dispatch-time metadata. Tier labels never land on bees rows. See `/core:bees`.
 - The five stages run as Task spawns by default. When Claude Code workflows are available and the operator opts in, encode them as one workflow script instead — the stage gates become deterministic assertions. See "Optional: workflow execution substrate" below and `references/workflows-execution.md`.
 
@@ -181,7 +186,7 @@ Single agents tend to merge planning + test-writing + implementation into one pa
 
 ## Delegated research — the hands pattern
 
-The costly principals (Test Planner, Test Reviewer, Reviewer, Final Reviewer) delegate all search to hands (see the Forge disciplines above). Select the hands model by capability, set in config — never a hardcoded name: text and code research use the smallest fast model (`AGENT_LOOP_HANDS_MODEL`); research that requires vision (images, screenshots, rendered web pages, visual PDFs, Playwright or visual MCP output) uses a multimodal-capable model the harness offers (`AGENT_LOOP_HANDS_VISION_MODEL`). Full contract in `references/researcher.md`; `references/dispatch-discipline.md` carries the delegate-before-you-search rule.
+The costly principals (Plan Reviewer, Test Planner, Test Reviewer, Reviewer, Final Reviewer) delegate all search to research hands and all command execution to execution hands (see the Forge disciplines above). Select the hands model by capability, set in config — never a hardcoded name: text and code research use the smallest fast model (`AGENT_LOOP_HANDS_MODEL`); research that requires vision (images, screenshots, rendered web pages, visual PDFs, Playwright or visual MCP output) uses a multimodal-capable model the harness offers (`AGENT_LOOP_HANDS_VISION_MODEL`); execution hands use the smallest fast model (`AGENT_LOOP_HANDS_MODEL`). Full contract in `references/researcher.md`; `references/dispatch-discipline.md` carries the delegate-before-you-search rule.
 
 ## Core Skills (Mandatory)
 
@@ -311,12 +316,12 @@ Scale the team to the work — choose by role, not by a trivial-vs-complex guess
 
 | Role | Model | Examples |
 |------|-------|---------|
-| Multi-file implementation | sonnet | New API endpoint, adapter refactor |
-| Test planning, architecture design | opus (or `Plan` subagent) | Test-list design, system integration |
-| Simple ops, monitoring, status checks | haiku | Deploy monitor, log reader, port check |
-| Text-based search / inventory | haiku | Hands passes, file:line index building, catalog sweeps |
-| Running test / CI commands | haiku | `mise run ci` runner, verbatim log capture, green/red report |
-| Playwright- or MCP-tool-driving agents | sonnet | Browser-driven QA, Tidewave runtime introspection |
+| Multi-file implementation | general | New API endpoint, adapter refactor |
+| Test planning, architecture design | deep reasoning (or `Plan` subagent) | Test-list design, system integration |
+| Simple ops, monitoring, status checks | smallest fast | Deploy monitor, log reader, port check |
+| Text-based search / inventory | smallest fast | Hands passes, file:line index building, catalog sweeps |
+| Running test / CI commands | smallest fast | `mise run ci` runner, verbatim log capture, green/red report |
+| Playwright- or MCP-tool-driving agents | general | Browser-driven QA, Tidewave runtime introspection |
 
 Hands and reviewer models follow the Forge convention — see "Model overrides" above and `references/forge.md`.
 
@@ -383,8 +388,10 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 ## References
 
 - `references/process.md` -- Per claude-skills ADR 0001: durable vs ephemeral artifacts, epic-to-team relationship, reviewer evidence discipline, capability-tier model selection, tracker-id ban
+- `references/reviewer.md` -- Reviewer evidence mechanism: judging inputs vs execution hands, the WAIT verdict with evidenceRequests when a reviewer cannot spawn, reading RESULT/EXCERPT before LOG, output format
+- `references/model-tiers.md` -- Per-harness model ids and effort settings for each capability tier, keyed to claude/codex/agy; the only place a model id or effort value appears
 - `references/forge.md` -- The Forge operating model: paired teams (principal + cheap hands), implementation fan-out (N pairs by slice), reviewers as the best-thinker tier, startup-index handoff, gates between pairs
-- `references/researcher.md` -- The hands pattern: read-only focused research, startup vs on-demand modes, the `file:line` index output contract, capability-based `AGENT_LOOP_HANDS_MODEL` / `AGENT_LOOP_HANDS_VISION_MODEL` selection
+- `references/researcher.md` -- The hands pattern: read-only focused research and bounded-command execution hands, startup vs on-demand modes, the `file:line` index output contract, capability-based `AGENT_LOOP_HANDS_MODEL` / `AGENT_LOOP_HANDS_VISION_MODEL` selection
 - `references/team-leader.md` -- Epic decomposition, team formation, orchestration
 - `references/sub-team-leader.md` -- Issue decomposition, worker management, model escalation
 - `references/agent-worker.md` -- Task execution with TDD, skill loading, reporting
@@ -399,4 +406,4 @@ Workflows are a research preview on paid plans. When disabled, the default Task-
 - `references/secret-provisioning.md` — Tier 1 plans include symmetric secret provisioning (generation, store creation, prod/dev deploy diffs); Tier 5 blocker check
 - `references/workflows-execution.md` — Optional workflow substrate for the five-tier pipeline: pipeline-as-script, stage gates, escalation ladder, teams-of-teams; decomposition/merge stay interactive
 - `templates/five-tier-issue.workflow.js` — Runnable `N=1` five-tier pipeline template: stage prompts, `skillProof` schemas, diff-boundary gate, escalation ladder, bounded fix loop
-- `templates/forge-issue.workflow.js` — Runnable Forge workflow: startup-index hands, planner slicing, dep-wave fan-out, fable reviewers paired with haiku hands, remediation pair
+- `templates/forge-issue.workflow.js` — Runnable Forge workflow: startup-index hands, planner slicing, dep-wave fan-out, strongest-reasoning reviewers paired with smallest-fast hands, remediation pair
