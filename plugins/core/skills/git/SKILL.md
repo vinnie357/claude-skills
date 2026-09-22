@@ -364,10 +364,11 @@ throwaway review worktree. Share only toolchain-designed caches: `~/.cache/zig`,
 refuses after a squash merge, since the tip is never an ancestor). `git worktree remove`
 itself refuses on modified or untracked files ("use --force to delete it") — an evidence
 directory alone does not trigger this. Inspect what's untracked, then `--force` if it's
-expected debris; `--force` still removes only the worktree's administrative entry, so it
-stays distinct from the banned `rm -rf`. `git worktree prune` stays banned — it drops
-entries for a missing directory that can still belong to another agent's open PR, and it
-never helps a directory that still exists.
+expected debris; `--force` removes the directory and the entry together, while `rm -rf`
+removes only the directory and leaves a registered entry pointing at nothing
+(`prunable`) — that orphan is why `rm -rf` is banned. `git worktree prune` stays banned
+too — it drops entries for a missing directory that can still belong to another agent's
+open PR, and it never helps a directory that still exists.
 
 **Recovery** — when a reboot cleared a worktree directory whose PR is still open, `git
 worktree add -f <same-path> <branch>` re-attaches the registered entry.
