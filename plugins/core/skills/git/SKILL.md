@@ -363,11 +363,13 @@ throwaway review worktree. Share only toolchain-designed caches: `~/.cache/zig`,
 removing, confirm the Gate 3 record quotes the evidence it cites — `git worktree remove`
 deletes the worktree's evidence directory along with the worktree (`/core:agent-loop`'s
 `references/reviewer.md`, "Output") — then run `git fetch origin` and confirm `git
-cat-file -e $(gh pr view <n> --json mergeCommit -q .mergeCommit.oid)` succeeds. This repo
-deletes the head branch on merge (`gh repo view --json deleteBranchOnMerge` reports
-`true`), so the branch itself is gone from `origin` after every legitimate squash merge
-and is never a usable removal precondition — the merge commit's presence is. Then `git
-worktree remove <path>` (never `rm -rf`), then `git branch -D <branch>` (`-d` refuses
+cat-file -e $(gh pr view <n> --json mergeCommit -q .mergeCommit.oid)` succeeds: the merge
+commit's presence holds as a removal precondition whether or not the head branch survives
+the merge. Where the forge deletes the head branch on merge (`gh repo view --json
+deleteBranchOnMerge` reports `true`), the branch itself is gone from `origin` afterward
+and is never a usable precondition on its own — check the merge commit's presence
+instead. Then `git worktree remove <path>` (never `rm -rf`), then `git branch -D
+<branch>` (`-d` refuses
 after a squash merge, since the tip is never an ancestor). `git worktree remove` itself
 refuses on modified or untracked files ("use --force to delete it") — an evidence
 directory alone does not trigger this. Inspect what's untracked, then `--force` if it's

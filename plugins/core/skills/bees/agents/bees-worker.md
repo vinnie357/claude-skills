@@ -55,6 +55,8 @@ primary."
 
 #### After Merge (When User Returns)
 
+See `/core:git` "Worktrees", "Cleanup, merged-only" for the current removal precondition.
+
 ```bash
 gh pr view --json state -q '.state'  # Check if "MERGED"
 git worktree remove <path>           # Never rm -rf
@@ -62,8 +64,6 @@ git branch -D <branch>               # -d refuses after a squash merge
 git pull --ff-only                   # In the primary
 bees ready                           # Find next issue
 ```
-
-See `/core:git` "Worktrees", "Cleanup, merged-only" for the current removal precondition.
 
 #### PR Workflow Principles
 

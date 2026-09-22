@@ -240,7 +240,8 @@ gh pr checks --watch
 
 #### Cleanup
 
-After user merges:
+After user merges. See `/core:git` "Worktrees", "Cleanup, merged-only" for the current
+removal precondition.
 
 ```bash
 git worktree remove <path>       # Never rm -rf
@@ -248,8 +249,6 @@ git branch -D <branch>           # -d refuses after a squash merge
 git pull --ff-only                # In the primary
 bees ready                       # Find next issue
 ```
-
-See `/core:git` "Worktrees", "Cleanup, merged-only" for the current removal precondition.
 
 ### AI Agent Task Loop
 
