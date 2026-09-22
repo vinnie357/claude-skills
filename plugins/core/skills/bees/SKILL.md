@@ -240,8 +240,8 @@ gh pr checks --watch
 
 #### Cleanup
 
-After user merges. See `/core:git` "Worktrees", "Cleanup, merged-only" for the current
-removal precondition.
+After the user merges, see `/core:git` "Worktrees", "Cleanup, merged-only" for the current
+removal precondition, then:
 
 ```bash
 git worktree remove <path>       # Never rm -rf
