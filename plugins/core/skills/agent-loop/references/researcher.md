@@ -87,9 +87,54 @@ any other spawned agent.
 
 **In a PR's worktree, execution hands are writers by execution.** Running `mise run ci`
 or a build there needs the writer stopped first, per `dispatch-discipline.md`'s
-"Worktree exclusivity during review". A hands run that cannot confirm `git rev-parse
-HEAD` equals the target SHA and `git status --short` is empty, both before and after,
-reports void rather than a result — never a result with an unconfirmed SHA.
+"Worktree exclusivity during review" — the hands run in the foreground only once that
+exclusivity holds.
+
+### Evidence files (worktree review)
+
+Evidence for a hands run inside a PR's own worktree lives on disk, so the record does
+not depend on the hands agent's reply surviving a stall or an idle timeout.
+
+**Location** — the worktree's own git dir, never the scratchpad and never committed:
+
+```bash
+$(git rev-parse --absolute-git-dir)/evidence/   # <repo>/.git/worktrees/<name>/evidence/
+```
+
+This sits outside the working tree, so writing here leaves `git status --short` empty —
+the clean-tree check in `dispatch-discipline.md` "Worktree exclusivity during review"
+stays valid. It survives a reboot, and `git worktree remove` deletes it automatically
+with the worktree — no orphan directories.
+
+**Files, named by commit** — `<sha7>-<check>.log` is the raw output (e.g. `mise run ci >
+<dir>/<sha7>-ci.log 2>&1`, with the exit code appended); `<sha7>-<check>.md` is the terse
+record.
+
+**Protocol** — the hands agent first writes a stub `.md` with `status: running`, runs the
+check with output redirected to the `.log`, then completes the `.md`. Its reply is one
+line: the path and the status.
+
+**Record format** (`.md`, key: value, no prose):
+
+```
+sha:
+tree_clean_before:
+command:
+started:
+exit:
+finished:
+summary:             # verbatim Build Summary line
+failures:             # - <test binary>: <n> <compile|runtime> - <one-clause reason>
+sha_after:
+tree_clean_after:
+status:               # complete | partial | void — void if the SHA or tree changed during the run
+```
+
+The reviewer reads the `.md` and `.log`, never the hands' reply — see `reviewer.md`
+"Reading evidence". This is the contract for hands running inside a PR's own worktree
+specifically; an execution hand running a one-off bounded command elsewhere (a
+scratchpad clone, a non-review context) keeps using the generic contract in "Report"
+below. The two coexist by context — neither replaces the other.
 
 **Scratchpad clone only for destructive commands** — never the shared working tree or a
 PR's worktree:
@@ -103,11 +148,12 @@ Removing `origin` is not optional. `git clone` from a local path sets origin to 
 so a push from the scratchpad writes refs back into it; a `cp -R` that carries `.git` keeps the
 GitHub remote and pushes to the real one.
 
-**Report**: one record per command, per `/claude-code:claude-output-styles`
+**Report**: for a hands run inside a PR's own worktree, the evidence-file record above
+IS the report. Otherwise, one record per command, per `/claude-code:claude-output-styles`
 `assets/ci-evidence-format.md` "Execution evidence".
 
 **Forbidden**: never fixes, never judges, never posts to GitHub, never writes files other than its
-own logs.
+own logs (the worktree evidence files above, or its scratchpad-clone logs).
 
 **Model selection**: per `SKILL.md` "Model overrides" (hands row).
 

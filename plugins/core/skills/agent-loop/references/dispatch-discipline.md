@@ -56,7 +56,8 @@ repository, so branch -D from any of them deletes the ref for everyone. To
 inspect another ref: git show <ref>:<path>, git diff a...b, git ls-tree,
 gh pr diff <number>. To obtain execution, request execution hands (see the
 reviewer reference). Do not write under .git/ directly (config, hooks, refs);
-git fetch is the only sanctioned .git write.
+git fetch and writing under .git/worktrees/<name>/evidence/ (see the
+researcher reference) are the only sanctioned .git writes.
 ```
 
 A per-issue worktree does not loosen this ban — "not my worktree" reads as license the
@@ -65,7 +66,7 @@ write there still lands on everyone.
 
 The catch-all clause matters as much as the names. A closed list recreates the failure it fixes one step over — an agent that reads literally enough to treat checkout-then-restore as net-zero will also read "rebase isn't on the list". `git clean -fd` is the worst omission a list can have: it destroys teammates' uncommitted work with no recovery, unlike the incident below, which was survivable.
 
-`.git/` internals are not covered by "HEAD, the index, or tracked files" — `git status` never lists them — so the block adds: do not write under `.git/` directly (config, hooks, refs); `git fetch` is the only sanctioned `.git` write. The vector that earns the clause is `.git/hooks/*`: a hook written there executes on a teammate's next commit, which is mutation by proxy. The carve-out matters as much as the ban, since a flat "never write under `.git/`" would forbid `git fetch`, which reviewers legitimately need.
+`.git/` internals are not covered by "HEAD, the index, or tracked files" — `git status` never lists them — so the block adds two named carve-outs, not a general "writes under `.git` are fine": `git fetch`, and writing evidence records under `.git/worktrees/<name>/evidence/` (`researcher.md` "Evidence files"). The vector that earns the ban is `.git/hooks/*`: a hook written there executes on a teammate's next commit, which is mutation by proxy — an inert evidence-log directory is not that vector. Both carve-outs matter as much as the ban itself, since a flat "never write under `.git/`" would forbid `git fetch`, which reviewers legitimately need, and now the evidence files hands need too.
 
 Name the commands. "No git state changes" is not enough — an agent given that wording checked out a PR branch, restored main afterward, and read the round trip as net-zero. Three other agents were writing to that tree at the time; all three had their work silently moved onto the wrong branch. It was recoverable only because the branch happened to sit at the same commit and the reviewer disclosed the checkout in its report.
 
@@ -94,9 +95,10 @@ writer committed mid-run and the reviewer's result was void.
 1. A reviewer's execution hands run builds or CI in the worktree only while the writer
    is stopped. The lead enforces this exclusivity — it is not the reviewer's or the
    writer's to negotiate.
-2. Before and after an execution-hands run, `git rev-parse HEAD` must equal the reviewed
-   SHA and `git status --short` must be empty (see `reviewer.md`); otherwise
-   the result is void.
+2. The hands — not the reviewer — check before and after the run: `git rev-parse HEAD`
+   equals the reviewed SHA and `git status --short` is empty. Either check failing
+   marks the run void; this is the hands' own report contract, in `researcher.md`
+   "Evidence files".
 3. Never resume or dispatch a writer into a worktree while a reviewer or its hands is
    still running there. Stop them first and confirm no build/test process still
    references the worktree.
@@ -105,3 +107,8 @@ writer committed mid-run and the reviewer's result was void.
 5. A detached per-review worktree (`git worktree add --detach <root>/<repo>-review-<sha7>
    <sha>`) was considered and rejected: full isolation, but every review pays a cold
    build. Reuse the writer's worktree under clauses 1-4 instead.
+
+A reviewer's spawn prompt must never offer an escape hatch to self-execution — never
+phrase it as "delegate to hands, or run it directly if they stall." There is no
+fallback to the reviewer running a command itself, ever; see `reviewer.md` "Reviewers
+never execute" for the reviewer's own stall protocol.
