@@ -360,24 +360,28 @@ throwaway review worktree. Share only toolchain-designed caches: `~/.cache/zig`,
 `~/.hex`, `~/.mix`.
 
 **Cleanup, merged-only** — confirm `gh pr view <n> --json state` reports `MERGED`. Before
-removing, confirm the Gate 3 record quotes the evidence it cites: `git worktree remove`
+removing, confirm the Gate 3 record quotes the evidence it cites — `git worktree remove`
 deletes the worktree's evidence directory along with the worktree (`/core:agent-loop`'s
-`references/reviewer.md`, "Output"). Then `git worktree remove <path>` (never `rm -rf`),
-then `git branch -D <branch>` (`-d` refuses after a squash merge, since the tip is never
-an ancestor). `git worktree remove` itself refuses on modified or untracked files ("use
---force to delete it") — an evidence directory alone does not trigger this. Inspect
-what's untracked, then `--force` if it's expected debris; `--force` removes the directory
-and the entry together, while `rm -rf` removes only the directory and leaves a registered
-entry pointing at nothing (`prunable`) — that orphan is why `rm -rf` is banned. `git
-worktree prune` stays banned too — it drops entries for a missing directory that can
-still belong to another agent's open PR, and it never helps a directory that still
-exists.
+`references/reviewer.md`, "Output") — then run `git fetch origin` and confirm `git
+cat-file -e $(gh pr view <n> --json mergeCommit -q .mergeCommit.oid)` succeeds. This repo
+deletes the head branch on merge (`gh repo view --json deleteBranchOnMerge` reports
+`true`), so the branch itself is gone from `origin` after every legitimate squash merge
+and is never a usable removal precondition — the merge commit's presence is. Then `git
+worktree remove <path>` (never `rm -rf`), then `git branch -D <branch>` (`-d` refuses
+after a squash merge, since the tip is never an ancestor). `git worktree remove` itself
+refuses on modified or untracked files ("use --force to delete it") — an evidence
+directory alone does not trigger this. Inspect what's untracked, then `--force` if it's
+expected debris; `--force` removes the directory and the entry together, while `rm -rf`
+removes only the directory and leaves a registered entry pointing at nothing
+(`prunable`) — that orphan is why `rm -rf` is banned. `git worktree prune` stays banned
+too — it drops entries for a missing directory that can still belong to another agent's
+open PR, and it never helps a directory that still exists. Afterward, confirm `git
+worktree list` shows other agents' worktrees intact.
 
 An auto-approval mode flags `git worktree remove` and `git branch -D` as irreversible
-local destruction. That is expected for a merged-only cleanup, not a signal to stop —
-verify the precondition instead of overriding the warning: the branch is present on
-`origin`, `git cat-file -e <merge-sha>` succeeds, and `git worktree list` shows other
-agents' worktrees intact.
+local destruction. That is expected for a merged-only cleanup that already confirmed
+`MERGED` and the merge commit's presence above — the flag is not a signal to stop or
+override.
 
 **Recovery** — when a reboot cleared a worktree directory whose PR is still open, `git
 worktree add -f <same-path> <branch>` re-attaches the registered entry.

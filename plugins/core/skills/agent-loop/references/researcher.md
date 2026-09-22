@@ -124,7 +124,8 @@ before cleanup runs.
 check with output redirected to the `.log`, then completes the `.md`. Its reply is one
 line: the path and the status. A check that runs more than one command writes each exact
 command into the `.log` immediately before that command's own capture, so `command:`
-names the check's driver while the `.log` carries the sequence.
+names the single command the check is invoked by, while the `.log` carries the full
+sequence it ran.
 
 **Record format** (`.md`, key: value, no prose):
 
@@ -134,16 +135,13 @@ tree_clean_before:
 command:
 started:              # date -u +%FT%TZ, run at that moment
 exit:
-finished:              # date -u +%FT%TZ, run at that moment
+finished:             # date -u +%FT%TZ, run at that moment
 summary:             # the runner's final summary line, verbatim
 failures:             # - <unit>: <n> <compile|runtime> - <one-clause reason>
 sha_after:
 tree_clean_after:
 status:               # complete | partial | void
 ```
-
-Both `started` and `finished` come from `date -u +%FT%TZ` executed at that instant — never
-composed, never back-filled.
 
 `status: void` means the SHA or tree changed during the run — the record itself catches
 that. `status: partial` means the hands agent completed the stub and started the check

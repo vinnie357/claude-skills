@@ -63,13 +63,15 @@ git pull --ff-only                   # In the primary
 bees ready                           # Find next issue
 ```
 
+See `/core:git` "Worktrees", "Cleanup, merged-only" for the current removal precondition.
+
 #### PR Workflow Principles
 
 1. **One issue = one branch = one PR**
 2. **Claim before working**: `bees update --status in_progress`
 3. **Minimal PRs**: Title + bullets only
 4. **Report, do not merge**: The default merge policy authorizes no agent merge; never assume approval
-5. **Clean up**: Confirm `MERGED`, then `git worktree remove` and `git branch -D`
+5. **Clean up**: Confirm `MERGED`, then `git worktree remove` and `git branch -D` — see `/core:git` "Worktrees", "Cleanup, merged-only"
 
 ---
 

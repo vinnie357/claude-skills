@@ -249,6 +249,8 @@ git pull --ff-only                # In the primary
 bees ready                       # Find next issue
 ```
 
+See `/core:git` "Worktrees", "Cleanup, merged-only" for the current removal precondition.
+
 ### AI Agent Task Loop
 
 An automated task-loop script (poll `bees ready --json`, work, close, sync): `references/commands.md`.
