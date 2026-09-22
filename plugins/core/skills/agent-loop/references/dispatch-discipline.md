@@ -26,31 +26,42 @@ A Tier 1 lead runs zero direct work: no `Bash`, no `Edit`, no `Write`, no `Read`
 
 The leader speaks of itself as "Tier 1" and spawned agents as Tier 2 (sub-lead), Tier 3 (worker), Tier 4 (validator), Tier 5 (fix-agent / reviewer). Spawned agents are NEVER called "team lead" — that term is reserved for Tier 1 to avoid recursive confusion in spawn prompts.
 
-## Branch from fresh main, explicitly
+## Start in a fresh worktree off origin/main, explicitly
 
 Every PR-opening spawn prompt's Step 0 is:
 
 ```bash
-git fetch origin main
-git checkout origin/main
-git checkout -b <branch>
+git fetch origin
+git worktree add "$WORKTREE_ROOT/<repo>-<slug>" -b <branch> origin/main
 ```
 
-Without this step, the spawned agent inherits the working tree's current branch — often a sibling PR's stale branch — and produces a PR that contains both the new work and the sibling's diff.
+`$WORKTREE_ROOT` and the location rules are `/core:git`'s "Worktrees" section — never
+`/tmp`, `/private/tmp`, or a harness scratchpad. Without a fresh worktree off
+`origin/main`, a spawned agent that instead `cd`s into the shared checkout inherits its
+current branch — often a sibling PR's stale branch — and produces a PR that contains
+both the new work and the sibling's diff. A second guarantee follows from the worktree
+itself: no other agent's uncommitted or committed-but-unpushed work can leak into this
+PR, because nothing else writes to this tree.
 
-## Read-only agents never touch the shared working tree
+## Read-only agents never touch the shared repository or its worktrees
 
 Reviewers, auditors, and research agents get this verbatim in their spawn prompt:
 
 ```
 Never run git checkout, switch, restore, stash, reset, clean, rebase, merge,
-pull, cherry-pick, apply, am, or branch -f/-D against the shared working tree,
-or any other command that changes HEAD, the index, or tracked or untracked
-files. To inspect another ref: git show <ref>:<path>, git diff a...b,
-git ls-tree. To obtain execution, request execution hands (see the reviewer reference).
-Do not write under .git/ directly (config, hooks, refs); git fetch is the only
-sanctioned .git write.
+pull, cherry-pick, apply, am, or branch -f/-D against the shared repository or
+any of its worktrees, or any other command that changes HEAD, the index, or
+tracked or untracked files. Refs are shared across every worktree of one
+repository, so branch -D from any of them deletes the ref for everyone. To
+inspect another ref: git show <ref>:<path>, git diff a...b, git ls-tree,
+gh pr diff <number>. To obtain execution, request execution hands (see the
+reviewer reference). Do not write under .git/ directly (config, hooks, refs);
+git fetch is the only sanctioned .git write.
 ```
+
+A per-issue worktree does not loosen this ban — "not my worktree" reads as license the
+same way "not my working tree" once did, and the shared object database and refs mean a
+write there still lands on everyone.
 
 The catch-all clause matters as much as the names. A closed list recreates the failure it fixes one step over — an agent that reads literally enough to treat checkout-then-restore as net-zero will also read "rebase isn't on the list". `git clean -fd` is the worst omission a list can have: it destroys teammates' uncommitted work with no recovery, unlike the incident below, which was survivable.
 
@@ -71,3 +82,26 @@ Before claiming "tool X is missing on host Y", the lead spawns a snapshot agent 
 ## Search prior decision records before proposing architecture
 
 Before any architectural proposal, search the project's decision-records directory (`architecture/decisions/`, `docs/adrs/`, etc.) for prior coverage. Inventing a design that contradicts an existing ADR wastes review cycles; extending or amending an existing ADR is the correct path.
+
+## Worktree exclusivity during review
+
+Once an issue's writer and its reviewer share one worktree (`/core:git` "Worktrees" —
+one worktree per issue or PR, reused across rounds), the lead is the enforcer of who may
+touch it and when. This closed a real collision: a reviewer's execution hands ran `mise
+run ci` in a PR's worktree while the lead resumed the writer in that same tree; the
+writer committed mid-run and the reviewer's result was void.
+
+1. A reviewer's execution hands run builds or CI in the worktree only while the writer
+   is stopped. The lead enforces this exclusivity — it is not the reviewer's or the
+   writer's to negotiate.
+2. Before and after an execution-hands run, `git rev-parse HEAD` must equal the reviewed
+   SHA and `git status --short` must be empty (see `reviewer.md`); otherwise
+   the result is void.
+3. Never resume or dispatch a writer into a worktree while a reviewer or its hands is
+   still running there. Stop them first and confirm no build/test process still
+   references the worktree.
+4. Never act on a reviewer's in-progress draft; wait for its handback (see
+   `reviewer.md`).
+5. A detached per-review worktree (`git worktree add --detach <root>/<repo>-review-<sha7>
+   <sha>`) was considered and rejected: full isolation, but every review pays a cold
+   build. Reuse the writer's worktree under clauses 1-4 instead.

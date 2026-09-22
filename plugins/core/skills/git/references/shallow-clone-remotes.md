@@ -1,10 +1,14 @@
-# Shallow clones and remote verification
+# Local-path remotes and push verification
 
-When a worker operates in a shallow clone (a `/tmp/agent-*/<repo>/` directory cloned from a local canonical clone for isolation), the `origin` remote points at the LOCAL canonical clone path, NOT at GitHub. `git push origin` writes to the local clone's branch ref but does not propagate to GitHub.
+When a worker's clone has a local path as its `origin` (a scratchpad clone for a
+destructive execution-hands command, a shallow clone in a build source cache, or any
+clone whose `origin` was never repointed at GitHub), the `origin` remote points at that
+LOCAL path, NOT at GitHub. `git push origin` writes to the local clone's branch ref but
+does not propagate to GitHub.
 
 ## The pattern
 
-For every shallow-clone worker that creates commits:
+For every worker whose `origin` is a local path and that creates commits:
 
 1. Add `github` as a named remote in the shallow clone, pointing at the GitHub HTTPS URL:
 
@@ -46,4 +50,4 @@ When this gap is caught after the fact, the file-based remote's branch tip is th
 ## Related
 
 - Build-time source-cache staleness (`build-source-staleness.md`, linked from SKILL.md) is the sibling case in this same family of file-based-remote silent absorption — this file covers the push side, that one covers the read side.
-- Worker isolation via shallow clones — the shallow-clone pattern itself is the right isolation choice; the verification step is the gap to close.
+- Worker isolation — a worktree (see SKILL.md "Worktrees") is the isolation choice for ordinary work; a local-path clone survives only for the destructive-execution-hands sandbox (`/core:agent-loop`'s `references/researcher.md`) and build source caches, where this file's verification step is the gap to close.

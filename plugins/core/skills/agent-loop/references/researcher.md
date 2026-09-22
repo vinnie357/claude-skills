@@ -85,7 +85,14 @@ research, judge, or fix.
 **Skills first**: an execution hand loads the task's skills before running its command, same as
 any other spawned agent.
 
-**Scratchpad clone only** — never the shared working tree:
+**In a PR's worktree, execution hands are writers by execution.** Running `mise run ci`
+or a build there needs the writer stopped first, per `dispatch-discipline.md`'s
+"Worktree exclusivity during review". A hands run that cannot confirm `git rev-parse
+HEAD` equals the target SHA and `git status --short` is empty, both before and after,
+reports void rather than a result — never a result with an unconfirmed SHA.
+
+**Scratchpad clone only for destructive commands** — never the shared working tree or a
+PR's worktree:
 
 ```
 git clone <repo> "$SCRATCHPAD/repo"

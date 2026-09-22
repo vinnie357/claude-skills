@@ -192,15 +192,21 @@ return { merged, escalations }
 
 The per-wave `parallel()` barrier is required, not incidental: each wave's completions are the input to the next readiness computation, so the barrier is the dependency edge itself.
 
-## Worktree isolation solves working-tree contention
+## Worktree isolation, workflow-scoped vs session-scoped
 
-The default path forbids git worktrees and uses shallow clones because parallel workers in one tree pollute each other's checkouts. A workflow spawns each parallel implementer with its own auto-cleaned worktree, removing the footgun directly:
+The default Task-spawn path already puts each writer in its own worktree by hand, per
+`/core:git` "Worktrees" — one worktree per issue or PR, created explicitly and reused
+across review rounds. A workflow instead spawns each parallel implementer with its own
+auto-cleaned worktree per agent call:
 
 ```javascript
 agent(implPrompt(issue), { isolation: 'worktree' })   // ~200-500ms + disk per agent
 ```
 
-Use it only for agents that mutate files in parallel; it is expensive and pointless for read-only or single-writer stages.
+The runtime reconciles each tree's commits onto the working branch before the gates and
+removes the tree afterward, so the PR is cut from the working branch rather than from a
+long-lived per-issue worktree. Use it only for agents that mutate files in parallel; it
+is expensive and pointless for read-only or single-writer stages.
 
 ## Budget-scaled thoroughness and resume
 

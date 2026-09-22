@@ -39,6 +39,11 @@ Test planning owes the restraint ladder too — see `/core:restraint`'s agent-lo
    - Spawn Fix Agent to address failures
    - Validator and Fix Agent iterate until clean
 2. If validation loop stalls (3+ cycles without progress): escalate to Team Leader
+3. Before dispatching a Fix Agent or resuming an implementer in the issue's worktree,
+   confirm any reviewer or its execution hands has stopped and handed back — see
+   `/core:git` "Worktrees" and `dispatch-discipline.md` "Worktree
+   exclusivity during review". A fix round and a review must never run in the same
+   worktree at once.
 
 ## Phase 4: Reporting
 

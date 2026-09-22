@@ -17,6 +17,13 @@ runner's `DIFF` line oids.
 A reviewer that can spawn agents dispatches execution hands (see the researcher reference,
 "Execution hands" section) with one bounded command per hand and the question that command answers.
 
+When the target is a PR's own worktree (`/core:git` "Worktrees"), the reviewer owns two
+obligations from `dispatch-discipline.md`'s "Worktree exclusivity during review": before
+and after each execution-hands run, `git rev-parse HEAD` must equal the reviewed SHA and
+`git status --short` must be empty, or the run's result is void and must be re-requested;
+and the reviewer never lets the lead or a writer act on an in-progress draft — a verdict
+is only real once handed back complete.
+
 ## Without spawning
 
 A reviewer that cannot spawn agents returns verdict `WAIT` with an `evidenceRequests` list
