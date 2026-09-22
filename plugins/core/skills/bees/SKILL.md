@@ -197,7 +197,7 @@ Unlike beads (which uses JSONL as primary with SQLite cache), bees uses SQLite a
 #### Session Start
 
 ```bash
-git checkout main && git pull
+git pull --ff-only               # Advance the primary; never checkout a branch here
 bees ready                       # Find available issues
 bees show <id>                   # Read requirements
 ```
@@ -205,8 +205,10 @@ bees show <id>                   # Read requirements
 #### Issue Execution
 
 ```bash
-git checkout -b feature/<name>
-bees update <id> --status in_progress
+bees update <id> --status in_progress  # Run from the primary
+git fetch origin
+git worktree add "$WORKTREE_ROOT/<repo>-<slug>" -b feature/<name> origin/main
+cd "$WORKTREE_ROOT/<repo>-<slug>"
 
 # Do the work:
 # - Read existing code to understand patterns
@@ -216,6 +218,8 @@ bees update <id> --status in_progress
 git add <files>
 git commit -m "type(scope): description"
 ```
+
+See `/core:git` "Worktrees" for `$WORKTREE_ROOT` and the location rules.
 
 #### PR Creation
 
@@ -229,18 +233,19 @@ gh pr create --title "type(scope): description" --body "- Change one
 
 ```bash
 gh pr checks --watch
-bees close <id>
-git add .bees/ && git commit -m "chore(bees): close <id>"
-git push
 ```
+
+`bees close <id>` from the primary, then land the `.bees/issues.jsonl` export as its own
+`chore(bees)` PR — see `/core:git` "Worktrees", "Bees runs from the primary."
 
 #### Cleanup
 
 After user merges:
 
 ```bash
-git checkout main && git pull
-git branch -d <branch>
+git worktree remove <path>       # Never rm -rf
+git branch -D <branch>           # -d refuses after a squash merge
+git pull --ff-only                # In the primary
 bees ready                       # Find next issue
 ```
 

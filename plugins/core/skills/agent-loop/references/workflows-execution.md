@@ -203,10 +203,12 @@ auto-cleaned worktree per agent call:
 agent(implPrompt(issue), { isolation: 'worktree' })   // ~200-500ms + disk per agent
 ```
 
-The runtime reconciles each tree's commits onto the working branch before the gates and
-removes the tree afterward, so the PR is cut from the working branch rather than from a
-long-lived per-issue worktree. Use it only for agents that mutate files in parallel; it
-is expensive and pointless for read-only or single-writer stages.
+The harness removes that tree only if the agent leaves it unchanged
+(`/claude-code:claude-workflows` "Worktree isolation", `/claude-code:claude-agents`
+`isolation` field) — an implementer that commits has changed the tree, so it persists
+rather than being auto-cleaned; treat it like any other harness worktree per `/core:git`
+"Worktrees". Use `isolation: 'worktree'` only for agents that mutate files in parallel;
+it is expensive and pointless for read-only or single-writer stages.
 
 ## Budget-scaled thoroughness and resume
 

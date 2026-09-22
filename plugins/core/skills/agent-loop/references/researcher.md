@@ -95,20 +95,27 @@ exclusivity holds.
 Evidence for a hands run inside a PR's own worktree lives on disk, so the record does
 not depend on the hands agent's reply surviving a stall or an idle timeout.
 
-**Location** — the worktree's own git dir, never the scratchpad and never committed:
+**Location** — the worktree's own git dir, never the scratchpad and never committed.
+This mechanism applies only to hands running inside a PR's own worktree, never the
+primary — that follows from "Worktree exclusivity during review" restricting review to a
+PR's worktree in the first place:
 
 ```bash
 $(git rev-parse --absolute-git-dir)/evidence/   # <repo>/.git/worktrees/<name>/evidence/
 ```
+
+Run from the primary instead, `--absolute-git-dir` resolves to `<repo>/.git` — outside
+this carve-out and never auto-removed. Treat a hands run that resolves there as a
+dispatch error, not a valid evidence location.
 
 This sits outside the working tree, so writing here leaves `git status --short` empty —
 the clean-tree check in `dispatch-discipline.md` "Worktree exclusivity during review"
 stays valid. It survives a reboot, and `git worktree remove` deletes it automatically
 with the worktree — no orphan directories.
 
-**Files, named by commit** — `<sha7>-<check>.log` is the raw output (e.g. `mise run ci >
-<dir>/<sha7>-ci.log 2>&1`, with the exit code appended); `<sha7>-<check>.md` is the terse
-record.
+**Files, named by commit** — `<sha7>-<check>.log` is the raw output, exit code appended
+(e.g. `mise run ci > <dir>/<sha7>-ci.log 2>&1; echo "exit: $?" >> <dir>/<sha7>-ci.log`);
+`<sha7>-<check>.md` is the terse record.
 
 **Protocol** — the hands agent first writes a stub `.md` with `status: running`, runs the
 check with output redirected to the `.log`, then completes the `.md`. Its reply is one
@@ -123,12 +130,21 @@ command:
 started:
 exit:
 finished:
-summary:             # verbatim Build Summary line
-failures:             # - <test binary>: <n> <compile|runtime> - <one-clause reason>
+summary:             # the runner's final summary line, verbatim
+failures:             # - <unit>: <n> <compile|runtime> - <one-clause reason>
 sha_after:
 tree_clean_after:
-status:               # complete | partial | void — void if the SHA or tree changed during the run
+status:               # complete | partial | void
 ```
+
+`status: void` means the SHA or tree changed during the run — the record itself catches
+that. `status: partial` means the hands agent completed the stub and started the check
+but did not finish it (a `.log` with no matching `exit:` line, or a run cut short); a
+subsequent hands run overwrites it with `complete` or `void`. `status: complete` is the
+only status a reviewer accepts as a finished result. Neither status catches a writer that
+edits and reverts inside the run window, leaving both snapshots clean — that case is
+caught only by clause 3's lead enforcement (never resume a writer while hands are
+running), not by the record.
 
 The reviewer reads the `.md` and `.log`, never the hands' reply — see `reviewer.md`
 "Reading evidence". This is the contract for hands running inside a PR's own worktree

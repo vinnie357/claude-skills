@@ -127,10 +127,11 @@ Every PR starts in its own worktree off fresh `origin/main` — see Worktrees be
 4. **Push**: `git push -u origin <branch>`
 5. **Create PR**: `gh pr create` (GitHub) or `glab mr create` (GitLab) with minimal format (title + bullets)
 6. **Gate 2 — Watch remote CI**: `gh pr checks --watch` (GitHub) or `glab ci status --live` (GitLab) (wait for CI to complete)
-7. **After CI passes** (if using bees):
-   - `bees close <task-id>`
-   - `git add .bees/ && git commit -m "chore(bees): close <task-id>"`
-   - `git push`
+7. **After CI passes** (if using bees) — run `bees close <task-id>` from the primary
+   checkout, then land the `.bees/issues.jsonl` export as its own `chore(bees)` PR from a
+   worktree; see Worktrees, "Bees runs from the primary." Never `git add .bees/ && git
+   commit` inside this PR's own worktree — the live tracker state lives in the primary,
+   not here.
 8. **Notify** (Gate 2 satisfied — local + remote green): "CI passed, PR ready for merge review"
 9. **Cleanup** (after user merges) — follow the Worktrees "Cleanup, merged-only" sequence
    below: confirm `MERGED`, `git worktree remove`, `git branch -D`.
@@ -316,7 +317,12 @@ Branch naming is platform-agnostic — identical on GitHub and GitLab. So are th
 New work happens in its own worktree. The primary checkout stays on `main`, clean, and
 advances only via `git pull --ff-only` — nobody commits or switches branches there. Clean
 means `git status --short -- . ':!.bees'` is empty; `.bees/` churn is tracker bookkeeping
-and never blocks a checkout there.
+and doesn't count against that clean check.
+
+**Bees runs from the primary.** `bees close`, `bees update`, and other write commands
+operate on the primary checkout's live `.bees/bees.db` — a worktree's own `.bees/` lacks
+it. The resulting `.bees/issues.jsonl` export lands as its own `chore(bees)` PR, opened
+from a worktree like any other work; the primary itself never commits it.
 
 **Location** — `$WORKTREE_ROOT/<repo>-<slug>`, defaulting to:
 
@@ -326,10 +332,13 @@ $(dirname "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 
 `--git-common-dir` resolves identically from the primary checkout and from inside a
 worktree; `--show-toplevel` does not — run inside a worktree, it returns the worktree
-itself, yielding a nested `worktrees/worktrees`. Never `/tmp`, `/private/tmp`, or a
-harness scratchpad (cleared on reboot), and never inside the project tree
-(`.worktrees/`, `.claude/worktrees/`) — tree-walking build and scan tools descend into a
-nested checkout.
+itself, yielding a nested `worktrees/worktrees`. The formula assumes the ordinary layout
+— `.git` is a directory inside the primary checkout; it resolves one directory too high
+in a bare repo and relative to the git dir, not the checkout, under `--separate-git-dir`.
+Set `$WORKTREE_ROOT` explicitly in either of those layouts. Never `/tmp`,
+`/private/tmp`, or a harness scratchpad (cleared on reboot), and never inside the
+project tree (`.worktrees/`, `.claude/worktrees/`) — tree-walking build and scan tools
+descend into a nested checkout.
 
 **Create** — fetch first, so the branch point isn't stale:
 
@@ -352,9 +361,13 @@ throwaway review worktree. Share only toolchain-designed caches: `~/.cache/zig`,
 
 **Cleanup, merged-only** — confirm `gh pr view <n> --json state` reports `MERGED`, then
 `git worktree remove <path>` (never `rm -rf`), then `git branch -D <branch>` (`-d`
-refuses after a squash merge, since the tip is never an ancestor). `git worktree prune`
-stays banned — it drops entries for a missing directory that can still belong to
-another agent's open PR, and it never helps a directory that still exists.
+refuses after a squash merge, since the tip is never an ancestor). `git worktree remove`
+itself refuses on modified or untracked files ("use --force to delete it") — an evidence
+directory alone does not trigger this. Inspect what's untracked, then `--force` if it's
+expected debris; `--force` still removes only the worktree's administrative entry, so it
+stays distinct from the banned `rm -rf`. `git worktree prune` stays banned — it drops
+entries for a missing directory that can still belong to another agent's open PR, and it
+never helps a directory that still exists.
 
 **Recovery** — when a reboot cleared a worktree directory whose PR is still open, `git
 worktree add -f <same-path> <branch>` re-attaches the registered entry.
@@ -362,8 +375,10 @@ worktree add -f <same-path> <branch>` re-attaches the registered entry.
 **Harness worktrees** (`EnterWorktree`, `.claude/worktrees/`) are excluded for any work
 that becomes a commit or PR — harness-specific, inside the repo, and they leave
 untracked detached leftovers. `isolation: 'worktree'` inside a workflow run stays
-sanctioned: the runtime reconciles each tree's commits onto the working branch before
-the gates and removes the tree, so the PR is cut from the working branch.
+sanctioned: the harness creates a per-agent worktree and removes it only if the agent
+leaves it unchanged (`/claude-code:claude-workflows`, `/claude-code:claude-agents`). An
+implementer that commits has changed the tree, so that tree persists — the same
+untracked-leftover exclusion above then applies to it.
 
 **Destructive commands** still run in a scratchpad clone, not a worktree — see
 `/core:agent-loop`'s `references/researcher.md` "Execution hands".
