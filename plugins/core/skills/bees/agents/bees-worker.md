@@ -55,6 +55,8 @@ primary."
 
 #### After Merge (When User Returns)
 
+See `/core:git` "Worktrees", "Cleanup, merged-only" for the current removal precondition.
+
 ```bash
 gh pr view --json state -q '.state'  # Check if "MERGED"
 git worktree remove <path>           # Never rm -rf
@@ -69,7 +71,7 @@ bees ready                           # Find next issue
 2. **Claim before working**: `bees update --status in_progress`
 3. **Minimal PRs**: Title + bullets only
 4. **Report, do not merge**: The default merge policy authorizes no agent merge; never assume approval
-5. **Clean up**: Confirm `MERGED`, then `git worktree remove` and `git branch -D`
+5. **Clean up**: Confirm `MERGED`, then `git worktree remove` and `git branch -D` — see `/core:git` "Worktrees", "Cleanup, merged-only"
 
 ---
 

@@ -110,8 +110,11 @@ dispatch error, not a valid evidence location.
 
 This sits outside the working tree, so writing here leaves `git status --short` empty —
 the clean-tree check in `dispatch-discipline.md` "Worktree exclusivity during review"
-stays valid. It survives a reboot, and `git worktree remove` deletes it automatically
-with the worktree — no orphan directories.
+stays valid. The directory survives a reboot but not cleanup — `git worktree remove`
+deletes it with the worktree, which is why nothing orphans, but also why a record citing
+only a path under it stops being checkable once the PR's worktree is gone. This is
+scratch storage for a review in flight, never the archive; a record quotes what it cites
+before cleanup runs.
 
 **Files, named by commit** — `<sha7>-<check>.log` is the raw output, exit code appended
 (e.g. `mise run ci > <dir>/<sha7>-ci.log 2>&1; echo "exit: $?" >> <dir>/<sha7>-ci.log`);
@@ -119,7 +122,10 @@ with the worktree — no orphan directories.
 
 **Protocol** — the hands agent first writes a stub `.md` with `status: running`, runs the
 check with output redirected to the `.log`, then completes the `.md`. Its reply is one
-line: the path and the status.
+line: the path and the status. A check that runs more than one command writes each exact
+command into the `.log` immediately before that command's own capture, so `command:`
+names the single command the check is invoked by, while the `.log` carries the full
+sequence it ran.
 
 **Record format** (`.md`, key: value, no prose):
 
@@ -127,9 +133,9 @@ line: the path and the status.
 sha:
 tree_clean_before:
 command:
-started:
+started:              # date -u +%FT%TZ, run at that moment
 exit:
-finished:
+finished:             # date -u +%FT%TZ, run at that moment
 summary:             # the runner's final summary line, verbatim
 failures:             # - <unit>: <n> <compile|runtime> - <one-clause reason>
 sha_after:
@@ -169,7 +175,9 @@ IS the report. Otherwise, one record per command, per `/claude-code:claude-outpu
 `assets/ci-evidence-format.md` "Execution evidence".
 
 **Forbidden**: never fixes, never judges, never posts to GitHub, never writes files other than its
-own logs (the worktree evidence files above, or its scratchpad-clone logs).
+own logs (the worktree evidence files above, or its scratchpad-clone logs), and never backgrounds a
+command or starts a polling loop (`&`, `nohup`, a background-run flag) — a foreground instruction is
+not satisfied by a loop that outlives the hand-back.
 
 **Model selection**: per `SKILL.md` "Model overrides" (hands row).
 

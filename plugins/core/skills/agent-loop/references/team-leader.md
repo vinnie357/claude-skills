@@ -96,7 +96,7 @@ A failed checkbox blocks the spawn. Fix it before invoking Task.
 3. PR description: what the epic delivered (bullet list, no implementation details)
 4. Report: epic ready for user review, include PR link
 5. Merge per the deployment's merge policy — see `/core:git` "Merge authorization"; the default waits for the user
-6. After merge: confirm `gh pr view --json state` reports `MERGED`, then `git worktree remove <path>` (never `rm -rf`), then `git branch -D <branch>`, then `git pull --ff-only` in the primary checkout — see `/core:git` "Worktrees", "Cleanup, merged-only"
+6. After merge: confirm `gh pr view --json state` reports `MERGED`, then confirm the review evidence is quoted on the PR. Then `git worktree remove <path>` (never `rm -rf`), then `git branch -D <branch>`, then `git pull --ff-only` in the primary checkout — see `/core:git` "Worktrees", "Cleanup, merged-only"
 7. Report: epic complete, ready for next assignment
 
 ## Escalation Rules
