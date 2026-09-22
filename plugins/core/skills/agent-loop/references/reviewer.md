@@ -59,7 +59,13 @@ and an integer `EXIT` are present. Set aside a record that fails any check and n
 missing evidence. Then read `RESULT` and `EXCERPT`; open `LOG` by line range when a
 finding needs more than `EXCERPT` carries — never the whole file.
 
+A fabricated `started` or `finished` timestamp is missing evidence, not a result to judge:
+a placeholder such as `00:00:00Z`, a `finished` earlier than its `started`, or a time ahead
+of now. Reject the record and ask the lead to re-dispatch the check.
+
 ## Output
 
 Findings follow `/claude-code:claude-output-styles` `assets/review-findings-format.md`. The
-durable verdict record follows the Gate 3 record layout in `/core:git` Gate 3.
+durable verdict record follows the Gate 3 record layout in `/core:git` Gate 3. That record
+quotes the `.md` record and the `.log` lines each finding cites, because the evidence
+directory dies with the worktree; a record carrying only paths is not durable.

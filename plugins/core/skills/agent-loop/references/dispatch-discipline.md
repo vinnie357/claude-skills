@@ -74,7 +74,9 @@ A destructive scenario runs through execution hands in their own scratchpad clon
 
 ## No timed polling loops in workers
 
-Spawned agents do not sustain timed polling loops. The `Monitor` tool is restricted; `sleep` longer than a few seconds is blocked. Polling work decomposes into one-shot snapshot agents the lead re-spawns at intervals OR external orchestration that pings on event.
+Spawned agents do not sustain timed polling loops or background any command. The `Monitor` tool is restricted; `sleep` longer than a few seconds is blocked. Polling work decomposes into one-shot snapshot agents the lead re-spawns at intervals OR external orchestration that pings on event.
+
+**Post-hand-back sweep.** After EVERY hand-back — not only before dispatching a writer — the lead runs `pgrep -fl -- <worktree path>` against the worktree and kills only processes its own dispatch started. Two caveats, both verified in the originating session: the harness blocks a bare long `sleep` (`sleep 25` is refused), which is why this rule once read as sufficient, but that block does not reach an `until <check>; do sleep 2; done` loop or a backgrounded command (`&`, `nohup`, a background-run flag) — the shape that survived hand-back. And `pgrep -f` matches argv, so a process whose cwd is the worktree but whose argv never names it does not appear.
 
 ## Verify tool state via host inspection, not agent perception
 
@@ -100,8 +102,9 @@ writer committed mid-run and the reviewer's result was void.
    marks the run void; this is the hands' own report contract, in `researcher.md`
    "Evidence files".
 3. Never resume or dispatch a writer into a worktree while a reviewer or its hands is
-   still running there. Stop them first and confirm no build/test process still
-   references the worktree.
+   still running there. Stop them first and run the post-hand-back sweep above (`pgrep
+   -fl -- <worktree path>`) to confirm no build/test process still references the
+   worktree.
 4. Never act on a reviewer's in-progress draft; wait for its handback (see
    `reviewer.md`).
 5. A detached per-review worktree (`git worktree add --detach <root>/<repo>-review-<sha7>
