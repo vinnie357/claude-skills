@@ -48,7 +48,7 @@
       "class": "ACCEPTED",
       "issue": "claude-skills-148",
       "first_seen": "2026-07-26",
-      "detail_count": 7
+      "detail_count": 3
     },
     {
       "key": "elixir/anti-patterns:anti_fab",

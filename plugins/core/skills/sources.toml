@@ -16,10 +16,10 @@ url = "https://git-scm.com/doc"
 check_method = "manual"
 current_version = "unknown"
 version_constraint = "rolling"
-last_checked = "2025-11-15"
+last_checked = "2026-09-22"
 update_priority = "low"
 breaking_changes_likely = false
-notes = "Official Git documentation and best practices (git operations, branching, rebasing, conflict resolution). Docs-based reference; no version the skill content is verified against."
+notes = "Official Git documentation and best practices (git operations, branching, rebasing, conflict resolution). Docs-based reference. The Worktrees section's claims (index/HEAD per-worktree, refs/stash shared, add refusing a checked-out branch, -d refusing after a squash merge) are verified against git 2.54.0 man pages plus execution in a throwaway repo (2026-09-22)."
 
 # ----------------------------------------------------------------------------
 # Conventional Commits — commit message specification.

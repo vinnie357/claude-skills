@@ -9,8 +9,8 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 ### Git Documentation
 - **URL**: https://git-scm.com/doc
 - **Purpose**: Official Git documentation and best practices
-- **Date Accessed**: 2025-11-15
-- **Key Topics**: Git operations, branching, rebasing, conflict resolution
+- **Date Accessed**: 2026-09-22
+- **Key Topics**: Git operations, branching, rebasing, conflict resolution, worktrees (`gitrepository-layout(5)`, `git worktree --help`, `git branch --help`) — the Worktrees section's claims are verified against git 2.54.0 man pages plus execution in a throwaway repo
 
 ### Conventional Commits
 - **URL**: https://www.conventionalcommits.org/

@@ -85,7 +85,75 @@ research, judge, or fix.
 **Skills first**: an execution hand loads the task's skills before running its command, same as
 any other spawned agent.
 
-**Scratchpad clone only** — never the shared working tree:
+**In a PR's worktree, execution hands are writers by execution.** Running `mise run ci`
+or a build there needs the writer stopped first, per `dispatch-discipline.md`'s
+"Worktree exclusivity during review" — the hands run in the foreground only once that
+exclusivity holds.
+
+### Evidence files (worktree review)
+
+Evidence for a hands run inside a PR's own worktree lives on disk, so the record does
+not depend on the hands agent's reply surviving a stall or an idle timeout.
+
+**Location** — the worktree's own git dir, never the scratchpad and never committed.
+This mechanism applies only to hands running inside a PR's own worktree, never the
+primary — that follows from "Worktree exclusivity during review" restricting review to a
+PR's worktree in the first place:
+
+```bash
+$(git rev-parse --absolute-git-dir)/evidence/   # <repo>/.git/worktrees/<name>/evidence/
+```
+
+Run from the primary instead, `--absolute-git-dir` resolves to `<repo>/.git` — outside
+this carve-out and never auto-removed. Treat a hands run that resolves there as a
+dispatch error, not a valid evidence location.
+
+This sits outside the working tree, so writing here leaves `git status --short` empty —
+the clean-tree check in `dispatch-discipline.md` "Worktree exclusivity during review"
+stays valid. It survives a reboot, and `git worktree remove` deletes it automatically
+with the worktree — no orphan directories.
+
+**Files, named by commit** — `<sha7>-<check>.log` is the raw output, exit code appended
+(e.g. `mise run ci > <dir>/<sha7>-ci.log 2>&1; echo "exit: $?" >> <dir>/<sha7>-ci.log`);
+`<sha7>-<check>.md` is the terse record.
+
+**Protocol** — the hands agent first writes a stub `.md` with `status: running`, runs the
+check with output redirected to the `.log`, then completes the `.md`. Its reply is one
+line: the path and the status.
+
+**Record format** (`.md`, key: value, no prose):
+
+```
+sha:
+tree_clean_before:
+command:
+started:
+exit:
+finished:
+summary:             # the runner's final summary line, verbatim
+failures:             # - <unit>: <n> <compile|runtime> - <one-clause reason>
+sha_after:
+tree_clean_after:
+status:               # complete | partial | void
+```
+
+`status: void` means the SHA or tree changed during the run — the record itself catches
+that. `status: partial` means the hands agent completed the stub and started the check
+but did not finish it (a `.log` with no matching `exit:` line, or a run cut short); a
+subsequent hands run overwrites it with `complete` or `void`. `status: complete` is the
+only status a reviewer accepts as a finished result. Neither status catches a writer that
+edits and reverts inside the run window, leaving both snapshots clean — that case is
+caught only by clause 3's lead enforcement (never resume a writer while hands are
+running), not by the record.
+
+The reviewer reads the `.md` and `.log`, never the hands' reply — see `reviewer.md`
+"Reading evidence". This is the contract for hands running inside a PR's own worktree
+specifically; an execution hand running a one-off bounded command elsewhere (a
+scratchpad clone, a non-review context) keeps using the generic contract in "Report"
+below. The two coexist by context — neither replaces the other.
+
+**Scratchpad clone only for destructive commands** — never the shared working tree or a
+PR's worktree:
 
 ```
 git clone <repo> "$SCRATCHPAD/repo"
@@ -96,11 +164,12 @@ Removing `origin` is not optional. `git clone` from a local path sets origin to 
 so a push from the scratchpad writes refs back into it; a `cp -R` that carries `.git` keeps the
 GitHub remote and pushes to the real one.
 
-**Report**: one record per command, per `/claude-code:claude-output-styles`
+**Report**: for a hands run inside a PR's own worktree, the evidence-file record above
+IS the report. Otherwise, one record per command, per `/claude-code:claude-output-styles`
 `assets/ci-evidence-format.md` "Execution evidence".
 
 **Forbidden**: never fixes, never judges, never posts to GitHub, never writes files other than its
-own logs.
+own logs (the worktree evidence files above, or its scratchpad-clone logs).
 
 **Model selection**: per `SKILL.md` "Model overrides" (hands row).
 

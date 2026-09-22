@@ -16,7 +16,7 @@ Use when changes require human review before merging.
 #### Session Start
 
 ```bash
-git checkout main && git pull    # Start fresh
+git pull --ff-only               # Advance the primary; never checkout a branch here
 bees ready                       # Find available issues
 bees show <id>                   # Read issue requirements
 ```
@@ -24,15 +24,18 @@ bees show <id>                   # Read issue requirements
 #### Issue Execution
 
 ```bash
-git checkout -b feature/<name>   # Create feature branch
-bees update <id> --status in_progress  # Claim issue
+bees update <id> --status in_progress  # Claim issue — run from the primary
+git fetch origin
+git worktree add "$WORKTREE_ROOT/<repo>-<slug>" -b feature/<name> origin/main
+cd "$WORKTREE_ROOT/<repo>-<slug>"
 
 # Execute work (see "Execute Work" section below)
 
-bees close <id>                  # Complete issue
 git add <files>                  # Stage changes
 git commit -m "type(scope): description"  # Commit (use /core:gcms for suggestions)
 ```
+
+See `/core:git` "Worktrees" for `$WORKTREE_ROOT` and the location rules.
 
 #### PR Creation
 
@@ -46,12 +49,18 @@ Notify user: "PR created: \<url\>"
 
 Then STOP and report the PR URL. Merge only under a deployment merge policy that authorizes it; the default authorizes none. Never queue an automatic or deferred merge.
 
+After CI passes, `bees close <id>` from the primary, then land the `.bees/issues.jsonl`
+export as its own `chore(bees)` PR — see `/core:git` "Worktrees", "Bees runs from the
+primary."
+
 #### After Merge (When User Returns)
 
 ```bash
 gh pr view --json state -q '.state'  # Check if "MERGED"
-git checkout main && git pull && git branch -d <branch>
-bees ready                       # Find next issue
+git worktree remove <path>           # Never rm -rf
+git branch -D <branch>               # -d refuses after a squash merge
+git pull --ff-only                   # In the primary
+bees ready                           # Find next issue
 ```
 
 #### PR Workflow Principles
@@ -60,7 +69,7 @@ bees ready                       # Find next issue
 2. **Claim before working**: `bees update --status in_progress`
 3. **Minimal PRs**: Title + bullets only
 4. **Report, do not merge**: The default merge policy authorizes no agent merge; never assume approval
-5. **Clean up**: Delete local branch after merge
+5. **Clean up**: Confirm `MERGED`, then `git worktree remove` and `git branch -D`
 
 ---
 

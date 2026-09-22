@@ -19,7 +19,7 @@ Activate when creating commits, managing branches, creating pull requests, resol
 This skill follows `core:anti-fabrication`. The commit/PR format rules are house
 convention, but the "Remote and Authentication Conventions" section makes specific,
 checkable claims about Git and the GitHub API — this is the one skill in this set that
-does, and its two claims are verified two different ways:
+does, and its claims are verified in different ways:
 
 - **Anonymous access to GitHub Releases on a private repo returns 404, not 403.**
   Confirmed against GitHub's own documentation, cited in `sources.md`: "GitHub uses a 404
@@ -32,6 +32,10 @@ does, and its two claims are verified two different ways:
   `.github/workflows/*.yml` change over HTTPS with a token lacking `workflow` scope is
   rejected ("Refusing to allow an OAuth App to create or update workflow ... without
   `workflow` scope"); the identical push over SSH succeeds.
+- **The Worktrees section's mechanics** (index and `HEAD` per-worktree, `refs/stash`
+  shared, `add` refusing a branch already checked out, `-d` refusing after a squash
+  merge, the `$WORKTREE_ROOT` root formula) are confirmed against git 2.54.0 man pages
+  and reproduced by execution in a throwaway repo, cited in `sources.md`.
 
 Don't assert `git`/`gh`/`glab` CLI or GitHub/GitLab API behavior this skill doesn't
 already cover without checking the current docs, or testing it directly when the docs
@@ -115,20 +119,22 @@ Note `glab`'s flag is `--description`, not `--body` — the flag name differs fr
 
 ## PR / MR Workflow
 
+Every PR starts in its own worktree off fresh `origin/main` — see Worktrees below.
+
 1. **Gate 1 — Local CI**: `mise run ci` — fix until 0 failures
 2. **Commit**: Conventional commit, no attribution
 3. **Gitleaks**: Scan committed changes for secrets — `$(mise which gitleaks) git . --staged`, never a bare `gitleaks` (`/core:security`). The `check-secrets-before-commit.sh` PreToolUse hook backstops this on `git commit`, once `/core:security` has been invoked once this session — it then keeps running on every later turn, not only while that skill's own turn is active (`/claude-code:claude-hooks`) — and it fails open — allows the commit — when no scanner is available. The gap is a session that never invokes the skill, not one where it is merely "not loaded." Run the scan yourself; don't treat the hook as a substitute for it.
 4. **Push**: `git push -u origin <branch>`
 5. **Create PR**: `gh pr create` (GitHub) or `glab mr create` (GitLab) with minimal format (title + bullets)
 6. **Gate 2 — Watch remote CI**: `gh pr checks --watch` (GitHub) or `glab ci status --live` (GitLab) (wait for CI to complete)
-7. **After CI passes** (if using bees):
-   - `bees close <task-id>`
-   - `git add .bees/ && git commit -m "chore(bees): close <task-id>"`
-   - `git push`
+7. **After CI passes** (if using bees) — run `bees close <task-id>` from the primary
+   checkout, then land the `.bees/issues.jsonl` export as its own `chore(bees)` PR from a
+   worktree; see Worktrees, "Bees runs from the primary." Never `git add .bees/ && git
+   commit` inside this PR's own worktree — the live tracker state lives in the primary,
+   not here.
 8. **Notify** (Gate 2 satisfied — local + remote green): "CI passed, PR ready for merge review"
-9. **Cleanup** (after user merges):
-   - `git checkout main && git pull`
-   - `git branch -d <branch>`
+9. **Cleanup** (after user merges) — follow the Worktrees "Cleanup, merged-only" sequence
+   below: confirm `MERGED`, `git worktree remove`, `git branch -D`.
 10. **Continue**: `bees ready` for next task
 
 ## Three-Gate Merge Policy
@@ -306,6 +312,81 @@ Never use regular merge or rebase merge for PRs or MRs. Squash merge keeps main 
 
 Branch naming is platform-agnostic — identical on GitHub and GitLab. So are the Three-Gate Merge Policy and Key Rules; only the CLI verbs change.
 
+## Worktrees
+
+New work happens in its own worktree. The primary checkout stays on `main`, clean, and
+advances only via `git pull --ff-only` — nobody commits or switches branches there. Clean
+means `git status --short -- . ':!.bees'` is empty; `.bees/` churn is tracker bookkeeping
+and doesn't count against that clean check.
+
+**Bees runs from the primary.** `bees close`, `bees update`, and other write commands
+operate on the primary checkout's live `.bees/bees.db` — a worktree's own `.bees/` lacks
+it. The resulting `.bees/issues.jsonl` export lands as its own `chore(bees)` PR, opened
+from a worktree like any other work; the primary itself never commits it.
+
+**Location** — `$WORKTREE_ROOT/<repo>-<slug>`, defaulting to:
+
+```bash
+$(dirname "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")/worktrees
+```
+
+`--git-common-dir` resolves identically from the primary checkout and from inside a
+worktree; `--show-toplevel` does not — run inside a worktree, it returns the worktree
+itself, yielding a nested `worktrees/worktrees`. The formula assumes the ordinary layout
+— `.git` is a directory inside the primary checkout; it resolves one directory too high
+in a bare repo and relative to the git dir, not the checkout, under `--separate-git-dir`.
+Set `$WORKTREE_ROOT` explicitly in either of those layouts. Never `/tmp`,
+`/private/tmp`, or a harness scratchpad (cleared on reboot), and never inside the
+project tree (`.worktrees/`, `.claude/worktrees/`) — tree-walking build and scan tools
+descend into a nested checkout.
+
+**Create** — fetch first, so the branch point isn't stale:
+
+```bash
+git fetch origin
+git worktree add "$WORKTREE_ROOT/<repo>-<slug>" -b <type>/<slug> origin/main
+```
+
+**What is actually shared.** The object database and refs are shared across worktrees,
+**including `refs/stash`** — a stash taken in one worktree is visible and poppable in
+every other. The index and `HEAD` are per-worktree (`gitrepository-layout(5)`), so `git
+worktree add` refuses a branch already checked out elsewhere — a safeguard, not the
+index corruption an earlier version of this rule claimed (see `sources.md`).
+
+**Build state never travels** — never symlink (it has caused disasters) or copy
+`_build`, `deps`, `.zig-cache`, `zig-out`, `node_modules` into a worktree. Cold builds
+are expensive: one worktree per issue or PR, reused across every review round, never a
+throwaway review worktree. Share only toolchain-designed caches: `~/.cache/zig`,
+`~/.hex`, `~/.mix`.
+
+**Cleanup, merged-only** — confirm `gh pr view <n> --json state` reports `MERGED`, then
+`git worktree remove <path>` (never `rm -rf`), then `git branch -D <branch>` (`-d`
+refuses after a squash merge, since the tip is never an ancestor). `git worktree remove`
+itself refuses on modified or untracked files ("use --force to delete it") — an evidence
+directory alone does not trigger this. Inspect what's untracked, then `--force` if it's
+expected debris; `--force` removes the directory and the entry together, while `rm -rf`
+removes only the directory and leaves a registered entry pointing at nothing
+(`prunable`) — that orphan is why `rm -rf` is banned. `git worktree prune` stays banned
+too — it drops entries for a missing directory that can still belong to another agent's
+open PR, and it never helps a directory that still exists.
+
+**Recovery** — when a reboot cleared a worktree directory whose PR is still open, `git
+worktree add -f <same-path> <branch>` re-attaches the registered entry.
+
+**Harness worktrees** (`EnterWorktree`, `.claude/worktrees/`) are excluded for any work
+that becomes a commit or PR — harness-specific, inside the repo, and they leave
+untracked detached leftovers. `isolation: 'worktree'` inside a workflow run stays
+sanctioned: the harness creates a per-agent worktree and removes it only if the agent
+leaves it unchanged (`/claude-code:claude-workflows`, `/claude-code:claude-agents`). An
+implementer that commits has changed the tree, so that tree persists — the same
+untracked-leftover exclusion above then applies to it.
+
+**Destructive commands** still run in a scratchpad clone, not a worktree — see
+`/core:agent-loop`'s `references/researcher.md` "Execution hands".
+
+Who may run what inside a worktree, and when, is `/core:agent-loop`'s concern — see its
+worktree exclusivity section.
+
 ## Remote and Authentication Conventions
 
 ### SSH-form remote URLs for operations
@@ -317,14 +398,6 @@ Use SSH-form remote URLs (`git@github.com:<owner>/<repo>.git`, or `git@gitlab.co
 git remote set-url origin git@github.com:<owner>/<repo>.git
 git remote set-url origin git@gitlab.com:<group>/<project>.git
 ```
-
-### No git worktrees for agent isolation
-
-Do not use `git worktree add` to create isolated workspaces for parallel agents. Worktrees share the parent repository's object database and branch lock; concurrent operations across worktrees corrupt the index and break checkouts.
-
-Use one of these instead:
-- **Shallow clone**: `git clone --depth 50 --reference /<canonical-path>/<repo> --dissociate /tmp/agent-<id>/<repo>` — separate object DB, fast.
-- **Plain `cp -R`**: of the canonical clone into a temp dir — slower but no shared state at all.
 
 ### GitHub Releases on private repositories require authentication
 
@@ -385,7 +458,7 @@ The squash-merge row above shows the bare command for reference. Never run it un
 - **Squash merge PRs**: Always use `gh pr merge --squash`
 - **Single-line commits preferred**: Use body only when explanation is needed
 - **Merge per policy**: Under the default, wait for the user; never queue a deferred merge — see "Merge authorization"
-- **Clean up after merge**: Delete branches locally and remotely
+- **Clean up after merge**: Confirm `MERGED` via `gh pr view --json state`, then `git worktree remove <path>` (never `rm -rf`), then `git branch -D <branch>` — see Worktrees, "Cleanup, merged-only"
 - **Use gcms**: Generate commit messages with `/core:gcms` skill
 
 ## References

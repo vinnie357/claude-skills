@@ -26,35 +26,47 @@ A Tier 1 lead runs zero direct work: no `Bash`, no `Edit`, no `Write`, no `Read`
 
 The leader speaks of itself as "Tier 1" and spawned agents as Tier 2 (sub-lead), Tier 3 (worker), Tier 4 (validator), Tier 5 (fix-agent / reviewer). Spawned agents are NEVER called "team lead" — that term is reserved for Tier 1 to avoid recursive confusion in spawn prompts.
 
-## Branch from fresh main, explicitly
+## Start in a fresh worktree off origin/main, explicitly
 
 Every PR-opening spawn prompt's Step 0 is:
 
 ```bash
-git fetch origin main
-git checkout origin/main
-git checkout -b <branch>
+git fetch origin
+git worktree add "$WORKTREE_ROOT/<repo>-<slug>" -b <branch> origin/main
 ```
 
-Without this step, the spawned agent inherits the working tree's current branch — often a sibling PR's stale branch — and produces a PR that contains both the new work and the sibling's diff.
+`$WORKTREE_ROOT` and the location rules are `/core:git`'s "Worktrees" section — never
+`/tmp`, `/private/tmp`, or a harness scratchpad. Without a fresh worktree off
+`origin/main`, a spawned agent that instead `cd`s into the shared checkout inherits its
+current branch — often a sibling PR's stale branch — and produces a PR that contains
+both the new work and the sibling's diff. A second guarantee follows from the worktree
+itself: no other agent's uncommitted or committed-but-unpushed work can leak into this
+PR, because nothing else writes to this tree.
 
-## Read-only agents never touch the shared working tree
+## Read-only agents never touch the shared repository or its worktrees
 
 Reviewers, auditors, and research agents get this verbatim in their spawn prompt:
 
 ```
 Never run git checkout, switch, restore, stash, reset, clean, rebase, merge,
-pull, cherry-pick, apply, am, or branch -f/-D against the shared working tree,
-or any other command that changes HEAD, the index, or tracked or untracked
-files. To inspect another ref: git show <ref>:<path>, git diff a...b,
-git ls-tree. To obtain execution, request execution hands (see the reviewer reference).
-Do not write under .git/ directly (config, hooks, refs); git fetch is the only
-sanctioned .git write.
+pull, cherry-pick, apply, am, or branch -f/-D against the shared repository or
+any of its worktrees, or any other command that changes HEAD, the index, or
+tracked or untracked files. Refs are shared across every worktree of one
+repository, so branch -D from any of them deletes the ref for everyone. To
+inspect another ref: git show <ref>:<path>, git diff a...b, git ls-tree,
+gh pr diff <number>. To obtain execution, request execution hands (see the
+reviewer reference). Do not write under .git/ directly (config, hooks, refs);
+git fetch and writing under .git/worktrees/<name>/evidence/ (see the
+researcher reference) are the only sanctioned .git writes.
 ```
+
+A per-issue worktree does not loosen this ban — "not my worktree" reads as license the
+same way "not my working tree" once did, and the shared object database and refs mean a
+write there still lands on everyone.
 
 The catch-all clause matters as much as the names. A closed list recreates the failure it fixes one step over — an agent that reads literally enough to treat checkout-then-restore as net-zero will also read "rebase isn't on the list". `git clean -fd` is the worst omission a list can have: it destroys teammates' uncommitted work with no recovery, unlike the incident below, which was survivable.
 
-`.git/` internals are not covered by "HEAD, the index, or tracked files" — `git status` never lists them — so the block adds: do not write under `.git/` directly (config, hooks, refs); `git fetch` is the only sanctioned `.git` write. The vector that earns the clause is `.git/hooks/*`: a hook written there executes on a teammate's next commit, which is mutation by proxy. The carve-out matters as much as the ban, since a flat "never write under `.git/`" would forbid `git fetch`, which reviewers legitimately need.
+`.git/` internals are not covered by "HEAD, the index, or tracked files" — `git status` never lists them — so the block adds two named carve-outs, not a general "writes under `.git` are fine": `git fetch`, and writing evidence records under `.git/worktrees/<name>/evidence/` (`researcher.md` "Evidence files"). The vector that earns the ban is `.git/hooks/*`: a hook written there executes on a teammate's next commit, which is mutation by proxy — an inert evidence-log directory is not that vector. Both carve-outs matter as much as the ban itself, since a flat "never write under `.git/`" would forbid `git fetch`, which reviewers legitimately need, and now the evidence files hands need too.
 
 Name the commands. "No git state changes" is not enough — an agent given that wording checked out a PR branch, restored main afterward, and read the round trip as net-zero. Three other agents were writing to that tree at the time; all three had their work silently moved onto the wrong branch. It was recoverable only because the branch happened to sit at the same commit and the reviewer disclosed the checkout in its report.
 
@@ -71,3 +83,32 @@ Before claiming "tool X is missing on host Y", the lead spawns a snapshot agent 
 ## Search prior decision records before proposing architecture
 
 Before any architectural proposal, search the project's decision-records directory (`architecture/decisions/`, `docs/adrs/`, etc.) for prior coverage. Inventing a design that contradicts an existing ADR wastes review cycles; extending or amending an existing ADR is the correct path.
+
+## Worktree exclusivity during review
+
+Once an issue's writer and its reviewer share one worktree (`/core:git` "Worktrees" —
+one worktree per issue or PR, reused across rounds), the lead is the enforcer of who may
+touch it and when. This closed a real collision: a reviewer's execution hands ran `mise
+run ci` in a PR's worktree while the lead resumed the writer in that same tree; the
+writer committed mid-run and the reviewer's result was void.
+
+1. A reviewer's execution hands run builds or CI in the worktree only while the writer
+   is stopped. The lead enforces this exclusivity — it is not the reviewer's or the
+   writer's to negotiate.
+2. The hands — not the reviewer — check before and after the run: `git rev-parse HEAD`
+   equals the reviewed SHA and `git status --short` is empty. Either check failing
+   marks the run void; this is the hands' own report contract, in `researcher.md`
+   "Evidence files".
+3. Never resume or dispatch a writer into a worktree while a reviewer or its hands is
+   still running there. Stop them first and confirm no build/test process still
+   references the worktree.
+4. Never act on a reviewer's in-progress draft; wait for its handback (see
+   `reviewer.md`).
+5. A detached per-review worktree (`git worktree add --detach <root>/<repo>-review-<sha7>
+   <sha>`) was considered and rejected: full isolation, but every review pays a cold
+   build. Reuse the writer's worktree under clauses 1-4 instead.
+
+A reviewer's spawn prompt must never offer an escape hatch to self-execution — never
+phrase it as "delegate to hands, or run it directly if they stall." There is no
+fallback to the reviewer running a command itself, ever; see `reviewer.md` "Reviewers
+never execute" for the reviewer's own stall protocol.
