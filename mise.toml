@@ -343,6 +343,7 @@ nu ($repo_root | path join "test" "validate-security-hook.nu")
 """
 
 [tasks."test:git-hook"]
+depends = ["test:attribution-hook"]
 description = "Regression test: merge-write PreToolUse gate — scanner tokenization and gh/glab decision rules (claude-skills-340)"
 run = """
 #!/usr/bin/env nu
@@ -350,6 +351,10 @@ run = """
 let repo_root = (git rev-parse --show-toplevel | str trim)
 nu ($repo_root | path join "test" "validate-git-hook.nu")
 """
+
+[tasks."test:attribution-hook"]
+description = "Check attribution guards for Git and forge writes"
+run = "nu test/validate-attribution-hook.nu"
 
 [tasks."test:gitleaks-invocation"]
 description = "Regression test: gitleaks.nu non-git fail-open and template native-first ordering (claude-skills-267)"
