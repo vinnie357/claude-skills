@@ -43,7 +43,7 @@ def is-assignment-word [t: string]: nothing -> bool {
 def find-method [rest: list<string>] {
     let n = ($rest | length)
     mut i = 0
-    mut found = null
+    mut found: any = null
     while $i < $n {
         let t = ($rest | get $i)
         if $t == "--method" and ($i + 1) < $n {
@@ -145,7 +145,7 @@ def decide-segment [tokens: list<string>]: nothing -> bool {
         }
         let method = (find-method $rest)
         let non_get = if $method != null {
-            (($method | str downcase) != "get")
+            ($method !~ "(?i)^get$")
         } else {
             # gh api switches to POST when parameters are supplied, with
             # no explicit method token.

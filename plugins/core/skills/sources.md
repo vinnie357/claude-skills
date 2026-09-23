@@ -6,6 +6,12 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 
 ## Git Skill
 
+### No-attribution policy and enforcement
+- **Source**: Operator requirement, 2026-09-23, tracked as `claude-skills-370`; earlier policy-only fix `claude-skills-297`.
+- **Purpose**: Ban assistant signatures and robot footers across Git and forge output, including issues and branch descriptions.
+- **Implementation evidence**: `plugins/core/skills/git/hooks/block-attribution.nu` and `test/validate-attribution-hook.nu`; tests supply hook payloads without publishing or executing their command text.
+- **Scope**: Local house policy, not a claim about GitHub/GitLab server enforcement or Claude Code defaults.
+
 ### Git Documentation
 - **URL**: https://git-scm.com/doc
 - **Purpose**: Official Git documentation and best practices

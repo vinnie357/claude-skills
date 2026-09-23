@@ -73,8 +73,8 @@ The `gh pr comment` equivalent — posts under the authenticated identity.
 Docs example: `glab mr note create 123 -m "Looks good to me!"`
 
 **Attribution rule applies here too.** This posts under the authenticated identity
-exactly like a commit — no `Co-Authored-By`, no "Generated with Claude Code" or
-model/vendor mentions. Unlike a commit, a posted comment is public immediately and
+exactly like a commit — no robot emoji, `Co-Authored-By`, "Generated with Claude Code",
+or assistant signatures. Ordinary product references are allowed. Unlike a commit, a posted comment is public immediately and
 cannot be quietly amended; edits leave a visible history.
 
 ## Merge — `glab mr merge [<id|branch>] [flags]`

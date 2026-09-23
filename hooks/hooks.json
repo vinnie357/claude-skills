@@ -1,5 +1,5 @@
 {
-  "description": "Inject agent-loop tier model and skill-loading discipline at session start",
+  "description": "Core attribution guard and startup contract for all-skills",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "nu \"${CLAUDE_PLUGIN_ROOT}/skills/git/hooks/block-attribution.nu\"",
+            "command": "nu \"${CLAUDE_PLUGIN_ROOT}/plugins/core/skills/git/hooks/block-attribution.nu\"",
             "timeout": 10
           }
         ]
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/plugins/core/hooks/session-start.sh\"",
             "timeout": 5
           }
         ]

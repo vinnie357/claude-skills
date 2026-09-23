@@ -41,7 +41,11 @@ when the trigger condition arises.
 4. Code without tests is not complete. `mise run ci` must pass before
    any commit, push, PR, or merge.
 
-5. NO Co-Authored-By attribution in commits or PRs. Squash merge only.
+5. NO agent attribution anywhere in Git or forge output: commits, branches,
+   tags, PRs, MRs, issues, titles, descriptions, comments, reviews or releases.
+   No robot emoji, "Generated with Claude Code", assistant signatures, or
+   Co-Authored-By / Signed-off-by trailers. Check every field before posting.
+   Squash merge only.
    Merge per AGENT_LOOP_MERGE_POLICY; the default authorizes no agent merge.
 
 [END CORE SESSION-START CONTRACT]

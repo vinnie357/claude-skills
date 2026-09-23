@@ -235,6 +235,7 @@ Glob patterns like `/core:*` do not expand in Agent prompts. List skill names ex
 - **Tracker**: Use bees (`bees ready`, `bees close`) for issue management
 - **Commits**: Conventional commits, no attribution, no Co-Authored-By
 - **PRs**: Minimal format (title + bullet list), no templates, no attribution
+- **Every Git/forge write**: No robot emoji, "Generated with Claude Code", or assistant signatures in commits, branches, tags, PRs, MRs, issues, descriptions, comments, reviews or releases. Check outgoing fields before publishing, including generated body files; follow `/core:git`.
 - **TDD**: Code without tests is not complete
 - **Merge gates (three)**: Gate 1 — local `mise run ci` green before every commit; Gate 2 — local + remote `gh pr checks` green; Gate 3 — adversarial review of the PR by a separate agent on the strongest available model, findings addressed or answered. All three before any squash merge (see `/core:git` Three-Gate Merge Policy). Gate 3 is distinct from this skill's pipeline reviewers, including Forge's Final Reviewer — it is identified by its two-question brief (see `/core:git` Three-Gate Merge Policy), not by when it runs.
 - **Branches**: One feature branch per epic (`feature/<epic-slug>`)

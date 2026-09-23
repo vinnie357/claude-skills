@@ -73,7 +73,9 @@ optional footer
 
 **Footer** (optional): Reference issues (`Closes #123`), note breaking changes (`BREAKING CHANGE: ...`).
 
-**NEVER include attribution** — no `Co-Authored-By`, `Signed-off-by`, or similar footers. This rule has no exceptions, and it is not limited to commits: it covers everything posted through `gh`/`glab` under the authenticated identity — PR/MR titles and descriptions, PR/MR comments and review bodies (`gh pr comment --body`, `gh pr review --body`, `glab mr note create --message`), issue comments, release notes, and annotated-tag messages. Unlike gitleaks (which has the `check-secrets-before-commit.sh` PreToolUse hook as a backstop), this rule has **no enforcement hook at all** — a known gap, not an oversight to assume away. A commit message is amendable while the PR is open; a posted comment is public immediately, and edits leave a visible history.
+**NEVER add agent attribution anywhere in Git or a forge.** No robot emoji (`🤖`), "Generated with Claude Code", AI signatures, `Co-Authored-By`, `Signed-off-by`, or similar credit. This covers commits and trailers; branch names and descriptions; tags and annotations; PR/MR titles, bodies and descriptions; issues and their titles/descriptions; comments, reviews, discussions, release notes, and API-posted content. Apply the rule to every creation, edit, reply, and merge message, regardless of tool or agent. Describe the work without crediting the assistant. Ordinary product names and required source/license notices are not assistant signatures.
+
+**Check before publishing, not only during review.** Inspect the final outgoing title, name, message, description, and any body file before every Git/forge write. Remove attribution inherited from templates, generated text, or commit history. Never append a signature after checking. Core and all-skills register a plugin-level attribution hook for Bash calls; its supported command forms and limits are documented in [references/no-attribution.md](references/no-attribution.md). Other tools still require the same pre-publication check.
 
 **Examples:**
 
@@ -111,7 +113,7 @@ glab mr create --title "feat(auth): add JWT authentication" --description "- Add
 Note `glab`'s flag is `--description`, not `--body` — the flag name differs from `gh`'s.
 
 **Rules:**
-- No attribution (no "Generated with Claude Code" or similar)
+- No robot emoji, agent credit, "Generated with Claude Code", or similar attribution in any field
 - No PR / MR templates or boilerplate sections
 - No "Summary", "Test Plan", or other headers
 - Just the changes as bullet points
@@ -166,7 +168,7 @@ Gate 3 requirements:
 - **Read-only; execution through execution hands.** See ADR 0001 decision 4 and `/core:agent-loop`'s `references/reviewer.md`.
 - **Findings are addressed or answered, not waved through.** Applying a fix, disputing it with evidence, and filing it as a tracked follow-up all count. Silence does not.
 - **Verify the reviewer's claims independently** before acting on them. A review is evidence, not a verdict.
-- **Grep for attribution before posting a comment or declaring gates green** — both the branch's commits and the comment text about to be posted: `git log origin/main..HEAD --format='%B' | grep -niE 'co-authored-by|signed-off-by|assisted-by|generated with'`, same pattern against the comment body. The pattern deliberately excludes bare model/vendor names — in this repo (`claude-skills`, scopes like `feat(claude-code):`) a bare `grep -i claude` would be a constant false positive. Eyeball the trailer block to catch what the pattern misses.
+- **Recheck attribution before declaring gates green** — inspect the branch's commits, PR/MR title and description, and outgoing comments: `git log origin/main..HEAD --format='%B' | grep -niE '🤖|co-authored-by|signed-off-by|assisted-by|generated (with|by)'`, then apply the same check to the other fields. This supplements the pre-publication check; it does not postpone it. Exclude bare product/vendor names from the pattern and inspect signatures the pattern misses.
 - **The verdict and each finding's disposition land as a durable record on the PR.** Under `approval`, the record is the PR comment carrying the marker line of "Merge authorization" rule 2. Post it with `gh pr comment`, never inside a review body, which the `comments` field excludes. Under `operator`, a bees comment the PR links also counts, and it travels in the tracked `issues.jsonl` export.
 - **Confirm the record before declaring Gate 3 green.** Confirm a PR comment with `gh pr view <n> --comments`. Confirm a bees comment with `bees comment list <task-id>` and the link to it in the PR body or comments. Confirm it opens with the fit-and-size answer; a record that begins with findings has skipped focus area 1.
 
@@ -469,7 +471,7 @@ The squash-merge row above shows the bare command for reference. Never run it un
 
 ## Key Rules
 
-- **No attribution**: Never add `Co-Authored-By`, `Signed-off-by`, or similar to commits. No "Generated with Claude Code" or similar in PRs
+- **No attribution anywhere**: Check all Git/forge writes before publication, including issues, branches, descriptions, comments, commits, PRs and MRs. No robot emoji or assistant signatures.
 - **Squash merge PRs**: Always use `gh pr merge --squash`
 - **Single-line commits preferred**: Use body only when explanation is needed
 - **Merge per policy**: Under the default, wait for the user; never queue a deferred merge — see "Merge authorization"
