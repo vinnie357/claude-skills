@@ -59,7 +59,7 @@ def api-write [args: list<string>]: nothing -> bool {
         if $entry.item =~ '^--method=' { $method = ($entry.item | str replace '--method=' '') }
         if $entry.item =~ '^-X.+' { $method = ($entry.item | str substring 2..) }
     }
-    if ($method | str upcase) in ['GET' 'HEAD' 'OPTIONS'] { return false }
+    if $method =~ '(?i)^(GET|HEAD|OPTIONS)$' { return false }
     if ($method | is-not-empty) { return true }
     $args | any {|t| $t =~ '^(-[fF]|--(field|raw-field|input)(=|$))' }
 }

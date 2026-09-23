@@ -95,8 +95,8 @@ def main [] {
     for group in [{commands: $denied, want: 2} {commands: $allowed, want: 0}] {
         for command in $group.commands {
             let payload = {tool_name: Bash, cwd: $fixture, tool_input: {command: $command}}
-            let result = ($payload | to json | ^nu $hook | complete)
-            if $result.exit_code != $group.want or ($group.want == 2 and ($result.stderr | str trim | is-empty)) {
+            let result = ($payload | to json | ^$nu.current-exe $hook | complete)
+            if $result.exit_code != $group.want or ($group.want == 2 and ($result.stderr | str trim | is-empty)) or ($result.stderr | str contains "nu::parser::deprecated") {
                 $failures = ($failures | append $"($command): expected ($group.want), got ($result.exit_code); ($result.stderr | str trim)")
             }
         }
@@ -108,7 +108,7 @@ def main [] {
         '{"tool_name":"Bash","tool_input":{"command":42}}'
     ]
     for payload in $harmless_payloads {
-        let result = ($payload | ^nu $hook | complete)
+        let result = ($payload | ^$nu.current-exe $hook | complete)
         if $result.exit_code != 0 or ($result.stderr | str contains 'Error:') {
             $failures = ($failures | append $"Malformed/non-Bash payload failed: ($result.stderr)")
         }
