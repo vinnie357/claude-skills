@@ -12,6 +12,13 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 - **Implementation evidence**: `plugins/core/skills/git/hooks/block-attribution.nu` and `test/validate-attribution-hook.nu`; tests supply hook payloads without publishing or executing their command text.
 - **Scope**: Local house policy, not a claim about GitHub/GitLab server enforcement or Claude Code defaults.
 
+### Claude Code native attribution settings
+- **URLs**: https://code.claude.com/docs/en/settings and https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md
+- **Date Accessed**: 2026-09-23
+- **Purpose**: Configure native attribution alongside the Git skill's publication checks and hook.
+- **Key Topics**: User/project/local scope and precedence; `attribution` replacing `includeCoAuthoredBy` in v2.0.62; `sessionUrl` in v2.1.183; Boolean shorthand in v2.1.281 and older-client incompatibility.
+- **Local evidence**: `claude --version` reported 2.1.280. Read-only inspection of that executable found help text defining empty commit/PR strings as hiding attribution and a session-link suppression check for `sessionUrl: false`. No fresh Claude-generated commit or PR was tested with this configuration; hook regression results do not establish native-setting behavior.
+
 ### Git Documentation
 - **URL**: https://git-scm.com/doc
 - **Purpose**: Official Git documentation and best practices

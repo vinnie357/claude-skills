@@ -77,6 +77,8 @@ optional footer
 
 **Check before publishing, not only during review.** Inspect the final outgoing title, name, message, description, and any body file before every Git/forge write. Remove attribution inherited from templates, generated text, or commit history. Never append a signature after checking. Core and all-skills register a plugin-level attribution hook for Bash calls; its supported command forms and limits are documented in [references/no-attribution.md](references/no-attribution.md). Other tools still require the same pre-publication check.
 
+**Configure Claude Code's built-in attribution too.** When setting up the no-attribution policy, merge `"attribution": {"commit": "", "pr": "", "sessionUrl": false}` into the chosen settings file, preserving unrelated settings. Use `~/.claude/settings.json` for the user's projects on this machine or `.claude/settings.json` for a shared project policy. Read [native configuration and verification](references/no-attribution.md#claude-code-settings) for precedence, version compatibility and behavior checks. Keep the hook and pre-publication checks active; this setting controls Claude Code's commit/PR attribution, not all Git/forge output.
+
 **Examples:**
 
 ```bash

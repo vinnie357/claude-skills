@@ -6,6 +6,71 @@ generation footer, assistant signature, or authorship trailer. Include issues,
 branch names/descriptions, tags, releases, reviews and comments in this check.
 Ordinary references to a product and required source/license notices are allowed.
 
+## Claude Code settings
+
+When configuring Claude Code to follow this policy, merge this object into the
+selected settings file. Preserve existing permissions, hooks and other settings.
+
+```json
+{
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  }
+}
+```
+
+Empty `commit` and `pr` strings suppress Claude Code's built-in commit trailer
+and PR attribution text. `sessionUrl: false` also suppresses the session link
+for web and Remote Control commits and PRs; blanking the two strings alone does
+not disable that separate link.
+
+Choose the scope that matches the request:
+
+- `~/.claude/settings.json`: the user's projects on this machine. If
+  `CLAUDE_CONFIG_DIR` is set, use its `settings.json` instead.
+- `.claude/settings.json`: shared project configuration; commit it for teammates.
+- `.claude/settings.local.json`: a personal project override; keep it untracked.
+
+Check higher-priority sources when a value does not apply. Managed settings take
+precedence over command-line settings, then project-local, shared project and
+user settings. A user-level setting alone does not enforce a team policy or
+configure a cloud session. Installing this skill does not write these settings.
+
+Use the object form for compatibility. `attribution` replaced the deprecated
+`includeCoAuthoredBy` setting in v2.0.62; `sessionUrl` was added in v2.1.183.
+The shorter `"attribution": false` form requires v2.1.281; older clients skip
+a settings file containing that Boolean form. Check `claude --version` before
+choosing a form, especially for a file shared by multiple client versions.
+
+Keep the hook and the publication checks below. Native settings control Claude
+Code's generated commit/PR attribution; they do not filter arbitrary issue
+comments, branch names, other tools or inherited message content.
+
+### Verify the configuration
+
+1. Check the installed version and parse the selected settings file as JSON.
+   Inspect only the attribution fields when reporting configuration evidence.
+2. Start a fresh Claude Code session in the target project. Use `/status` to
+   inspect setting sources and check higher-priority files for overrides.
+3. For a behavior test, use a disposable repository and have Claude create a
+   local commit. Inspect the actual message with `git log -1 --format=%B`.
+   Record whether a hook blocked an attempted signature: a clean result after
+   hook intervention does not prove that the native setting prevented it.
+4. Inspect the actual title and body on the next authorized PR. A local commit
+   test does not verify PR behavior or web/Remote Control session-link behavior.
+   Do not publish a test PR solely to validate settings without authorization.
+
+Evidence recorded on 2026-09-23: the installed v2.1.280 binary's help text
+described empty strings as hiding attribution, and its session-link code checked
+`sessionUrl: false`. This was static inspection, not an end-to-end commit/PR
+test. The hook suite below tests a separate mechanism. Report these evidence
+levels separately; configuration presence alone does not prove live behavior.
+
+Sources: [settings scopes and precedence](https://code.claude.com/docs/en/settings)
+and [release history](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md).
+
 ## Before publication
 
 1. Prepare the final title, name, description, message and body file.
