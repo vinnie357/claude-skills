@@ -27,7 +27,7 @@ const ENTRY_KEYS = [
     "github_repo" "hex_package" "crate_name"
     "npm_package" "docker_image" "docker_tag" "eol_product"
     "current_version" "version_constraint" "last_checked"
-    "update_priority" "breaking_changes_likely" "notes"
+    "update_priority" "breaking_changes_likely" "notes" "private"
 ]
 # claude-skills-210: npm (registry.npmjs.org), docker-hub (Hub API tags list),
 # and endoflife-date (endoflife.date) added alongside the original three.
@@ -410,6 +410,17 @@ def check-sources [
                         message: $"($plugin)/($name): last_checked '($lc)' is neither YYYY-MM-DD nor 'unknown'"
                     })
                 }
+            }
+
+            # `private` flags a source whose upstream repo is not publicly
+            # readable; sources-validate-urls.nu reads it as a boolean, so any
+            # other type (e.g. the string "true") would silently disable it.
+            if "private" in $cols and (($entry.private | describe) != "bool") {
+                $findings = ($findings | append {
+                    rule: "b3_private_bool"
+                    severity: "fail"
+                    message: $"($plugin)/($name): private is a ($entry.private | describe), expected a bool \(true or false\)"
+                })
             }
 
             if "current_version" in $cols {

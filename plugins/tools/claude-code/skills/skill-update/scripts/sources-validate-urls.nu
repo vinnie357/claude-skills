@@ -7,6 +7,12 @@
 # Usage: nu sources-validate-urls.nu [--plugin <name>] [--format line|json|table]
 #        nu sources-validate-urls.nu --self-test
 #
+# Private upstream repos: a source entry with `private = true` in a plugin's
+# skills/sources.toml makes every URL at or under that entry's repo report
+# status `private` (an expected 404) instead of `dead`. The repo base is
+# `https://github.com/<github_repo>` when the entry has a github_repo, else
+# the entry's `url`. No env var or credential is involved.
+#
 # Output columns (all formats): plugin | skill | source | url | status | notes
 #   --format line   (default) one grep-able line per row: "[status] plugin/
 #                    skill source: url — notes". Fixes claude-skills-241 —
@@ -34,10 +40,10 @@
 # the `use sources-lib.nu [...]` below) instead of re-deriving it, and adds
 # three validator-specific concerns sources-lib.nu has no reason to carry: a
 # HEAD-to-GET fallback (some hosts, e.g. m3.material.io, reject HEAD with 405
-# but serve GET fine), a known-private-repo allowlist (an unauthenticated
-# check against a private GitHub repo 404s regardless of whether the content
-# exists — see plugins/tools/runex/skills/sources.toml's own notes for the
-# precedent this mirrors), and a crates.io API cross-check.
+# but serve GET fine), a private-repo relabel driven by the `private = true`
+# flag in sources.toml (an unauthenticated check against a private GitHub
+# repo 404s regardless of whether the content exists), and a crates.io API
+# cross-check.
 #
 # claude-skills-220 Gate 3 (F1): an earlier revision of this file classified
 # every crates.io/crates/<name> 404 as "dead". That was WRONG, not just
@@ -65,15 +71,29 @@ use sources-lib.nu [classify-fetch-error, USER_AGENT]
 # unauthenticated HTTP check against a private GitHub repo 404s regardless of
 # whether the content exists (GitHub returns 404, not 403, to avoid confirming
 # the repo's existence), so those URLs are expected-404, not link rot.
-# stub: replaced by implementer
+# Only a boolean `true` counts. The base is `https://github.com/<github_repo>`
+# when github_repo is a non-empty string, else `url` minus trailing slashes;
+# a flagged record with neither is skipped.
 export def private-repo-bases [sources: list]: nothing -> list<string> {
-    []
+    $sources
+    | where {|s| (($s | get -o private) == true)}
+    | each {|s|
+        let repo = ($s | get -o github_repo)
+        let url = ($s | get -o url)
+        if (($repo | describe) == "string") and not ($repo | is-empty) {
+            $"https://github.com/($repo)"
+        } else if (($url | describe) == "string") and not ($url | is-empty) {
+            $url | str trim --right --char "/"
+        } else {
+            null
+        }
+    }
+    | compact
 }
 
 # Pure: does `url` equal one of `bases` or sit under one (`<base>/...`)?
-# stub: replaced by implementer
 export def is-known-private-repo-url [url: string, bases: list<string>]: nothing -> bool {
-    false
+    $bases | any {|b| ($url == $b) or ($url | str starts-with $"($b)/")}
 }
 
 # Pure: does this caught error text indicate the server rejected HEAD with
@@ -97,9 +117,10 @@ export def needs-get-fallback [err_text: string]: nothing -> bool {
 #   rate-limited -> rate-limited  (403/429/"rate limit" text — retry later)
 #   error        -> error         (DNS/connection/timeout/other — not a
 #                                   content judgment either way)
-# A "dead" result against a known-private-repo URL is further relabeled
-# "private" — GitHub's documented 404-instead-of-403 behavior for private
-# repos means this specific 404 is expected, not link rot.
+# A "dead" result against a URL at or under one of `bases` (the repos flagged
+# `private = true` in sources.toml) is further relabeled "private" —
+# GitHub's documented 404-instead-of-403 behavior for private repos means
+# this specific 404 is expected, not link rot.
 #
 # claude-skills-220 Gate 3 (F1): this function alone is NOT the final word on
 # "dead" for crates.io — see the crates.io API cross-check in check-url
@@ -108,7 +129,6 @@ export def needs-get-fallback [err_text: string]: nothing -> bool {
 # unconfirmed either way). classify-url-error stays pure (no network) and
 # reports what the HTTP layer said; the network-dependent override lives in
 # check-url, the only place in this file allowed to make a second call.
-# stub: replaced by implementer (third param accepted, private check off)
 export def classify-url-error [err_text: string, url: string, bases: list<string>]: nothing -> string {
     let base = classify-fetch-error $err_text
     let mapped = match $base {
@@ -323,6 +343,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     }
 
     let sources = $data.sources? | default []
+    let bases = (private-repo-bases $sources)
     mut rows = []
 
     for src in $sources {
@@ -333,7 +354,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
 
         if not ($url | is-empty) {
             print -e $"  CHECK ($url)"
-            let row = check-url $plugin_name $skill $name $url []
+            let row = check-url $plugin_name $skill $name $url $bases
             if $row != null {
                 $rows = ($rows | append $row)
             }
@@ -341,7 +362,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
 
         if not ($releases_url | is-empty) {
             print -e $"  CHECK ($releases_url)"
-            let row = check-url $plugin_name $skill $"($name) [releases]" $releases_url []
+            let row = check-url $plugin_name $skill $"($name) [releases]" $releases_url $bases
             if $row != null {
                 $rows = ($rows | append $row)
             }
@@ -815,6 +836,11 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
     {failed: $failed, count: $count}
 }
 
+# Check every source URL in each plugin's skills/sources.toml.
+#
+# A source entry with `private = true` makes URLs at or under it report status
+# `private` (an expected 404) instead of `dead`. Set the flag in that
+# plugin's sources.toml.
 def main [--plugin: string = "", --format: string = "line", --self-test] {
     if $self_test {
         let result = run-self-test
