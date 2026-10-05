@@ -19,11 +19,13 @@ const ERROR_NAMES = [
     claude--code claude_code claude.code claude-tools anthropic-tools
     anthropics-x cc-plugin-x official-claude claude-official official-anthropic
     anthropic-official officialclaude claude-for-x claude_ claude-code-tools
-    claude-codex
+    claude-codex official--claude cc--plugin-x cc__plugin__x claude-.-code
+    Claude--Code-Tools Official-Claude Anthropic-Tools
 ]
 const WARNING_NAMES = [
     extras-claude-code my-claude my-claude-tools mcp-for-claude
-    tool-anthropic-x official-plugin-claude my-anthropics-tool
+    tool-anthropic-x official-plugin-claude my-anthropics-tool my--claude
+    My-Claude MY-ANTHROPICS-TOOL Official_Plugin-Claude Mcp-For-Claude
 ]
 const OK_NAMES = [
     extras-cc extras anthropicx claudex cc-tools cc-plugin official-tools
@@ -176,6 +178,18 @@ def scan-cases []: nothing -> list {
     $out
 }
 
+# True when one output line carries every token (a per-finding line, not the counts line).
+def line-has [stdout: string, tokens: list<string>]: nothing -> bool {
+    $stdout | lines | any { |l|
+        $tokens | all { |t| $l | str contains --ignore-case $t }
+    }
+}
+
+# A reason substring that is long enough to be specific to the verdict.
+def reason-token [name: string]: nothing -> string {
+    (reserved-name-verdict $name).reason | split chars | first 20 | str join
+}
+
 def run-cli [root: string]: nothing -> record {
     ^nu ($TEST_DIR | path join "validate-plugin-names.nu") --root $root | complete
 }
@@ -190,9 +204,8 @@ def cli-cases []: nothing -> list {
         let r = (run-cli $bad)
         [
             (check-eq "cli error fixture exit code" $r.exit_code 1)
-            (result "cli error fixture names the file" ($r.stdout | str contains ".claude-plugin/marketplace.json") $r.stdout)
-            (result "cli error fixture names the plugin" ($r.stdout | str contains "claude-code") $r.stdout)
-            (result "cli error fixture names the level" ($r.stdout =~ '(?i)error') $r.stdout)
+            (result "cli error: marketplace finding line has file, name, level, reason" (line-has $r.stdout [".claude-plugin/marketplace.json" "claude-code" "error" (reason-token "claude-code")]) $r.stdout)
+            (result "cli error: plugin.json finding line has file, name, level, reason" (line-has $r.stdout ["plugins/tools/claude-code/.claude-plugin/plugin.json" "claude-code" "error" (reason-token "claude-code")]) $r.stdout)
         ]
     }))
 
@@ -214,8 +227,9 @@ def cli-cases []: nothing -> list {
         let r = (run-cli $warn)
         [
             (check-eq "cli warning fixture exit code" $r.exit_code 0)
-            (result "cli warning fixture names the plugin" ($r.stdout | str contains "my-claude") $r.stdout)
-            (result "cli warning fixture names the level" ($r.stdout =~ '(?i)warning') $r.stdout)
+            (result "cli warning: marketplace finding line has file, name, level, reason" (line-has $r.stdout [".claude-plugin/marketplace.json" "my-claude" "warning" (reason-token "my-claude")]) $r.stdout)
+            (result "cli warning: plugin.json finding line has file, name, level, reason" (line-has $r.stdout ["plugins/x/my-claude/.claude-plugin/plugin.json" "my-claude" "warning" (reason-token "my-claude")]) $r.stdout)
+            (result "cli warning fixture has no error finding line" (not (line-has $r.stdout ["my-claude" "error"])) $r.stdout)
         ]
     }))
 
