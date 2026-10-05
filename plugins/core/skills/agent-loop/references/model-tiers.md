@@ -11,7 +11,7 @@ column.
 | strongest reasoning | `fable` | `gpt-6-astra` | `claude-opus-4-6-thinking` |
 | strongest fallback (unavailable only) | `opus` | `gpt-6.1-sol` | `gemini-3.1-pro-high` |
 | deep reasoning | `opus` | `gpt-6.1-sol` | `gemini-3.1-pro-high` |
-| general | `sonnet` | `gpt-5.6-terra` | `claude-sonnet-4-6` |
+| general | `sonnet` | n/a | `claude-sonnet-4-6` |
 | smallest fast | `haiku` (`Explore` agent type for text research) | `gpt-6-luna` | `gemini-3.8-flash-medium` |
 | multimodal | unverified | unverified | unverified |
 | effort setting | `--effort <level>`; agent `effort:` frontmatter | `-c model_reasoning_effort=<level>` | `--effort <level>` on models that accept it; Gemini ids carry effort as a `-low`/`-medium`/`-high` suffix |
@@ -23,7 +23,6 @@ column.
 - agy rejects `--effort` for `claude-opus-4-6-thinking` ("--effort is not supported") — its Claude models take no effort setting, and `claude-sonnet-4-6` effort is unverified.
 - agy `--model gemini-3.8-flash-medium --effort high` fails ("conflicts with --effort=high") — pass Gemini effort through the id suffix only.
 - `gemini-3.1-pro` has no `-medium` id.
-- gpt-5.5 and older Flash ids map to no tier.
 - `gpt-6.1-sol` and `gpt-6-luna` come from the codex configuration and were not probed with a one-shot run. The 2026-09-15 verification date does not cover them.
 
 ## Example launch config
