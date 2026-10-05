@@ -171,7 +171,7 @@ so a push from the scratchpad writes refs back into it; a `cp -R` that carries `
 GitHub remote and pushes to the real one.
 
 **Report**: for a hands run inside a PR's own worktree, the evidence-file record above
-IS the report. Otherwise, one record per command, per `/claude-code:claude-output-styles`
+IS the report. Otherwise, one record per command, per `/extras-cc:claude-output-styles`
 `assets/ci-evidence-format.md` "Execution evidence".
 
 **Forbidden**: never fixes, never judges, never posts to GitHub, never writes files other than its

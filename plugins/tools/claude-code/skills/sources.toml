@@ -2,7 +2,7 @@
 # Run `mise sources:check` to compare against the latest upstream release.
 
 [meta]
-plugin = "claude-code"
+plugin = "extras-cc"
 reviewed_at_plugin_version = "0.2.23"
 last_full_check = "2026-07-30"
 

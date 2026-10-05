@@ -463,7 +463,7 @@ def main [] {
     # 237-268ms locally, a ~2.4x runner factor that is NOT the same factor
     # every row pays (payload-size ~2.4x, token-count ~3.5x, segment-count
     # ~2.4x). 800ms sits under the one-second PreToolUse figure
-    # `/claude-code:claude-hooks` documents at its Best Practices section.
+    # `/extras-cc:claude-hooks` documents at its Best Practices section.
     print "--- hook: latency rows (PASSING #14/#15, min-of-3 < 800ms) ---"
 
     let large_token_cmd = (fixture-large-quoted-token)

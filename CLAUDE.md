@@ -192,7 +192,7 @@ Main instructional content goes here...
 - `license`: License name or filename reference
 - `metadata`: Key-value string pairs for client-specific properties
 
-**Do not use `allowed-tools` in skill frontmatter.** Enforced by `test/validate-plugin.nu` and the skill-quality scorecard. Skills keep frontmatter minimal (`name`, `description`, optional `license`). Tool filtering applies to **agents** — declare the allowlist via the agent's `tools:` frontmatter field (see `/claude-code:claude-agents`), not on the skill the agent loads.
+**Do not use `allowed-tools` in skill frontmatter.** Enforced by `test/validate-plugin.nu` and the skill-quality scorecard. Skills keep frontmatter minimal (`name`, `description`, optional `license`). Tool filtering applies to **agents** — declare the allowlist via the agent's `tools:` frontmatter field (see `/extras-cc:claude-agents`), not on the skill the agent loads.
 
 #### Markdown Body
 
@@ -362,7 +362,7 @@ This repository is designed as a Claude Code plugin marketplace. Users can selec
 /plugin install rust@vinnie357        # Rust programming
 /plugin install dagu@vinnie357        # Workflow orchestration
 /plugin install ui@vinnie357          # UI frameworks
-/plugin install claude-code@vinnie357 # Plugin development tools
+/plugin install extras-cc@vinnie357 # Plugin development tools
 ```
 
 ### Marketplace Architecture
@@ -674,7 +674,7 @@ This structure aligns with the Agent Skills Specification while adding cookbook-
 
 ## Plugin Development
 
-The `claude-code` plugin provides skills and validation scripts for building your own Claude Code plugins and marketplaces:
+The `extras-cc` plugin provides skills and validation scripts for building your own Claude Code plugins and marketplaces:
 
 ### Skills
 - **plugin-marketplace** - Marketplace.json schema, validation, and management
@@ -698,7 +698,7 @@ The plugin includes Nushell scripts for automated validation:
 Install the plugin to build your own plugins:
 
 ```bash
-/plugin install claude-code@vinnie357
+/plugin install extras-cc@vinnie357
 ```
 
 ## Additional Resources

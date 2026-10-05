@@ -443,7 +443,7 @@ test:version-bumps <base> (standalone — also runs as a dedicated CI job on PRs
 ```
 🔍 Validating all plugins...
 
-✅ plugin: claude-code
+✅ plugin: extras-cc
 ✅ plugin: core
 ✅ plugin: elixir
 ✅ plugin: rust

@@ -32,7 +32,7 @@ Artifacts land under `<OUTPUT_DIR>/`: `<DATE>-feature-inventory.md`, `<DATE>-sdl
 - `/core:agent-loop`
 - `/core:anti-fabrication`
 - `/core:bees`
-- `/claude-code:claude-teams`
+- `/extras-cc:claude-teams`
 
 **Task instructions:**
 

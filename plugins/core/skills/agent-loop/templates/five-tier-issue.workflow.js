@@ -32,10 +32,10 @@
 //
 // Agent labeling: pass a label option to agent() calls to override the display
 // label shown in the /workflows progress output. This makes it easier to track
-// which stage and model pair a given agent represents. See /claude-code:claude-workflows
+// which stage and model pair a given agent represents. See /extras-cc:claude-workflows
 // for the full agent() function contract.
 //
-// Constraints (from /claude-code:claude-workflows): plain JavaScript only;
+// Constraints (from /extras-cc:claude-workflows): plain JavaScript only;
 // Date.now(), Math.random(), and argless new Date() throw — pass timestamps
 // and the escalation chain through args. The script has no filesystem or
 // shell access; agents do that work.
@@ -135,7 +135,7 @@ const HEAD = {
   properties: { sha: { type: 'string' } },
 }
 
-// One execution-evidence record per /claude-code:claude-output-styles
+// One execution-evidence record per /extras-cc:claude-output-styles
 // assets/ci-evidence-format.md "Execution evidence".
 const EVIDENCE = {
   type: 'object', required: ['command', 'revision', 'cwd', 'exit', 'result', 'excerpt', 'log'],
@@ -279,7 +279,7 @@ function execHandsPrompt(req, sha) {
     'references/researcher.md "Execution hands": git clone the repo into your',
     'scratchpad, git remote remove origin there, git checkout the revision,',
     'and run the command there — never in the shared working tree.',
-    'Report one Execution evidence record per /claude-code:claude-output-styles',
+    'Report one Execution evidence record per /extras-cc:claude-output-styles',
     'assets/ci-evidence-format.md: command, revision (the 40-hex sha you ran',
     'against), cwd, exit (the command\'s own exit code — never through a pipe;',
     'use set -o pipefail or capture the code before piping), result, excerpt, log.',

@@ -1,7 +1,7 @@
 # awman v0.9.1 — Command Reference
 
 Pinned to awman v0.9.1 (released 2026-05-28, accessed 2026-06-02).
-Newer versions get their own `templates/X.Y.Z/commands.md` per the `/claude-code:skill-update` convention.
+Newer versions get their own `templates/X.Y.Z/commands.md` per the `/extras-cc:skill-update` convention.
 
 Source: https://github.com/prettysmartdev/awman (README + docs/, accessed 2026-06-02)
 

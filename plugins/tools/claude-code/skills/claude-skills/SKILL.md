@@ -46,7 +46,7 @@ Write the description in third person, stating both what the skill does and when
 
 > **Critical**: The `description` is the ONLY text Claude sees during skill discovery (Level 1). The body's "When to Use" section only loads AFTER activation (Level 2) and cannot trigger it. All activation triggers belong in the description.
 
-Tune a description by failure mode: too broad produces false positives — add domain-specific terms; too narrow produces false negatives — add synonyms and trigger scenarios. Activation-rate targets and eval prompt counts live in `/claude-code:claude-skills-benchmark`.
+Tune a description by failure mode: too broad produces false positives — add domain-specific terms; too narrow produces false negatives — add synonyms and trigger scenarios. Activation-rate targets and eval prompt counts live in `/extras-cc:claude-skills-benchmark`.
 
 ### Frontmatter policy for THIS marketplace
 
@@ -120,7 +120,7 @@ Fencing does not protect this example — nesting it inside a five-backtick oute
 - `CLAUDE_SKILL_DIR` — absolute path to this skill's directory (use for bundled scripts: `bash <CLAUDE_SKILL_DIR>/scripts/foo.sh`)
 - `CLAUDE_PLUGIN_ROOT` — absolute path to the enclosing plugin's root directory (use for scripts shared across a plugin's skills: `bash <CLAUDE_PLUGIN_ROOT>/scripts/foo.sh`)
 
-The four `CLAUDE_*` names are written bare because they are used as brace expansions in real files and **the leading-backslash escape does not work on the braced form** — verified by loading: the backslash survives and the token still expands, printing the live session ID and paths. See `/claude-code:claude-commands` "Argument Substitution" for the full rule.
+The four `CLAUDE_*` names are written bare because they are used as brace expansions in real files and **the leading-backslash escape does not work on the braced form** — verified by loading: the backslash survives and the token still expands, printing the live session ID and paths. See `/extras-cc:claude-commands` "Argument Substitution" for the full rule.
 
 **Settled notation for `CLAUDE_SKILL_DIR` and `CLAUDE_PLUGIN_ROOT` in bodies (claude-skills-206):** three distinct forms, three distinct roles — never interchange them within a SKILL.md or commands/*.md body.
 

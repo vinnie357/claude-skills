@@ -11,7 +11,7 @@ Coordinate multiple Claude Code agents working together on shared tasks.
 ## When forming a team
 
 Invoke `/core:agent-loop` for the 4-phase / 6-tier execution model.
-Invoke `/claude-code:claude-agents` for agent file format, tool allowlists, and model selection.
+Invoke `/extras-cc:claude-agents` for agent file format, tool allowlists, and model selection.
 Invoke `/core:anti-fabrication` always — every claim about a tool, file, or test result requires tool execution.
 
 Require each teammate to quote one sentence from each loaded skill in its first message as proof of loading. Do not proceed with the teammate's work until proof is received.
@@ -63,7 +63,7 @@ For architecture guidance and case studies, see `references/patterns.md`.
 | `/loop <prompt>` | You want a self-pacing tick: monitor agents, poll the tracker, advance the queue. Auto-paces via ScheduleWakeup. |
 | Routines | Cron-style scheduled remote agents. Use for daily/weekly autonomous runs. |
 | Channels | Event-driven (webhook/integration) entry points. Use when an external system kicks the loop. |
-| Workflows | Fan-out exceeds one turn, the orchestration itself must be repeatable, or results need independent verification passes — see `/claude-code:claude-workflows`. |
+| Workflows | Fan-out exceeds one turn, the orchestration itself must be repeatable, or results need independent verification passes — see `/extras-cc:claude-workflows`. |
 
 Workflows require explicit opt-in and run in the background; `/core:agent-loop` "Optional: workflow execution substrate" defines how the five-tier pipeline maps onto them.
 

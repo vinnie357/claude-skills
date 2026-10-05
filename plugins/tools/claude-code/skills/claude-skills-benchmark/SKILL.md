@@ -71,7 +71,7 @@ The validator prints one row per skill: line count, score, and the failure keys 
 
 - **Static analysis**: `mise run test:skills-quality` — runs all static checks, produces scorecard
 - **Command**: `/benchmark-skills` — full analysis with category classification and quality assessment
-- **Manual evals**: Use `/claude-code:claude-skills`'s `templates/evaluation-checklist.md`
+- **Manual evals**: Use `/extras-cc:claude-skills`'s `templates/evaluation-checklist.md`
 
 ## Iteration
 

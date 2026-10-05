@@ -111,7 +111,7 @@ Both `hooks` and `mcpServers` accept either a path or an inline object. Inline, 
 }
 ```
 
-`CLAUDE_PLUGIN_ROOT` is written in angle brackets above, but a real hooks value wraps it as a **quoted brace expansion** — the harness expands it at hook runtime, which is correct in a JSON config. It is shown angle-bracketed here, not braced, because the braced form expands when *this skill* loads, replacing it with one machine's absolute path before any reader sees it — the same reason script commands on this page use `<CLAUDE_SKILL_DIR>` angle-bracketed rather than braced (see `/claude-code:claude-skills` "Dynamic context and substitutions" for the full notation convention). For the copyable braced form, see `/claude-code:claude-hooks`, whose reference files are read as raw bytes and can carry it safely.
+`CLAUDE_PLUGIN_ROOT` is written in angle brackets above, but a real hooks value wraps it as a **quoted brace expansion** — the harness expands it at hook runtime, which is correct in a JSON config. It is shown angle-bracketed here, not braced, because the braced form expands when *this skill* loads, replacing it with one machine's absolute path before any reader sees it — the same reason script commands on this page use `<CLAUDE_SKILL_DIR>` angle-bracketed rather than braced (see `/extras-cc:claude-skills` "Dynamic context and substitutions" for the full notation convention). For the copyable braced form, see `/extras-cc:claude-hooks`, whose reference files are read as raw bytes and can carry it safely.
 
 ## Fields that must NOT appear in plugin.json
 

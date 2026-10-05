@@ -36,7 +36,7 @@ Follow this skill's `references/baseline-diff-verification.md` "Procedure" exact
 ## Output
 
 - The baseline-diff table (gate, main, branch, verdict) per `references/baseline-diff-verification.md`.
-- One Execution evidence record per `/claude-code:claude-output-styles`
+- One Execution evidence record per `/extras-cc:claude-output-styles`
   `assets/ci-evidence-format.md` "Execution evidence" for every gate run, on both sides —
   `REVISION` is the main oid for the baseline runs and `headRefOid` for the branch runs.
 - **Artifacts** — produced per `references/baseline-diff-verification.md`:

@@ -72,4 +72,4 @@ Agent({
 })
 ```
 
-`/claude-code:claude-agents` "Agent Spawning Naming Convention" defines each segment and states the counter rule. This file does not restate them.
+`/extras-cc:claude-agents` "Agent Spawning Naming Convention" defines each segment and states the counter rule. This file does not restate them.

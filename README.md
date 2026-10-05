@@ -28,7 +28,7 @@ Add the marketplace and install plugins:
 /plugin install slidev@vinnie357      # Slidev presentations
 /plugin install tweag@vinnie357       # Topiary formatter and Nickel config
 /plugin install ui@vinnie357          # daisyUI, Tailwind CSS theming
-/plugin install claude-code@vinnie357 # Plugin marketplace management tools
+/plugin install extras-cc@vinnie357 # Plugin marketplace management tools
 /plugin install ansible@vinnie357      # Ansible automation, roles, vault, testing
 ```
 
@@ -185,7 +185,7 @@ Zig language features, build system, and tooling.
 
 **Keywords**: zig, systems-programming, comptime, allocators
 
-### `claude-code` - Plugin Development Tools
+### `extras-cc` - Plugin Development Tools
 
 Claude Code plugin marketplace management and validation.
 
@@ -365,7 +365,7 @@ Install only the plugins you need:
 /plugin install ansible@vinnie357
 
 # Plugin developer
-/plugin install claude-code@vinnie357
+/plugin install extras-cc@vinnie357
 ```
 
 ## What Are Agent Skills?
@@ -428,7 +428,7 @@ See the [Agent Skills Specification](https://agentskills.io/specification) for c
 
 ## Plugin Development
 
-The `claude-code` plugin provides tools for plugin and marketplace development:
+The `extras-cc` plugin provides tools for plugin and marketplace development:
 
 - Complete schema documentation for marketplace.json and plugin.json
 - Nushell validation scripts for automated compliance checking
@@ -438,7 +438,7 @@ The `claude-code` plugin provides tools for plugin and marketplace development:
 Install it to build your own Claude Code plugins:
 
 ```bash
-/plugin install claude-code@vinnie357
+/plugin install extras-cc@vinnie357
 ```
 
 ## Testing

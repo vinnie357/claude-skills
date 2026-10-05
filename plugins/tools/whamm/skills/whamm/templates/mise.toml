@@ -3,7 +3,7 @@
 # Source: https://github.com/ejrgilbert/whamm/releases  (verified v0.1.0, 2026-03-04)
 
 [tools."github:ejrgilbert/whamm"]
-version = "0.1.0"  # pin; bump intentionally per /claude-code:skill-update
+version = "0.1.0"  # pin; bump intentionally per /extras-cc:skill-update
 
 # v0.1.0 ships bare-binary assets for x86_64 only.
 [tools."github:ejrgilbert/whamm".platforms]

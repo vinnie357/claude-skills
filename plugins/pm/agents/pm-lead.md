@@ -7,7 +7,7 @@ skills:
   - core:agent-loop
   - core:anti-fabrication
   - core:bees
-  - claude-code:claude-teams
+  - extras-cc:claude-teams
 model: opus
 ---
 
@@ -23,7 +23,7 @@ The skills above are preloaded into your context via the frontmatter `skills:` l
 - `/core:agent-loop`
 - `/core:anti-fabrication`
 - `/core:bees`
-- `/claude-code:claude-teams`
+- `/extras-cc:claude-teams`
 
 ## Input
 
@@ -73,7 +73,7 @@ Skill quotes:
 - /core:agent-loop: <sentence>
 - /core:anti-fabrication: <sentence>
 - /core:bees: <sentence>
-- /claude-code:claude-teams: <sentence>
+- /extras-cc:claude-teams: <sentence>
 
 Bees present: <bool>
 

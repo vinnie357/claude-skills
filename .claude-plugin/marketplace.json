@@ -6,14 +6,17 @@
   },
   "metadata": {
     "description": "A curated collection of Claude skills for development workflows",
-    "version": "1.0.32"
+    "version": "1.0.33"
+  },
+  "renames": {
+    "claude-code": "extras-cc"
   },
   "plugins": [
     {
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.182",
+      "version": "0.4.183",
       "category": "meta",
       "keywords": [
         "skills",
@@ -49,7 +52,7 @@
       "source": "./plugins/tools/awman",
       "strict": true,
       "description": "awman: parallel AI code agent sessions with container isolation, worktrees, and a REST API",
-      "version": "0.2.7",
+      "version": "0.2.8",
       "category": "tools",
       "keywords": [
         "awman",
@@ -115,11 +118,11 @@
       "license": "MIT"
     },
     {
-      "name": "claude-code",
+      "name": "extras-cc",
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills for plugin marketplace management, validation, and component creation",
-      "version": "0.2.89",
+      "version": "0.3.0",
       "category": "tools",
       "keywords": [
         "claude-code",
@@ -143,7 +146,7 @@
       "source": "./plugins/core",
       "strict": true,
       "description": "Essential development skills: Git, TDD, code review, gitleaks secret scanning, documentation, technical English, restraint, anti-fabrication, twelve-factor apps, the agent loop, bees issue tracking, mise, nushell, and Apple Container",
-      "version": "0.2.91",
+      "version": "0.2.92",
       "category": "development",
       "keywords": [
         "git",
@@ -215,7 +218,7 @@
       "source": "./plugins/tools/github",
       "strict": true,
       "description": "GitHub Actions, Workflows, act local testing, community health files, Dependabot consolidation, and PR review",
-      "version": "0.3.16",
+      "version": "0.3.17",
       "category": "tools",
       "keywords": [
         "github",
@@ -238,7 +241,7 @@
       "source": "./plugins/tools/graphify",
       "strict": true,
       "description": "Graphify knowledge-graph tool: build a queryable graph of a codebase and query it instead of reading raw files",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "category": "tools",
       "keywords": [
         "graphify",
@@ -311,7 +314,7 @@
       "source": "./plugins/pm",
       "strict": true,
       "description": "Product management toolkit: harvest implementation-agnostic feature specs from prototypes with SDLC guardrails and author PRDs as implementation contracts",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "category": "tools",
       "keywords": [
         "pm",
@@ -349,7 +352,7 @@
       "source": "./plugins/tools/qa",
       "strict": true,
       "description": "QA team that validates a running application against Gherkin user stories using Playwright and Tidewave",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "category": "tools",
       "keywords": [
         "qa",
@@ -518,7 +521,7 @@
       "source": "./plugins/tools/whamm",
       "strict": true,
       "description": "whamm! WebAssembly bytecode instrumentation: install via mise, the instr/info CLI, injection strategies, and the DTrace-inspired .mm monitor DSL",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "category": "tools",
       "keywords": [
         "whamm",

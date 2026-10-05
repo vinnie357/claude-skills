@@ -20,7 +20,7 @@ A marketplace lives at `.claude-plugin/marketplace.json` in the repository root.
 
 ### Plugin entry schema
 
-Plugin entries use the **plugin manifest schema with every field optional**, plus the marketplace-only fields `source`, `strict`, `category`, and `tags`. Any field valid in a `plugin.json` is therefore valid in an entry — see `/claude-code:claude-plugins` for the manifest schema and for which fields must never appear in a `plugin.json`.
+Plugin entries use the **plugin manifest schema with every field optional**, plus the marketplace-only fields `source`, `strict`, `category`, and `tags`. Any field valid in a `plugin.json` is therefore valid in an entry — see `/extras-cc:claude-plugins` for the manifest schema and for which fields must never appear in a `plugin.json`.
 
 Each entry requires `name` (kebab-case) and `source`. Beyond those:
 

@@ -36,7 +36,7 @@
 //
 // Models are config (12-factor): no model name is hardcoded in a prompt body, and
 // the hands model is selected by capability — handsVisionModel for visual objectives,
-// handsModel otherwise. Constraints (from /claude-code:claude-workflows): plain JS
+// handsModel otherwise. Constraints (from /extras-cc:claude-workflows): plain JS
 // only; Date.now(), Math.random(), and argless new Date() throw — pass timestamps and
 // the escalation chain through args. budget scales fan-out; resume via
 // { scriptPath, resumeFromRunId } replays completed stages from cache.
@@ -135,7 +135,7 @@ const HEAD = {
   properties: { sha: { type: 'string' } },
 }
 
-// One execution-evidence record per /claude-code:claude-output-styles
+// One execution-evidence record per /extras-cc:claude-output-styles
 // assets/ci-evidence-format.md "Execution evidence".
 const EVIDENCE = {
   type: 'object', required: ['command', 'revision', 'cwd', 'exit', 'result', 'excerpt', 'log'],
@@ -326,7 +326,7 @@ function execHandsPrompt(req, sha) {
     'references/researcher.md "Execution hands": git clone the repo into your',
     'scratchpad, git remote remove origin there, git checkout the revision,',
     'and run the command there — never in the shared working tree.',
-    'Report one Execution evidence record per /claude-code:claude-output-styles',
+    'Report one Execution evidence record per /extras-cc:claude-output-styles',
     'assets/ci-evidence-format.md: command, revision (the 40-hex sha you ran',
     'against), cwd, exit (the command\'s own exit code — never through a pipe;',
     'use set -o pipefail or capture the code before piping), result, excerpt, log.',

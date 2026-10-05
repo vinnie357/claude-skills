@@ -23,7 +23,7 @@
 # it lands; this file does not build a shared framework for a hook that
 # does not exist yet.
 #
-# Exit 2 blocks — per /claude-code:claude-hooks, exit 2 is the ONLY code
+# Exit 2 blocks — per /extras-cc:claude-hooks, exit 2 is the ONLY code
 # that blocks a PreToolUse tool call; exit 1, a missing script, a
 # non-executable script, and a timeout are all non-blocking. Exit 0
 # allows: a non-Bash tool_name, malformed/absent/empty stdin, and any
