@@ -79,5 +79,5 @@ exactly the call made on kina PR #36.
 
 Never report a gate result without the verbatim command output. When a failure is
 pre-existing, show it failing on BOTH `main` and the branch — a paraphrase is not evidence.
-Record each gate run as an Execution evidence record per `/claude-code:claude-output-styles`
+Record each gate run as an Execution evidence record per `/extras-claude-code:claude-output-styles`
 `assets/ci-evidence-format.md` "Execution evidence".

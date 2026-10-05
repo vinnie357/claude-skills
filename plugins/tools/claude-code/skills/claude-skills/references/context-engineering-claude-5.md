@@ -43,8 +43,8 @@ patterns the model can observe directly in the code or in a tool schema. A body 
 of its own references, then links to them, pays for that content on every activation and again on
 the drill-down.
 
-In this repo, `/claude-code:claude-teams` (96 lines, 4 references) is the shape to imitate;
-`/claude-code:claude-workflows` (114 lines, 3 references) is the second example. A body that promises
+In this repo, `/extras-claude-code:claude-teams` (96 lines, 4 references) is the shape to imitate;
+`/extras-claude-code:claude-workflows` (114 lines, 3 references) is the second example. A body that promises
 a reference which does not exist is worse than a long body: the detail is advertised and unavailable.
 
 ## 4. Single statements over repetition

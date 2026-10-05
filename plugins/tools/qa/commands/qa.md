@@ -34,7 +34,7 @@ Validate the application against the Gherkin user story at the given path. Spawn
 - `/core:anti-fabrication`
 - `/core:bees`
 - `/core:nushell`
-- `/claude-code:claude-teams`
+- `/extras-claude-code:claude-teams`
 
 **Task instructions:**
 

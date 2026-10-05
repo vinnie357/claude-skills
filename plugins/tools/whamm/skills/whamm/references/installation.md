@@ -20,7 +20,7 @@ macos-arm64 = { asset_pattern = "whamm-macos-x86_64" }
 
 **x86_64 only.** v0.1.0 (2026-03-04) ships two assets — Linux x86_64 and macOS x86_64. No arm64 or Windows asset exists in this release. The `macos-arm64` platform entry maps to the x86_64 binary so mise does not fail on Apple Silicon; macOS runs it under Rosetta 2.
 
-**Version pinning.** Pin to `"0.1.0"` explicitly. Use the `/claude-code:skill-update` skill to check for newer releases and bump the pin intentionally. Never set `version = "latest"` for a binary tool without a lock mechanism — silent upgrades can break scripts.
+**Version pinning.** Pin to `"0.1.0"` explicitly. Use the `/extras-claude-code:skill-update` skill to check for newer releases and bump the pin intentionally. Never set `version = "latest"` for a binary tool without a lock mechanism — silent upgrades can break scripts.
 
 ### Install and verify
 

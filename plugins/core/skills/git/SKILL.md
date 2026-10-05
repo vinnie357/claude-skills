@@ -127,7 +127,7 @@ Every PR starts in its own worktree off fresh `origin/main` — see Worktrees be
 
 1. **Gate 1 — Local CI**: `mise run ci` — fix until 0 failures
 2. **Commit**: Conventional commit, no attribution
-3. **Gitleaks**: Scan committed changes for secrets — `$(mise which gitleaks) git . --staged`, never a bare `gitleaks` (`/core:security`). The `check-secrets-before-commit.sh` PreToolUse hook backstops this on `git commit`, once `/core:security` has been invoked once this session — it then keeps running on every later turn, not only while that skill's own turn is active (`/claude-code:claude-hooks`) — and it fails open — allows the commit — when no scanner is available. The gap is a session that never invokes the skill, not one where it is merely "not loaded." Run the scan yourself; don't treat the hook as a substitute for it.
+3. **Gitleaks**: Scan committed changes for secrets — `$(mise which gitleaks) git . --staged`, never a bare `gitleaks` (`/core:security`). The `check-secrets-before-commit.sh` PreToolUse hook backstops this on `git commit`, once `/core:security` has been invoked once this session — it then keeps running on every later turn, not only while that skill's own turn is active (`/extras-claude-code:claude-hooks`) — and it fails open — allows the commit — when no scanner is available. The gap is a session that never invokes the skill, not one where it is merely "not loaded." Run the scan yourself; don't treat the hook as a substitute for it.
 4. **Push**: `git push -u origin <branch>`
 5. **Create PR**: `gh pr create` (GitHub) or `glab mr create` (GitLab) with minimal format (title + bullets)
 6. **Gate 2 — Watch remote CI**: `gh pr checks --watch` (GitHub) or `glab ci status --live` (GitLab) (wait for CI to complete)
@@ -145,7 +145,7 @@ Every PR starts in its own worktree off fresh `origin/main` — see Worktrees be
 
 Three gates protect main. None is optional, and none substitutes for another.
 
-**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push — resolved binary path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged`. The PreToolUse hook backstops this on `git commit`, once `/core:security` has been invoked once this session — it then keeps running for the rest of the session, not only while that skill is loaded (`/claude-code:claude-hooks`) — and fails open when no scanner is available — it is not a substitute for the scan (`/core:security`).
+**Gate 1 — Local (before every commit).** `mise run ci` runs green — tests, lint, and format, 0 failures — before each `git commit`. A red local CI means the commit is broken: fix it locally, never push past it. Scan staged changes with gitleaks before push — resolved binary path, never a bare `gitleaks`: `$(mise which gitleaks) git . --staged`. The PreToolUse hook backstops this on `git commit`, once `/core:security` has been invoked once this session — it then keeps running for the rest of the session, not only while that skill is loaded (`/extras-claude-code:claude-hooks`) — and fails open when no scanner is available — it is not a substitute for the scan (`/core:security`).
 
 **Gate 2 — Remote (before every squash merge).** Squash-merge a PR only when **both** conditions hold:
 
@@ -396,7 +396,7 @@ worktree add -f <same-path> <branch>` re-attaches the registered entry.
 that becomes a commit or PR — harness-specific, inside the repo, and they leave
 untracked detached leftovers. `isolation: 'worktree'` inside a workflow run stays
 sanctioned: the harness creates a per-agent worktree and removes it only if the agent
-leaves it unchanged (`/claude-code:claude-workflows`, `/claude-code:claude-agents`). An
+leaves it unchanged (`/extras-claude-code:claude-workflows`, `/extras-claude-code:claude-agents`). An
 implementer that commits has changed the tree, so that tree persists — the same
 untracked-leftover exclusion above then applies to it.
 

@@ -348,7 +348,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - `workflow()` one-level nesting matching the two-tier authority model
   - No mid-run user input — decomposition, clarifying questions, and merge approval stay in the interactive loop
   - `acceptEdits` + inherited tool allowlist; concurrency `min(16, cores-2)`; 1000-agent lifetime cap; JS not TS
-  - Cross-references the `/claude-code:claude-workflows` skill for the full script API
+  - Cross-references the `/extras-claude-code:claude-workflows` skill for the full script API
 
 ## Agent Loop — Forge Operating Model
 

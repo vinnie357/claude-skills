@@ -155,7 +155,7 @@ alongside the measured activation rate, not derived from it.
 | ≤ 89% | not-needed | DROP from mandatory | — |
 
 The 90% figure is not invented for this issue — it is
-`claude-code:claude-skills-benchmark`'s own documented target: "Target: 90%+ true positive
+`extras-claude-code:claude-skills-benchmark`'s own documented target: "Target: 90%+ true positive
 rate, <5% false positive rate" (`plugins/tools/claude-code/skills/claude-skills-benchmark/SKILL.md`).
 
 ## Required invocation

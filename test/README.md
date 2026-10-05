@@ -18,8 +18,8 @@ mise test
 `mise run ci` is the canonical CI gate (matches the workspace-wide convention);
 it depends on `test`, which depends on `test:claude`, `test:marketplace`,
 `test:plugins`, `test:skills-quality`, `test:core-list`, `test:disclosure`,
-`test:sources`, `test:fenced-literals`, `test:security-hook`, and
-`test:no-symlinks`.
+`test:sources`, `test:fenced-literals`, `test:security-hook`,
+`test:no-symlinks`, and `test:plugin-names`.
 
 `test:version-bumps` is deliberately **not** a dependency of `test` — it
 needs a real base ref to diff against, which is only meaningful with the
@@ -76,6 +76,28 @@ mise test:core-list
 # or directly
 nu test/validate-core-list.nu --self-test
 nu test/validate-core-list.nu
+```
+
+### Test Plugin Names
+
+Checks every plugin name in `.claude-plugin/marketplace.json`, the root
+`.claude-plugin/plugin.json` (when present), and each
+`plugins/*/.claude-plugin/plugin.json` and `plugins/*/*/.claude-plugin/plugin.json` against the reserved-name rule from the
+`name` field of the plugin manifest reference
+(https://code.claude.com/docs/en/plugins/manifest-reference). The check runs
+offline, so it does not depend on the installed `claude` version. Case is
+ignored and any run of `-`, `_` or `.` counts as one separator. A name is an
+error when it starts with `claude-`, `anthropic-`, `anthropics-` or
+`cc-plugin-`, equals `claude`, `anthropic`, `anthropics`, `claude-code` or
+`claude-mods`, or has `official` beside `claude` or `anthropic`. A name is a
+warning when `claude`, `anthropic` or `anthropics` appears elsewhere as a whole
+word. Errors exit 1; warnings print and exit 0. Runs its unit tests first:
+
+```bash
+mise test:plugin-names
+# or directly
+nu test/test-plugin-names.nu
+nu test/validate-plugin-names.nu
 ```
 
 ### Test Version Bumps
@@ -359,6 +381,7 @@ frontmatter; both sides normalise named args to one `$name` family marker.
 
 - **validate-plugin.nu** — Validates a specific plugin (name, kebab-case, invalid fields, skill paths)
 - **validate-skills-quality.nu** — Skill quality scorecard plus agents/commands/hooks surface pass, duplicate-block scan, and syntax-vs-usage vocabulary check, all ratchet-baseline enforced (`--update-baseline` to regenerate, shrink-only)
+- **validate-plugin-names.nu** — Reserved plugin name check over the marketplace and plugin manifests; logic lives in `plugin-names.nu`, tested by `test-plugin-names.nu`
 - **validate-core-list.nu** — Verifies the mandatory core skill list is identical across the canonical block and all anchored satellite load lists, and sweeps for unregistered files carrying a near-complete copy (`--self-test` runs its fixtures)
 - **check-version-bumps.nu** — Verifies every plugin with changed files bumped `plugin.json` and `marketplace.json` versions against a base ref; hard-fails on a missing/invalid base ref
 - **validate-security-hook.nu** — Regression test for `check-secrets-before-commit.sh`'s gitleaks exit-code handling: stubs a `gitleaks` binary on PATH with a scripted exit code and asserts 0 → allow, 1 → block, any other code → fail closed (claude-skills-224), plus the pre-existing documented fail-open when no scanner is available at all
@@ -420,7 +443,7 @@ test:version-bumps <base> (standalone — also runs as a dedicated CI job on PRs
 ```
 🔍 Validating all plugins...
 
-✅ plugin: claude-code
+✅ plugin: extras-claude-code
 ✅ plugin: core
 ✅ plugin: elixir
 ✅ plugin: rust

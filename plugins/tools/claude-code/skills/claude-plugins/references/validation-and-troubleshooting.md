@@ -7,6 +7,7 @@
 ## Table of Contents
 
 - [What the validator reports](#what-the-validator-reports)
+- [Reserved plugin names](#reserved-plugin-names)
 - [Runtime troubleshooting](#runtime-troubleshooting)
 
 ## What the validator reports
@@ -150,6 +151,28 @@ keywords mismatch — plugin.json is authoritative: plugin.json=[<a>] marketplac
 
 `keywords` compares as a sorted list, not order-sensitively — reordering the array alone is not a
 mismatch, only a genuine difference in members is.
+
+## Reserved plugin names
+
+`claude plugin validate` checks that a plugin name does not pass as one of Anthropic's own. The bundled `validate-plugin.nu` does not run this check. The repository task `mise run test:plugin-names` (`test/validate-plugin-names.nu`) applies the same rule offline.
+
+The check ignores case and treats any run of separators as one. The table lists each rule.
+
+| Name | Result |
+|---|---|
+| Starts with `claude-`, `anthropic-`, `anthropics-`, or `cc-plugin-` | Error |
+| Equals `claude`, `anthropic`, `anthropics`, `claude-code`, or `claude-mods` | Error |
+| Puts `official` beside `claude` or `anthropic`, such as `official-claude-tools` | Error |
+| Has `claude`, `anthropic`, or `anthropics` as a whole word anywhere else, such as `mcp-for-claude` | Warning |
+
+The error reads `Plugin name "<name>" is reserved: it passes as one of Anthropic's own`. The warning reads `Plugin name "<name>" reads as one of Anthropic's own`.
+
+- **Scope of the check.** Only `claude plugin validate`, `claude plugin init`, and `claude plugin tag` check the name. `init` and `tag` refuse a name that draws the error. Claude Code still installs and loads such a plugin.
+- **Marketplaces.** The check applies to the plugin name wherever it is listed. A marketplace namespace (`plugin@marketplace`) does not exempt a name, so a name that collides with a reserved name is rejected under any marketplace. Verified 2026-10-05 on Claude Code 2.1.289: a marketplace entry named `mcp-for-claude` drew the warning, and a plugin.json named `claude-code` drew the error.
+- **Version boundary.** The check began failing in Claude Code 2.1.287. Versions 2.1.286 and earlier passed such names. This boundary was reported by the maintainer on 2026-10-05; the docs page and the changelog do not state it. Validate on a current release.
+- **Fix.** Rename the plugin to say what it does (`claude-code` became `extras-claude-code` in this repository, which draws only the warning). Then follow the `renames` procedure in `plugin-marketplace` so installed users migrate.
+
+Source: https://code.claude.com/docs/en/plugins/manifest-reference (section `name`), accessed 2026-10-05.
 
 ## Runtime troubleshooting
 

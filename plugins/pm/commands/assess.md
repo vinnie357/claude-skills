@@ -29,7 +29,7 @@ Run only the SDLC guardrail assessment against a prototype — licensing, securi
 - `/core:agent-loop`
 - `/core:anti-fabrication`
 - `/core:bees`
-- `/claude-code:claude-teams`
+- `/extras-claude-code:claude-teams`
 
 **Task instructions:**
 
