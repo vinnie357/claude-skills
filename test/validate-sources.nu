@@ -713,6 +713,7 @@ def main [--self-test] {
     exit 0
 }
 
+# ---- self-test
 # Case-table self-test, following the house pattern (run-frontmatter-schema-
 # self-test in test/validate-skills-quality.nu): records with named fields
 # rather than positional tuples, one `got != want` comparison per case.
@@ -2772,6 +2773,108 @@ update_priority = "medium"
             version: "1.0.0"
             md: "demo-source is documented here"
             want: ["b3_version_shape"]
+        }
+        # ---- private flag: optional bool marking an expected-404 source ----
+        {
+            label: "private = true passes"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "github-releases"
+github_repo = "example-org/private-repo"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+private = true
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "private = false passes"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "github-releases"
+github_repo = "example-org/private-repo"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+private = false
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: []
+        }
+        {
+            label: "private = \"true\" (string) fails b3_private_bool"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "github-releases"
+github_repo = "example-org/private-repo"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+private = "true"
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b3_private_bool"]
+        }
+        {
+            label: "an unknown key still fails b1_entry_unknown next to a valid private flag"
+            toml: '
+[meta]
+plugin = "demo"
+reviewed_at_plugin_version = "1.0.0"
+last_full_check = "2026-01-01"
+[[sources]]
+skills = ["a"]
+name = "demo-source"
+url = "https://example.com"
+check_method = "github-releases"
+github_repo = "example-org/private-repo"
+current_version = "1.0.0"
+version_constraint = "semver"
+last_checked = "2026-01-01"
+update_priority = "medium"
+private = true
+private_repo = true
+'
+            dirs: ["a"]
+            plugin: "demo"
+            version: "1.0.0"
+            md: "demo-source is documented here"
+            want: ["b1_entry_unknown"]
         }
     ]
 
