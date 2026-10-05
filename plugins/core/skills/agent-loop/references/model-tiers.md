@@ -24,6 +24,7 @@ column.
 - agy `--model gemini-3.8-flash-medium --effort high` fails ("conflicts with --effort=high") — pass Gemini effort through the id suffix only.
 - `gemini-3.1-pro` has no `-medium` id.
 - gpt-5.5 and older Flash ids map to no tier.
+- `gpt-6.1-sol` and `gpt-6-luna` come from the codex configuration and were not probed with a one-shot run. The 2026-09-15 verification date does not cover them.
 
 ## Example launch config
 
