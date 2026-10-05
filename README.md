@@ -42,15 +42,15 @@ Verify installation:
 
 The plugin `claude-code` is now `extras-claude-code`. Skill names change from `/claude-code:<skill>` to `/extras-claude-code:<skill>`.
 
-A marketplace added from a git repository does not carry a renamed plugin over. After `/plugin marketplace update`, the old plugin can report as failed and vanish from the Installed list ("1 plugin failed to update").
+The marketplace declares the rename in its `renames` map, which migrates the settings key. For a marketplace added from a git repository, the Claude Code docs state that the renamed plugin reports `Plugin "<name>" not cached at <path>` until you run the install once in a session. See [Migrate users with a renames map](https://code.claude.com/docs/en/plugins/host-marketplace).
 
-Close or restart open sessions that use the old skill names. A session started before the update can still serve them from cache.
+Observed on one machine, not in the docs: after `/plugin marketplace update`, the output reported "1 plugin failed to update", and `extras-claude-code` was missing from the Installed list.
 
-1. Run `/plugin install extras-claude-code@vinnie357` once.
+1. Run `/plugin install extras-claude-code@vinnie357` once. Choose an install scope in the panel that opens.
 2. Run `/reload-plugins`, or restart open sessions.
 3. Run `/plugin list` and confirm `extras-claude-code` appears.
 
-The marketplace declares the rename in its `renames` map. The Claude Code docs describe the one-time install step in [Migrate users with a renames map](https://code.claude.com/docs/en/plugins/host-marketplace). This fix was observed working on one machine, not tested across setups.
+These steps were observed working on one machine, not tested across setups.
 
 ## Available Plugins
 
