@@ -16,7 +16,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.184",
+      "version": "0.4.185",
       "category": "meta",
       "keywords": [
         "skills",
@@ -122,7 +122,7 @@
       "source": "./plugins/tools/claude-code",
       "strict": true,
       "description": "Claude Code-specific skills for plugin marketplace management, validation, and component creation",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "category": "tools",
       "keywords": [
         "claude-code",
@@ -281,7 +281,7 @@
       "source": "./plugins/tools/linear",
       "strict": true,
       "description": "Linear project management: MCP/GraphQL API, VantageEx epic authoring, auditing, and grooming",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "category": "tools",
       "keywords": [
         "linear",
@@ -388,7 +388,7 @@
       "source": "./plugins/tools/runex",
       "strict": true,
       "description": "Runex workflow engine: API, bundles, step logs, and debugging",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "category": "tools",
       "keywords": [
         "runex",

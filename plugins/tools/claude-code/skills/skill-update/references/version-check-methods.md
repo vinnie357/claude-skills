@@ -305,6 +305,37 @@ No automated API check. Requires human review of the `releases_url`.
 
 ---
 
+## Private upstream repositories
+
+A private GitHub repository returns HTTP 404 to an unauthenticated request, not 403. GitHub does this so a response never confirms that a private repository exists. `mise sources:validate` makes unauthenticated requests, so it cannot tell a private repository apart from a deleted one, and it reports both as `dead`.
+
+Set `private = true` on the `[[sources]]` entry for the repository. The flag is a boolean: the string `"true"` fails the `b3_private_bool` rule in `mise test:sources`. The flag lives in the sources.toml of the plugin that tracks the source.
+
+`mise sources:validate` derives a base URL from each flagged entry:
+
+1. When the entry sets `github_repo`, the base is `https://github.com/<github_repo>`.
+2. Otherwise the base is the entry `url` without trailing slashes.
+
+A URL at or under a base (`<base>` or `<base>/...`) that returns a 404 reports status `private`. Matching against the base is exact-case, so a `releases_url` must use the same spelling as the entry `url` or `github_repo`. A repository whose name merely starts with the base name does not match. The summary line counts `private` results separately from `dead`.
+
+An entry without the flag reports `dead` for the same 404, so flag every private repository. The flag changes only the validator label. It does not authenticate any request, and no environment variable or secret is needed.
+
+```toml
+[[sources]]
+skills = ["example-skill"]
+name = "example-private-repo"
+url = "https://github.com/example-org/private-repo"
+check_method = "manual"
+github_repo = "example-org/private-repo"
+current_version = "unknown"
+version_constraint = "rolling"
+last_checked = "2026-01-01"
+update_priority = "low"
+private = true
+```
+
+---
+
 ## Batch Check Script Pattern
 
 The `mise sources:check` task implements the following pattern across all plugins:

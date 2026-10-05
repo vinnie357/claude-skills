@@ -7,6 +7,12 @@
 # Usage: nu sources-validate-urls.nu [--plugin <name>] [--format line|json|table]
 #        nu sources-validate-urls.nu --self-test
 #
+# Private upstream repos: a source entry with `private = true` in a plugin's
+# skills/sources.toml makes every URL at or under that entry's repo report
+# status `private` (an expected 404) instead of `dead`. The repo base is
+# `https://github.com/<github_repo>` when the entry has a github_repo, else
+# the entry's `url`. No env var or credential is involved.
+#
 # Output columns (all formats): plugin | skill | source | url | status | notes
 #   --format line   (default) one grep-able line per row: "[status] plugin/
 #                    skill source: url — notes". Fixes claude-skills-241 —
@@ -34,10 +40,10 @@
 # the `use sources-lib.nu [...]` below) instead of re-deriving it, and adds
 # three validator-specific concerns sources-lib.nu has no reason to carry: a
 # HEAD-to-GET fallback (some hosts, e.g. m3.material.io, reject HEAD with 405
-# but serve GET fine), a known-private-repo allowlist (an unauthenticated
-# check against a private GitHub repo 404s regardless of whether the content
-# exists — see plugins/tools/runex/skills/sources.toml's own notes for the
-# precedent this mirrors), and a crates.io API cross-check.
+# but serve GET fine), a private-repo relabel driven by the `private = true`
+# flag in sources.toml (an unauthenticated check against a private GitHub
+# repo 404s regardless of whether the content exists), and a crates.io API
+# cross-check.
 #
 # claude-skills-220 Gate 3 (F1): an earlier revision of this file classified
 # every crates.io/crates/<name> 404 as "dead". That was WRONG, not just
@@ -61,26 +67,33 @@
 # validator has no way to confirm content status either way.
 use sources-lib.nu [classify-fetch-error, USER_AGENT]
 
-# Repos where an unauthenticated HTTP check is EXPECTED to 404/403 regardless
-# of whether the linked content exists — GitHub returns 404 (not 403) for a
-# private repo specifically to avoid confirming its existence to an
-# unauthenticated caller. Today's one instance: plugins/tools/runex/skills/
-# sources.toml's own notes field documents this exact behavior for
-# vinnie357/runex (confirmed live via `curl api.github.com/repos/
-# vinnie357/runex` -> 404, unauthenticated). Extend this list if a future
-# sources.toml entry hits the same case — do not infer "private" from a bare
-# 404 alone, that would misclassify every genuinely dead github.com link.
-const KNOWN_PRIVATE_REPOS = ["vinnie357/runex"]
-
-# Pure: does `url` point at (or under) a known-private GitHub repo? Matches
-# the bare repo URL and any path under it (tree/, blob/, releases, etc.) —
-# not a substring match, so "vinnie357/runex-extra" does not collide with
-# "vinnie357/runex".
-export def is-known-private-repo-url [url: string]: nothing -> bool {
-    $KNOWN_PRIVATE_REPOS | any {|repo|
-        let base = $"https://github.com/($repo)"
-        $url == $base or ($url | str starts-with $"($base)/")
+# Pure: GitHub base URLs of the sources flagged `private = true`. An
+# unauthenticated HTTP check against a private GitHub repo 404s regardless of
+# whether the content exists (GitHub returns 404, not 403, to avoid confirming
+# the repo's existence), so those URLs are expected-404, not link rot.
+# Only a boolean `true` counts. The base is `https://github.com/<github_repo>`
+# when github_repo is a non-empty string, else `url` minus trailing slashes;
+# a flagged record with neither is skipped.
+export def private-repo-bases [sources: list]: nothing -> list<string> {
+    $sources
+    | where {|s| (($s | get -o private) == true)}
+    | each {|s|
+        let repo = ($s | get -o github_repo)
+        let url = ($s | get -o url)
+        if (($repo | describe) == "string") and not ($repo | is-empty) {
+            $"https://github.com/($repo)"
+        } else if (($url | describe) == "string") and not ($url | is-empty) {
+            $url | str trim --right --char "/"
+        } else {
+            null
+        }
     }
+    | compact
+}
+
+# Pure: does `url` equal one of `bases` or sit under one (`<base>/...`)?
+export def is-known-private-repo-url [url: string, bases: list<string>]: nothing -> bool {
+    $bases | any {|b| ($url == $b) or ($url | str starts-with $"($b)/")}
 }
 
 # Pure: does this caught error text indicate the server rejected HEAD with
@@ -104,9 +117,10 @@ export def needs-get-fallback [err_text: string]: nothing -> bool {
 #   rate-limited -> rate-limited  (403/429/"rate limit" text — retry later)
 #   error        -> error         (DNS/connection/timeout/other — not a
 #                                   content judgment either way)
-# A "dead" result against a known-private-repo URL is further relabeled
-# "private" — GitHub's documented 404-instead-of-403 behavior for private
-# repos means this specific 404 is expected, not link rot.
+# A "dead" result against a URL at or under one of `bases` (the repos flagged
+# `private = true` in sources.toml) is further relabeled "private" —
+# GitHub's documented 404-instead-of-403 behavior for private repos means
+# this specific 404 is expected, not link rot.
 #
 # claude-skills-220 Gate 3 (F1): this function alone is NOT the final word on
 # "dead" for crates.io — see the crates.io API cross-check in check-url
@@ -115,14 +129,14 @@ export def needs-get-fallback [err_text: string]: nothing -> bool {
 # unconfirmed either way). classify-url-error stays pure (no network) and
 # reports what the HTTP layer said; the network-dependent override lives in
 # check-url, the only place in this file allowed to make a second call.
-export def classify-url-error [err_text: string, url: string]: nothing -> string {
+export def classify-url-error [err_text: string, url: string, bases: list<string>]: nothing -> string {
     let base = classify-fetch-error $err_text
     let mapped = match $base {
         "no-releases" => "dead"
         "rate-limited" => "rate-limited"
         _ => "error"
     }
-    if $mapped == "dead" and (is-known-private-repo-url $url) {
+    if $mapped == "dead" and (is-known-private-repo-url $url $bases) {
         "private"
     } else {
         $mapped
@@ -266,7 +280,7 @@ def crates-io-dead-override [url: string, headers: list]: nothing -> any {
 # claude-skills User-Agent (sources-lib.nu's $USER_AGENT) — nushell's
 # unadorned default is the literal string "nushell", which some hosts (e.g.
 # crates.io's API) treat as insufficiently informative and reject outright.
-def check-url [plugin: string, skill: string, source_name: string, url: string] {
+def check-url [plugin: string, skill: string, source_name: string, url: string, bases: list<string>] {
     if ($url | is-empty) {
         return null
     }
@@ -291,13 +305,13 @@ def check-url [plugin: string, skill: string, source_name: string, url: string] 
         } catch { |err|
             let get_text = ($err.debug? | default ($err.msg? | default ""))
             {
-                status: (classify-url-error $get_text $url)
+                status: (classify-url-error $get_text $url $bases)
                 notes: ($get_text | str substring 0..80)
             }
         }
     } else {
         {
-            status: (classify-url-error $head_result.text $url)
+            status: (classify-url-error $head_result.text $url $bases)
             notes: ($head_result.text | str substring 0..80)
         }
     }
@@ -329,6 +343,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
     }
 
     let sources = $data.sources? | default []
+    let bases = (private-repo-bases $sources)
     mut rows = []
 
     for src in $sources {
@@ -339,7 +354,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
 
         if not ($url | is-empty) {
             print -e $"  CHECK ($url)"
-            let row = check-url $plugin_name $skill $name $url
+            let row = check-url $plugin_name $skill $name $url $bases
             if $row != null {
                 $rows = ($rows | append $row)
             }
@@ -347,7 +362,7 @@ def process-sources-toml [toml_path: string, plugin_name: string] {
 
         if not ($releases_url | is-empty) {
             print -e $"  CHECK ($releases_url)"
-            let row = check-url $plugin_name $skill $"($name) [releases]" $releases_url
+            let row = check-url $plugin_name $skill $"($name) [releases]" $releases_url $bases
             if $row != null {
                 $rows = ($rows | append $row)
             }
@@ -458,44 +473,69 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
     mut failed = false
     mut count = 0
 
+    # Private-repo detection is DATA: a source flagged `private = true` in a
+    # sources.toml supplies the bases. Fixtures use placeholder repos only.
+    let private_bases = (private-repo-bases [
+        {name: "demo", url: "https://example.com", github_repo: "example-org/private-repo", private: true}
+    ])
+
     # Fixtures below are CAPTURED live error text from real nu 0.113.1 HTTP
     # calls made while triaging claude-skills-220 (2026-08-04) — not shapes
-    # invented from the implementation. Sources, per case, noted inline.
+    # invented from the implementation — except the private-repo cases, which
+    # reuse the captured 404 shape with a placeholder URL.
     let classify_cases = [
         # captured: `http head "https://crates.io/crates/serde"` (nu 0.113.1)
         {
             label: "real 404 on a non-private repo is dead"
             text: "Requested file not found (404): \"https://crates.io/crates/serde\""
             url: "https://crates.io/crates/serde"
+            bases: $private_bases
             want: "dead"
         }
-        # captured: `http head "https://github.com/vinnie357/runex"` with the
-        # shared UA header (nu 0.113.1) — the exact URL/call shape check-url
-        # makes; GitHub's documented private-repo behavior (404, not 403, to
-        # avoid confirming existence to an unauthenticated caller) applies
-        # identically on this website path as on the api.github.com path.
+        # 404 shape captured from `http head` with the shared UA header
+        # (nu 0.113.1); GitHub's documented private-repo behavior (404, not
+        # 403, to avoid confirming existence to an unauthenticated caller)
+        # applies identically on this website path as on the API path.
         {
-            label: "404 on the known-private repo's bare URL is private, not dead"
-            text: "Requested file not found (404): \"https://github.com/vinnie357/runex\""
-            url: "https://github.com/vinnie357/runex"
+            label: "404 on a flagged-private repo's bare URL is private, not dead"
+            text: "Requested file not found (404): \"https://github.com/example-org/private-repo\""
+            url: "https://github.com/example-org/private-repo"
+            bases: $private_bases
             want: "private"
         }
         {
-            label: "404 on a path under the known-private repo is also private"
-            text: "Requested file not found (404): \"https://github.com/vinnie357/runex/releases\""
-            url: "https://github.com/vinnie357/runex/releases"
+            label: "404 on a path under a flagged-private repo is also private"
+            text: "Requested file not found (404): \"https://github.com/example-org/private-repo/releases\""
+            url: "https://github.com/example-org/private-repo/releases"
+            bases: $private_bases
             want: "private"
         }
         {
             label: "a different repo under the same owner is NOT private by substring collision"
-            text: "Requested file not found (404): \"https://github.com/vinnie357/runex-extra\""
-            url: "https://github.com/vinnie357/runex-extra"
+            text: "Requested file not found (404): \"https://github.com/example-org/private-repo-extra\""
+            url: "https://github.com/example-org/private-repo-extra"
+            bases: $private_bases
             want: "dead"
+        }
+        {
+            label: "with empty bases the same 404 is dead (a missing flag never relabels)"
+            text: "Requested file not found (404): \"https://github.com/example-org/private-repo\""
+            url: "https://github.com/example-org/private-repo"
+            bases: []
+            want: "dead"
+        }
+        {
+            label: "a base built from a url-only flagged record relabels a 404 under it"
+            text: "Requested file not found (404): \"https://git.example.com/org/private-repo/blob/main/README.md\""
+            url: "https://git.example.com/org/private-repo/blob/main/README.md"
+            bases: (private-repo-bases [{name: "demo", url: "https://git.example.com/org/private-repo", private: true}])
+            want: "private"
         }
         {
             label: "403 rate-limit text classifies as rate-limited, not dead"
             text: "Client error (403): API rate limit exceeded"
             url: "https://crates.io/api/v1/crates/serde"
+            bases: $private_bases
             want: "rate-limited"
         }
         # captured shape from sources-lib.nu's own self-test (same nu client)
@@ -503,6 +543,7 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
             label: "429 Too Many Requests (no parens) classifies as rate-limited"
             text: "Cannot make request to \"https://molecule.readthedocs.io\". Error is \"429 Too Many Requests\""
             url: "https://molecule.readthedocs.io"
+            bases: $private_bases
             want: "rate-limited"
         }
         # captured: `http head` against the dead butunclebob.com host (2026-08-04)
@@ -510,18 +551,20 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
             label: "connection-refused I/O error falls through to error"
             text: "Io(IoError { kind: Std(ConnectionRefused, Sealed), span: Span[160087..160096], path: None, additional_context: None, location: None })"
             url: "https://www.butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd"
+            bases: $private_bases
             want: "error"
         }
         {
             label: "empty error text falls through to error"
             text: ""
             url: "https://example.com"
+            bases: $private_bases
             want: "error"
         }
     ]
     for c in $classify_cases {
         $count += 1
-        let got = classify-url-error $c.text $c.url
+        let got = classify-url-error $c.text $c.url $c.bases
         if $got != $c.want {
             print $"(ansi red_bold)❌ classify-url-error: ($c.label): want ($c.want), got ($got)(ansi reset)"
             $failed = true
@@ -529,19 +572,123 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
     }
 
     let private_url_cases = [
-        {label: "bare known-private repo URL matches" url: "https://github.com/vinnie357/runex" want: true}
-        {label: "path under known-private repo matches" url: "https://github.com/vinnie357/runex/tree/main" want: true}
-        {label: "a different repo does not match by substring" url: "https://github.com/vinnie357/runex-extra" want: false}
-        {label: "a different owner with the same repo name does not match" url: "https://github.com/someoneelse/runex" want: false}
-        {label: "an unrelated URL does not match" url: "https://crates.io/crates/serde" want: false}
+        {label: "bare flagged-private repo URL matches" url: "https://github.com/example-org/private-repo" bases: $private_bases want: true}
+        {label: "path under flagged-private repo matches" url: "https://github.com/example-org/private-repo/tree/main" bases: $private_bases want: true}
+        {label: "a trailing-slash URL of the repo matches" url: "https://github.com/example-org/private-repo/" bases: $private_bases want: true}
+        {label: "a different repo does not match by substring" url: "https://github.com/example-org/private-repo-extra" bases: $private_bases want: false}
+        {label: "a different owner with the same repo name does not match" url: "https://github.com/someoneelse/private-repo" bases: $private_bases want: false}
+        {label: "an unrelated URL does not match" url: "https://crates.io/crates/serde" bases: $private_bases want: false}
+        {label: "empty bases never match" url: "https://github.com/example-org/private-repo" bases: [] want: false}
+        {
+            label: "any one of several bases matches"
+            url: "https://github.com/example-org/private-repo-extra/releases"
+            bases: ["https://github.com/example-org/private-repo" "https://github.com/example-org/private-repo-extra"]
+            want: true
+        }
     ]
     for c in $private_url_cases {
         $count += 1
-        let got = is-known-private-repo-url $c.url
+        let got = is-known-private-repo-url $c.url $c.bases
         if $got != $c.want {
             print $"(ansi red_bold)❌ is-known-private-repo-url: ($c.label): want ($c.want), got ($got)(ansi reset)"
             $failed = true
         }
+    }
+
+    # private-repo-bases: only a boolean `true` flag counts; base comes from
+    # github_repo when non-empty, else the url minus trailing slashes.
+    let bases_cases = [
+        {
+            label: "flagged record with github_repo yields the GitHub base"
+            sources: [{name: "a", url: "https://example.com", github_repo: "example-org/private-repo", private: true}]
+            want: ["https://github.com/example-org/private-repo"]
+        }
+        {
+            label: "github_repo wins over url when both are present"
+            sources: [{name: "a", url: "https://example.com/docs", github_repo: "example-org/private-repo", private: true}]
+            want: ["https://github.com/example-org/private-repo"]
+        }
+        {
+            label: "flagged record with url only (no github_repo) yields the url"
+            sources: [{name: "a", url: "https://git.example.com/org/private-repo", private: true}]
+            want: ["https://git.example.com/org/private-repo"]
+        }
+        {
+            label: "an empty github_repo falls back to the url"
+            sources: [{name: "a", url: "https://git.example.com/org/private-repo", github_repo: "", private: true}]
+            want: ["https://git.example.com/org/private-repo"]
+        }
+        {
+            label: "a trailing slash on the url is stripped"
+            sources: [{name: "a", url: "https://git.example.com/org/private-repo/", private: true}]
+            want: ["https://git.example.com/org/private-repo"]
+        }
+        {
+            label: "private = false is ignored"
+            sources: [{name: "a", url: "https://example.com", github_repo: "example-org/private-repo", private: false}]
+            want: []
+        }
+        {
+            label: "a missing private field is ignored"
+            sources: [{name: "a", url: "https://example.com", github_repo: "example-org/private-repo"}]
+            want: []
+        }
+        {
+            label: "the string \"true\" is not a boolean flag and is ignored"
+            sources: [{name: "a", url: "https://example.com", github_repo: "example-org/private-repo", private: "true"}]
+            want: []
+        }
+        {
+            label: "a flagged record with neither github_repo nor url is skipped"
+            sources: [{name: "a", private: true}]
+            want: []
+        }
+        {
+            label: "an empty sources list yields no bases"
+            sources: []
+            want: []
+        }
+        {
+            label: "output order follows input order and skips unflagged records"
+            sources: [
+                {name: "a", github_repo: "example-org/private-repo-extra", private: true}
+                {name: "b", github_repo: "example-org/public-repo"}
+                {name: "c", url: "https://git.example.com/org/private-repo/", private: true}
+                {name: "d", github_repo: "example-org/private-repo", private: true}
+            ]
+            want: [
+                "https://github.com/example-org/private-repo-extra"
+                "https://git.example.com/org/private-repo"
+                "https://github.com/example-org/private-repo"
+            ]
+        }
+    ]
+    for c in $bases_cases {
+        $count += 1
+        let got = private-repo-bases $c.sources
+        if $got != $c.want {
+            print $"(ansi red_bold)❌ private-repo-bases: ($c.label): want ($c.want | to nuon), got ($got | to nuon)(ansi reset)"
+            $failed = true
+        }
+    }
+
+    # Real-data guard: the runex plugin's sources.toml must carry the
+    # `private = true` flag on its private source. Asserts the derived bases
+    # without naming the repo: non-empty, every one a GitHub URL.
+    $count += 1
+    let runex_toml = ((repo-root) | path join "plugins" "tools" "runex" "skills" "sources.toml")
+    let runex_bases = (try {
+        private-repo-bases ((open $runex_toml).sources? | default [])
+    } catch {|e|
+        print $"(ansi red_bold)❌ runex sources.toml real-data guard: could not read ($runex_toml): ($e.msg)(ansi reset)"
+        []
+    })
+    if ($runex_bases | is-empty) {
+        print $"(ansi red_bold)❌ runex sources.toml real-data guard: no source flagged `private = true`, so no private bases derived(ansi reset)"
+        $failed = true
+    } else if not ($runex_bases | all {|b| $b | str starts-with "https://github.com/"}) {
+        print $"(ansi red_bold)❌ runex sources.toml real-data guard: a derived base is not an https://github.com/ URL: ($runex_bases | to nuon)(ansi reset)"
+        $failed = true
     }
 
     # claude-skills-220 Gate 3 (F1): pure URL-parsing helpers behind the
@@ -689,6 +836,11 @@ export def run-self-test []: nothing -> record<failed: bool, count: int> {
     {failed: $failed, count: $count}
 }
 
+# Check every source URL in each plugin's skills/sources.toml.
+#
+# A source entry with `private = true` makes URLs at or under it report status
+# `private` (an expected 404) instead of `dead`. Set the flag in that
+# plugin's sources.toml.
 def main [--plugin: string = "", --format: string = "line", --self-test] {
     if $self_test {
         let result = run-self-test
