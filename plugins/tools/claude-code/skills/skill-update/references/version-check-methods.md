@@ -316,7 +316,7 @@ Set `private = true` on the `[[sources]]` entry for the repository. The flag is 
 1. When the entry sets `github_repo`, the base is `https://github.com/<github_repo>`.
 2. Otherwise the base is the entry `url` without trailing slashes.
 
-A URL at or under a base (`<base>` or `<base>/...`) that returns a 404 reports status `private`. A repository whose name merely starts with the base name does not match. The summary line counts `private` results separately from `dead`.
+A URL at or under a base (`<base>` or `<base>/...`) that returns a 404 reports status `private`. Matching against the base is exact-case, so a `releases_url` must use the same spelling as the entry `url` or `github_repo`. A repository whose name merely starts with the base name does not match. The summary line counts `private` results separately from `dead`.
 
 An entry without the flag reports `dead` for the same 404, so flag every private repository. The flag changes only the validator label. It does not authenticate any request, and no environment variable or secret is needed.
 

@@ -62,8 +62,8 @@ Skills must exist in the marketplace at: https://github.com/vinnie357/claude-ski
 Target repositories this epic touches:
 
 ```
-- vinnie357/vantageex
 - example-org/example-repo
+- example-org/other-repo
 ```
 
 May be a single repo or multiple. The VantageEx multi-repo epic support enables parallel execution across repos.
@@ -295,7 +295,7 @@ elixir, oauth, security
 
 ## Repos
 
-- vinnie357/vantageex
+- example-org/example-repo
 
 ## Constraints
 
