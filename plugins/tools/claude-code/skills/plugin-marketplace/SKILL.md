@@ -22,7 +22,7 @@ A marketplace lives at `.claude-plugin/marketplace.json` in the repository root.
 
 ### Plugin entry schema
 
-Plugin entries use the **plugin manifest schema with every field optional**, plus the marketplace-only fields `source`, `strict`, `category`, and `tags`. Any field valid in a `plugin.json` is therefore valid in an entry — see `/extras-cc:claude-plugins` for the manifest schema and for which fields must never appear in a `plugin.json`.
+Plugin entries use the **plugin manifest schema with every field optional**, plus the marketplace-only fields `source`, `strict`, `category`, and `tags`. Any field valid in a `plugin.json` is therefore valid in an entry — see `/extras-claude-code:claude-plugins` for the manifest schema and for which fields must never appear in a `plugin.json`.
 
 Each entry requires `name` (kebab-case) and `source`. Beyond those:
 
@@ -105,7 +105,7 @@ Converting an existing set of plugins into a marketplace is a different procedur
 ## Conventions
 
 - **Marketplace name** — a GitHub username or organization.
-- **Plugin names** — descriptive kebab-case (`elixir-phoenix`, `rust-tools`). Never use a reserved name: `claude plugin validate` rejects `claude-code` and any name that starts with `claude-`, `anthropic-`, `anthropics-`, or `cc-plugin-`. The check applies to every entry name, whatever the marketplace. Rule and sources: `/extras-cc:claude-plugins` ("Reserved names"). This repository checks it offline with `mise run test:plugin-names` (`test/validate-plugin-names.nu`).
+- **Plugin names** — descriptive kebab-case (`elixir-phoenix`, `rust-tools`). Never use a reserved name: `claude plugin validate` rejects `claude-code` and any name that starts with `claude-`, `anthropic-`, `anthropics-`, or `cc-plugin-`. The check applies to every entry name, whatever the marketplace. Rule and sources: `/extras-claude-code:claude-plugins` ("Reserved names"). This repository checks it offline with `mise run test:plugin-names` (`test/validate-plugin-names.nu`).
 - **Categories** — standardize across the marketplace rather than inventing per entry: `development`, `language`, `tools`, `frontend`, `backend`, `meta`.
 - **Versions** — semver for both marketplace and plugins. Bump the marketplace when adding or removing a plugin, a plugin when its skills or configuration change, and note breaking changes in the plugin's description. **Keep a plugin's version in step between its `plugin.json` and its marketplace entry.** The bundled validator does not check this — it validates semver format only. Enforce agreement in the marketplace repository's CI.
 - **Dependencies** — declare them, keep chains shallow, prefix with the namespace, and consider a meta-plugin that bundles a related set.

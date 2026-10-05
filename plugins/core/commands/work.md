@@ -19,7 +19,7 @@ Invoke the Skill tool for each by exact name before any other step:
 - `/core:nushell`
 - `/core:agent-loop`
 - `/core:bees`
-- `/extras-cc:claude-agents` (always, before spawning) and `/extras-cc:claude-teams` (when spawning ≥2 parallel workers)
+- `/extras-claude-code:claude-agents` (always, before spawning) and `/extras-claude-code:claude-teams` (when spawning ≥2 parallel workers)
 - Domain skills for the target's labels, by exact name.
 
 `/core:agent-loop` carries Forge (paired teams, the hands pattern, fan-out); `/core:bees` is the tracker.

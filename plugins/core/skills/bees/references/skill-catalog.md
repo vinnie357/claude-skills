@@ -35,7 +35,7 @@ Runtime discovery ensures that third-party or user-created skills can be suggest
 |-------|-----------------|
 | `beads` | beads, task management, dependency tracking, issue tracker |
 
-### extras-cc Plugin
+### extras-claude-code Plugin
 
 | Skill | Trigger Keywords |
 |-------|-----------------|

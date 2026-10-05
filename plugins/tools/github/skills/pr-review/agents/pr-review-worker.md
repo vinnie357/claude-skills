@@ -71,7 +71,7 @@ PR #<n> REVIEW
 - Verdict: approve | request-changes | wait
 - Gate evidence: <cite the pr-gate-runner's execution evidence records; each REVISION must
   equal headRefOid for the branch-side records>
-- Diff review findings: one line each per `/extras-cc:claude-output-styles`
+- Diff review findings: one line each per `/extras-claude-code:claude-output-styles`
   `assets/review-findings-format.md`, or "No findings."
 - Evidence requests: <evidenceRequests list per /core:agent-loop references/reviewer.md —
   present only on wait>

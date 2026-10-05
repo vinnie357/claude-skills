@@ -20,7 +20,7 @@ Load each by exact name. Do not use glob patterns. Quote one sentence from each 
 - `/core:restraint`
 - `/core:bees`
 - `/core:nushell`
-- `/extras-cc:claude-teams`
+- `/extras-claude-code:claude-teams`
 
 ## Input
 
@@ -100,7 +100,7 @@ Skill quotes:
 - /core:anti-fabrication: <sentence>
 - /core:bees: <sentence>
 - /core:nushell: <sentence>
-- /extras-cc:claude-teams: <sentence>
+- /extras-claude-code:claude-teams: <sentence>
 
 Stack: ui=<bool> phoenix=<bool> generic=<bool>
 App URL: <url>

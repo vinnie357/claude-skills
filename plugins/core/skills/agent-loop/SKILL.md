@@ -23,7 +23,7 @@ The process these rules implement — durable vs ephemeral artifacts, reviewer a
 
 ## Required plugins
 
-Assumes both `core@vinnie357` (this plugin) and `extras-cc@vinnie357` (agent/team file formats, referenced by name in spawning steps) are installed. Standalone `core` still describes the workflow, but cross-plugin skill names like `/extras-cc:claude-agents` won't resolve until `extras-cc@vinnie357` is installed too — treat those references as procedural-only until then.
+Assumes both `core@vinnie357` (this plugin) and `extras-claude-code@vinnie357` (agent/team file formats, referenced by name in spawning steps) are installed. Standalone `core` still describes the workflow, but cross-plugin skill names like `/extras-claude-code:claude-agents` won't resolve until `extras-claude-code@vinnie357` is installed too — treat those references as procedural-only until then.
 
 ## 4-Phase Execution
 
@@ -32,7 +32,7 @@ Every agent, regardless of tier, follows these four phases:
 | Phase | Name | Purpose |
 |-------|------|---------|
 | 1 | Pre-flight | Load skills, check tracker, verify branch, understand assignment |
-| 2 | Working | Execute work items. **Before any spawn**: re-verify core skills loaded, load `/extras-cc:claude-agents` always, load `/extras-cc:claude-teams` for ≥2 parallel workers. |
+| 2 | Working | Execute work items. **Before any spawn**: re-verify core skills loaded, load `/extras-claude-code:claude-agents` always, load `/extras-claude-code:claude-teams` for ≥2 parallel workers. |
 | 3 | Validation | Run strictest CI suite, iterate with fix agent until clean |
 | 4 | Submit | Create PR, wait for CI, report to upstream, clean up after merge |
 
@@ -224,9 +224,9 @@ Enforcement, not description, carries a third rule: leaders name every skill exp
 
 When a leader (Tier 1 or Tier 2) prepares to spawn an agent, load these by exact name with the Skill tool:
 
-- `/extras-cc:claude-agents` — always. Carries agent file format, tool allowlists, and model selection.
-- `/extras-cc:claude-teams` — if forming a team or spawning ≥2 parallel workers. Carries peer-to-peer messaging, shared task list, Agent SDK patterns.
-- `/extras-cc:plugin-marketplace` — when the spawned agent needs a skill not already in the team's load list.
+- `/extras-claude-code:claude-agents` — always. Carries agent file format, tool allowlists, and model selection.
+- `/extras-claude-code:claude-teams` — if forming a team or spawning ≥2 parallel workers. Carries peer-to-peer messaging, shared task list, Agent SDK patterns.
+- `/extras-claude-code:plugin-marketplace` — when the spawned agent needs a skill not already in the team's load list.
 
 Glob patterns like `/core:*` do not expand in Agent prompts. List skill names explicitly.
 
@@ -240,7 +240,7 @@ Glob patterns like `/core:*` do not expand in Agent prompts. List skill names ex
 - **Merge gates (three)**: Gate 1 — local `mise run ci` green before every commit; Gate 2 — local + remote `gh pr checks` green; Gate 3 — adversarial review of the PR by a separate agent on the strongest available model, findings addressed or answered. All three before any squash merge (see `/core:git` Three-Gate Merge Policy). Gate 3 is distinct from this skill's pipeline reviewers, including Forge's Final Reviewer — it is identified by its two-question brief (see `/core:git` Three-Gate Merge Policy), not by when it runs.
 - **Branches**: One feature branch per epic (`feature/<epic-slug>`)
 - **Merge**: Squash merge only, per the deployment's merge policy — see `/core:git` "Merge authorization". The default authorizes no agent merge.
-- **Agent naming**: Spawn names are `<issue>-<role>-<model>-<n>` (e.g. `318-test-author-sonnet-1`) — see `/extras-cc:claude-agents` "Agent Spawning Naming Convention" for the segment definitions and the counter rule
+- **Agent naming**: Spawn names are `<issue>-<role>-<model>-<n>` (e.g. `318-test-author-sonnet-1`) — see `/extras-claude-code:claude-agents` "Agent Spawning Naming Convention" for the segment definitions and the counter rule
 
 ## Agent Worker Execution Order
 
@@ -384,7 +384,7 @@ The boundary: decomposition, any Phase 1.5a escalation (the rare fork-or-blocker
 
 The Forge shape encodes the same way at larger fan-out: `templates/forge-issue.workflow.js` is the runnable `/forge-issue` workflow — a startup-index hands pass per principal, planner slicing, dep-wave `parallel()` implementor + test-runner fan-out, and the remediation pair.
 
-Workflows are a research preview on paid plans. When disabled, the default Task-spawn path applies unchanged. See `references/workflows-execution.md` and the `/extras-cc:claude-workflows` skill.
+Workflows are a research preview on paid plans. When disabled, the default Task-spawn path applies unchanged. See `references/workflows-execution.md` and the `/extras-claude-code:claude-workflows` skill.
 
 ## References
 

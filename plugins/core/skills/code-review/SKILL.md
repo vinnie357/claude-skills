@@ -179,7 +179,7 @@ Flag speculative abstractions (interfaces with one implementation, config for va
 
 ### Providing Feedback
 
-Agent reviewers report findings per `/extras-cc:claude-output-styles` `assets/review-findings-format.md`.
+Agent reviewers report findings per `/extras-claude-code:claude-output-styles` `assets/review-findings-format.md`.
 
 **Be constructive and specific:**
 

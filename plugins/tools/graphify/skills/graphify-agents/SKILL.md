@@ -53,7 +53,7 @@ The agent that relies on the graph confirms freshness — `graphify check-update
 
 ## Exposing the Graph via MCP
 
-`graphify . --mcp` starts an MCP stdio server (the `[mcp]` extra / `graphify-mcp` console script). An MCP-enabled agent then calls graphify tools directly rather than shelling out. See `/extras-cc:claude-agents` (sibling plugin, install extras-cc@vinnie357; MCP-enabled agent pattern) for declaring the server in an agent's tool set.
+`graphify . --mcp` starts an MCP stdio server (the `[mcp]` extra / `graphify-mcp` console script). An MCP-enabled agent then calls graphify tools directly rather than shelling out. See `/extras-claude-code:claude-agents` (sibling plugin, install extras-claude-code@vinnie357; MCP-enabled agent pattern) for declaring the server in an agent's tool set.
 
 ## Registering graphify with Claude Code
 

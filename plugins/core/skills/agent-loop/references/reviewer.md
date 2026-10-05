@@ -64,7 +64,7 @@ finding needs more than `EXCERPT` carries — never the whole file.
 
 ## Output
 
-Findings follow `/extras-cc:claude-output-styles` `assets/review-findings-format.md`. The
+Findings follow `/extras-claude-code:claude-output-styles` `assets/review-findings-format.md`. The
 durable verdict record follows the Gate 3 record layout in `/core:git` Gate 3. That record
 quotes the `.md` record in full and, for the `.log` lines each finding cites, an excerpt
 bounded the same way as `EXCERPT` above — at most 30 verbatim lines, each with its log line

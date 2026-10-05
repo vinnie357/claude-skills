@@ -340,7 +340,7 @@ literal = "0.0.7"
 context = "runex tool pin, ready-to-copy per runex SKILL.md's 'templates/0.0.7/mise.toml' reference"
 check_method = "manual"
 policy = "intentional-pin"
-notes = "Versioned template directory (templates/0.0.7/, sibling templates/0.1.0/ also exists) — a deliberate frozen snapshot per the /extras-cc:skill-update convention ('When a CLI tool has breaking command changes across versions, create a versioned template'), not drift. check_method=manual: the runex source repository is not publicly readable: unauthenticated tag-existence checks 404 regardless of whether the tag exists (see plugins/core/skills/mise/references/transitive-runtime-deps.md-style private-repo gotcha), which would misreport as broken."
+notes = "Versioned template directory (templates/0.0.7/, sibling templates/0.1.0/ also exists) — a deliberate frozen snapshot per the /extras-claude-code:skill-update convention ('When a CLI tool has breaking command changes across versions, create a versioned template'), not drift. check_method=manual: the runex source repository is not publicly readable: unauthenticated tag-existence checks 404 regardless of whether the tag exists (see plugins/core/skills/mise/references/transitive-runtime-deps.md-style private-repo gotcha), which would misreport as broken."
 
 # -----------------------------------------------------------------------------
 # claude-skills-231: postgres:16 also appears in the sbx elixir-tidewave
@@ -400,7 +400,7 @@ notes = "Non-markdown file — confirms the doc-agreement check (raw open + str-
 # not enforced code, and someone extending the pattern by imitation would
 # reasonably assume "everything in here is intentional-pin" without this
 # line. Rationale for the TOOL'S OWN pin specifically — per the
-# /extras-cc:skill-update convention ("When a CLI tool has breaking
+# /extras-claude-code:skill-update convention ("When a CLI tool has breaking
 # command changes across versions, create a versioned template"), a new
 # upstream release gets a NEW templates/<version>/ directory; the existing
 # ones are never edited in place to chase it (that's the entire point of

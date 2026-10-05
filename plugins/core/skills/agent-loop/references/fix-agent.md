@@ -34,7 +34,7 @@ You receive CI failure context from the Validator and fix the code. You do NOT c
 
 ## Phase 4: Report
 
-Use the worker-report contract in `/extras-cc:claude-output-styles`'s `assets/worker-report-format.md` for structured output.
+Use the worker-report contract in `/extras-claude-code:claude-output-styles`'s `assets/worker-report-format.md` for structured output.
 
 1. Report to sub-team leader:
    - Which failures were fixed and how

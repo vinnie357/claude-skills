@@ -21,7 +21,7 @@ when the trigger condition arises.
 
 2. When spawning agents or forming teams, invoke this triad by EXACT
    name with the Skill tool: /core:agent-loop,
-   /extras-cc:claude-agents, /extras-cc:claude-teams. Glob patterns
+   /extras-claude-code:claude-agents, /extras-claude-code:claude-teams. Glob patterns
    like /core:* do not expand in Agent prompts — list names explicitly.
 
 3. Load /core:anti-fabrication before any factual claim about a file,

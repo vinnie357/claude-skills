@@ -10,7 +10,7 @@ Guide for creating custom agents that provide specialized behaviors and tool acc
 ## When spawning as part of a team
 
 Invoke `/core:agent-loop` for the 4-phase / 6-tier execution model.
-Invoke `/extras-cc:claude-teams` if the agent joins a multi-agent team.
+Invoke `/extras-claude-code:claude-teams` if the agent joins a multi-agent team.
 Invoke `/core:anti-fabrication` always — every claim about a tool, file, or test result requires tool execution.
 
 Glob patterns like `/core:*` do not expand in Agent prompts. List skill names explicitly.
@@ -68,7 +68,7 @@ You are a code reviewer. Analyze code for quality, security, and best practices.
 
 ## Guidelines
 
-- **Specific**: Reference file:line locations — per `assets/review-findings-format.md` in `/extras-cc:claude-output-styles`
+- **Specific**: Reference file:line locations — per `assets/review-findings-format.md` in `/extras-claude-code:claude-output-styles`
 - **Actionable**: Suggest concrete fixes
 - **Prioritized**: Critical issues first
 ```
@@ -161,13 +161,13 @@ Passing the Agent tool's `name` parameter (the convention above) converts the sp
 
 **Escalation re-spawns take a fresh name.** When the escalation ladder (haiku → sonnet → opus, per `/core:agent-loop` "Model Escalation") promotes a failed agent, spawn it under a new name carrying the new model tier and the next counter value — never resume the failed agent under its own name as its escalation. Resuming revives the original agent on its original model while its name still advertises the old tier.
 
-**Enforcement backstop.** No agent frontmatter field controls report delivery. The `TeammateIdle` hook (see `/extras-cc:claude-teams` `references/agent-teams.md`) is the available mechanism for enforcing that a teammate reports before going idle.
+**Enforcement backstop.** No agent frontmatter field controls report delivery. The `TeammateIdle` hook (see `/extras-claude-code:claude-teams` `references/agent-teams.md`) is the available mechanism for enforcing that a teammate reports before going idle.
 
 ## Common Agent Patterns
 
 Four recurring shapes, each with a runnable template:
 
-- **Read-only analysis** (security scans, code reviews, audits): restrict `tools` to `Read, Grep, Glob`. Template: `templates/read-only-analyzer.md`. Reviewer agents: no `Bash`; a separate execution-hands agent runs commands (`/core:agent-loop` `references/reviewer.md`); findings per `/extras-cc:claude-output-styles` `assets/review-findings-format.md`; model chosen by tier.
+- **Read-only analysis** (security scans, code reviews, audits): restrict `tools` to `Read, Grep, Glob`. Template: `templates/read-only-analyzer.md`. Reviewer agents: no `Bash`; a separate execution-hands agent runs commands (`/core:agent-loop` `references/reviewer.md`); findings per `/extras-claude-code:claude-output-styles` `assets/review-findings-format.md`; model chosen by tier.
 - **Write-capable** (generating tests, docs, code): add `Write`. Template: `templates/write-capable-agent.md`
 - **Full-access** (refactoring, migrations, complex modifications): omit `tools` entirely for no restrictions. Template: `templates/full-access-agent.md`
 - **MCP-enabled** (browser automation, external APIs): mix core tools with MCP tool names. Template: `templates/mcp-agent.md`

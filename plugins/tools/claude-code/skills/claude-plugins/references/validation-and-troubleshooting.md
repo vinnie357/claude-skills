@@ -170,7 +170,7 @@ The error reads `Plugin name "<name>" is reserved: it passes as one of Anthropic
 - **Scope of the check.** Only `claude plugin validate`, `claude plugin init`, and `claude plugin tag` check the name. `init` and `tag` refuse a name that draws the error. Claude Code still installs and loads such a plugin.
 - **Marketplaces.** The check applies to the plugin name wherever it is listed. A marketplace namespace (`plugin@marketplace`) does not exempt a name, so a name that collides with a reserved name is rejected under any marketplace. Verified 2026-10-05 on Claude Code 2.1.289: a marketplace entry named `mcp-for-claude` drew the warning, and a plugin.json named `claude-code` drew the error.
 - **Version boundary.** The check began failing in Claude Code 2.1.287. Versions 2.1.286 and earlier passed such names. This boundary was reported by the maintainer on 2026-10-05; the docs page and the changelog do not state it. Validate on a current release.
-- **Fix.** Rename the plugin to say what it does (`claude-code` became `extras-cc` in this repository). Then follow the `renames` procedure in `plugin-marketplace` so installed users migrate.
+- **Fix.** Rename the plugin to say what it does (`claude-code` became `extras-claude-code` in this repository, which draws only the warning). Then follow the `renames` procedure in `plugin-marketplace` so installed users migrate.
 
 Source: https://code.claude.com/docs/en/plugins/manifest-reference (section `name`), accessed 2026-10-05.
 

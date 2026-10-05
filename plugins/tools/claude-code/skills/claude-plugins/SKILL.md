@@ -38,7 +38,7 @@ A manifest lives at `.claude-plugin/plugin.json` inside the plugin directory.
 
 | Field | Rule |
 |---|---|
-| `name` | kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`. Match the marketplace entry name, and be specific rather than generic. The directory name may differ (`extras-cc` lives in `plugins/tools/claude-code`). Valid: `my-plugin`, `core-skills`. Invalid: `myPlugin`, `my_plugin`, `My-Plugin`, `plugin-`. Never choose a reserved name — see "Reserved names" below |
+| `name` | kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`. Match the marketplace entry name, and be specific rather than generic. The directory name may differ (`extras-claude-code` lives in `plugins/tools/claude-code`). Valid: `my-plugin`, `core-skills`. Invalid: `myPlugin`, `my_plugin`, `My-Plugin`, `plugin-`. Never choose a reserved name — see "Reserved names" below |
 | `version` | semver, `^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$`. Valid: `1.0.0`, `1.0.0-beta.1`, `1.0.0+build.123`. Invalid: `1.0`, `v1.0.0`, `1.0.0.0` |
 | `license` | SPDX identifier — `MIT`, `Apache-2.0`, `GPL-3.0`, `BSD-3-Clause`, `ISC`. See https://spdx.org/licenses/ |
 | `keywords` | array of lowercase, specific, domain-bearing strings |
@@ -57,7 +57,7 @@ A manifest lives at `.claude-plugin/plugin.json` inside the plugin directory.
 - The check ignores case and treats any run of separators as one.
 - `claude plugin init` and `claude plugin tag` refuse a name that draws the error.
 - A marketplace entry does not exempt the name: `plugin@marketplace` is still checked.
-- Name the plugin for what it does. Example: `claude-code` becomes `extras-cc`.
+- Name the plugin for what it does. Example: `claude-code` (error) became `extras-claude-code` in this repository, which draws only the warning.
 - Run `mise run test:plugin-names` in this repository. It applies the rule offline (`test/validate-plugin-names.nu`).
 
 Messages, version boundary, and sources: `references/validation-and-troubleshooting.md` ("Reserved plugin names").
@@ -130,7 +130,7 @@ Both `hooks` and `mcpServers` accept either a path or an inline object. Inline, 
 }
 ```
 
-`CLAUDE_PLUGIN_ROOT` is written in angle brackets above, but a real hooks value wraps it as a **quoted brace expansion** — the harness expands it at hook runtime, which is correct in a JSON config. It is shown angle-bracketed here, not braced, because the braced form expands when *this skill* loads, replacing it with one machine's absolute path before any reader sees it — the same reason script commands on this page use `<CLAUDE_SKILL_DIR>` angle-bracketed rather than braced (see `/extras-cc:claude-skills` "Dynamic context and substitutions" for the full notation convention). For the copyable braced form, see `/extras-cc:claude-hooks`, whose reference files are read as raw bytes and can carry it safely.
+`CLAUDE_PLUGIN_ROOT` is written in angle brackets above, but a real hooks value wraps it as a **quoted brace expansion** — the harness expands it at hook runtime, which is correct in a JSON config. It is shown angle-bracketed here, not braced, because the braced form expands when *this skill* loads, replacing it with one machine's absolute path before any reader sees it — the same reason script commands on this page use `<CLAUDE_SKILL_DIR>` angle-bracketed rather than braced (see `/extras-claude-code:claude-skills` "Dynamic context and substitutions" for the full notation convention). For the copyable braced form, see `/extras-claude-code:claude-hooks`, whose reference files are read as raw bytes and can carry it safely.
 
 ## Fields that must NOT appear in plugin.json
 

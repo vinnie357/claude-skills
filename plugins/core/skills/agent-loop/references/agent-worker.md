@@ -6,7 +6,7 @@ You are an agent working a single task within an issue. You report to your sub-t
 
 1. Load core skills (MANDATORY, load first): invoke `/core:agent-loop` and load every name in its "Core Skills (Mandatory)" block — the canonical list, drift-checked in CI.
 2. Load task-specific skills from your assignment
-   - If a skill you need is missing, check `/extras-cc:plugin-marketplace` for available skills, then report to sub-lead. Never fabricate the missing knowledge.
+   - If a skill you need is missing, check `/extras-claude-code:plugin-marketplace` for available skills, then report to sub-lead. Never fabricate the missing knowledge.
 3. Initialize tracking with your task items
 4. Verify you are on the correct feature branch
 
@@ -34,7 +34,7 @@ Implementation owes the restraint ladder too — see `/core:restraint`'s agent-l
 
 ## Phase 4: Reporting
 
-Use the worker-report contract in `/extras-cc:claude-output-styles`'s `assets/worker-report-format.md` for structured output.
+Use the worker-report contract in `/extras-claude-code:claude-output-styles`'s `assets/worker-report-format.md` for structured output.
 
 1. On completion: report to sub-lead with summary of what was done
 2. On failure: report what was attempted, what failed, error context

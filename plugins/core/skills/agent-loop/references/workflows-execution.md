@@ -1,6 +1,6 @@
 # Workflow Execution Substrate (optional)
 
-Claude Code dynamic workflows are a JavaScript runtime that orchestrates subagents at scale. They are an optional execution substrate for the five-tier decomposition pipeline and its Forge generalization (paired teams + implementor fan-out): when available and opted-in, encode the pipeline as a workflow script so the adversarial separation and stage gates become structural instead of discipline the lead must remember. When unavailable, spawn Task agents exactly as the default path describes. See the `/extras-cc:claude-workflows` skill for the full script API, and "Forge: hands-indexed principals and implementor fan-out" below for the fanned-out shape.
+Claude Code dynamic workflows are a JavaScript runtime that orchestrates subagents at scale. They are an optional execution substrate for the five-tier decomposition pipeline and its Forge generalization (paired teams + implementor fan-out): when available and opted-in, encode the pipeline as a workflow script so the adversarial separation and stage gates become structural instead of discipline the lead must remember. When unavailable, spawn Task agents exactly as the default path describes. See the `/extras-claude-code:claude-workflows` skill for the full script API, and "Forge: hands-indexed principals and implementor fan-out" below for the fanned-out shape.
 
 ## When this applies
 
@@ -8,8 +8,8 @@ The work is already decomposed — issues exist in bees (gate States A, C, or D)
 
 Then check two deterministic signals, mirroring the Phase 1.5 gate. Both are required:
 
-1. **Capability:** the `Workflow` tool is present in the session's toolset. Presence is the deterministic capability signal. The version, plan, and configuration requirements behind that availability are documented in the `/extras-cc:claude-workflows` skill (managing-runs reference). Do not probe versions, plans, or config flags separately.
-2. **Opt-in:** at least one of the three trigger forms from the `/extras-cc:claude-workflows` skill ("How to trigger a workflow") holds:
+1. **Capability:** the `Workflow` tool is present in the session's toolset. Presence is the deterministic capability signal. The version, plan, and configuration requirements behind that availability are documented in the `/extras-claude-code:claude-workflows` skill (managing-runs reference). Do not probe versions, plans, or config flags separately.
+2. **Opt-in:** at least one of the three trigger forms from the `/extras-claude-code:claude-workflows` skill ("How to trigger a workflow") holds:
    - the operator's request contains the word "workflow", or
    - `/effort ultracode` is active for the session, or
    - the operator invoked a saved or bundled workflow as `/<workflow-name>`.
@@ -116,7 +116,7 @@ async function withEscalation(prompt, opts, stageModel) {
 }
 ```
 
-The workflow `agent()` call exposes no effort option (see the `/extras-cc:claude-workflows` script API), so every stage inherits the launching session's effort.
+The workflow `agent()` call exposes no effort option (see the `/extras-claude-code:claude-workflows` script API), so every stage inherits the launching session's effort.
 
 ## Routing Explore and Plan stages via agentType
 
@@ -204,7 +204,7 @@ agent(implPrompt(issue), { isolation: 'worktree' })   // ~200-500ms + disk per a
 ```
 
 The harness removes that tree only if the agent leaves it unchanged
-(`/extras-cc:claude-workflows` "Worktree isolation", `/extras-cc:claude-agents`
+(`/extras-claude-code:claude-workflows` "Worktree isolation", `/extras-claude-code:claude-agents`
 `isolation` field) — an implementer that commits has changed the tree, so it persists
 rather than being auto-cleaned; treat it like any other harness worktree per `/core:git`
 "Worktrees". Use `isolation: 'worktree'` only for agents that mutate files in parallel;
@@ -280,7 +280,7 @@ three cycles, then a fresh-context Final Reviewer with its own hands index.
 ### Invoke as `/forge-issue`
 
 Save `forge-issue.workflow.js` to `.claude/workflows/` and trigger it by any of the three forms in
-`/extras-cc:claude-workflows` ("How to trigger a workflow"): the operator's request contains
+`/extras-claude-code:claude-workflows` ("How to trigger a workflow"): the operator's request contains
 "workflow", `/effort ultracode` is active, or the operator invokes `/forge-issue` directly. The
 `/work` command (interactive operator front door) loads `/core:agent-loop` and runs Forge, dispatching
 this workflow per issue when the substrate is opted-in.
