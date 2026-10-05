@@ -9,10 +9,10 @@ column.
 | Tier | claude (Claude Code 2.1.272) | codex (codex-cli 0.154.0) | agy (Antigravity CLI 1.2.3) |
 |---|---|---|---|
 | strongest reasoning | `fable` | `gpt-6-astra` | `claude-opus-4-6-thinking` |
-| strongest fallback (unavailable only) | `opus` | `gpt-5.6-sol` | `gemini-3.1-pro-high` |
-| deep reasoning | `opus` | `gpt-5.6-sol` | `gemini-3.1-pro-high` |
+| strongest fallback (unavailable only) | `opus` | `gpt-6.1-sol` | `gemini-3.1-pro-high` |
+| deep reasoning | `opus` | `gpt-6.1-sol` | `gemini-3.1-pro-high` |
 | general | `sonnet` | `gpt-5.6-terra` | `claude-sonnet-4-6` |
-| smallest fast | `haiku` (`Explore` agent type for text research) | `gpt-5.6-luna` | `gemini-3.8-flash-medium` |
+| smallest fast | `haiku` (`Explore` agent type for text research) | `gpt-6-luna` | `gemini-3.8-flash-medium` |
 | multimodal | unverified | unverified | unverified |
 | effort setting | `--effort <level>`; agent `effort:` frontmatter | `-c model_reasoning_effort=<level>` | `--effort <level>` on models that accept it; Gemini ids carry effort as a `-low`/`-medium`/`-high` suffix |
 | effort values | `low medium high xhigh max` | `gpt-6-astra`: `low medium high xhigh max` (rejects `none`, `minimal`) | `low medium high` |
@@ -38,7 +38,7 @@ AGENT_LOOP_HANDS_EFFORT=low
 ```bash
 # codex
 AGENT_LOOP_REVIEWER_MODEL=gpt-6-astra
-AGENT_LOOP_HANDS_MODEL=gpt-5.6-luna
+AGENT_LOOP_HANDS_MODEL=gpt-6-luna
 AGENT_LOOP_REVIEWER_EFFORT=medium
 AGENT_LOOP_HANDS_EFFORT=low
 ```
