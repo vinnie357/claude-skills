@@ -22,7 +22,7 @@ def main [
   print $"(ansi green_bold)Creating new plugin.json(ansi reset)"
   print ""
 
-  let name = input "Plugin name (kebab-case): "
+  let name = input "Plugin name (kebab-case, not reserved: no claude-/anthropic- prefix, not claude-code): "
   let version = input "Version (default: 0.1.0): "
   let description = input "Description: "
   let author_name = input "Author name: "

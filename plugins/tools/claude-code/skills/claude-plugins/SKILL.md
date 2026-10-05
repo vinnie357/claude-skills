@@ -38,10 +38,29 @@ A manifest lives at `.claude-plugin/plugin.json` inside the plugin directory.
 
 | Field | Rule |
 |---|---|
-| `name` | kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`. Match the directory name, and be specific rather than generic. Valid: `my-plugin`, `core-skills`. Invalid: `myPlugin`, `my_plugin`, `My-Plugin`, `plugin-` |
+| `name` | kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`. Match the marketplace entry name, and be specific rather than generic. The directory name may differ (`extras-cc` lives in `plugins/tools/claude-code`). Valid: `my-plugin`, `core-skills`. Invalid: `myPlugin`, `my_plugin`, `My-Plugin`, `plugin-`. Never choose a reserved name — see "Reserved names" below |
 | `version` | semver, `^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$`. Valid: `1.0.0`, `1.0.0-beta.1`, `1.0.0+build.123`. Invalid: `1.0`, `v1.0.0`, `1.0.0.0` |
 | `license` | SPDX identifier — `MIT`, `Apache-2.0`, `GPL-3.0`, `BSD-3-Clause`, `ISC`. See https://spdx.org/licenses/ |
 | `keywords` | array of lowercase, specific, domain-bearing strings |
+
+### Reserved names
+
+`claude plugin validate` rejects a plugin name that passes as one of Anthropic's own. Pick the name before you publish.
+
+| Name | Result |
+|---|---|
+| Starts with `claude-`, `anthropic-`, `anthropics-`, or `cc-plugin-` | Error |
+| Equals `claude`, `anthropic`, `anthropics`, `claude-code`, or `claude-mods` | Error |
+| Puts `official` beside `claude` or `anthropic` (`official-claude-tools`) | Error |
+| Has `claude`, `anthropic`, or `anthropics` as a whole word elsewhere (`mcp-for-claude`) | Warning |
+
+- The check ignores case and treats any run of separators as one.
+- `claude plugin init` and `claude plugin tag` refuse a name that draws the error.
+- A marketplace entry does not exempt the name: `plugin@marketplace` is still checked.
+- Name the plugin for what it does. Example: `claude-code` becomes `extras-cc`.
+- Run `mise run test:plugin-names` in this repository. It applies the rule offline (`test/validate-plugin-names.nu`).
+
+Messages, version boundary, and sources: `references/validation-and-troubleshooting.md` ("Reserved plugin names").
 
 ### Component paths
 

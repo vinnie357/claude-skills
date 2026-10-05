@@ -2,7 +2,7 @@
 
 This file documents the sources used to create the extras-cc plugin skills.
 
-Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `agent-skills-concept`, `example-skills-repository`, `skill-creator-guide`, `skills-cookbook`, `agent-skills-specification`, `agent-skills-overview`, `agent-skills-best-practices` (the Agent Skills Documentation section below), `claude-code-plugins-docs`, `claude-code-plugins-reference-docs`, `claude-code-plugin-dependencies-docs`, `claude-code-commands-docs`, `claude-code-agents-docs`, `claude-code-hooks-docs`, `claude-code-output-styles-docs` (the Claude Code Plugin Development section below), `claude-code-plugin-marketplaces-docs` (the Plugin Marketplace Skill section below), `agent-teams-docs`, `subagents-docs`, `agent-sdk-docs`, `agent-sdk-subagents-docs`, `building-c-compiler-blog`, `addyosmani-agent-teams-blog`, `tasks-to-swarms-blog`, `agent-teams-switch-flipped-blog` (the Claude Teams Skill section below), `claude-code-statusline-docs`, `ccstatusline` (the Claude Statusline Skill section below), `claude-code-workflows-docs`, `dynamic-workflows-blog`, `claude-code-workflow-tool-contract` (the Claude Workflows Skill section below), `skills-building-guide-pdf`, `improving-skill-creator-blog` (the Skill Building Guide (PDF) section below), `github-rest-api-releases`, `hexpm-api`, `cratesio-api`, `toml-spec` (the Skill Update Skill section below), `context-engineering-claude-5-blog`, `claude-code-changelog` (the Context Engineering for Claude 5 Models section below).
+Structured tracking: [sources.toml](sources.toml) — versions, check methods, and skill coverage live there. Entries: `agent-skills-concept`, `example-skills-repository`, `skill-creator-guide`, `skills-cookbook`, `agent-skills-specification`, `agent-skills-overview`, `agent-skills-best-practices` (the Agent Skills Documentation section below), `claude-code-plugins-docs`, `claude-code-plugins-reference-docs`, `claude-code-plugin-dependencies-docs`, `claude-code-plugin-manifest-reference-docs`, `claude-code-commands-docs`, `claude-code-agents-docs`, `claude-code-hooks-docs`, `claude-code-output-styles-docs` (the Claude Code Plugin Development section below), `claude-code-plugin-marketplaces-docs`, `claude-code-host-marketplace-docs` (the Plugin Marketplace Skill section below), `agent-teams-docs`, `subagents-docs`, `agent-sdk-docs`, `agent-sdk-subagents-docs`, `building-c-compiler-blog`, `addyosmani-agent-teams-blog`, `tasks-to-swarms-blog`, `agent-teams-switch-flipped-blog` (the Claude Teams Skill section below), `claude-code-statusline-docs`, `ccstatusline` (the Claude Statusline Skill section below), `claude-code-workflows-docs`, `dynamic-workflows-blog`, `claude-code-workflow-tool-contract` (the Claude Workflows Skill section below), `skills-building-guide-pdf`, `improving-skill-creator-blog` (the Skill Building Guide (PDF) section below), `github-rest-api-releases`, `hexpm-api`, `cratesio-api`, `toml-spec` (the Skill Update Skill section below), `context-engineering-claude-5-blog`, `claude-code-changelog` (the Context Engineering for Claude 5 Models section below).
 
 ## Agent Skills Documentation
 
@@ -104,6 +104,18 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - This is a different grammar from `is-semver` (exact version) — confirms `is-semver` must not be reused unchanged for this field, per claude-skills-235's AC
 - **Used In**: skills/claude-plugins/SKILL.md, skills/claude-plugins/references/validation-and-troubleshooting.md, skills/claude-plugins/scripts/validate-plugin.nu
 
+### Claude Code Plugin Manifest Reference (name field)
+- **URL**: https://code.claude.com/docs/en/plugins/manifest-reference
+- **Purpose**: Reserved plugin names that `claude plugin validate` rejects or flags
+- **Date Accessed**: 2026-10-05
+- **Key Findings**:
+  - Error: name starts with `claude-`, `anthropic-`, `anthropics-`, or `cc-plugin-`; equals `claude`, `anthropic`, `anthropics`, `claude-code`, or `claude-mods`; or puts `official` beside `claude` or `anthropic`
+  - Warning: `claude`, `anthropic`, or `anthropics` as a whole word anywhere else, such as `mcp-for-claude`
+  - The check ignores case and treats any run of separators as one
+  - `claude plugin init` and `claude plugin tag` refuse a name that draws the error; only these commands and `validate` check the name
+  - Not stated on the page: the 2.1.287 version boundary (maintainer-reported) and the marketplace-namespace behavior (verified locally on 2.1.289 on 2026-10-05)
+- **Used In**: skills/claude-plugins/SKILL.md, skills/claude-plugins/references/validation-and-troubleshooting.md
+
 ### Claude Code Commands Documentation
 - **URL**: https://code.claude.com/docs/en/commands
 - **Purpose**: Guide for creating custom slash commands
@@ -166,6 +178,16 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
   - Component configuration: commands, agents, hooks, mcpServers
   - Confirmed 2026-08-04: a marketplace entry may carry any field from the plugin manifest schema PLUS these marketplace-specific fields — `source`, `category`, `tags`, `strict`, and `relevance`. This confirms `category`/`strict`/`source`/`tags` are correctly marketplace-only in `validate-plugin.nu`'s denylist, and that `dependencies` is NOT among them — it belongs to the plugin manifest schema (claude-skills-218). `relevance` is also marketplace-only but out of scope for claude-skills-218/219 — not added to the denylist speculatively
 - **Used In**: skills/plugin-marketplace/SKILL.md, skills/claude-plugins/SKILL.md
+
+### Claude Code Host and Maintain a Marketplace
+- **URL**: https://code.claude.com/docs/en/plugins/host-marketplace
+- **Purpose**: Renaming or removing a plugin without breaking installs
+- **Date Accessed**: 2026-10-05
+- **Key Findings**:
+  - Top-level `renames` map in `marketplace.json`: former name to current name, or `null` for a removed plugin
+  - Treat `renames` as append-only history; Claude Code follows the chain from the oldest name
+  - `claude plugin validate .` rejects a chain that cycles or ends anywhere except `null` or a name in `plugins`
+- **Used In**: skills/plugin-marketplace/SKILL.md, skills/plugin-marketplace/references/validation-and-troubleshooting.md
 
 ### Advanced Plugin Entry Features
 - **URL**: https://code.claude.com/docs/en/plugin-marketplaces#advanced-plugin-entries

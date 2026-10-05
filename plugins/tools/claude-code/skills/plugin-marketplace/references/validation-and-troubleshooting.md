@@ -8,6 +8,7 @@
 
 - [What the validator reports](#what-the-validator-reports)
 - [Migrating existing plugins to a marketplace](#migrating-existing-plugins-to-a-marketplace)
+- [Renaming or removing a plugin](#renaming-or-removing-a-plugin)
 - [Runtime troubleshooting](#runtime-troubleshooting)
 
 ## What the validator reports
@@ -94,6 +95,32 @@ marketplace using bare sources fails at install time, that is the ambiguity, not
 
 `nu <CLAUDE_SKILL_DIR>/scripts/analyze-plugins.nu .` scans for `plugin.json` files and suggests a
 marketplace.json structure to start from.
+
+## Renaming or removing a plugin
+
+A plugin's `name` is its identifier. Users reference it in `/plugin install`, in `enabledPlugins`, and in `pluginConfigs`. Changing it breaks every existing install unless the marketplace carries a `renames` map. Keep `name` stable, and set `displayName` in plugin.json to change only the label users see.
+
+Add a top-level `renames` map to `marketplace.json`. Map each former name to its current name, or to `null` when the plugin is gone.
+
+```json
+{
+  "renames": {
+    "formatter": "code-formatter",
+    "legacy-linter": null
+  }
+}
+```
+
+- **Renamed entry.** The plugin loads under the new name, and Claude Code rewrites the old key in `enabledPlugins` and `pluginConfigs`.
+- **`null` entry.** Claude Code drops the old key and tells the user the plugin was removed.
+- **Append-only.** Keep old entries after everyone migrates. Add a second entry for a second rename, because Claude Code follows the chain from the oldest name.
+- **Validation.** `claude plugin validate .` rejects a chain that cycles or ends anywhere except `null` or a name in `plugins`: `renames.<name>: chain does not resolve`. Verified 2026-10-05 on Claude Code 2.1.289 with a target that is not in `plugins`.
+- **Managed settings.** Claude Code cannot rewrite managed settings. The rename notice recurs until an administrator updates `enabledPlugins` there.
+- **Git or URL marketplaces.** A user runs `/plugin install <new-name>@<marketplace>` once after a rename.
+
+Rename a plugin for a reserved name with this procedure. See `claude-plugins` ("Reserved names") for the rule.
+
+Source: https://code.claude.com/docs/en/plugins/host-marketplace (section "Migrate users with a renames map"), accessed 2026-10-05.
 
 ## Runtime troubleshooting
 

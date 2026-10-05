@@ -422,7 +422,7 @@ mise test:plugins            # Validate all plugin.json files
 
 Tests validate every plugin registered in `.claude-plugin/marketplace.json` (including all-skills):
 - Required fields and JSON structure
-- Plugin names match directories (kebab-case)
+- Plugin names are kebab-case, match their marketplace entry, and avoid reserved names (`mise test:plugin-names`); a directory name may differ (`extras-cc` lives in `plugins/tools/claude-code`)
 - No invalid marketplace-only fields in plugin.json
 - Skill paths exist (all-skills has special handling as meta-plugin)
 

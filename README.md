@@ -474,7 +474,7 @@ mise test:plugins
 
 - **Marketplace validation**: Required fields, plugin entries, JSON structure
 - **Plugin validation** (every plugin including all-skills):
-  - Name matches directory (or root for all-skills)
+  - Name matches the marketplace entry (or root for all-skills), and is not a reserved name
   - No invalid marketplace-only fields
   - Kebab-case naming
   - Skill paths exist

@@ -32,7 +32,7 @@ Complete JSON schema for Claude Code plugin.json files.
 - **Type**: String
 - **Format**: kebab-case
 - **Pattern**: `^[a-z0-9]+(-[a-z0-9]+)*$`
-- **Description**: Unique identifier for the plugin
+- **Description**: Unique identifier for the plugin. Reserved names draw an error or warning from `claude plugin validate` — see `validation-and-troubleshooting.md` ("Reserved plugin names")
 - **Examples**: `core-skills`, `elixir-phoenix`, `rust-tools`
 
 ### version (Recommended)
