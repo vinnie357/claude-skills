@@ -82,7 +82,7 @@ nu test/validate-core-list.nu
 
 Checks every plugin name in `.claude-plugin/marketplace.json`, the root
 `.claude-plugin/plugin.json` (when present), and each
-`plugins/*/*/.claude-plugin/plugin.json` against the reserved-name rule from the
+`plugins/*/.claude-plugin/plugin.json` and `plugins/*/*/.claude-plugin/plugin.json` against the reserved-name rule from the
 `name` field of the plugin manifest reference
 (https://code.claude.com/docs/en/plugins/manifest-reference). The check runs
 offline, so it does not depend on the installed `claude` version. Case is

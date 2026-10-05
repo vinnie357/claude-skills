@@ -30,7 +30,11 @@ export def reserved-name-verdict [name: string]: nothing -> record {
 export def scan-manifests [repo_root: string]: nothing -> list {
     let mkt = ($repo_root | path join ".claude-plugin" "marketplace.json")
     let root_plugin = ($repo_root | path join ".claude-plugin" "plugin.json")
-    let nested = (glob ($repo_root | path join "plugins" "*" "*" ".claude-plugin" "plugin.json"))
+    # Plugins sit one level deep (plugins/core) or two (plugins/tools/github).
+    let nested = (
+        (glob ($repo_root | path join "plugins" "*" ".claude-plugin" "plugin.json"))
+        | append (glob ($repo_root | path join "plugins" "*" "*" ".claude-plugin" "plugin.json"))
+    )
 
     let mkt_names = (open $mkt | get plugins | get name | each { |n| {file: $mkt, name: $n} })
     let plugin_files = (
