@@ -5,7 +5,7 @@ Structured tracking: [sources.toml](sources.toml) — versions, check methods, a
 ## runex skill
 
 ### Runex Source Code
-- **Source**: `~/github/runex/` (local repository — private GitHub repo `vinnie357/runex`)
+- **Source**: `~/github/runex/` (local repository; the GitHub repository is not publicly readable)
 - **Files consulted**:
   - `mix.exs` -- Application version pinning (`@version`)
   - `lib/runex_web/router.ex` -- API route definitions

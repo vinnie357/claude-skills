@@ -232,7 +232,7 @@ literal = "runex@0.0.7"
 context = "mise global pin example"
 check_method = "manual"
 policy = "track"
-notes = "vinnie357/runex is a PRIVATE repo — mirrors the existing sources.toml entry's own check_method=manual decision (confirmed live 2026-08-04: unauthenticated GET .../releases/tags/v0.0.7 -> 404, indistinguishable from a genuinely deleted tag without GITHUB_TOKEN access to the private repo). Registering this as check_method=github-releases would report a FALSE broken finding for anyone running the tool without repo access, which is most environments including CI."
+notes = "The runex source repository is not publicly readable — mirrors the existing sources.toml entry's own check_method=manual decision (confirmed live 2026-08-04: unauthenticated GET .../releases/tags/v0.0.7 -> 404, indistinguishable from a genuinely deleted tag without GITHUB_TOKEN access to the private repo). Registering this as check_method=github-releases would report a FALSE broken finding for anyone running the tool without repo access, which is most environments including CI."
 
 [[literals]]
 file = "plugins/core/skills/twelve-factor/references/factor-examples.md"
@@ -337,10 +337,10 @@ occurrences = 2
 [[literals]]
 file = "plugins/tools/runex/skills/runex/templates/0.0.7/mise.toml"
 literal = "0.0.7"
-context = "github:vinnie357/runex tool pin, ready-to-copy per runex SKILL.md's 'templates/0.0.7/mise.toml' reference"
+context = "runex tool pin, ready-to-copy per runex SKILL.md's 'templates/0.0.7/mise.toml' reference"
 check_method = "manual"
 policy = "intentional-pin"
-notes = "Versioned template directory (templates/0.0.7/, sibling templates/0.1.0/ also exists) — a deliberate frozen snapshot per the /extras-cc:skill-update convention ('When a CLI tool has breaking command changes across versions, create a versioned template'), not drift. check_method=manual: vinnie357/runex is a private repo: unauthenticated tag-existence checks 404 regardless of whether the tag exists (see plugins/core/skills/mise/references/transitive-runtime-deps.md-style private-repo gotcha), which would misreport as broken."
+notes = "Versioned template directory (templates/0.0.7/, sibling templates/0.1.0/ also exists) — a deliberate frozen snapshot per the /extras-cc:skill-update convention ('When a CLI tool has breaking command changes across versions, create a versioned template'), not drift. check_method=manual: the runex source repository is not publicly readable: unauthenticated tag-existence checks 404 regardless of whether the tag exists (see plugins/core/skills/mise/references/transitive-runtime-deps.md-style private-repo gotcha), which would misreport as broken."
 
 # -----------------------------------------------------------------------------
 # claude-skills-231: postgres:16 also appears in the sbx elixir-tidewave
