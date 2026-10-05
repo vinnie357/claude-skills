@@ -174,7 +174,54 @@ def scan-cases []: nothing -> list {
         [(check-eq "marketplace top-level name ignored" (scan-manifests $topname) [])]
     }))
 
-    for t in [$clean $bad $warn $nested $rootp $noroot $topname] { rm -rf $t }
+    # depth-1 plugin.json (plugins/<name>/.claude-plugin/plugin.json)
+    let shallow_err = (new-tree shallowerr)
+    write-marketplace $shallow_err []
+    write-nested-plugin $shallow_err plugins/core claude-code
+    $out = ($out | append (guarded "scan depth-1 error" {
+        let got = (scan-manifests $shallow_err)
+        [
+            (check-eq "depth-1 error files" ($got | get file) ["plugins/core/.claude-plugin/plugin.json"])
+            (check-eq "depth-1 error level" ($got | get level) [error])
+            (check-eq "depth-1 error name" ($got | get name) [claude-code])
+        ]
+    }))
+
+    let shallow_warn = (new-tree shallowwarn)
+    write-marketplace $shallow_warn []
+    write-nested-plugin $shallow_warn plugins/pm my-claude
+    $out = ($out | append (guarded "scan depth-1 warning" {
+        let got = (scan-manifests $shallow_warn)
+        [
+            (check-eq "depth-1 warning files" ($got | get file) ["plugins/pm/.claude-plugin/plugin.json"])
+            (check-eq "depth-1 warning level" ($got | get level) [warning])
+        ]
+    }))
+
+    let shallow_ok = (new-tree shallowok)
+    write-marketplace $shallow_ok []
+    write-nested-plugin $shallow_ok plugins/ui extras-cc
+    $out = ($out | append (guarded "scan depth-1 clean" {
+        [(check-eq "depth-1 clean tree is empty" (scan-manifests $shallow_ok) [])]
+    }))
+
+    # one finding at each depth: both are returned
+    let mixed = (new-tree mixed)
+    write-marketplace $mixed []
+    write-nested-plugin $mixed plugins/core claude-code
+    write-nested-plugin $mixed plugins/tools/deep claude-tools
+    $out = ($out | append (guarded "scan mixed depths" {
+        let got = (scan-manifests $mixed | sort-by file)
+        [
+            (check-eq "mixed depths files" ($got | get file) [
+                "plugins/core/.claude-plugin/plugin.json"
+                "plugins/tools/deep/.claude-plugin/plugin.json"
+            ])
+            (check-eq "mixed depths levels" ($got | get level | uniq) [error])
+        ]
+    }))
+
+    for t in [$clean $bad $warn $nested $rootp $noroot $topname $shallow_err $shallow_warn $shallow_ok $mixed] { rm -rf $t }
     $out
 }
 
@@ -246,6 +293,35 @@ def real-repo-cases []: nothing -> list {
     }
 }
 
+# Every real manifest path must be one scan-manifests inspects: copy each real
+# plugin.json's relative path into a temp tree with its name replaced by a
+# reserved name, then require an error finding for exactly that file.
+def real-coverage-cases []: nothing -> list {
+    guarded "real manifest coverage" {
+        let repo_root = ($TEST_DIR | path dirname)
+        let tracked = (
+            ^git -C $repo_root ls-files 'plugins/**/.claude-plugin/plugin.json'
+            | lines | where { |l| ($l | str length) > 0 } | sort
+        )
+        let on_disk = (
+            glob $"($repo_root)/plugins/**/.claude-plugin/plugin.json"
+            | each { |f| $f | path relative-to $repo_root } | sort
+        )
+        let tree = (new-tree coverage)
+        write-marketplace $tree []
+        for rel in $tracked {
+            write-json ($tree | path join $rel) {name: "claude-code", version: "0.0.1"}
+        }
+        let found = (scan-manifests $tree | where level == "error" | get file | sort)
+        rm -rf $tree
+        [
+            (result "real manifests exist" (($tracked | length) > 0) $"tracked=($tracked | length)")
+            (check-eq "tracked manifest count equals on-disk count" ($tracked | length) ($on_disk | length))
+            (check-eq "scan-manifests inspects every real manifest path" $found $tracked)
+        ]
+    }
+}
+
 # Harness self-checks: prove the assertion helpers can fail, so a green run is not vacuous.
 def harness-cases []: nothing -> list {
     let wrong = (check-eq "deliberately wrong" "error" "ok")
@@ -267,6 +343,7 @@ def main [] {
         | append (scan-cases)
         | append (cli-cases)
         | append (real-repo-cases)
+        | append (real-coverage-cases)
     )
 
     for r in $results {
