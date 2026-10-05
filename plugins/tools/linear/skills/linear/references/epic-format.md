@@ -63,7 +63,7 @@ Target repositories this epic touches:
 
 ```
 - vinnie357/vantageex
-- vinnie357/runex
+- example-org/example-repo
 ```
 
 May be a single repo or multiple. The VantageEx multi-repo epic support enables parallel execution across repos.
