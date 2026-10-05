@@ -80,6 +80,10 @@ update_priority = "medium"
 # Set true when minor/patch bumps in this source commonly break things.
 breaking_changes_likely = false
 
+# Uncomment when the upstream repo is not publicly readable: sources:validate
+# then reports its URLs as `private` (expected 404) instead of `dead`.
+# private = true
+
 # Optional short context. Long narrative belongs in sources.md.
 notes = ""
 
