@@ -58,6 +58,16 @@ Delivery: symlink the skill folder into the harness user skill dir (`~/.claude/s
 `~/.agents/skills`, `~/.gemini/config/skills`, `~/.gemini/antigravity-cli/skills`), or install
 the Claude Code plugin wrapping the same folder.
 
+## Baby gates
+
+Agents move with confidence because gates, not agents, read test output. `tools/gate.nu`
+wraps any command: `nu gate.nu test -- mise run test` prints `PASS test 1.2s`, or
+`FAIL test exit 3 log:.gates/test.log` followed by failure lines deduplicated with `×N` counts.
+`--json` emits the same as a record. Full output stays in `.gates/<name>.log` for `rg` on demand.
+Tested by `tools/gate_test.nu`. Ideas taken from rtk (failures only, collapsed passes) and
+headroom (originals kept, retrieved on demand), built with mise and Nushell instead of a
+dependency. It ships with the skill repo as the reference gate runner, not inside SKILL.md.
+
 ## Agents
 
 None in core. All three harnesses spawn general subagents from a prompt; rule 5 needs only a
