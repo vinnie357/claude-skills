@@ -87,6 +87,14 @@ reviewer. `tools/size.nu` estimates diff tokens as bytes / 4 and fails when the 
 `REVIEW_WINDOW × REVIEW_SHARE` (defaults 200000 × 0.1 = 20000 tokens; a proposed policy to
 tune by experiment, not a measured threshold). A diff over budget is split into smaller issues.
 
+### Proportional review
+
+The same review for a one-line change and a 1,000-line change wastes tokens. `tools/size.nu`
+now names a review tier per diff: `gates` (≤ 500 tokens, passing gates are the review),
+`light` (≤ 4,000, one reviewer, diff only, low effort), `full` (larger, or any file matching
+the project's `REVIEW_RISK_PATHS`), `split` (over budget, not reviewed). Thresholds are starting
+points to tune by experiment; risk paths are project rules and belong in `mise.toml` env.
+
 ## Build rule (11)
 
 Kept in core because models do not default to these opinions: MVP first and change on
