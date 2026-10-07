@@ -126,7 +126,7 @@ Resume from this section and the open issues on vinnie357/skills; do not replay 
 
 **Open PRs on vinnie357/skills (all target `main`; merge in this order, review each sized to its diff, resolve `tests/run.nu` conflicts with a merge from `main`):** #25 release policy, #22 scratch, #23 authors, #21 budget, #20 env, #19 find, #15 install.sh (`feat!`, major held for approval).
 
-**Open issues:** #3 issue template, #4 gate runner and review sizing, #5 sync core to this draft, #10 test-path gate, #11 plugin version, #12 env model line, #13 agy probe, #14 old vs new experiment, #17 always-on bundle, #18 distill all 108 (blocked on complete core).
+**Open issues:** #3 issue template, #4 gate runner and review sizing, #5 sync core to this draft, #10 test-path gate, #11 plugin version, #12 env model line, #13 agy probe, #14 old vs new experiment, #17 always-on bundle, #27 port claude-skills plugin and skill validation, #18 distill all 108 (blocked on complete core).
 
 **To decide or do next:**
 1. Name for the repo tool replacing `skills.nu`.
