@@ -113,29 +113,26 @@ trade-off be stated. Language detail comes from provider or language skills when
 - Agents merge feature work into the integration branch once gates and review pass. Humans gate
   only production (`dev`→`main`, or `main` in low-risk repos), unless the operator enables auto-merge.
 
-## Handoff (2026-10-07)
+## Handoff (2026-10-07, end of session)
 
-Resume from this section and the open issues on vinnie357/skills; do not replay the session.
+Resume from this section and the open issues on vinnie357/skills. Do not replay the session.
 
-**Current decisions since the grilling table below:**
-- Trunk-based: `main` always current; every green `main` releases; only a major waits for the user (PR #25). No `dev` (delete the leftover `dev` branch in the GitHub UI).
-- The skill ships `core/SKILL.md` plus `core/tasks/` (Nushell file tasks). `install.sh` links `core/tasks/` to `~/.config/mise/tasks/core/`, so every project has `mise run core:find`, `core:env`, `core:gate`, etc. The tasks handle asdb, jev-select, altana and awman with fallbacks; the skill names only the tasks and says what to do without them. Replaces `scripts/skills.nu` (name clashed with `mise skills` and `npx skills`). A project task named `core:*` would shadow ours. Repo scripts (`scripts/skills.nu` find/env, budget, authors, scratch, gate, size) are vinnie357/skills tooling only. Rename `skills.nu`: it collides with `mise skills` (built-in) and `npx skills` (Vercel). Name not chosen.
-- Branches `<type>/<issue>-<slug>`; squash merges; commit as the owner; no attribution anywhere (`authors` gate, PR #23).
-- Prose, not gates, for repo setup, branch naming and pinned merges: in the distilled `git` skill (#17).
-- Cost is tokens and CI minutes (CI is paid per minute). After remote CI, `core:ci-time` compares the run with the repo's recent history; outliers are fixed or filed.
-- Compaction: avoid it. State lives in the tracker and worktree list; end a session and resume fresh instead of compacting.
+**Decisions since the grilling table below:**
+- Trunk-based: `main` always current; every green `main` releases. Only a major waits for the user. High-risk or interactive work may use its own branch.
+- Versions: every PR bumps `version` in `plugin.json` and `marketplace.json` (claude-skills practice); `test:version-bumps` enforces; release tags that version (#11). This replaces #25's commit-type computation; keep #25's major hold.
+- The skill ships `core/SKILL.md` plus `core/tasks/` (Nushell mise file tasks). `install.sh` links them to `~/.config/mise/tasks/core/`, so projects run `mise run core:find`, `core:env`, `core:gate`, `core:ci-time` (#28, #29). Tasks wrap asdb, jev-select, altana, awman with fallbacks; the skill names only the tasks. Replaces `scripts/skills.nu` (clashed with `mise skills` and `npx skills`).
+- Gates: cheapest first, parallel where independent, stop on first failure (#4). Cost is tokens and CI minutes.
+- Branches `<type>/<issue>-<slug>`; squash merges; commit as the owner; no attribution in commits, PRs or comments (`authors` gate, #23). The GitHub tooling appends a footer to every new PR or comment: edit it out after creating.
+- Prose, not gates, for repo setup, branch naming, pinned merges (distilled `git` skill, #17).
+- Compaction: avoid it. State lives in the tracker and worktree list; end and resume fresh.
 
-**Open PRs on vinnie357/skills (all target `main`; merge in this order, review each sized to its diff, resolve `tests/run.nu` conflicts with a merge from `main`):** #25 release policy, #22 scratch, #23 authors, #21 budget, #20 env, #19 find, #15 install.sh (`feat!`, major held for approval).
+**Open PRs on vinnie357/skills (target `main`):** #22 scratch, #23 authors, #21 budget, #20 env, #19 find, #15 install.sh (`feat!`). #25 release policy needs rework under #11 first. Each PR needs a manifest version bump once #11 lands. Review each sized to its diff; resolve `tests/run.nu` conflicts with a merge from `main`.
 
-**Open issues:** #3 issue template, #4 gate runner and review sizing, #5 sync core to this draft, #10 test-path gate, #11 plugin version, #12 env model line, #13 agy probe, #14 old vs new experiment, #17 always-on bundle, #27 port claude-skills plugin and skill validation, #28 core mise tasks, #29 core:ci-time, #18 distill all 108 (blocked on complete core).
+**Open issues:** #3 issue template, #4 gate runner and stages, #5 sync core to this draft, #10 test-path gate, #11 manifest versions, #12 env model line, #13 agy probe, #14 old vs new experiment, #17 always-on bundle, #27 port claude-skills validation, #28 core mise tasks, #29 core:ci-time, #18 distill all 108 (blocked on complete core), #30 distill-skill (blocked on #18).
 
-**To decide or do next:**
-1. Move `skills.nu` commands and gate scripts into `core/tasks/` (vinnie357/skills#28).
-2. mise `packslip:` backend and `mise skills sync` as a distribution channel. Findings (mise docs, 2026-10-07): install with `mise use packslip:owner/repo@1.2.3`; versions come from GitHub release tags carrying a signed `packslip.sigstore.json` bundle (keyless Sigstore by default, signer pinned on first use, digests in `mise.lock`, 24h minimum release age by default). A manifest can declare a skill folder from the artifact, a signed asset, or the repo at the release commit. `mise skills sync` symlinks each skill into one directory per run (default `.claude/skills`, `-g` for home, `--dir .agents/skills` for others), owns only links it made, and leaves real folders alone. Unverified: whether a skill-only release with no binary artifact is valid; check the spec at packslip.dev before choosing it over `install.sh`.
-3. Cloud environment setup script: set git `user.name`/`user.email` to the owner (sessions default to an agent identity).
-4. `v0.1.0` release `target_commitish` still names the pre-rewrite commit (`gh release edit v0.1.0 --target main`).
-5. Repo settings in GitHub UI: squash only, PR title as squash message, delete head branches, protect `main`.
-6. Managed-agents ideas still open: credential isolation wording, lead list as an append-only log, lazy hands.
+**User actions in GitHub UI:** delete the `dev` branch; repo settings (squash only, PR title as message, delete head branches, protect `main`); cloud environment setup script sets git `user.name`/`user.email`; optional `gh release edit v0.1.0 --target main`.
+
+**Open ideas:** mise `packslip:` as distribution (check whether a skill-only release is valid at packslip.dev); managed-agents notes (credential isolation wording, lead list as append-only log, lazy hands). Core draft is ~790 words: trim target.
 
 ## Decisions (grilling, 2026-10-07)
 
