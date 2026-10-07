@@ -132,7 +132,7 @@ Resume from this section and the open issues on vinnie357/skills. Do not replay 
 
 **User actions in GitHub UI:** delete the `dev` branch; repo settings (squash only, PR title as message, delete head branches, protect `main`); cloud environment setup script sets git `user.name`/`user.email`; optional `gh release edit v0.1.0 --target main`.
 
-**Open ideas:** mise `packslip:` as distribution (check whether a skill-only release is valid at packslip.dev); managed-agents notes (credential isolation wording, lead list as append-only log, lazy hands). Core draft is ~790 words: trim target.
+**Open ideas:** mise `packslip:` as distribution (check whether a skill-only release is valid at packslip.dev); managed-agents notes (credential isolation wording, lead list as append-only log, lazy hands). Core draft is ~820 words: trim target.
 
 ## Decisions (grilling, 2026-10-07)
 
