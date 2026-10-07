@@ -9,7 +9,7 @@ patterns each session.
 
 ## Constraints
 
-- One core skill, ~25 lines, Agent Skills spec fields only (`name`, `description`, `license`, `metadata`).
+- One core skill, ≤25 lines, Agent Skills spec fields only (`name`, `description`, `license`, `metadata`).
 - Enforceable rules become mise tasks, lint rules or hooks, not prose.
 - No forced context injection (no SessionStart skill dumps).
 - `AGENTS.md` holds project-specific rules only. Process rules live in the skill.
@@ -87,4 +87,4 @@ No conclusion until both arms have run.
 - Ship as core 1.0 in this repo, or a new standalone skills repo?
 - GitHub Issues, Linear, or a thin adapter for both?
 - Worker skill selection: description matching alone, or a task → skills index?
-- Which existing agents (reviewer, gcms) survive as the merge-guard reviewer?
+- Arm B run in progress (vinnie357/skills bootstrap) used the 25-line draft; compare against the 20-line cut.
