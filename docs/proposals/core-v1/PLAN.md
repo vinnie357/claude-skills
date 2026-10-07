@@ -49,22 +49,19 @@ Codex install-from-arbitrary-repo syntax.
 
 ## Proposed shape
 
-```
-core/
-├── SKILL.md            # ~25-line manifesto, spec-only frontmatter
-├── references/         # loaded on demand: gate catalog, release flow, review checklist
-└── assets/
-    ├── mise.toml       # gate template: ci, test, lint, lint:prose, lint:secrets, release
-    └── vale/           # prose rules replacing anti-fabrication / technical-english
-```
+One file: `core/SKILL.md` (20 lines). No references, assets, agents, hooks or commands.
+Everything else comes from provider skills and plugins (Anthropic, Codex, Antigravity) or the
+project itself (`AGENTS.md`, `mise.toml`). An addition to core must show, by experiment, an
+outcome the 20 lines fail to produce.
 
-Delivery per harness (minimal instructions):
+Delivery: symlink the skill folder into the harness user skill dir (`~/.claude/skills`,
+`~/.agents/skills`, `~/.gemini/config/skills`, `~/.gemini/antigravity-cli/skills`), or install
+the Claude Code plugin wrapping the same folder.
 
-- Claude Code: plugin `core` in this marketplace, or symlink to `~/.claude/skills/core`.
-- Codex: symlink to `~/.agents/skills/core`.
-- Antigravity: symlink to `~/.gemini/config/skills/core` and `~/.gemini/antigravity-cli/skills/core`,
-  or a plugin under `~/.gemini/config/plugins/`.
-- A `mise run install:<harness>` task does the linking, so installation is itself a gate.
+## Agents
+
+None in core. All three harnesses spawn general subagents from a prompt; rule 5 needs only a
+fresh context, which any subagent provides. Agent definitions are harness-specific and stay out.
 
 ## Manifesto content sources
 
@@ -73,7 +70,7 @@ Delivery per harness (minimal instructions):
 | Fail forward | dev always current; main semver-released per merge; low-risk repos target main; fix forward, never rewrite history |
 | Core loops (agent-loop, git) | issue → worktree → focused workers → three merge guards → operator merge |
 | Modern App Manifesto | V errors carry a path forward (gates emit the failure, not the log); VII bounded merge authority; VIII idempotent, resumable tasks; IX evidence on demand; X secrets out of reach; XI budgets per worker; XII verify outcomes |
-| tdd, anti-fabrication, restraint | one line each, enforced by tests and Vale where possible |
+| tdd, anti-fabrication, restraint | one line each |
 
 ## Experiment
 
