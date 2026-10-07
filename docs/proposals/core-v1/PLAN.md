@@ -68,6 +68,25 @@ Tested by `tools/gate_test.nu`. Ideas taken from rtk (failures only, collapsed p
 headroom (originals kept, retrieved on demand), built with mise and Nushell instead of a
 dependency. It ships with the skill repo as the reference gate runner, not inside SKILL.md.
 
+### Fail fast
+
+- Warnings are errors, and each tool stops at its first failure. The gate cannot make a tool
+  stop early, so the tool flags do it (for example `mix test --max-failures=1
+  --warnings-as-errors`, `pytest -x`, `cargo clippy -- -D warnings`, `eslint --max-warnings 0`).
+  `ci` runs gates in sequence and stops at the first red one.
+- `gate.nu` shows one failure line by default (`--max 1`): one problem, one focused fix,
+  small output.
+- Three outcomes: `PASS`; `FAIL` (the check ran and found a problem); `ERROR` (the check never
+  ran: exit 126/127, missing tool). An `ERROR` is fixed in the environment, not the code.
+
+### Review budget
+
+Reviewer context = window − loaded skills − instructions − room to read surrounding code and
+write findings. Leads run with 200k–1M token windows, so the budget is set by the smallest
+reviewer. `tools/size.nu` estimates diff tokens as bytes / 4 and fails when the diff exceeds
+`REVIEW_WINDOW × REVIEW_SHARE` (defaults 200000 × 0.1 = 20000 tokens; a proposed policy to
+tune by experiment, not a measured threshold). A diff over budget is split into smaller issues.
+
 ## Agents
 
 None in core. All three harnesses spawn general subagents from a prompt; rule 5 needs only a

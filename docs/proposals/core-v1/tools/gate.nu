@@ -2,7 +2,7 @@
 #   nu gate.nu test -- mise run test
 #   nu gate.nu test --json -- mise run test
 
-const PATTERN = '(?i)(error|fail|panic|fatal|assert|exception|expected)'
+const PATTERN = '(?i)(warn|error|fail|panic|fatal|assert|exception|expected)'
 
 # Collapse repeated lines into "<line> ×N", keeping first-seen order.
 export def dedupe [lines: list<string>]: nothing -> list<string> {
@@ -16,7 +16,7 @@ export def dedupe [lines: list<string>]: nothing -> list<string> {
 }
 
 # Keep the lines that look like failures, deduplicated, capped.
-export def failures [output: string, max: int = 20]: nothing -> list<string> {
+export def failures [output: string, max: int = 1]: nothing -> list<string> {
   dedupe ($output | lines | where {|l| $l =~ $PATTERN }) | first $max
 }
 
@@ -25,7 +25,7 @@ def main [
   ...cmd: string           # command to run
   --json                   # emit a record instead of text
   --log-dir: string = ".gates"
-  --max: int = 20          # failure lines to show
+  --max: int = 1           # failure lines to show; fail fast, fix one thing at a time
 ] {
   if ($cmd | is-empty) { error make {msg: "no command given; usage: gate.nu <name> -- <cmd...>"} }
   mkdir $log_dir
@@ -35,13 +35,15 @@ def main [
   let secs = ((date now) - $start | into int) / 1_000_000_000 | math round --precision 1
   $"($r.stdout)($r.stderr)" | save -f $log
   let ok = $r.exit_code == 0
+  # 126/127: the check never ran (not executable / not found). That is ERROR, not FAIL.
+  let status = if $ok { "PASS" } else if $r.exit_code in [126 127] { "ERROR" } else { "FAIL" }
   let lines = if $ok { [] } else { failures $"($r.stdout)\n($r.stderr)" $max }
   if $json {
-    {gate: $name, status: (if $ok { "PASS" } else { "FAIL" }), exit: $r.exit_code, secs: $secs, log: $log, failures: $lines} | to json -r | print
+    {gate: $name, status: $status, exit: $r.exit_code, secs: $secs, log: $log, failures: $lines} | to json -r | print
   } else if $ok {
     print $"PASS ($name) ($secs)s"
   } else {
-    print $"FAIL ($name) exit ($r.exit_code) log:($log)"
+    print $"($status) ($name) exit ($r.exit_code) log:($log)"
     $lines | each {|l| print $"  ($l)" } | ignore
   }
   exit $r.exit_code

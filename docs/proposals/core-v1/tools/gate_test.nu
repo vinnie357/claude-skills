@@ -7,7 +7,8 @@ def main [] {
   $env.LOGDIR = (mktemp -d)
 
   assert equal (dedupe [a b a a c]) ["a ×3" b c]
-  assert equal (failures "ok\nERROR x\nERROR x\nfine\nFAIL y") ["ERROR x ×2" "FAIL y"]
+  assert equal (failures "ok\nERROR x\nERROR x\nfine\nFAIL y" 5) ["ERROR x ×2" "FAIL y"]
+  assert equal (failures "ok\nwarning: a\nerror: b") ["warning: a"]
   assert equal (failures ((1..50 | each { $"error ($in)" }) | str join "\n") 5 | length) 5
 
   let p = (gate pass -- nu -c "print hello")
@@ -24,6 +25,9 @@ def main [] {
   assert equal [$j.status $j.exit $j.failures] ["FAIL" 1 ["FAIL t1"]]
 
   assert ((gate empty).exit_code != 0)
+
+  let e = (gate missing --json -- nu -c "exit 127" | get stdout | from json)
+  assert equal $e.status "ERROR"
   rm -rf $env.LOGDIR
   print "PASS gate_test"
 }
