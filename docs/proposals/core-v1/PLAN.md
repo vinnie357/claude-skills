@@ -123,6 +123,24 @@ trade-off be stated. Language detail comes from provider or language skills when
   tools, and is never committed (the `.bees/issues.jsonl` disclosure incident is why). At merge
   the worktree goes and the issue keeps one `DONE` line.
 
+## Containment, not prompts
+
+Autonomous loops run with harness permissions skipped. Safety comes from the boundary, not
+from per-action prompts or harness classifiers (Claude auto mode, Codex approvals), which
+differ per harness and change often:
+
+- Sandbox: awman (container plus worktree per agent) and altana's `awman` executor (Apple
+  Container micro-VM, declared env only, `op://` secrets resolved by reference).
+- Exit: a push is the only way out. Branch protection and required checks on the remote enforce
+  the merge rules and the `auto-merge` label, so an agent that ignores rule 5 still cannot merge
+  to production.
+- Always-risky actions (production merge, history rewrite, secret reads, remote deletes,
+  gate or risk-config changes) are blocked by the sandbox or the remote, not by asking the agent.
+
+altana already supplies parts of the loop: `goal` with a crew runs an issue to completion,
+`council` fans a review out to several harnesses, results are structured JSON. Gap: `altana
+stats` reports tokens as `n/a`, and rule 11 measures cost in tokens.
+
 ## Distill, don't import
 
 Public skills are often verbose or produce verbose output. When one cannot be used as-is, take
