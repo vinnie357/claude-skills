@@ -113,7 +113,20 @@ trade-off be stated. Language detail comes from provider or language skills when
 - Agents merge feature work into the integration branch once gates and review pass. Humans gate
   only production (`dev`→`main`, or `main` in low-risk repos), unless the operator enables auto-merge.
 
-## Two levels of tracking
+## Three layers of tracking
+
+1. Persistent (tracker): epics and issues with global ids.
+2. Lead (ephemeral, per worktree): the lead's breakdown, or a pre-decomposed list it received.
+   Items are named `<issue>.<n>` after the parent, so two worktrees never mint colliding numbers.
+3. Worker (a brief): one item handed to a worker with goal, files in scope, done-when, gate
+   command, skill paths and budget. A curated world: everything the task needs, nothing else.
+   The worker validates with the same baby gates as the lead and returns the diff and one line.
+
+Output discipline: no justification prose and no comments restating code. Ten comment lines on a
+one-line change cost tokens now and on every later read. Candidate gate: flag diffs whose added
+comment lines outnumber added code lines.
+
+## Two levels of tracking (superseded by three layers above)
 
 - Persistent (GitHub Issues or Linear): epics and issues, decisions, `BLOCKED` asks, report
   lines, and merge authority. A user grants auto-merge by labelling an issue or its epic
