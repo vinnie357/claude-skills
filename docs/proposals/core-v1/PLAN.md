@@ -130,7 +130,7 @@ Resume from this section and the open issues on vinnie357/skills; do not replay 
 
 **To decide or do next:**
 1. Name for the repo tool replacing `skills.nu`.
-2. mise `packslip:` backend and `mise skills sync` as a distribution channel (research pending).
+2. mise `packslip:` backend and `mise skills sync` as a distribution channel. Findings (mise docs, 2026-10-07): install with `mise use packslip:owner/repo@1.2.3`; versions come from GitHub release tags carrying a signed `packslip.sigstore.json` bundle (keyless Sigstore by default, signer pinned on first use, digests in `mise.lock`, 24h minimum release age by default). A manifest can declare a skill folder from the artifact, a signed asset, or the repo at the release commit. `mise skills sync` symlinks each skill into one directory per run (default `.claude/skills`, `-g` for home, `--dir .agents/skills` for others), owns only links it made, and leaves real folders alone. Unverified: whether a skill-only release with no binary artifact is valid; check the spec at packslip.dev before choosing it over `install.sh`.
 3. Cloud environment setup script: set git `user.name`/`user.email` to the owner (sessions default to an agent identity).
 4. `v0.1.0` release `target_commitish` still names the pre-rewrite commit (`gh release edit v0.1.0 --target main`).
 5. Repo settings in GitHub UI: squash only, PR title as squash message, delete head branches, protect `main`.
