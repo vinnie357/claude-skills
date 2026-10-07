@@ -113,6 +113,16 @@ trade-off be stated. Language detail comes from provider or language skills when
 - Agents merge feature work into the integration branch once gates and review pass. Humans gate
   only production (`dev`→`main`, or `main` in low-risk repos), unless the operator enables auto-merge.
 
+## Two levels of tracking
+
+- Persistent (GitHub Issues or Linear): epics and issues, decisions, `BLOCKED` asks, report
+  lines, and merge authority. A user grants auto-merge by labelling an issue or its epic
+  `auto-merge`; an issue inherits from its epic. No label: stop before production.
+- Ephemeral (per worktree): the lead's breakdown of one issue into steps, kept in the worktree
+  with bees or a plain file. It survives compaction and harness restarts, unlike harness task
+  tools, and is never committed (the `.bees/issues.jsonl` disclosure incident is why). At merge
+  the worktree goes and the issue keeps one `DONE` line.
+
 ## Distill, don't import
 
 Public skills are often verbose or produce verbose output. When one cannot be used as-is, take
