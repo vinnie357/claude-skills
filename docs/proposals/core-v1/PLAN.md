@@ -129,7 +129,7 @@ Resume from this section and the open issues on vinnie357/skills; do not replay 
 **Open issues:** #3 issue template, #4 gate runner and review sizing, #5 sync core to this draft, #10 test-path gate, #11 plugin version, #12 env model line, #13 agy probe, #14 old vs new experiment, #17 always-on bundle, #27 port claude-skills plugin and skill validation, #18 distill all 108 (blocked on complete core).
 
 **To decide or do next:**
-1. Move `skills.nu` commands and gate scripts into `core/tasks/` (issue on vinnie357/skills).
+1. Move `skills.nu` commands and gate scripts into `core/tasks/` (vinnie357/skills#28).
 2. mise `packslip:` backend and `mise skills sync` as a distribution channel. Findings (mise docs, 2026-10-07): install with `mise use packslip:owner/repo@1.2.3`; versions come from GitHub release tags carrying a signed `packslip.sigstore.json` bundle (keyless Sigstore by default, signer pinned on first use, digests in `mise.lock`, 24h minimum release age by default). A manifest can declare a skill folder from the artifact, a signed asset, or the repo at the release commit. `mise skills sync` symlinks each skill into one directory per run (default `.claude/skills`, `-g` for home, `--dir .agents/skills` for others), owns only links it made, and leaves real folders alone. Unverified: whether a skill-only release with no binary artifact is valid; check the spec at packslip.dev before choosing it over `install.sh`.
 3. Cloud environment setup script: set git `user.name`/`user.email` to the owner (sessions default to an agent identity).
 4. `v0.1.0` release `target_commitish` still names the pre-rewrite commit (`gh release edit v0.1.0 --target main`).
