@@ -123,9 +123,16 @@ trade-off be stated. Language detail comes from provider or language skills when
   tools, and is never committed (the `.bees/issues.jsonl` disclosure incident is why). At merge
   the worktree goes and the issue keeps one `DONE` line.
 
+## Use what is present
+
+Not every setup can sandbox, and each harness has its own concepts. `skills env` (vinnie357/skills#6)
+prints one line per capability present (harness, mode, sandbox, tracker, find tier, work list,
+output filter, gates) and nothing for what is absent. Leads run it once; interactive pairs use it
+to see what the session can do. Rules name capabilities, not tools, so absent tools cost no tokens.
+
 ## Containment, not prompts
 
-Autonomous loops run with harness permissions skipped. Safety comes from the boundary, not
+Where a sandbox exists, autonomous loops run with harness permissions skipped and safety comes from the boundary, not
 from per-action prompts or harness classifiers (Claude auto mode, Codex approvals), which
 differ per harness and change often:
 
