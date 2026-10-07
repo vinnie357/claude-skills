@@ -18,3 +18,4 @@ Fix forward. Small changes, merged often, verified by machines.
 8. **Secrets** — Referenced, never read or printed.
 9. **Report** — One line: `DONE|FAIL|BLOCKED <issue> <what> <ref>`. `BLOCKED` adds the decision needed, a recommendation, and why. Send only what is new. Claims cite a command run in this session.
 10. **Restraint** — Do what the issue asks. Load only the skills the task needs; prefer existing provider skills to new ones. If a rule can be a gate, it is not prose. `AGENTS.md` is project rules only.
+11. **Build** — Ship the smallest thing that works; change it when it breaks or a user, human or agent, asks. Name the trade-off when choosing a stack or fixing a bug (compile time, long-run memory, repetition, distribution). Run OCI images in micro-VMs or Wasm/WASI before bare containers; Kubernetes only when the need is proven. Cost is measured in tokens from the harness; never guess time or money.

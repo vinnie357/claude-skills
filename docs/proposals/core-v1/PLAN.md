@@ -87,6 +87,16 @@ reviewer. `tools/size.nu` estimates diff tokens as bytes / 4 and fails when the 
 `REVIEW_WINDOW × REVIEW_SHARE` (defaults 200000 × 0.1 = 20000 tokens; a proposed policy to
 tune by experiment, not a measured threshold). A diff over budget is split into smaller issues.
 
+## Build rule (11)
+
+Kept in core because models do not default to these opinions: MVP first and change on
+breakage or request; name the trade-off; micro-VM / Wasm runtime order (Wasm/WASI, Cloud
+Hypervisor, Firecracker, then bare containers); no Kubernetes by default; token cost only.
+
+Left out on purpose: the per-language tax list (Rust compile time, Node long-run memory,
+Go repetition, Elixir distribution, Zig, Python). Models know these; core only requires the
+trade-off be stated. Language detail comes from provider or language skills when a task needs it.
+
 ## Agents
 
 None in core. All three harnesses spawn general subagents from a prompt; rule 5 needs only a
