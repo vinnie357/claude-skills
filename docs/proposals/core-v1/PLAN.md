@@ -119,7 +119,7 @@ Resume from this section and the open issues on vinnie357/skills; do not replay 
 
 **Current decisions since the grilling table below:**
 - Trunk-based: `main` always current; every green `main` releases; only a major waits for the user (PR #25). No `dev` (delete the leftover `dev` branch in the GitHub UI).
-- Core is generic: one `SKILL.md`, no scripts, no tool names. Repo scripts (`scripts/skills.nu` find/env, budget, authors, scratch, gate, size) are vinnie357/skills tooling only. Rename `skills.nu`: it collides with `mise skills` (built-in) and `npx skills` (Vercel). Name not chosen.
+- Core names our specialty tools first (asdb, jev-select, altana, awman, mise) and falls back for users without them; it ships as one `SKILL.md` with no bundled scripts. Repo scripts (`scripts/skills.nu` find/env, budget, authors, scratch, gate, size) are vinnie357/skills tooling only. Rename `skills.nu`: it collides with `mise skills` (built-in) and `npx skills` (Vercel). Name not chosen.
 - Branches `<type>/<issue>-<slug>`; squash merges; commit as the owner; no attribution anywhere (`authors` gate, PR #23).
 - Prose, not gates, for repo setup, branch naming and pinned merges: in the distilled `git` skill (#17).
 - Compaction: avoid it. State lives in the tracker and worktree list; end a session and resume fresh instead of compacting.
