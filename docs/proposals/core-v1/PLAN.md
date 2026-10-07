@@ -97,6 +97,21 @@ Left out on purpose: the per-language tax list (Rust compile time, Node long-run
 Go repetition, Elixir distribution, Zig, Python). Models know these; core only requires the
 trade-off be stated. Language detail comes from provider or language skills when a task needs it.
 
+## Modes and merges
+
+- Two modes share one tracker. Interactive: a human co-develops and the session ends by filing
+  issues (spirit of https://github.com/mattpocock/skills: grill, to-spec, to-tickets, handoff).
+  Autonomous: agents work issues and ask only through `BLOCKED`.
+- Agents merge feature work into the integration branch once gates and review pass. Humans gate
+  only production (`dev`→`main`, or `main` in low-risk repos), unless the operator enables auto-merge.
+
+## Distill, don't import
+
+Public skills are often verbose or produce verbose output. When one cannot be used as-is, take
+its spirit into one line and link the source, as was done for restraint. Depend on files, git,
+mise and the tracker; treat harness-specific features (invocation flags, hooks, agent formats)
+as optional because they change often.
+
 ## Agents
 
 None in core. All three harnesses spawn general subagents from a prompt; rule 5 needs only a
