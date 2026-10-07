@@ -113,6 +113,29 @@ trade-off be stated. Language detail comes from provider or language skills when
 - Agents merge feature work into the integration branch once gates and review pass. Humans gate
   only production (`dev`→`main`, or `main` in low-risk repos), unless the operator enables auto-merge.
 
+## Handoff (2026-10-07)
+
+Resume from this section and the open issues on vinnie357/skills; do not replay the session.
+
+**Current decisions since the grilling table below:**
+- Trunk-based: `main` always current; every green `main` releases; only a major waits for the user (PR #25). No `dev` (delete the leftover `dev` branch in the GitHub UI).
+- Core is generic: one `SKILL.md`, no scripts, no tool names. Repo scripts (`scripts/skills.nu` find/env, budget, authors, scratch, gate, size) are vinnie357/skills tooling only. Rename `skills.nu`: it collides with `mise skills` (built-in) and `npx skills` (Vercel). Name not chosen.
+- Branches `<type>/<issue>-<slug>`; squash merges; commit as the owner; no attribution anywhere (`authors` gate, PR #23).
+- Prose, not gates, for repo setup, branch naming and pinned merges: in the distilled `git` skill (#17).
+- Compaction: avoid it. State lives in the tracker and worktree list; end a session and resume fresh instead of compacting.
+
+**Open PRs on vinnie357/skills (all target `main`; merge in this order, review each sized to its diff, resolve `tests/run.nu` conflicts with a merge from `main`):** #25 release policy, #22 scratch, #23 authors, #21 budget, #20 env, #19 find, #15 install.sh (`feat!`, major held for approval).
+
+**Open issues:** #3 issue template, #4 gate runner and review sizing, #5 sync core to this draft, #10 test-path gate, #11 plugin version, #12 env model line, #13 agy probe, #14 old vs new experiment, #17 always-on bundle, #18 distill all 108 (blocked on complete core).
+
+**To decide or do next:**
+1. Name for the repo tool replacing `skills.nu`.
+2. mise `packslip:` backend and `mise skills sync` as a distribution channel (research pending).
+3. Cloud environment setup script: set git `user.name`/`user.email` to the owner (sessions default to an agent identity).
+4. `v0.1.0` release `target_commitish` still names the pre-rewrite commit (`gh release edit v0.1.0 --target main`).
+5. Repo settings in GitHub UI: squash only, PR title as squash message, delete head branches, protect `main`.
+6. Managed-agents ideas still open: credential isolation wording, lead list as an append-only log, lazy hands.
+
 ## Decisions (grilling, 2026-10-07)
 
 | Area | Decision |
