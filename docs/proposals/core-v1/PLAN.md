@@ -113,6 +113,31 @@ trade-off be stated. Language detail comes from provider or language skills when
 - Agents merge feature work into the integration branch once gates and review pass. Humans gate
   only production (`dev`→`main`, or `main` in low-risk repos), unless the operator enables auto-merge.
 
+## Decisions (grilling, 2026-10-07)
+
+| Area | Decision |
+|---|---|
+| Home | `vinnie357/skills`; claude-skills stays untouched; install one core, never both |
+| Name | skill `core`; namespace `vinnie357` only in install paths (`~/.local/share/vinnie357/`) |
+| Contents | `core/SKILL.md` plus `core/scripts/`; ~612+ words for now |
+| Tools required | git, mise, Nushell to run gates; install needs only `sh`, `curl`, `git` |
+| Warnings | always fixed; cleanup is one tracker issue, slices ephemeral |
+| System of record | inferred from the task source, else ask once; one line in `AGENTS.md` |
+| Item loop | test author → implementer (never edits tests) → local CI → remote CI → one sized review → merge |
+| Models | role and capability tier from existing harness config; low effort for work, high for review, larger model only for risk |
+| Escalation | 2 failures promote one tier, at most twice, then `BLOCKED` |
+| Dropped from agent-loop | six tiers, five-stage pipeline, multiple reviewers, forced decomposition, unavailability fallback |
+| Merge | agents merge into integration branch; production waits for a human or `auto-merge`; `main` only for now |
+| Distribution | standard skill folder; POSIX `install.sh` via `curl | sh`, tag resolved to commit and locked, moved tags refused; plugin is a thin wrapper whose version release writes; no Node |
+| Harness paths | `~/.claude/skills`, `~/.agents/skills`, `~/.config/opencode/skills`, `~/.gemini/config/skills`, `~/.gemini/antigravity-cli/skills` (agy, per docs; probe records version) |
+| Ownership | installer owns only links into `~/.local/share/vinnie357/`; anything else is reported, never overwritten |
+| Activation | one plain line per harness user file, exact match, never duplicated |
+| Experiment | Claude cloud sessions after the build; old core as published plugin vs `core` via `install.sh`; same model and prompt; no push |
+| Logs | per-run, untracked, deleted with the worktree; logs and large files read with filters only |
+| Dropped | comment-ratio gate, HTML markers, deprecating claude-skills core, skills.sh in docs |
+
+Open from the managed-agents article: credential isolation stated structurally in rule 9; the lead's list as an append-only event log; lazy hands (provision a worktree or sandbox only when a brief runs code).
+
 ## Three layers of tracking
 
 1. Persistent (tracker): epics and issues with global ids.
