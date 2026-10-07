@@ -119,7 +119,7 @@ Resume from this section and the open issues on vinnie357/skills; do not replay 
 
 **Current decisions since the grilling table below:**
 - Trunk-based: `main` always current; every green `main` releases; only a major waits for the user (PR #25). No `dev` (delete the leftover `dev` branch in the GitHub UI).
-- Core names our specialty tools first (asdb, jev-select, altana, awman, mise) and falls back for users without them; it ships as one `SKILL.md` with no bundled scripts. Repo scripts (`scripts/skills.nu` find/env, budget, authors, scratch, gate, size) are vinnie357/skills tooling only. Rename `skills.nu`: it collides with `mise skills` (built-in) and `npx skills` (Vercel). Name not chosen.
+- The skill ships `core/SKILL.md` plus `core/tasks/` (Nushell file tasks). `install.sh` links `core/tasks/` to `~/.config/mise/tasks/core/`, so every project has `mise run core:find`, `core:env`, `core:gate`, etc. The tasks handle asdb, jev-select, altana and awman with fallbacks; the skill names only the tasks and says what to do without them. Replaces `scripts/skills.nu` (name clashed with `mise skills` and `npx skills`). A project task named `core:*` would shadow ours. Repo scripts (`scripts/skills.nu` find/env, budget, authors, scratch, gate, size) are vinnie357/skills tooling only. Rename `skills.nu`: it collides with `mise skills` (built-in) and `npx skills` (Vercel). Name not chosen.
 - Branches `<type>/<issue>-<slug>`; squash merges; commit as the owner; no attribution anywhere (`authors` gate, PR #23).
 - Prose, not gates, for repo setup, branch naming and pinned merges: in the distilled `git` skill (#17).
 - Compaction: avoid it. State lives in the tracker and worktree list; end a session and resume fresh instead of compacting.
@@ -129,7 +129,7 @@ Resume from this section and the open issues on vinnie357/skills; do not replay 
 **Open issues:** #3 issue template, #4 gate runner and review sizing, #5 sync core to this draft, #10 test-path gate, #11 plugin version, #12 env model line, #13 agy probe, #14 old vs new experiment, #17 always-on bundle, #27 port claude-skills plugin and skill validation, #18 distill all 108 (blocked on complete core).
 
 **To decide or do next:**
-1. Name for the repo tool replacing `skills.nu`.
+1. Move `skills.nu` commands and gate scripts into `core/tasks/` (issue on vinnie357/skills).
 2. mise `packslip:` backend and `mise skills sync` as a distribution channel. Findings (mise docs, 2026-10-07): install with `mise use packslip:owner/repo@1.2.3`; versions come from GitHub release tags carrying a signed `packslip.sigstore.json` bundle (keyless Sigstore by default, signer pinned on first use, digests in `mise.lock`, 24h minimum release age by default). A manifest can declare a skill folder from the artifact, a signed asset, or the repo at the release commit. `mise skills sync` symlinks each skill into one directory per run (default `.claude/skills`, `-g` for home, `--dir .agents/skills` for others), owns only links it made, and leaves real folders alone. Unverified: whether a skill-only release with no binary artifact is valid; check the spec at packslip.dev before choosing it over `install.sh`.
 3. Cloud environment setup script: set git `user.name`/`user.email` to the owner (sessions default to an agent identity).
 4. `v0.1.0` release `target_commitish` still names the pre-rewrite commit (`gh release edit v0.1.0 --target main`).
