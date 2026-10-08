@@ -91,6 +91,38 @@ fn allocateResource(allocator: Allocator) !Resource {
 }
 ```
 
+## Ownership Transfer and Asynchronous Teardown
+
+When inserting into a container that owns its items, name the current owner and
+transfer ownership only after insertion succeeds. Keep the new item's cleanup
+guard armed while allocating and initializing it, append it to the destination,
+then disarm the guard. The owning container's cleanup must release inserted
+items. This prevents both a leak when insertion fails and a double-free after
+ownership has moved. A container such as `ArrayList` owns its backing storage,
+not automatically any allocations referenced by its elements; the surrounding
+type must define and implement that element-ownership contract. Apply the same
+commit-point reasoning to other transfers without requiring a particular
+container or framework.
+
+Cancellation is a request, not proof that asynchronous work has completed or
+that its resources may be destroyed. A worker may still borrow memory, a
+mailbox, a timer, or other state after cancellation is requested. Observe its
+terminal completion and join or otherwise establish that it has stopped before
+freeing borrowed resources. Choose the synchronization mechanism that fits the
+program rather than turning this into a universal threading architecture.
+
+This guidance draws on Ghostty's renderer-thread lifecycle: its paired loop,
+async work, timer, and mailbox setup is in
+[`src/renderer/Thread.zig` lines 120–154](https://github.com/ghostty-org/ghostty/blob/44f2a44df7e8c4a0c6df3f7d872ef3d7ead88e51/src/renderer/Thread.zig#L120-L154),
+and its join-before-deinit ordering is in
+[lines 181–195](https://github.com/ghostty-org/ghostty/blob/44f2a44df7e8c4a0c6df3f7d872ef3d7ead88e51/src/renderer/Thread.zig#L181-L195).
+When describing the conceptual influence, use wording such as “Inspired by
+Ghostty, `src/renderer/Thread.zig` at commit `44f2a44`; independently
+implemented.” If code is copied or substantially adapted instead, retain the
+full applicable copyright and MIT permission notice from Ghostty's
+[`LICENSE`](https://github.com/ghostty-org/ghostty/blob/44f2a44df7e8c4a0c6df3f7d872ef3d7ead88e51/LICENSE)
+(Copyright (c) 2024 Mitchell Hashimoto, Ghostty contributors).
+
 ## Choosing an Allocator
 
 - **Performance-critical, short-lived**: `ArenaAllocator`
