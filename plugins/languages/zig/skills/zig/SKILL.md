@@ -40,6 +40,14 @@ first and match guidance to the installed toolchain. This plugin documents
 retained for migration. Check https://ziglang.org/download/index.json for the
 release list — GitHub tags lag behind (they stop at 0.15.2).
 
+When borrowing an upstream example, compare it with that project's source and
+compiler manifest at a pinned commit. Report any disagreement with general or
+official documentation and follow the consuming project's existing pin; do not
+silently change its toolchain. For example, Ghostty commit
+[`44f2a44`](https://github.com/ghostty-org/ghostty/blob/44f2a44df7e8c4a0c6df3f7d872ef3d7ead88e51/build.zig.zon#L2-L6)
+records Zig 0.16.0 even when Ghostty's official build documentation still
+describes 0.15.2.
+
 | Version | Template | Highlights |
 |---|---|---|
 | 0.16.0 | `templates/0.16.0/mise.toml` | `std.Io` async architecture (all blocking ops take `io`, `io.async`/`Future`, `Io.Threaded`), `@cImport` deprecated for `b.addTranslateC()`, `@Type` replaced by dedicated builtins, "juicy main" `main(init: std.process.Init)`, sync primitives moved to `std.Io.*` |
