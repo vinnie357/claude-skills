@@ -16,7 +16,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.185",
+      "version": "0.4.186",
       "category": "meta",
       "keywords": [
         "skills",
@@ -540,7 +540,7 @@
       "source": "./plugins/languages/zig",
       "strict": true,
       "description": "Zig programming skills: build system, comptime, allocators, error handling, C interop, testing, and troubleshooting",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "category": "language",
       "keywords": [
         "zig",
