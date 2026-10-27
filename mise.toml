@@ -35,7 +35,7 @@ depends = ["test"]
 # "check-version-bumps" CI job (targets origin/<base_ref> on the actual PR).
 # Run it directly with `mise run test:version-bumps <base>` when needed locally.
 description = "Run all validation tests (Claude native + custom)"
-depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:git-hook", "test:gitleaks-invocation", "test:no-symlinks", "test:plugin-names", "test:comment-fixtures", "test:prose-fixtures", "test:prose", "test:workflow-templates"]
+depends = ["test:claude", "test:marketplace", "test:plugins", "test:skills-quality", "test:core-list", "test:disclosure", "test:sources", "test:fenced-literals", "test:security-hook", "test:git-hook", "test:gitleaks-invocation", "test:no-symlinks", "test:plugin-names", "test:runex-admin-bearer", "test:comment-fixtures", "test:prose-fixtures", "test:prose", "test:workflow-templates"]
 
 [tasks."test:claude"]
 description = "Run Claude's native plugin validation"
@@ -399,6 +399,15 @@ run = """
 let repo_root = (git rev-parse --show-toplevel | str trim)
 nu ($repo_root | path join "test" "validate-no-plugin-symlinks.nu") --self-test
 nu ($repo_root | path join "test" "validate-no-plugin-symlinks.nu")
+"""
+
+[tasks."test:runex-admin-bearer"]
+description = "Regression test: runex skill bundles.nu sends RUNEX_ADMIN_TOKEN as the sole bearer on admin bundle routes, archive= upload field (runex#388, runex-workflows-187)"
+run = """
+#!/usr/bin/env nu
+
+let repo_root = (git rev-parse --show-toplevel | str trim)
+nu ($repo_root | path join "test" "validate-runex-admin-bearer.nu")
 """
 
 [tasks."test:plugin-names"]
