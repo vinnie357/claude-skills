@@ -16,7 +16,7 @@
       "name": "all-skills",
       "source": "./",
       "description": "Meta-plugin that installs all skills from all plugins in the marketplace",
-      "version": "0.4.186",
+      "version": "0.4.187",
       "category": "meta",
       "keywords": [
         "skills",
@@ -388,7 +388,7 @@
       "source": "./plugins/tools/runex",
       "strict": true,
       "description": "Runex workflow engine: API, bundles, step logs, and debugging",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "category": "tools",
       "keywords": [
         "runex",

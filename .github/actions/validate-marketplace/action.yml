@@ -45,5 +45,10 @@ runs:
 
     - name: Run marketplace validation
       shell: bash
+      # Keep temp dirs on the workspace filesystem: the skills-quality harness
+      # does `git clone --local` into mktemp, and hard links fail with EXDEV
+      # when /tmp is a separate mount on the runner.
+      env:
+        TMPDIR: ${{ runner.temp }}
       run: |
         mise test
