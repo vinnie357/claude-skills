@@ -62,57 +62,57 @@ The template's contents:
 
 ## Scripts
 
-This skill provides versioned Nushell scripts for direct API interaction. Current scripts are in `scripts/0.0.7/`.
+This skill provides versioned Nushell scripts for direct API interaction. Current scripts are in `scripts/0.0.25/`.
 
 ### runex.nu — API Client
 
 ```bash
 # Server info, health, readiness
-nu scripts/0.0.7/runex.nu info
-nu scripts/0.0.7/runex.nu health
+nu scripts/0.0.25/runex.nu info
+nu scripts/0.0.25/runex.nu health
 
 # Workflows and runs
-nu scripts/0.0.7/runex.nu workflows
-nu scripts/0.0.7/runex.nu workflow 1
-nu scripts/0.0.7/runex.nu runs
-nu scripts/0.0.7/runex.nu run 42
-nu scripts/0.0.7/runex.nu steps 42
-nu scripts/0.0.7/runex.nu submit "bundles/core/workflows/tool-verify.toml" '{"TOOLS":"mise,nu,git"}'
+nu scripts/0.0.25/runex.nu workflows
+nu scripts/0.0.25/runex.nu workflow 1
+nu scripts/0.0.25/runex.nu runs
+nu scripts/0.0.25/runex.nu run 42
+nu scripts/0.0.25/runex.nu steps 42
+nu scripts/0.0.25/runex.nu submit "bundles/core/workflows/tool-verify.toml" '{"TOOLS":"mise,nu,git"}'
 
 # Step heartbeat (extends long-running step deadlines)
-nu scripts/0.0.7/runex.nu heartbeat 42 7
-nu scripts/0.0.7/runex.nu heartbeat 42 7 60000   # extend by 60s
+nu scripts/0.0.25/runex.nu heartbeat 42 7
+nu scripts/0.0.25/runex.nu heartbeat 42 7 60000   # extend by 60s
 
 # Federation (requires Postgres + libcluster)
-nu scripts/0.0.7/runex.nu federation-nodes
-nu scripts/0.0.7/runex.nu federation-runs
-nu scripts/0.0.7/runex.nu federation-run 99
+nu scripts/0.0.25/runex.nu federation-nodes
+nu scripts/0.0.25/runex.nu federation-runs
+nu scripts/0.0.25/runex.nu federation-run 99
 ```
 
 ### bundles.nu — Bundle Discovery + Distribution
 
 ```bash
 # Local bundle filesystem operations
-nu scripts/0.0.7/bundles.nu list
-nu scripts/0.0.7/bundles.nu show bundles/core
-nu scripts/0.0.7/bundles.nu validate bundles/core
-nu scripts/0.0.7/bundles.nu pack bundles/core
+nu scripts/0.0.25/bundles.nu list
+nu scripts/0.0.25/bundles.nu show bundles/core
+nu scripts/0.0.25/bundles.nu validate bundles/core
+nu scripts/0.0.25/bundles.nu pack bundles/core
 
 # Server-side bundle catalog
-nu scripts/0.0.7/bundles.nu bundles               # GET /api/bundles
-nu scripts/0.0.7/bundles.nu reload                # POST /api/bundles/reload
-nu scripts/0.0.7/bundles.nu import core.tar.gz    # multipart upload
-nu scripts/0.0.7/bundles.nu pull core 0.0.1       # JSON pull via BUNDLE_SOURCES
+nu scripts/0.0.25/bundles.nu bundles               # GET /api/bundles
+nu scripts/0.0.25/bundles.nu reload                # POST /api/bundles/reload
+nu scripts/0.0.25/bundles.nu import core.tar.gz    # multipart upload
+nu scripts/0.0.25/bundles.nu pull core 0.0.1       # JSON pull via BUNDLE_SOURCES
 ```
 
 ### debug.nu — Step Log Inspection
 
 ```bash
-nu scripts/0.0.7/debug.nu steps 42
-nu scripts/0.0.7/debug.nu log 42 7
-nu scripts/0.0.7/debug.nu failures 42
-nu scripts/0.0.7/debug.nu watch 42 --interval 5
-nu scripts/0.0.7/debug.nu heartbeat-status 42 7   # last heartbeat ts + timeout state
+nu scripts/0.0.25/debug.nu steps 42
+nu scripts/0.0.25/debug.nu log 42 7
+nu scripts/0.0.25/debug.nu failures 42
+nu scripts/0.0.25/debug.nu watch 42 --interval 5
+nu scripts/0.0.25/debug.nu heartbeat-status 42 7   # last heartbeat ts + timeout state
 ```
 
 ## Configuration

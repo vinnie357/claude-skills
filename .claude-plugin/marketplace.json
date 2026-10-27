@@ -388,7 +388,7 @@
       "source": "./plugins/tools/runex",
       "strict": true,
       "description": "Runex workflow engine: API, bundles, step logs, and debugging",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "category": "tools",
       "keywords": [
         "runex",

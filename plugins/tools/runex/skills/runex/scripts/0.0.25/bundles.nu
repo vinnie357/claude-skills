@@ -37,6 +37,17 @@ def get-headers [] {
     }
 }
 
+# Admin bearer for bundle admin routes (import, reload). Uses RUNEX_ADMIN_TOKEN
+# only; never falls back to RUNEX_API_TOKEN.
+def admin-headers [] {
+    let token = ($env.RUNEX_ADMIN_TOKEN? | default "")
+    if ($token | is-empty) {
+        []
+    } else {
+        [Authorization $"Bearer ($token)"]
+    }
+}
+
 def api-get [path: string] {
     let host = (get-host)
     let headers = (get-headers)
@@ -53,9 +64,9 @@ def api-get [path: string] {
     }
 }
 
-def api-post [path: string, body: record] {
+def api-post [path: string, body: record, --admin] {
     let host = (get-host)
-    let headers = (get-headers)
+    let headers = if $admin { admin-headers } else { get-headers }
     try {
         if ($headers | is-empty) {
             http post -t application/json $"($host)($path)" $body
@@ -269,7 +280,11 @@ def cmd-import [args: list<string>] {
     } else {
         $env.RUNEX_HOST? | default "http://localhost:4000"
     }
-    let resp = (^curl -s -X POST $"($host)/api/bundles/import" -F $"file=@($archive)" | from json)
+    let headers = (admin-headers)
+    let url = $"($host)/api/bundles/import"
+    # The bearer reaches curl on stdin (-H @-), never on argv.
+    let header_line = if ($headers | is-empty) { "" } else { $"($headers | first): ($headers | last)" }
+    let resp = ($header_line | ^curl -s -X POST $url -H @- -F $"archive=@($archive)" | from json)
     $resp
 }
 
@@ -281,7 +296,7 @@ def cmd-bundles [] {
 
 # POST /api/bundles/reload — refresh the bundle cache on the Runex host
 def cmd-reload [] {
-    let resp = (api-post "/api/bundles/reload" {})
+    let resp = (api-post --admin "/api/bundles/reload" {})
     $resp
 }
 
@@ -295,6 +310,6 @@ def cmd-pull [args: list<string>] {
     let name = ($args | first)
     let version = ($args | get 1)
     let body = {name: $name, version: $version}
-    let resp = (api-post "/api/bundles/import" $body)
+    let resp = (api-post --admin "/api/bundles/import" $body)
     $resp
 }
